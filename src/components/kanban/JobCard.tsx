@@ -8,6 +8,7 @@ import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { ResumeBadge } from "@/components/shared/ResumeBadge";
 import { StageSelector } from "@/components/shared/StageSelector";
 import { daysAgo } from "@/lib/utils";
+import Link from "next/link";
 import type { Job, Stage } from "@/types";
 
 interface JobCardProps {
@@ -54,9 +55,14 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
             }
           />
         </div>
-        <p className="mt-1 text-sm font-semibold text-slate-800 leading-tight">
+        <Link
+          href={`/jobs/${job.id}`}
+          className="mt-1 text-sm font-semibold text-slate-800 leading-tight hover:text-blue-600 transition-colors block"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {job.role}
-        </p>
+        </Link>
       </div>
 
       {/* Badges */}
