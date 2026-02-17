@@ -1,6 +1,12 @@
 export type Stage = "SAVED" | "APPLIED" | "INTERVIEW" | "OFFER" | "REJECTED" | "GHOSTED";
 export type Platform = "LINKEDIN" | "INDEED" | "GLASSDOOR" | "ROZEE_PK" | "BAYT" | "COMPANY_SITE" | "REFERRAL" | "OTHER";
 export type WorkType = "ONSITE" | "REMOTE" | "HYBRID";
+export type ApplyType = "EASY_APPLY" | "QUICK_APPLY" | "REGULAR" | "EMAIL" | "UNKNOWN";
+
+export interface ApplyOption {
+  link: string;
+  source: string;
+}
 
 export interface Job {
   id: string;
@@ -9,6 +15,11 @@ export interface Job {
   url?: string | null;
   platform: Platform;
   stage: Stage;
+  applyType: ApplyType;
+  isDirectApply: boolean;
+  applyOptions?: ApplyOption[] | null;
+  matchScore?: number | null;
+  description?: string | null;
   salary?: string | null;
   location?: string | null;
   workType: WorkType;

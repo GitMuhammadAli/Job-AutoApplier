@@ -53,48 +53,100 @@ export async function sendEmail(to: string, subject: string, html: string) {
   }
 }
 
-// ── New job found alert ──
-interface NewJobData {
+// ── Per-job email alert ──
+interface JobEmailData {
   company: string;
   role: string;
-  url?: string | null;
+  url: string;
   platform: string;
-  location?: string | null;
-  salary?: string | null;
-  notes?: string | null;
-  recommendedResume?: string;
+  location: string;
+  salary: string | null;
+  description: string;
+  applyType: string;
+  isDirectApply: boolean;
+  matchScore: number;
+  recommendedResume: string;
+  resumeFileUrl: string | null;
+  source: string;
 }
 
-export async function sendNewJobAlert(jobs: NewJobData[]) {
-  if (jobs.length === 0) return;
+const APPLY_TYPE_STYLES: Record<string, { bg: string; color: string; label: string }> = {
+  EASY_APPLY: { bg: "#d1fae5", color: "#059669", label: "Easy Apply" },
+  QUICK_APPLY: { bg: "#dbeafe", color: "#2563eb", label: "Quick Apply" },
+  REGULAR: { bg: "#f1f5f9", color: "#475569", label: "Regular Application" },
+  EMAIL: { bg: "#fef3c7", color: "#d97706", label: "Email Application" },
+  UNKNOWN: { bg: "#f1f5f9", color: "#94a3b8", label: "Apply" },
+};
 
-  const jobCards = jobs
-    .map(
-      (job) => `
-    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:12px;">
-      <div style="font-size:16px;font-weight:600;color:#1e293b;">${job.role}</div>
-      <div style="font-size:13px;color:#64748b;margin-top:2px;">${job.company}${job.location ? ` · ${job.location}` : ""}${job.salary ? ` · ${job.salary}` : ""}</div>
-      <div style="margin-top:8px;">
-        <span style="display:inline-block;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;">${job.platform}</span>
-        ${job.recommendedResume ? `<span style="display:inline-block;background:#eef2ff;color:#4338ca;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;margin-left:4px;">Use: ${job.recommendedResume}</span>` : ""}
+function applyTypeBadgeHtml(applyType: string): string {
+  const style = APPLY_TYPE_STYLES[applyType] || APPLY_TYPE_STYLES.UNKNOWN;
+  return `<span style="display:inline-block;background:${style.bg};color:${style.color};padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">${style.label}</span>`;
+}
+
+function matchScoreBarHtml(score: number): string {
+  const color = score >= 70 ? "#059669" : score >= 40 ? "#d97706" : "#94a3b8";
+  return `
+    <div style="margin-top:8px;">
+      <div style="font-size:11px;color:#64748b;margin-bottom:2px;">Match Score: <strong style="color:${color};">${score}%</strong></div>
+      <div style="background:#f1f5f9;border-radius:4px;height:6px;width:120px;">
+        <div style="background:${color};border-radius:4px;height:6px;width:${Math.min(score, 100)}%;"></div>
       </div>
-      ${job.notes ? `<p style="font-size:12px;color:#64748b;margin-top:8px;line-height:1.5;">${job.notes.substring(0, 200)}${job.notes.length > 200 ? "..." : ""}</p>` : ""}
-      ${job.url ? `<a href="${job.url}" style="display:inline-block;margin-top:10px;background:#2563eb;color:#fff;text-decoration:none;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;">Apply Now</a>` : ""}
-    </div>`
-    )
-    .join("");
+    </div>`;
+}
+
+export async function sendJobEmail(job: JobEmailData) {
+  const applyStyle = APPLY_TYPE_STYLES[job.applyType] || APPLY_TYPE_STYLES.UNKNOWN;
+  const isEasy = job.applyType === "EASY_APPLY";
+
+  const intro = isEasy
+    ? `This <strong>${job.role}</strong> at <strong>${job.company}</strong> is an <span style="color:${applyStyle.color};font-weight:600;">Easy Apply</span> position -- takes about 30 seconds to apply. Your "${job.recommendedResume}" resume is a great fit.`
+    : `This <strong>${job.role}</strong> at <strong>${job.company}</strong> matches your skills. ${job.applyType === "QUICK_APPLY" ? "Quick apply available." : "Standard application form."} We recommend using your "${job.recommendedResume}" resume.`;
+
+  const descSnippet = job.description
+    ? job.description.replace(/<[^>]*>/g, "").substring(0, 300) + (job.description.length > 300 ? "..." : "")
+    : "";
 
   const html = wrapHtml(
-    `${jobs.length} New Job${jobs.length > 1 ? "s" : ""} Found`,
+    `${job.role} at ${job.company}`,
     `
-    <h2 style="color:#1e293b;font-size:18px;margin:0 0 4px 0;">${jobs.length} New Job${jobs.length > 1 ? "s" : ""} Found</h2>
-    <p style="color:#64748b;font-size:13px;margin:0 0 16px 0;">Matching your search criteria. Click "Apply Now" to go directly to the application.</p>
-    ${jobCards}
-    <p style="color:#94a3b8;font-size:11px;margin-top:16px;">Tip: Open your recommended resume before clicking Apply to have it ready.</p>
+    <div style="margin-bottom:12px;">
+      ${applyTypeBadgeHtml(job.applyType)}
+      <span style="display:inline-block;background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:500;margin-left:6px;">${job.source}</span>
+    </div>
+
+    <h2 style="color:#1e293b;font-size:20px;margin:0 0 4px 0;">${job.role}</h2>
+    <div style="font-size:14px;color:#475569;margin-bottom:12px;">
+      <strong>${job.company}</strong>${job.location ? ` &middot; ${job.location}` : ""}${job.salary ? ` &middot; <span style="color:#059669;font-weight:600;">${job.salary}</span>` : ""}
+    </div>
+
+    <p style="font-size:13px;color:#334155;line-height:1.6;margin:0 0 12px 0;">${intro}</p>
+
+    ${matchScoreBarHtml(job.matchScore)}
+
+    ${descSnippet ? `<div style="background:#f8fafc;border-radius:8px;padding:12px;margin-top:12px;"><p style="font-size:12px;color:#64748b;line-height:1.6;margin:0;">${descSnippet}</p></div>` : ""}
+
+    <div style="margin-top:16px;">
+      <span style="display:inline-block;background:#eef2ff;color:#4338ca;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">Recommended Resume: ${job.recommendedResume}</span>
+      ${job.resumeFileUrl ? `<a href="${job.resumeFileUrl}" style="display:inline-block;color:#2563eb;font-size:12px;margin-left:8px;text-decoration:underline;">Download Resume</a>` : ""}
+    </div>
+
+    <div style="margin-top:20px;text-align:center;">
+      <a href="${job.url}" style="display:inline-block;background:${isEasy ? "#059669" : "#2563eb"};color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:600;">
+        ${isEasy ? "Easy Apply Now" : "Apply Now"}
+      </a>
+    </div>
+
+    <p style="color:#94a3b8;font-size:11px;margin-top:16px;text-align:center;">
+      ${isEasy ? "This is a quick one-click application. Have your resume ready!" : "Open your recommended resume before clicking Apply."}
+    </p>
     `
   );
 
-  await sendEmail(TO, `[JobPilot] ${jobs.length} New Job${jobs.length > 1 ? "s" : ""} Found`, html);
+  await sendEmail(
+    TO,
+    `[JobPilot] ${isEasy ? "[Easy Apply] " : ""}${job.role} at ${job.company}`,
+    html
+  );
 }
 
 // ── Follow-up reminder ──

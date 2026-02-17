@@ -63,18 +63,23 @@ model UserSettings {
 }
 
 model Job {
-  id            String    @id @default(cuid())
+  id            String      @id @default(cuid())
   company       String
   role          String
   url           String?
-  platform      Platform  @default(LINKEDIN)
-  stage         Stage     @default(SAVED)
+  platform      Platform    @default(LINKEDIN)
+  stage         Stage       @default(SAVED)
+  applyType     ApplyType   @default(UNKNOWN)
+  isDirectApply Boolean     @default(false)
+  applyOptions  Json?       // array of { link, source } from multiple platforms
+  matchScore    Int?        // 0-100 keyword match score
+  description   String?     @db.Text // full job description
   salary        String?
   location      String?
-  workType      WorkType  @default(ONSITE)
+  workType      WorkType    @default(ONSITE)
   resumeId      String?
-  resumeUsed    Resume?   @relation(fields: [resumeId], references: [id])
-  notes         String?   @db.Text
+  resumeUsed    Resume?     @relation(fields: [resumeId], references: [id])
+  notes         String?     @db.Text
   contactName   String?
   contactEmail  String?
   appliedDate   DateTime?
@@ -82,17 +87,18 @@ model Job {
   followUpDate  DateTime?
   rejectedDate  DateTime?
   offerDate     DateTime?
-  isGhosted     Boolean   @default(false)
-  isStale       Boolean   @default(false)
+  isGhosted     Boolean     @default(false)
+  isStale       Boolean     @default(false)
   userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   activities    Activity[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@index([userId, stage])
   @@index([userId, platform])
   @@index([userId, createdAt])
+  @@index([url])
 }
 
 model Resume {
@@ -145,4 +151,12 @@ enum WorkType {
   ONSITE
   REMOTE
   HYBRID
+}
+
+enum ApplyType {
+  EASY_APPLY
+  QUICK_APPLY
+  REGULAR
+  EMAIL
+  UNKNOWN
 }
