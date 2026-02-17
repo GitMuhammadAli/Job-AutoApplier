@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import {
   BarChart,
   Bar,
@@ -15,7 +14,10 @@ import {
   Line,
   CartesianGrid,
   Legend,
+  Area,
+  AreaChart,
 } from "recharts";
+import { BarChart3, GitBranch, Globe, FileText, Activity } from "lucide-react";
 
 const COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#06b6d4", "#ef4444", "#ec4899", "#6366f1"];
 
@@ -25,6 +27,39 @@ interface ChartsProps {
   platformBreakdown: { platform: string; count: number }[];
   resumePerformance: { name: string; total: number; responseRate: number }[];
   activityOverTime: { week: string; count: number }[];
+}
+
+function ChartCard({
+  title,
+  icon: Icon,
+  gradient,
+  children,
+  className = "",
+}: {
+  title: string;
+  icon: React.ElementType;
+  gradient: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/60 ${className}`}>
+      <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${gradient}`} />
+      <div className="flex items-center gap-2 mb-4">
+        <Icon className="h-4 w-4 text-slate-400" />
+        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function NoData({ text = "No data yet" }: { text?: string }) {
+  return (
+    <div className="flex items-center justify-center h-[200px]">
+      <p className="text-xs text-slate-400">{text}</p>
+    </div>
+  );
 }
 
 export function Charts({
@@ -37,58 +72,63 @@ export function Charts({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Applications Over Time */}
-      <Card className="p-4 rounded-xl border-0 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-700 mb-4">
-          Applications Over Time
-        </h3>
+      <ChartCard title="Applications Over Time" icon={BarChart3} gradient="from-blue-500 to-cyan-500">
         {applicationsOverTime.length === 0 ? (
-          <p className="text-sm text-slate-400 py-8 text-center">No data yet</p>
+          <NoData />
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={applicationsOverTime}>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={applicationsOverTime}>
+              <defs>
+                <linearGradient id="appGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis
                 dataKey="week"
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 10, fill: "#94a3b8" }}
                 tickFormatter={(v) => v.split("-W")[1] ? `W${v.split("-W")[1]}` : v}
+                axisLine={false}
+                tickLine={false}
               />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Applications" />
-            </BarChart>
+              <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}
+              />
+              <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} fill="url(#appGrad)" name="Applications" />
+            </AreaChart>
           </ResponsiveContainer>
         )}
-      </Card>
+      </ChartCard>
 
       {/* Stage Funnel */}
-      <Card className="p-4 rounded-xl border-0 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-700 mb-4">
-          Stage Funnel
-        </h3>
+      <ChartCard title="Stage Funnel" icon={GitBranch} gradient="from-violet-500 to-purple-500">
         {stageFunnel.every((s) => s.count === 0) ? (
-          <p className="text-sm text-slate-400 py-8 text-center">No data yet</p>
+          <NoData />
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={stageFunnel} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-              <YAxis dataKey="stage" type="category" tick={{ fontSize: 11 }} width={70} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Jobs" />
+              <XAxis type="number" tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
+              <YAxis dataKey="stage" type="category" tick={{ fontSize: 10, fill: "#64748b", fontWeight: 600 }} width={70} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <Bar dataKey="count" radius={[0, 6, 6, 0]} name="Jobs">
+                {stageFunnel.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
-      </Card>
+      </ChartCard>
 
       {/* Platform Breakdown */}
-      <Card className="p-4 rounded-xl border-0 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-700 mb-4">
-          Platform Breakdown
-        </h3>
+      <ChartCard title="Platform Breakdown" icon={Globe} gradient="from-emerald-500 to-teal-500">
         {platformBreakdown.length === 0 ? (
-          <p className="text-sm text-slate-400 py-8 text-center">No data yet</p>
+          <NoData />
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
+          <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
                 data={platformBreakdown}
@@ -96,7 +136,9 @@ export function Charts({
                 nameKey="platform"
                 cx="50%"
                 cy="50%"
-                outerRadius={90}
+                innerRadius={50}
+                outerRadius={85}
+                paddingAngle={3}
                 label={({ platform, count }) => `${platform} (${count})`}
                 labelLine
               >
@@ -104,57 +146,59 @@ export function Charts({
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
         )}
-      </Card>
+      </ChartCard>
 
       {/* Resume Performance */}
-      <Card className="p-4 rounded-xl border-0 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-700 mb-4">
-          Resume Performance
-        </h3>
+      <ChartCard title="Resume Performance" icon={FileText} gradient="from-indigo-500 to-blue-500">
         {resumePerformance.length === 0 ? (
-          <p className="text-sm text-slate-400 py-8 text-center">Apply with different resumes to see data</p>
+          <NoData text="Apply with different resumes to see data" />
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={resumePerformance}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={50} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend />
+              <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#94a3b8" }} interval={0} angle={-15} textAnchor="end" height={45} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Applied" />
               <Bar dataKey="responseRate" fill="#10b981" radius={[4, 4, 0, 0]} name="Response %" />
             </BarChart>
           </ResponsiveContainer>
         )}
-      </Card>
+      </ChartCard>
 
       {/* Weekly Activity */}
-      <Card className="p-4 rounded-xl border-0 shadow-sm lg:col-span-2">
-        <h3 className="text-sm font-semibold text-slate-700 mb-4">
-          Weekly Activity
-        </h3>
+      <ChartCard title="Weekly Activity" icon={Activity} gradient="from-amber-400 to-orange-500" className="lg:col-span-2">
         {activityOverTime.length === 0 ? (
-          <p className="text-sm text-slate-400 py-8 text-center">No activity yet</p>
+          <NoData text="No activity yet" />
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={activityOverTime}>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={activityOverTime}>
+              <defs>
+                <linearGradient id="actGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis
                 dataKey="week"
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 10, fill: "#94a3b8" }}
                 tickFormatter={(v) => v.split("-W")[1] ? `W${v.split("-W")[1]}` : v}
+                axisLine={false}
+                tickLine={false}
               />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip />
-              <Line type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} name="Activities" />
-            </LineChart>
+              <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <Area type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={2} fill="url(#actGrad)" name="Activities" />
+            </AreaChart>
           </ResponsiveContainer>
         )}
-      </Card>
+      </ChartCard>
     </div>
   );
 }
