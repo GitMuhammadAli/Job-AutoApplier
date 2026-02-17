@@ -191,12 +191,12 @@ export function JobForm({ job, resumes, mode }: JobFormProps) {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Resume Variant</Label>
-              <Select value={form.resumeId} onValueChange={(v) => update("resumeId", v)}>
+              <Select value={form.resumeId || undefined} onValueChange={(v) => update("resumeId", v === "none" ? "" : v)}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Select resume..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {resumes.map((r) => (
                     <SelectItem key={r.id} value={r.id}>
                       {r.name}
