@@ -1,0 +1,113 @@
+{
+  "name": "01 - Job Scraper (Daily)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://pk.indeed.com/rss?q=MERN+stack+developer&l=Lahore&sort=date",
+        "options": {}
+      },
+      "name": "Scrape Indeed RSS - MERN Lahore",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [440, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://pk.indeed.com/rss?q=NestJS+Next.js+developer&l=Lahore&sort=date",
+        "options": {}
+      },
+      "name": "Scrape Indeed RSS - NestJS Lahore",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [440, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://pk.indeed.com/rss?q=junior+full+stack+developer&l=Lahore&sort=date",
+        "options": {}
+      },
+      "name": "Scrape Indeed RSS - Junior FS",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [440, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse RSS XML and extract job listings\nconst items = [];\nfor (const input of $input.all()) {\n  const xml = input.json.data || input.json.body || '';\n  // Simple XML parsing for RSS items\n  const itemRegex = /<item>(.*?)<\\/item>/gs;\n  let match;\n  while ((match = itemRegex.exec(typeof xml === 'string' ? xml : JSON.stringify(xml))) !== null) {\n    const content = match[1];\n    const title = content.match(/<title>(.*?)<\\/title>/s)?.[1] || '';\n    const link = content.match(/<link>(.*?)<\\/link>/s)?.[1] || '';\n    const pubDate = content.match(/<pubDate>(.*?)<\\/pubDate>/s)?.[1] || '';\n    const description = content.match(/<description>(.*?)<\\/description>/s)?.[1] || '';\n    const company = content.match(/<source.*?>(.*?)<\\/source>/s)?.[1] || 'Unknown';\n    \n    // Filter for relevant keywords\n    const text = (title + ' ' + description).toLowerCase();\n    const keywords = ['mern', 'react', 'node', 'nestjs', 'next.js', 'nextjs', 'mongodb', 'express', 'typescript', 'full stack', 'fullstack', 'junior', 'associate'];\n    const isRelevant = keywords.some(k => text.includes(k));\n    \n    if (isRelevant && title) {\n      items.push({\n        json: {\n          company: company.replace(/<[^>]*>/g, '').trim(),\n          role: title.replace(/<[^>]*>/g, '').trim(),\n          url: link.trim(),\n          platform: 'INDEED',\n          description: description.replace(/<[^>]*>/g, '').substring(0, 500),\n          publishedAt: pubDate,\n          scrapedAt: new Date().toISOString()\n        }\n      });\n    }\n  }\n}\n\nreturn items.length > 0 ? items : [{ json: { noResults: true } }];"
+      },
+      "name": "Parse & Filter Jobs",
+      "type": "n8n-nodes-base.code",
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.noResults }}",
+              "value2": true,
+              "operation": "notEqual"
+            }
+          ]
+        }
+      },
+      "name": "Has Results?",
+      "type": "n8n-nodes-base.if",
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.APP_URL || 'http://app:3000' }}/api/webhooks/n8n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-n8n-secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "action", "value": "new_job_found" },
+            { "name": "company", "value": "={{ $json.company }}" },
+            { "name": "role", "value": "={{ $json.role }}" },
+            { "name": "url", "value": "={{ $json.url }}" },
+            { "name": "platform", "value": "={{ $json.platform }}" },
+            { "name": "notes", "value": "={{ $json.description }}" }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send to Job Tracker API",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1140, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Deduplicate by URL\nconst seen = new Set();\nconst unique = [];\nfor (const item of $input.all()) {\n  const url = item.json.url;\n  if (url && !seen.has(url)) {\n    seen.add(url);\n    unique.push(item);\n  }\n}\nreturn unique;"
+      },
+      "name": "Deduplicate",
+      "type": "n8n-nodes-base.code",
+      "position": [1140, 400]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": { "main": [[{ "node": "Scrape Indeed RSS - MERN Lahore" }, { "node": "Scrape Indeed RSS - NestJS Lahore" }, { "node": "Scrape Indeed RSS - Junior FS" }]] },
+    "Scrape Indeed RSS - MERN Lahore": { "main": [[{ "node": "Parse & Filter Jobs" }]] },
+    "Scrape Indeed RSS - NestJS Lahore": { "main": [[{ "node": "Parse & Filter Jobs" }]] },
+    "Scrape Indeed RSS - Junior FS": { "main": [[{ "node": "Parse & Filter Jobs" }]] },
+    "Parse & Filter Jobs": { "main": [[{ "node": "Deduplicate" }]] },
+    "Deduplicate": { "main": [[{ "node": "Has Results?" }]] },
+    "Has Results?": { "main": [[{ "node": "Send to Job Tracker API" }], []] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "job-tracker" }]
+}

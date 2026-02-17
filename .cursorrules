@@ -1,0 +1,126 @@
+# JobPilot — Cursor Rules
+
+You are building **JobPilot**, a production-ready job application tracker with n8n automation.
+
+## Tech Stack
+- Next.js 14 (App Router, Server Components + Client Components)
+- TypeScript (strict mode)
+- Tailwind CSS + shadcn/ui
+- PostgreSQL + Prisma ORM (schema already exists in prisma/schema.prisma)
+- NextAuth.js for auth
+- Zustand for client state (store exists in src/store/)
+- Recharts for analytics charts
+- @dnd-kit for drag-and-drop Kanban
+- n8n for automation (workflows in n8n/workflows/)
+
+## Existing Code
+The following files are already set up — DO NOT recreate them:
+- prisma/schema.prisma (full schema with Job, User, Resume, Activity, ScrapedJob models)
+- prisma/seed.ts (seeds demo user + 8 resume variants + 5 jobs)
+- src/lib/prisma.ts (Prisma singleton)
+- src/lib/utils.ts (cn helper, STAGES, STAGE_CONFIG, PLATFORMS constants)
+- src/types/index.ts (Job, Resume, Activity, Analytics types)
+- src/store/useJobStore.ts (Zustand store)
+- src/app/layout.tsx, globals.css
+- docker-compose.yml (PostgreSQL + n8n + Redis + Next.js)
+- n8n/workflows/*.json (5 automation workflows)
+- .github/workflows/ci.yml
+
+## Pages to Build
+
+### 1. Dashboard `/` (src/app/page.tsx) — PRIORITY
+- Kanban board with 6 columns: SAVED, APPLIED, INTERVIEW, OFFER, REJECTED, GHOSTED
+- Drag-and-drop cards between columns using @dnd-kit
+- Each JobCard shows: company, role, platform badge, resume badge, days since applied
+- Quick action buttons to move between stages
+- Top StatsBar: total, applied, interviews, offers, response rate %
+- Daily application target progress bar (default 5/day)
+
+### 2. Add Job `/jobs/new`
+- Form: company*, role*, url, platform (dropdown), resume variant (dropdown), stage, salary, location, workType, contactName, contactEmail, notes, appliedDate
+- Server Action to create job + log Activity
+- Auto-set appliedDate when stage = APPLIED
+
+### 3. Job Detail `/jobs/[id]`
+- Full editable job info
+- Activity timeline (vertical, chronological)
+- Add notes section
+- One-click stage transitions
+- Follow-up date picker, interview date picker
+- Delete with confirmation
+
+### 4. Analytics `/analytics`
+- Applications over time (bar chart, weekly)
+- Stage funnel (horizontal)
+- Platform breakdown (pie chart)
+- Resume variant performance (which resume gets best response rate)
+- Response time by platform
+- Weekly activity line chart
+
+### 5. Resume Manager `/resumes`
+- List all 8 variants with usage count and response rate
+- Add/edit/delete variants
+- Optional file upload link
+
+### 6. Settings `/settings`
+- Daily target, follow-up days, ghost days
+- Search keywords, location
+- Email notification toggles
+
+### 7. Webhook API `/api/webhooks/n8n`
+- POST endpoint that n8n workflows call
+- Handles: scraped_jobs (save new scraped listings), get_stale_applications (return 5+ day old apps), detect_ghosts (flag 14+ day apps as GHOSTED)
+- Authenticated via X-N8N-API-KEY header
+
+## Components to Build
+- `src/components/kanban/KanbanBoard.tsx` — main drag-drop board ("use client")
+- `src/components/kanban/KanbanColumn.tsx` — single column with droppable area
+- `src/components/kanban/JobCard.tsx` — individual card with actions
+- `src/components/jobs/JobForm.tsx` — add/edit form ("use client")
+- `src/components/jobs/ActivityTimeline.tsx` — vertical timeline
+- `src/components/analytics/StatsBar.tsx` — top metrics row
+- `src/components/analytics/Charts.tsx` — recharts wrappers ("use client")
+- `src/components/shared/PlatformBadge.tsx` — colored platform badge
+- `src/components/shared/ResumeBadge.tsx` — resume variant badge
+- `src/components/shared/StageSelector.tsx` — quick stage buttons
+- `src/components/shared/EmptyState.tsx` — friendly empty states
+- `src/components/layout/Sidebar.tsx` — navigation sidebar
+- `src/components/layout/Header.tsx` — top header with search
+
+## API Routes / Server Actions
+Prefer Server Actions for mutations. Use route handlers only for n8n webhooks.
+
+```
+Server Actions:
+  createJob(data) → create job + Activity log + revalidatePath
+  updateJob(id, data) → update + Activity log if stage changed
+  deleteJob(id) → soft delete with confirmation
+  updateStage(id, newStage) → optimistic update + Activity log
+  addNote(jobId, note) → create Activity with type "note_added"
+
+Route Handlers:
+  POST /api/webhooks/n8n → handle automation webhooks
+  GET /api/analytics → aggregated stats for n8n weekly digest
+```
+
+## Design Rules
+- Use shadcn/ui components (install with `npx shadcn@latest add`)
+- Stage colors from src/lib/utils.ts STAGE_CONFIG
+- Rounded corners (rounded-xl), subtle shadows, smooth transitions
+- Mobile: stack Kanban columns vertically
+- Dark mode via `dark:` Tailwind classes
+- Toast notifications (sonner) for all actions
+- Optimistic updates on stage changes
+- Every empty state has a friendly message + CTA
+- No bullet-point lists in UI — use cards and badges
+
+## Build Order
+Phase 1: Dashboard Kanban + StatsBar + JobCard + stage transitions
+Phase 2: Add Job form + Job Detail page + Activity timeline
+Phase 3: Search/filter + drag-drop + mobile responsive
+Phase 4: Analytics page with all charts
+Phase 5: Resume manager + Settings
+Phase 6: n8n webhook API endpoint
+Phase 7: Auth (NextAuth) + deploy config
+
+Start with Phase 1. After each phase, commit with a descriptive message.

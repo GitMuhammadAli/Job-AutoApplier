@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  jobs          Job[]
+  resumes       Resume[]
+  settings      UserSettings?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserSettings {
+  id                String @id @default(cuid())
+  userId            String @unique
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyTarget       Int    @default(5)
+  ghostDays         Int    @default(14)    // days before marking as ghosted
+  staleDays         Int    @default(7)     // days before "Saved" jobs flagged stale
+  followUpDays      Int    @default(7)     // default follow-up reminder days
+  emailNotifications Boolean @default(true)
+  timezone          String  @default("Asia/Karachi")
+  searchKeywords    String?
+  searchLocation    String?
+}
+
+model Job {
+  id            String    @id @default(cuid())
+  company       String
+  role          String
+  url           String?
+  platform      Platform  @default(LINKEDIN)
+  stage         Stage     @default(SAVED)
+  salary        String?
+  location      String?
+  workType      WorkType  @default(ONSITE)
+  resumeId      String?
+  resumeUsed    Resume?   @relation(fields: [resumeId], references: [id])
+  notes         String?   @db.Text
+  contactName   String?
+  contactEmail  String?
+  appliedDate   DateTime?
+  interviewDate DateTime?
+  followUpDate  DateTime?
+  rejectedDate  DateTime?
+  offerDate     DateTime?
+  isGhosted     Boolean   @default(false)
+  isStale       Boolean   @default(false)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activities    Activity[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId, stage])
+  @@index([userId, platform])
+  @@index([userId, createdAt])
+}
+
+model Resume {
+  id        String   @id @default(cuid())
+  name      String
+  fileUrl   String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs      Job[]
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  type      String   // stage_change, note_added, follow_up_sent, interview_scheduled, reminder
+  fromStage String?
+  toStage   String?
+  note      String?  @db.Text
+  metadata  Json?    // extra data (email sent, n8n workflow id, etc)
+  createdAt DateTime @default(now())
+
+  @@index([jobId, createdAt])
+}
+
+enum Platform {
+  LINKEDIN
+  INDEED
+  GLASSDOOR
+  ROZEE_PK
+  BAYT
+  COMPANY_SITE
+  REFERRAL
+  OTHER
+}
+
+enum Stage {
+  SAVED
+  APPLIED
+  INTERVIEW
+  OFFER
+  REJECTED
+  GHOSTED
+}
+
+enum WorkType {
+  ONSITE
+  REMOTE
+  HYBRID
+}

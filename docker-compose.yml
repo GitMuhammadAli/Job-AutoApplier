@@ -1,0 +1,96 @@
+version: "3.8"
+
+services:
+  # ── PostgreSQL Database ──
+  postgres:
+    image: postgres:16-alpine
+    container_name: jt-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jobtracker
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-jobtracker_secret}
+      POSTGRES_DB: jobtracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobtracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (for n8n + BullMQ queues) ──
+  redis:
+    image: redis:7-alpine
+    container_name: jt-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # ── n8n Automation Engine ──
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: jt-n8n
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-admin123}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=jobtracker
+      - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD:-jobtracker_secret}
+      - GENERIC_TIMEZONE=Asia/Karachi
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-change-this-key}
+      # Email config for sending follow-ups
+      - N8N_EMAIL_MODE=smtp
+      - N8N_SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - N8N_SMTP_PORT=${SMTP_PORT:-587}
+      - N8N_SMTP_USER=${SMTP_USER:-}
+      - N8N_SMTP_PASS=${SMTP_PASS:-}
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n-workflows:/home/node/workflows
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # ── Next.js App (production) ──
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: jt-app
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://jobtracker:${DB_PASSWORD:-jobtracker_secret}@postgres:5432/jobtracker
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-this-secret}
+      - N8N_WEBHOOK_URL=http://n8n:5678
+      - N8N_API_KEY=${N8N_API_KEY:-}
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
