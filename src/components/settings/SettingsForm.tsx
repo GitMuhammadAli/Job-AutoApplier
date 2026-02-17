@@ -196,7 +196,7 @@ export function SettingsForm({ settings }: SettingsFormProps) {
               Experience Level
             </Label>
             <Select
-              value={form.experienceLevel}
+              value={form.experienceLevel || undefined}
               onValueChange={(v) => update("experienceLevel", v)}
             >
               <SelectTrigger className="h-9">
@@ -217,7 +217,7 @@ export function SettingsForm({ settings }: SettingsFormProps) {
               Education Level
             </Label>
             <Select
-              value={form.educationLevel}
+              value={form.educationLevel || undefined}
               onValueChange={(v) => update("educationLevel", v)}
             >
               <SelectTrigger className="h-9">
