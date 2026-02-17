@@ -14,11 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
 import { STAGES, STAGE_CONFIG, PLATFORMS } from "@/lib/utils";
 import { createJob, updateJob } from "@/app/actions/job";
 import type { Job, Resume } from "@/types";
-import { Loader2 } from "lucide-react";
+import { Loader2, Building2, Briefcase, Link as LinkIcon, MapPin, DollarSign, User, Mail, Calendar } from "lucide-react";
 
 const PLATFORM_LABELS: Record<string, string> = {
   LINKEDIN: "LinkedIn",
@@ -87,197 +86,234 @@ export function JobForm({ job, resumes, mode }: JobFormProps) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card className="p-6 rounded-xl border-0 shadow-sm space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Company */}
-          <div className="space-y-2">
-            <Label htmlFor="company">Company *</Label>
-            <Input
-              id="company"
-              value={form.company}
-              onChange={(e) => update("company", e.target.value)}
-              placeholder="e.g. Google"
-              required
-            />
-          </div>
+      <div className="relative overflow-hidden rounded-xl bg-white p-5 md:p-6 shadow-sm ring-1 ring-slate-200/60 space-y-6">
+        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-blue-500 to-violet-500" />
 
-          {/* Role */}
-          <div className="space-y-2">
-            <Label htmlFor="role">Role *</Label>
-            <Input
-              id="role"
-              value={form.role}
-              onChange={(e) => update("role", e.target.value)}
-              placeholder="e.g. Full-Stack Developer"
-              required
-            />
-          </div>
-
-          {/* URL */}
-          <div className="space-y-2">
-            <Label htmlFor="url">Job URL</Label>
-            <Input
-              id="url"
-              type="url"
-              value={form.url}
-              onChange={(e) => update("url", e.target.value)}
-              placeholder="https://..."
-            />
-          </div>
-
-          {/* Platform */}
-          <div className="space-y-2">
-            <Label>Platform</Label>
-            <Select value={form.platform} onValueChange={(v) => update("platform", v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PLATFORMS.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {PLATFORM_LABELS[p]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Stage */}
-          <div className="space-y-2">
-            <Label>Stage</Label>
-            <Select value={form.stage} onValueChange={(v) => update("stage", v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STAGES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {STAGE_CONFIG[s].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Work Type */}
-          <div className="space-y-2">
-            <Label>Work Type</Label>
-            <Select value={form.workType} onValueChange={(v) => update("workType", v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {WORK_TYPES.map((w) => (
-                  <SelectItem key={w.value} value={w.value}>
-                    {w.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Resume */}
-          <div className="space-y-2">
-            <Label>Resume Variant</Label>
-            <Select value={form.resumeId} onValueChange={(v) => update("resumeId", v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select resume..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                {resumes.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    {r.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Salary */}
-          <div className="space-y-2">
-            <Label htmlFor="salary">Salary</Label>
-            <Input
-              id="salary"
-              value={form.salary}
-              onChange={(e) => update("salary", e.target.value)}
-              placeholder="e.g. 80k-120k PKR"
-            />
-          </div>
-
-          {/* Location */}
-          <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <Input
-              id="location"
-              value={form.location}
-              onChange={(e) => update("location", e.target.value)}
-              placeholder="e.g. Lahore"
-            />
-          </div>
-
-          {/* Applied Date */}
-          <div className="space-y-2">
-            <Label htmlFor="appliedDate">Applied Date</Label>
-            <Input
-              id="appliedDate"
-              type="date"
-              value={form.appliedDate}
-              onChange={(e) => update("appliedDate", e.target.value)}
-            />
-          </div>
-
-          {/* Contact Name */}
-          <div className="space-y-2">
-            <Label htmlFor="contactName">Contact Name</Label>
-            <Input
-              id="contactName"
-              value={form.contactName}
-              onChange={(e) => update("contactName", e.target.value)}
-              placeholder="e.g. HR Manager"
-            />
-          </div>
-
-          {/* Contact Email */}
-          <div className="space-y-2">
-            <Label htmlFor="contactEmail">Contact Email</Label>
-            <Input
-              id="contactEmail"
-              type="email"
-              value={form.contactEmail}
-              onChange={(e) => update("contactEmail", e.target.value)}
-              placeholder="hr@company.com"
-            />
+        {/* Essential info */}
+        <div>
+          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Essential Info</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="company" className="text-xs flex items-center gap-1.5">
+                <Building2 className="h-3 w-3 text-slate-400" />
+                Company *
+              </Label>
+              <Input
+                id="company"
+                value={form.company}
+                onChange={(e) => update("company", e.target.value)}
+                placeholder="e.g. Google"
+                required
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="role" className="text-xs flex items-center gap-1.5">
+                <Briefcase className="h-3 w-3 text-slate-400" />
+                Role *
+              </Label>
+              <Input
+                id="role"
+                value={form.role}
+                onChange={(e) => update("role", e.target.value)}
+                placeholder="e.g. Full-Stack Developer"
+                required
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="url" className="text-xs flex items-center gap-1.5">
+                <LinkIcon className="h-3 w-3 text-slate-400" />
+                Job URL
+              </Label>
+              <Input
+                id="url"
+                type="url"
+                value={form.url}
+                onChange={(e) => update("url", e.target.value)}
+                placeholder="https://..."
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Platform</Label>
+              <Select value={form.platform} onValueChange={(v) => update("platform", v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLATFORMS.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {PLATFORM_LABELS[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
+        <div className="h-px bg-slate-100" />
+
+        {/* Status & details */}
+        <div>
+          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Status & Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Stage</Label>
+              <Select value={form.stage} onValueChange={(v) => update("stage", v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STAGES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {STAGE_CONFIG[s].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Work Type</Label>
+              <Select value={form.workType} onValueChange={(v) => update("workType", v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {WORK_TYPES.map((w) => (
+                    <SelectItem key={w.value} value={w.value}>
+                      {w.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Resume Variant</Label>
+              <Select value={form.resumeId} onValueChange={(v) => update("resumeId", v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Select resume..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {resumes.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="salary" className="text-xs flex items-center gap-1.5">
+                <DollarSign className="h-3 w-3 text-slate-400" />
+                Salary
+              </Label>
+              <Input
+                id="salary"
+                value={form.salary}
+                onChange={(e) => update("salary", e.target.value)}
+                placeholder="e.g. 80k-120k PKR"
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="location" className="text-xs flex items-center gap-1.5">
+                <MapPin className="h-3 w-3 text-slate-400" />
+                Location
+              </Label>
+              <Input
+                id="location"
+                value={form.location}
+                onChange={(e) => update("location", e.target.value)}
+                placeholder="e.g. Lahore"
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="appliedDate" className="text-xs flex items-center gap-1.5">
+                <Calendar className="h-3 w-3 text-slate-400" />
+                Applied Date
+              </Label>
+              <Input
+                id="appliedDate"
+                type="date"
+                value={form.appliedDate}
+                onChange={(e) => update("appliedDate", e.target.value)}
+                className="h-9"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="h-px bg-slate-100" />
+
+        {/* Contact */}
+        <div>
+          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Contact</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="contactName" className="text-xs flex items-center gap-1.5">
+                <User className="h-3 w-3 text-slate-400" />
+                Contact Name
+              </Label>
+              <Input
+                id="contactName"
+                value={form.contactName}
+                onChange={(e) => update("contactName", e.target.value)}
+                placeholder="e.g. HR Manager"
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="contactEmail" className="text-xs flex items-center gap-1.5">
+                <Mail className="h-3 w-3 text-slate-400" />
+                Contact Email
+              </Label>
+              <Input
+                id="contactEmail"
+                type="email"
+                value={form.contactEmail}
+                onChange={(e) => update("contactEmail", e.target.value)}
+                placeholder="hr@company.com"
+                className="h-9"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="h-px bg-slate-100" />
+
         {/* Notes */}
-        <div className="space-y-2">
-          <Label htmlFor="notes">Notes</Label>
+        <div className="space-y-1.5">
+          <Label htmlFor="notes" className="text-xs">Notes</Label>
           <Textarea
             id="notes"
             value={form.notes}
             onChange={(e) => update("notes", e.target.value)}
             placeholder="Any notes about this application..."
-            rows={4}
+            rows={3}
+            className="resize-none"
           />
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 justify-end">
+        <div className="flex gap-3 justify-end pt-2">
           <Button
             type="button"
             variant="outline"
             onClick={() => router.back()}
+            className="px-5"
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending} className="px-5 shadow-md">
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {mode === "create" ? "Add Job" : "Save Changes"}
           </Button>
         </div>
-      </Card>
+      </div>
     </form>
   );
 }

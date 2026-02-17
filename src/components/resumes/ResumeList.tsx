@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { createResume, updateResume, deleteResume } from "@/app/actions/resume";
-import { FileText, Plus, Pencil, Trash2, ExternalLink, Loader2, TrendingUp } from "lucide-react";
+import { FileText, Plus, Pencil, Trash2, ExternalLink, Loader2, TrendingUp, Sparkles } from "lucide-react";
 
 interface ResumeWithStats {
   id: string;
@@ -107,8 +106,8 @@ export function ResumeList({ resumes }: ResumeListProps) {
       <div className="flex justify-end">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-1" />
+            <Button size="sm" className="shadow-md">
+              <Plus className="h-4 w-4 mr-1.5" />
               Add Resume
             </Button>
           </DialogTrigger>
@@ -117,16 +116,16 @@ export function ResumeList({ resumes }: ResumeListProps) {
               <DialogTitle>Add Resume Variant</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <Label>Name *</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Full-Stack" />
+              <div className="space-y-1.5">
+                <Label className="text-xs">Name *</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Full-Stack" className="h-9" />
               </div>
-              <div className="space-y-2">
-                <Label>File URL (Google Drive / Dropbox)</Label>
-                <Input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://..." />
+              <div className="space-y-1.5">
+                <Label className="text-xs">File URL (Google Drive / Dropbox)</Label>
+                <Input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://..." className="h-9" />
               </div>
               <Button onClick={handleCreate} disabled={isPending || !name.trim()} className="w-full">
-                {isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                {isPending && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
                 Add Resume
               </Button>
             </div>
@@ -136,12 +135,18 @@ export function ResumeList({ resumes }: ResumeListProps) {
 
       {/* Resume grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {resumes.map((r) => (
-          <Card key={r.id} className="p-4 rounded-xl border-0 shadow-sm space-y-3">
+        {resumes.map((r, idx) => (
+          <div
+            key={r.id}
+            className="relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/60 space-y-3 transition-all hover:shadow-md hover:-translate-y-0.5"
+          >
+            {/* Top accent */}
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-blue-500" />
+
             {editingId === r.id ? (
               <div className="space-y-3">
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-                <Input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="File URL" />
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="h-9" />
+                <Input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="File URL" className="h-9" />
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => handleUpdate(r.id)} disabled={isPending}>
                     Save
@@ -154,24 +159,24 @@ export function ResumeList({ resumes }: ResumeListProps) {
             ) : (
               <>
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-lg bg-indigo-50 p-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 ring-1 ring-indigo-200/50">
                       <FileText className="h-4 w-4 text-indigo-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-700">{r.name}</p>
-                      <p className="text-xs text-slate-400">
-                        {new Date(r.createdAt).toLocaleDateString()}
+                      <p className="text-sm font-bold text-slate-800">{r.name}</p>
+                      <p className="text-[10px] text-slate-400">
+                        Added {new Date(r.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)}>
-                      <Pencil className="h-3 w-3" />
+                  <div className="flex gap-0.5">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => openEdit(r)}>
+                      <Pencil className="h-3 w-3 text-slate-400" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50">
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </AlertDialogTrigger>
@@ -184,7 +189,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(r.id)} className="bg-red-600">
+                          <AlertDialogAction onClick={() => handleDelete(r.id)} className="bg-red-600 hover:bg-red-700">
                             Delete
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -192,21 +197,25 @@ export function ResumeList({ resumes }: ResumeListProps) {
                     </AlertDialog>
                   </div>
                 </div>
+
                 <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
                     {r.jobCount} jobs
                   </Badge>
-                  <div className="flex items-center gap-1 text-xs text-slate-500">
-                    <TrendingUp className="h-3 w-3" />
-                    {r.responseRate}% response
+                  <div className="flex items-center gap-1 text-[11px] font-medium">
+                    <TrendingUp className={`h-3 w-3 ${r.responseRate > 0 ? "text-emerald-500" : "text-slate-400"}`} />
+                    <span className={r.responseRate > 0 ? "text-emerald-600" : "text-slate-500"}>
+                      {r.responseRate}% response
+                    </span>
                   </div>
                 </div>
+
                 {r.fileUrl && (
                   <a
                     href={r.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-600 hover:text-blue-700 transition-colors"
                   >
                     <ExternalLink className="h-3 w-3" />
                     View file
@@ -214,15 +223,19 @@ export function ResumeList({ resumes }: ResumeListProps) {
                 )}
               </>
             )}
-          </Card>
+          </div>
         ))}
       </div>
 
       {resumes.length === 0 && (
-        <Card className="p-8 rounded-xl border-0 shadow-sm text-center">
-          <FileText className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-500">No resumes yet. Add your first resume variant.</p>
-        </Card>
+        <div className="relative overflow-hidden rounded-xl bg-white p-10 shadow-sm ring-1 ring-slate-200/60 text-center">
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-blue-500" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 mx-auto mb-3">
+            <FileText className="h-6 w-6 text-slate-300" />
+          </div>
+          <p className="text-sm font-medium text-slate-600">No resumes yet</p>
+          <p className="text-xs text-slate-400 mt-1">Add your first resume variant to enable smart recommendations.</p>
+        </div>
       )}
     </div>
   );

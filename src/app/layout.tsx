@@ -3,11 +3,16 @@ import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
-  title: "JobPilot",
-  description: "Job Application Tracker + n8n Automation",
+  title: "JobPilot - Automated Job Application Tracker",
+  description:
+    "Track job applications with a Kanban board, automated job scraping from 4 sources, per-job email alerts with resume recommendations, and analytics.",
 };
 
 export default function RootLayout({
@@ -16,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className={inter.variable}>
+      <body className={`${inter.className} antialiased`}>
         {children}
         <Toaster richColors position="bottom-right" />
       </body>
