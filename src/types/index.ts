@@ -2,6 +2,8 @@ export type Stage = "SAVED" | "APPLIED" | "INTERVIEW" | "OFFER" | "REJECTED" | "
 export type Platform = "LINKEDIN" | "INDEED" | "GLASSDOOR" | "ROZEE_PK" | "BAYT" | "COMPANY_SITE" | "REFERRAL" | "OTHER";
 export type WorkType = "ONSITE" | "REMOTE" | "HYBRID";
 export type ApplyType = "EASY_APPLY" | "QUICK_APPLY" | "REGULAR" | "EMAIL" | "UNKNOWN";
+export type ExperienceLevel = "JUNIOR" | "MID" | "SENIOR" | "LEAD" | "ANY";
+export type EducationLevel = "BACHELORS" | "MASTERS" | "PHD" | "ANY";
 
 export interface ApplyOption {
   link: string;
@@ -44,6 +46,7 @@ export interface Resume {
   id: string;
   name: string;
   fileUrl?: string | null;
+  content?: string | null;
   userId: string;
   createdAt: string;
   _count?: { jobs: number };
@@ -58,6 +61,29 @@ export interface Activity {
   note?: string | null;
   metadata?: unknown;
   createdAt: string;
+}
+
+export interface UserSettings {
+  id: string;
+  userId: string;
+  dailyTarget: number;
+  ghostDays: number;
+  staleDays: number;
+  followUpDays: number;
+  emailNotifications: boolean;
+  timezone: string;
+  searchKeywords: string | null;
+  searchLocation: string | null;
+  experienceLevel: string | null;
+  skills: string | null;
+  jobCategories: string | null;
+  educationLevel: string | null;
+  languages: string | null;
+  minSalary: number | null;
+  maxSalary: number | null;
+  salaryCurrency: string;
+  preferredWorkType: string | null;
+  preferredPlatforms: string | null;
 }
 
 export interface Analytics {

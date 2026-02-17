@@ -5,37 +5,170 @@ import { sendJobEmail } from "@/lib/email";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// ── Resume keyword matching ──
-const RESUME_KEYWORD_MAP: Record<string, string[]> = {
-  "Full-Stack": ["full stack", "fullstack", "mern", "full-stack"],
-  Backend: ["backend", "node", "nestjs", "express", "api", "django", "flask", "spring"],
-  Frontend: ["frontend", "react", "vue", "angular", "ui", "ux", "css", "tailwind"],
-  MERN: ["mern", "mongodb", "express", "react", "node"],
-  TypeScript: ["typescript", "ts", "type-safe"],
-  JavaScript: ["javascript", "js", "ecmascript"],
-  "React Native": ["react native", "mobile", "ios", "android", "expo"],
-  DevOps: ["devops", "docker", "kubernetes", "aws", "ci/cd", "terraform"],
+// ── Experience level filter patterns ──
+const EXP_FILTERS: Record<string, { skip: RegExp[]; boost: RegExp[] }> = {
+  JUNIOR: {
+    skip: [/\bsenior\b/i, /\blead\b/i, /\bprincipal\b/i, /\b[5-9]\+?\s*years?\b/i, /\b1[0-9]\+?\s*years?\b/i],
+    boost: [/\bjunior\b/i, /\bentry\s*level\b/i, /\bintern\b/i, /\b[0-2]\+?\s*years?\b/i, /\bfresher\b/i],
+  },
+  MID: {
+    skip: [/\bprincipal\b/i, /\b[8-9]\+?\s*years?\b/i, /\b1[0-9]\+?\s*years?\b/i],
+    boost: [/\bmid\b/i, /\b[2-5]\+?\s*years?\b/i],
+  },
+  SENIOR: {
+    skip: [/\bjunior\b/i, /\bintern\b/i, /\bentry\s*level\b/i, /\bfresher\b/i],
+    boost: [/\bsenior\b/i, /\blead\b/i, /\b[5-9]\+?\s*years?\b/i],
+  },
+  LEAD: {
+    skip: [/\bjunior\b/i, /\bintern\b/i, /\bfresher\b/i],
+    boost: [/\blead\b/i, /\bprincipal\b/i, /\bstaff\b/i, /\barchitect\b/i, /\bhead\s*of\b/i],
+  },
 };
 
-function recommendResume(title: string, desc: string): string {
-  const text = (title + " " + desc).toLowerCase();
-  let bestMatch = "General";
-  let bestScore = 0;
-  for (const [resumeName, kws] of Object.entries(RESUME_KEYWORD_MAP)) {
-    const score = kws.filter((kw) => text.includes(kw)).length;
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = resumeName;
-    }
-  }
-  return bestMatch;
+// ── Category keyword patterns ──
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  "Full-Stack": ["full stack", "fullstack", "full-stack", "mern", "mean"],
+  Backend: ["backend", "back-end", "server-side", "api", "microservice", "nestjs", "express", "django", "flask", "spring", "laravel"],
+  Frontend: ["frontend", "front-end", "react", "vue", "angular", "ui developer", "css", "tailwind"],
+  Mobile: ["mobile", "react native", "flutter", "ios", "android", "swift", "kotlin", "expo"],
+  DevOps: ["devops", "sre", "infrastructure", "docker", "kubernetes", "ci/cd", "terraform", "aws", "cloud engineer"],
+  "Data Engineering": ["data engineer", "etl", "pipeline", "spark", "airflow", "data platform"],
+  "Machine Learning": ["machine learning", "ml engineer", "ai engineer", "deep learning", "nlp", "data scientist"],
+  "QA / Testing": ["qa", "quality assurance", "test engineer", "automation test", "sdet"],
+  "UI/UX Design": ["ui/ux", "ux designer", "ui designer", "product design", "figma"],
+  Cybersecurity: ["security engineer", "cybersecurity", "penetration", "infosec"],
+  "Cloud / Infrastructure": ["cloud", "aws", "azure", "gcp", "infrastructure", "platform engineer"],
+  Blockchain: ["blockchain", "web3", "solidity", "smart contract", "crypto"],
+};
+
+interface ResumeWithContent {
+  id: string;
+  name: string;
+  fileUrl: string | null;
+  content: string | null;
 }
 
-function calcMatchScore(title: string, desc: string, keywords: string[]): number {
-  const text = (title + " " + desc).toLowerCase();
-  if (keywords.length === 0) return 0;
-  const matched = keywords.filter((kw) => text.includes(kw.toLowerCase()));
-  return Math.round((matched.length / keywords.length) * 100);
+interface UserProfile {
+  skills: string[];
+  keywords: string[];
+  experienceLevel: string | null;
+  jobCategories: string[];
+  preferredWorkType: string | null;
+  minSalary: number | null;
+  maxSalary: number | null;
+}
+
+function extractSkillsFromContent(content: string): string[] {
+  return content
+    .toLowerCase()
+    .split(/[,\n;|]/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 1 && s.length < 40);
+}
+
+function smartRecommendResume(
+  title: string,
+  desc: string,
+  resumes: ResumeWithContent[],
+): { name: string; id: string | null; matchedSkills: string[] } {
+  const jobText = (title + " " + desc).toLowerCase();
+  let bestResume = { name: "General", id: null as string | null, matchedSkills: [] as string[] };
+  let bestScore = 0;
+
+  for (const resume of resumes) {
+    if (!resume.content) continue;
+    const resumeSkills = extractSkillsFromContent(resume.content);
+    const matched = resumeSkills.filter((skill) => jobText.includes(skill));
+    if (matched.length > bestScore) {
+      bestScore = matched.length;
+      bestResume = { name: resume.name, id: resume.id, matchedSkills: matched.slice(0, 8) };
+    }
+  }
+
+  // Fallback: name-based matching if no content-based match
+  if (bestScore === 0) {
+    const fallbackMap: Record<string, string[]> = {
+      "Full-Stack": ["full stack", "fullstack", "mern"],
+      Backend: ["backend", "node", "nestjs", "express", "api"],
+      Frontend: ["frontend", "react", "vue", "angular"],
+      MERN: ["mern", "mongodb"],
+      TypeScript: ["typescript"],
+      DevOps: ["devops", "docker", "kubernetes"],
+    };
+    for (const resume of resumes) {
+      const kws = fallbackMap[resume.name] || [];
+      const score = kws.filter((kw) => jobText.includes(kw)).length;
+      if (score > bestScore) {
+        bestScore = score;
+        bestResume = { name: resume.name, id: resume.id, matchedSkills: [] };
+      }
+    }
+  }
+
+  return bestResume;
+}
+
+function smartMatchScore(title: string, desc: string, profile: UserProfile): number {
+  const jobText = (title + " " + desc).toLowerCase();
+  let score = 0;
+  let maxPossible = 0;
+
+  // Skills matching (weight: 3 per skill)
+  if (profile.skills.length > 0) {
+    const skillMatches = profile.skills.filter((s) => jobText.includes(s.toLowerCase()));
+    score += skillMatches.length * 3;
+    maxPossible += profile.skills.length * 3;
+  }
+
+  // Keyword matching (weight: 2 per keyword)
+  if (profile.keywords.length > 0) {
+    const kwMatches = profile.keywords.filter((kw) => jobText.includes(kw.toLowerCase()));
+    score += kwMatches.length * 2;
+    maxPossible += profile.keywords.length * 2;
+  }
+
+  // Category matching (weight: bonus 10)
+  if (profile.jobCategories.length > 0) {
+    const catMatch = profile.jobCategories.some((cat) => {
+      const catKws = CATEGORY_KEYWORDS[cat] || [];
+      return catKws.some((kw) => jobText.includes(kw));
+    });
+    if (catMatch) score += 10;
+    maxPossible += 10;
+  }
+
+  // Experience level boost (weight: bonus 5)
+  if (profile.experienceLevel && profile.experienceLevel !== "ANY") {
+    const expConfig = EXP_FILTERS[profile.experienceLevel];
+    if (expConfig) {
+      const hasBoost = expConfig.boost.some((r) => r.test(title + " " + desc));
+      if (hasBoost) score += 5;
+      maxPossible += 5;
+    }
+  }
+
+  if (maxPossible === 0) return 0;
+  return Math.min(Math.round((score / maxPossible) * 100), 100);
+}
+
+function shouldFilterOut(job: { role: string; description: string; workType: string }, profile: UserProfile): boolean {
+  const text = job.role + " " + job.description;
+
+  // Experience filter -- skip mismatched levels
+  if (profile.experienceLevel && profile.experienceLevel !== "ANY") {
+    const expConfig = EXP_FILTERS[profile.experienceLevel];
+    if (expConfig && expConfig.skip.some((r) => r.test(text))) {
+      return true;
+    }
+  }
+
+  // Work type filter -- skip if user wants remote but job is onsite (soft filter: only if explicitly set)
+  if (profile.preferredWorkType) {
+    if (profile.preferredWorkType === "REMOTE" && job.workType === "ONSITE") return true;
+    if (profile.preferredWorkType === "ONSITE" && job.workType === "REMOTE") return true;
+  }
+
+  return false;
 }
 
 // ── Normalized job shape from all sources ──
@@ -55,7 +188,10 @@ interface RawJob {
 }
 
 // ── 1. JSearch (RapidAPI) ──
-async function fetchJSearch(keywords: string[], location: string): Promise<RawJob[]> {
+async function fetchJSearch(
+  keywords: string[],
+  location: string,
+): Promise<RawJob[]> {
   const apiKey = process.env.RAPIDAPI_KEY;
   if (!apiKey) {
     console.log("RAPIDAPI_KEY not set, skipping JSearch");
@@ -75,7 +211,7 @@ async function fetchJSearch(keywords: string[], location: string): Promise<RawJo
             "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
           },
           signal: AbortSignal.timeout(15000),
-        }
+        },
       );
       if (!res.ok) {
         console.log(`JSearch failed for "${kw}": ${res.status}`);
@@ -100,7 +236,10 @@ async function fetchJSearch(keywords: string[], location: string): Promise<RawJo
 
         let applyType: RawJob["applyType"] = "REGULAR";
         if (isDirect) applyType = "EASY_APPLY";
-        else if (options.some((o) => o.source.toLowerCase().includes("linkedin"))) applyType = "QUICK_APPLY";
+        else if (
+          options.some((o) => o.source.toLowerCase().includes("linkedin"))
+        )
+          applyType = "QUICK_APPLY";
 
         const isRemote =
           item.job_is_remote === true ||
@@ -112,7 +251,10 @@ async function fetchJSearch(keywords: string[], location: string): Promise<RawJo
           role: item.job_title || "",
           url: applyLink || item.job_google_link || "",
           platform: "LINKEDIN",
-          location: [item.job_city, item.job_state, item.job_country].filter(Boolean).join(", ") || location,
+          location:
+            [item.job_city, item.job_state, item.job_country]
+              .filter(Boolean)
+              .join(", ") || location,
           salary:
             item.job_min_salary && item.job_max_salary
               ? `${item.job_salary_currency || "$"}${item.job_min_salary}-${item.job_max_salary}/${item.job_salary_period || "year"}`
@@ -133,7 +275,10 @@ async function fetchJSearch(keywords: string[], location: string): Promise<RawJo
 }
 
 // ── 2. Indeed RSS ──
-async function fetchIndeedRSS(keywords: string[], location: string): Promise<RawJob[]> {
+async function fetchIndeedRSS(
+  keywords: string[],
+  location: string,
+): Promise<RawJob[]> {
   const jobs: RawJob[] = [];
   const feeds = keywords.slice(0, 5).map((kw) => {
     const q = encodeURIComponent(kw.toLowerCase() + " developer");
@@ -154,15 +299,25 @@ async function fetchIndeedRSS(keywords: string[], location: string): Promise<Raw
       let match;
       while ((match = itemRegex.exec(xml)) !== null) {
         const content = match[1];
-        const title = content.match(/<title><!\[CDATA\[([\s\S]*?)\]\]>|<title>([\s\S]*?)<\/title>/);
+        const title = content.match(
+          /<title><!\[CDATA\[([\s\S]*?)\]\]>|<title>([\s\S]*?)<\/title>/,
+        );
         const link = content.match(/<link>([\s\S]*?)<\/link>/);
-        const desc = content.match(/<description><!\[CDATA\[([\s\S]*?)\]\]>|<description>([\s\S]*?)<\/description>/);
+        const desc = content.match(
+          /<description><!\[CDATA\[([\s\S]*?)\]\]>|<description>([\s\S]*?)<\/description>/,
+        );
         const source = content.match(/<source[\s\S]*?>([\s\S]*?)<\/source>/);
 
-        const role = (title?.[1] || title?.[2] || "").replace(/<[^>]*>/g, "").trim();
+        const role = (title?.[1] || title?.[2] || "")
+          .replace(/<[^>]*>/g, "")
+          .trim();
         const url = (link?.[1] || "").trim();
-        const description = (desc?.[1] || desc?.[2] || "").replace(/<[^>]*>/g, "").trim();
-        const company = (source?.[1] || "Unknown").replace(/<[^>]*>/g, "").trim();
+        const description = (desc?.[1] || desc?.[2] || "")
+          .replace(/<[^>]*>/g, "")
+          .trim();
+        const company = (source?.[1] || "Unknown")
+          .replace(/<[^>]*>/g, "")
+          .trim();
 
         if (role && url) {
           jobs.push({
@@ -176,7 +331,9 @@ async function fetchIndeedRSS(keywords: string[], location: string): Promise<Raw
             applyType: "UNKNOWN",
             isDirectApply: false,
             applyOptions: [{ link: url, source: "indeed" }],
-            workType: role.toLowerCase().includes("remote") ? "REMOTE" : "ONSITE",
+            workType: role.toLowerCase().includes("remote")
+              ? "REMOTE"
+              : "ONSITE",
             source: "indeed_rss",
           });
         }
@@ -195,9 +352,12 @@ async function fetchRemotive(keywords: string[]): Promise<RawJob[]> {
   for (const kw of keywords.slice(0, 2)) {
     try {
       const search = encodeURIComponent(kw.toLowerCase());
-      const res = await fetch(`https://remotive.com/api/remote-jobs?search=${search}&limit=20`, {
-        signal: AbortSignal.timeout(10000),
-      });
+      const res = await fetch(
+        `https://remotive.com/api/remote-jobs?search=${search}&limit=20`,
+        {
+          signal: AbortSignal.timeout(10000),
+        },
+      );
       if (!res.ok) continue;
       const data = await res.json();
       if (!data.jobs || !Array.isArray(data.jobs)) continue;
@@ -213,7 +373,9 @@ async function fetchRemotive(keywords: string[]): Promise<RawJob[]> {
           platform: "OTHER",
           location: item.candidate_required_location || "Remote",
           salary: item.salary || null,
-          description: (item.description || "").replace(/<[^>]*>/g, "").substring(0, 2000),
+          description: (item.description || "")
+            .replace(/<[^>]*>/g, "")
+            .substring(0, 2000),
           applyType: "REGULAR",
           isDirectApply: false,
           applyOptions: [{ link: url, source: "remotive" }],
@@ -243,7 +405,11 @@ async function fetchArbeitnow(): Promise<RawJob[]> {
       const url = item.url || "";
       if (!url) continue;
 
-      const isRemote = item.remote === true || (item.tags || []).some((t: string) => t.toLowerCase().includes("remote"));
+      const isRemote =
+        item.remote === true ||
+        (item.tags || []).some((t: string) =>
+          t.toLowerCase().includes("remote"),
+        );
 
       jobs.push({
         company: item.company_name || "Unknown",
@@ -252,7 +418,9 @@ async function fetchArbeitnow(): Promise<RawJob[]> {
         platform: "OTHER",
         location: item.location || "EU / Remote",
         salary: null,
-        description: (item.description || "").replace(/<[^>]*>/g, "").substring(0, 2000),
+        description: (item.description || "")
+          .replace(/<[^>]*>/g, "")
+          .substring(0, 2000),
         applyType: "REGULAR",
         isDirectApply: false,
         applyOptions: [{ link: url, source: "arbeitnow" }],
@@ -278,20 +446,34 @@ export async function GET(req: NextRequest) {
       where: { email: "ali@demo.com" },
       include: { settings: true, resumes: true },
     });
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!user)
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const keywords = user.settings?.searchKeywords?.split(",").map((k) => k.trim()) ?? [
+    const settings = user.settings;
+    const keywords = settings?.searchKeywords?.split(",").map((k) => k.trim()) ?? [
       "MERN", "NestJS", "Next.js", "React", "Node.js",
     ];
-    const location = user.settings?.searchLocation ?? "Lahore";
+    const location = settings?.searchLocation ?? "Lahore";
+
+    // Build user profile for smart matching
+    const profile: UserProfile = {
+      skills: settings?.skills?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
+      keywords,
+      experienceLevel: settings?.experienceLevel ?? null,
+      jobCategories: settings?.jobCategories?.split(",").filter(Boolean) ?? [],
+      preferredWorkType: settings?.preferredWorkType ?? null,
+      minSalary: settings?.minSalary ?? null,
+      maxSalary: settings?.maxSalary ?? null,
+    };
 
     // Fetch from all 4 sources in parallel
-    const [jsearchJobs, indeedJobs, remotiveJobs, arbeitnowJobs] = await Promise.allSettled([
-      fetchJSearch(keywords, location),
-      fetchIndeedRSS(keywords, location),
-      fetchRemotive(keywords),
-      fetchArbeitnow(),
-    ]);
+    const [jsearchJobs, indeedJobs, remotiveJobs, arbeitnowJobs] =
+      await Promise.allSettled([
+        fetchJSearch(keywords, location),
+        fetchIndeedRSS(keywords, location),
+        fetchRemotive(keywords),
+        fetchArbeitnow(),
+      ]);
 
     const allJobs: RawJob[] = [
       ...(jsearchJobs.status === "fulfilled" ? jsearchJobs.value : []),
@@ -310,7 +492,9 @@ export async function GET(req: NextRequest) {
     console.log(`Scraped: JSearch=${sourceStats.jsearch}, Indeed=${sourceStats.indeed}, Remotive=${sourceStats.remotive}, Arbeitnow=${sourceStats.arbeitnow}`);
 
     // Deduplicate by URL
-    const uniqueJobs = Array.from(new Map(allJobs.filter((j) => j.url).map((j) => [j.url, j])).values());
+    const uniqueJobs = Array.from(
+      new Map(allJobs.filter((j) => j.url).map((j) => [j.url, j])).values(),
+    );
 
     // Check which URLs already exist in DB
     const existingUrls = new Set(
@@ -319,7 +503,7 @@ export async function GET(req: NextRequest) {
           where: { userId: user.id, url: { in: uniqueJobs.map((j) => j.url) } },
           select: { url: true },
         })
-      ).map((j) => j.url)
+      ).map((j) => j.url),
     );
 
     const newJobs = uniqueJobs.filter((j) => !existingUrls.has(j.url));
@@ -332,14 +516,22 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Save new jobs and send individual emails
+    // Apply experience and work type filters
+    const filteredJobs = newJobs.filter(
+      (job) => !shouldFilterOut({ role: job.role, description: job.description, workType: job.workType }, profile),
+    );
+
+    let filtered = newJobs.length - filteredJobs.length;
+    console.log(`Filtered out ${filtered} jobs by experience/work type preferences`);
+
+    // Save jobs and send emails
     let savedCount = 0;
     let emailsSent = 0;
 
-    for (const job of newJobs.slice(0, 30)) {
-      const matchScore = calcMatchScore(job.role, job.description, keywords);
-      const resumeName = recommendResume(job.role, job.description);
-      const resume = user.resumes.find((r) => r.name === resumeName);
+    for (const job of filteredJobs.slice(0, 30)) {
+      const matchScore = smartMatchScore(job.role, job.description, profile);
+      const recommended = smartRecommendResume(job.role, job.description, user.resumes);
+      const resume = recommended.id ? user.resumes.find((r) => r.id === recommended.id) : null;
 
       const created = await prisma.job.create({
         data: {
@@ -367,14 +559,18 @@ export async function GET(req: NextRequest) {
           type: "job_created",
           toStage: "SAVED",
           note: `Auto-scraped from ${job.source}`,
-          metadata: { automated: true, source: job.source, matchScore },
+          metadata: {
+            automated: true,
+            source: job.source,
+            matchScore,
+            matchedSkills: recommended.matchedSkills,
+          },
         },
       });
 
       savedCount++;
 
-      // Send individual email per job
-      if (user.settings?.emailNotifications !== false) {
+      if (settings?.emailNotifications !== false) {
         try {
           await sendJobEmail({
             company: job.company,
@@ -387,8 +583,9 @@ export async function GET(req: NextRequest) {
             applyType: job.applyType,
             isDirectApply: job.isDirectApply,
             matchScore,
-            recommendedResume: resumeName,
+            recommendedResume: recommended.name,
             resumeFileUrl: resume?.fileUrl || null,
+            matchedSkills: recommended.matchedSkills,
             source: job.source,
           });
           emailsSent++;
@@ -402,6 +599,7 @@ export async function GET(req: NextRequest) {
       message: `Saved ${savedCount} new jobs, sent ${emailsSent} emails`,
       scraped: uniqueJobs.length,
       saved: savedCount,
+      filtered,
       emailsSent,
       sources: sourceStats,
     });

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -26,12 +27,24 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { createResume, updateResume, deleteResume } from "@/app/actions/resume";
-import { FileText, Plus, Pencil, Trash2, ExternalLink, Loader2, TrendingUp, Sparkles } from "lucide-react";
+import {
+  FileText,
+  Plus,
+  Pencil,
+  Trash2,
+  ExternalLink,
+  Loader2,
+  TrendingUp,
+  ClipboardPaste,
+  CheckCircle2,
+  Brain,
+} from "lucide-react";
 
 interface ResumeWithStats {
   id: string;
   name: string;
   fileUrl: string | null;
+  content: string | null;
   userId: string;
   createdAt: string;
   jobCount: number;
@@ -47,18 +60,21 @@ export function ResumeList({ resumes }: ResumeListProps) {
   const [isPending, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [contentDialogId, setContentDialogId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [fileUrl, setFileUrl] = useState("");
+  const [content, setContent] = useState("");
 
   const handleCreate = () => {
     if (!name.trim()) return;
     startTransition(async () => {
       try {
-        await createResume(name, fileUrl);
+        await createResume(name, fileUrl, content);
         toast.success("Resume added");
         setDialogOpen(false);
         setName("");
         setFileUrl("");
+        setContent("");
         router.refresh();
       } catch (err: any) {
         toast.error(err.message || "Failed to create");
@@ -82,6 +98,20 @@ export function ResumeList({ resumes }: ResumeListProps) {
     });
   };
 
+  const handleSaveContent = (id: string) => {
+    startTransition(async () => {
+      try {
+        await updateResume(id, { content });
+        toast.success("Resume content saved -- scraper will use this for matching");
+        setContentDialogId(null);
+        setContent("");
+        router.refresh();
+      } catch (err: any) {
+        toast.error(err.message || "Failed to save content");
+      }
+    });
+  };
+
   const handleDelete = (id: string) => {
     startTransition(async () => {
       try {
@@ -100,8 +130,27 @@ export function ResumeList({ resumes }: ResumeListProps) {
     setFileUrl(r.fileUrl ?? "");
   };
 
+  const openContentDialog = (r: ResumeWithStats) => {
+    setContentDialogId(r.id);
+    setContent(r.content ?? "");
+  };
+
   return (
     <div className="space-y-4">
+      {/* Info banner */}
+      <div className="rounded-xl bg-gradient-to-r from-indigo-50 to-blue-50 p-3 ring-1 ring-indigo-100/50">
+        <div className="flex items-start gap-2">
+          <Brain className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-indigo-700">Smart Resume Matching</p>
+            <p className="text-[10px] text-indigo-600/80 mt-0.5 leading-relaxed">
+              Paste your resume text into each variant. The scraper reads it to match jobs and recommend the best resume per job.
+              Without content, matching falls back to resume name keywords only.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Add button */}
       <div className="flex justify-end">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -111,7 +160,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
               Add Resume
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Add Resume Variant</DialogTitle>
             </DialogHeader>
@@ -124,6 +173,16 @@ export function ResumeList({ resumes }: ResumeListProps) {
                 <Label className="text-xs">File URL (Google Drive / Dropbox)</Label>
                 <Input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://..." className="h-9" />
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Resume Content (paste your resume text)</Label>
+                <Textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Paste your full resume text here... The system uses this to intelligently match jobs and recommend this resume when relevant skills are found in job descriptions."
+                  rows={6}
+                  className="resize-none text-xs"
+                />
+              </div>
               <Button onClick={handleCreate} disabled={isPending || !name.trim()} className="w-full">
                 {isPending && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
                 Add Resume
@@ -133,14 +192,58 @@ export function ResumeList({ resumes }: ResumeListProps) {
         </Dialog>
       </div>
 
+      {/* Content paste dialog */}
+      <Dialog
+        open={contentDialogId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setContentDialogId(null);
+            setContent("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardPaste className="h-4 w-4 text-indigo-600" />
+              Paste Resume Content
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <p className="text-xs text-slate-500">
+              Paste your full resume text below. The automation reads this to match your skills against job descriptions and recommend this resume for relevant positions.
+            </p>
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={"MUHAMMAD ALI SHAHID\nFull-Stack Developer\n\nSKILLS\nReact, Node.js, TypeScript, Next.js, NestJS, PostgreSQL, MongoDB, Docker, AWS, Git\n\nEXPERIENCE\nFull-Stack Developer at XYZ Corp (2023-Present)\n- Built REST APIs with NestJS and PostgreSQL\n- Developed frontend with Next.js and Tailwind CSS\n...\n\nEDUCATION\nBS Computer Science - University of Punjab (2019-2023)"}
+              rows={12}
+              className="resize-none text-xs font-mono"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setContentDialogId(null); setContent(""); }}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => contentDialogId && handleSaveContent(contentDialogId)}
+                disabled={isPending}
+              >
+                {isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                Save Content
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Resume grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {resumes.map((r, idx) => (
+        {resumes.map((r) => (
           <div
             key={r.id}
             className="relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/60 space-y-3 transition-all hover:shadow-md hover:-translate-y-0.5"
           >
-            {/* Top accent */}
             <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-blue-500" />
 
             {editingId === r.id ? (
@@ -198,7 +301,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
                     {r.jobCount} jobs
                   </Badge>
@@ -208,19 +311,38 @@ export function ResumeList({ resumes }: ResumeListProps) {
                       {r.responseRate}% response
                     </span>
                   </div>
+                  {r.content ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                      <CheckCircle2 className="h-2.5 w-2.5" />
+                      Content added
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-600 font-medium">No content</span>
+                  )}
                 </div>
 
-                {r.fileUrl && (
-                  <a
-                    href={r.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[10px] px-2"
+                    onClick={() => openContentDialog(r)}
                   >
-                    <ExternalLink className="h-3 w-3" />
-                    View file
-                  </a>
-                )}
+                    <ClipboardPaste className="h-3 w-3 mr-1" />
+                    {r.content ? "Edit Content" : "Paste Resume"}
+                  </Button>
+                  {r.fileUrl && (
+                    <a
+                      href={r.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      View file
+                    </a>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -234,7 +356,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
             <FileText className="h-6 w-6 text-slate-300" />
           </div>
           <p className="text-sm font-medium text-slate-600">No resumes yet</p>
-          <p className="text-xs text-slate-400 mt-1">Add your first resume variant to enable smart recommendations.</p>
+          <p className="text-xs text-slate-400 mt-1">Add your first resume variant to enable smart matching.</p>
         </div>
       )}
     </div>

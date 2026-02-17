@@ -67,6 +67,7 @@ interface JobEmailData {
   matchScore: number;
   recommendedResume: string;
   resumeFileUrl: string | null;
+  matchedSkills?: string[];
   source: string;
 }
 
@@ -122,6 +123,14 @@ export async function sendJobEmail(job: JobEmailData) {
     <p style="font-size:13px;color:#334155;line-height:1.6;margin:0 0 12px 0;">${intro}</p>
 
     ${matchScoreBarHtml(job.matchScore)}
+
+    ${job.matchedSkills && job.matchedSkills.length > 0
+      ? `<div style="margin-top:12px;">
+          <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Skills Matched:</div>
+          <div>${job.matchedSkills.map((s) => `<span style="display:inline-block;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;margin:2px 3px 2px 0;">${s}</span>`).join("")}</div>
+        </div>`
+      : ""
+    }
 
     ${descSnippet ? `<div style="background:#f8fafc;border-radius:8px;padding:12px;margin-top:12px;"><p style="font-size:12px;color:#64748b;line-height:1.6;margin:0;">${descSnippet}</p></div>` : ""}
 

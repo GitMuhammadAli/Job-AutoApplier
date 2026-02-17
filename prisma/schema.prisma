@@ -49,17 +49,31 @@ model Session {
 }
 
 model UserSettings {
-  id                String @id @default(cuid())
-  userId            String @unique
-  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dailyTarget       Int    @default(5)
-  ghostDays         Int    @default(14)    // days before marking as ghosted
-  staleDays         Int    @default(7)     // days before "Saved" jobs flagged stale
-  followUpDays      Int    @default(7)     // default follow-up reminder days
+  id                 String  @id @default(cuid())
+  userId             String  @unique
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Automation
+  dailyTarget        Int     @default(5)
+  ghostDays          Int     @default(14)
+  staleDays          Int     @default(7)
+  followUpDays       Int     @default(7)
   emailNotifications Boolean @default(true)
-  timezone          String  @default("Asia/Karachi")
-  searchKeywords    String?
-  searchLocation    String?
+  timezone           String  @default("Asia/Karachi")
+  // Search
+  searchKeywords     String?
+  searchLocation     String?
+  // Profile
+  experienceLevel    String? // JUNIOR, MID, SENIOR, LEAD, ANY
+  skills             String? @db.Text // comma-separated skills
+  jobCategories      String? // comma-separated: Full-Stack,Backend,Frontend,DevOps,Mobile
+  educationLevel     String? // BACHELORS, MASTERS, PHD, ANY
+  languages          String? // comma-separated: English,Urdu
+  // Preferences
+  minSalary          Int?
+  maxSalary          Int?
+  salaryCurrency     String  @default("PKR")
+  preferredWorkType  String? // REMOTE, ONSITE, HYBRID, or null = any
+  preferredPlatforms String? // comma-separated platform preferences
 }
 
 model Job {
@@ -105,6 +119,7 @@ model Resume {
   id        String   @id @default(cuid())
   name      String
   fileUrl   String?
+  content   String?  @db.Text // pasted resume text for intelligent matching
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobs      Job[]

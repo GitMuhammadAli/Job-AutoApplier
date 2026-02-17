@@ -40,6 +40,16 @@ export async function updateSettings(data: {
   timezone?: string;
   searchKeywords?: string;
   searchLocation?: string;
+  experienceLevel?: string;
+  skills?: string;
+  jobCategories?: string;
+  educationLevel?: string;
+  languages?: string;
+  minSalary?: number | null;
+  maxSalary?: number | null;
+  salaryCurrency?: string;
+  preferredWorkType?: string;
+  preferredPlatforms?: string;
 }) {
   const userId = await getDemoUserId();
 
