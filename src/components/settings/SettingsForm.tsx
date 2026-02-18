@@ -19,7 +19,6 @@ import { updateSettings } from "@/app/actions/settings";
 import {
   Loader2,
   Save,
-  Target,
   Zap,
   Bell,
   User,

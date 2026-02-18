@@ -35,7 +35,7 @@ export default async function DashboardPage() {
           </div>
           <div className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5">
             <Clock className="h-3.5 w-3.5 text-slate-500" />
-            <span className="text-[11px] font-medium text-slate-600">Hourly scan</span>
+            <span className="text-[11px] font-medium text-slate-600">Daily scan</span>
           </div>
           <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 ring-1 ring-emerald-100">
             <Mail className="h-3.5 w-3.5 text-emerald-600" />
