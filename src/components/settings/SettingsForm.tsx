@@ -87,6 +87,9 @@ interface SettingsFormProps {
     smtpUser?: string | null;
     smtpPass?: string | null;
     resumeMatchMode?: string | null;
+    accountStatus?: string | null;
+    notificationFrequency?: string | null;
+    instantApplyDelay?: number | null;
   };
 }
 
@@ -152,6 +155,10 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
   const [smtpUser, setSmtpUser] = useState(s.smtpUser || "");
   const [smtpPass, setSmtpPass] = useState(s.smtpPass || "");
   const [resumeMatchMode, setResumeMatchMode] = useState(s.resumeMatchMode || "smart");
+  const [accountStatus, setAccountStatus] = useState(s.accountStatus || "active");
+  const [notificationFrequency, setNotificationFrequency] = useState(s.notificationFrequency || "hourly");
+  const [instantApplyDelay, setInstantApplyDelay] = useState((s.instantApplyDelay ?? 5).toString());
+  const [testingEmail, setTestingEmail] = useState(false);
 
   const addKeyword = useCallback(() => {
     const val = keywordInput.trim();
@@ -220,6 +227,9 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         smtpUser,
         smtpPass,
         resumeMatchMode,
+        accountStatus,
+        notificationFrequency,
+        instantApplyDelay: parseInt(instantApplyDelay) || 5,
       });
       toast.success("Settings saved successfully");
     } catch {
@@ -230,6 +240,28 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
 
   return (
     <div className="space-y-8 max-w-3xl">
+      {/* ── Account Status ── */}
+      <div className={`rounded-xl p-4 shadow-sm ring-1 ${accountStatus === "active" ? "bg-emerald-50 ring-emerald-200" : accountStatus === "paused" ? "bg-amber-50 ring-amber-200" : "bg-slate-100 ring-slate-200"}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-bold text-slate-800">
+              Automation: {accountStatus === "active" ? "Active" : accountStatus === "paused" ? "Paused" : "Off"}
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {accountStatus === "active" ? "Scraping, matching, and auto-apply running normally." : accountStatus === "paused" ? "Jobs still scraped & matched, but no auto-apply or notifications." : "All automation stopped. Data preserved."}
+            </p>
+          </div>
+          <Select value={accountStatus} onValueChange={setAccountStatus}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="paused">Paused</SelectItem>
+              <SelectItem value="off">Off</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* ── Personal Info ── */}
       <Section icon={<User className="h-4 w-4" />} title="Personal Info">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -395,9 +427,22 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
           </div>
           {emailNotifications && (
-            <Field label="Notification Email (optional, defaults to login email)">
-              <Input value={notificationEmail} onChange={(e) => setNotificationEmail(e.target.value)} placeholder="alerts@example.com" />
-            </Field>
+            <>
+              <Field label="Notification Email (optional, defaults to login email)">
+                <Input value={notificationEmail} onChange={(e) => setNotificationEmail(e.target.value)} placeholder="alerts@example.com" />
+              </Field>
+              <Field label="Notification Frequency">
+                <Select value={notificationFrequency} onValueChange={setNotificationFrequency}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="realtime">Real-time</SelectItem>
+                    <SelectItem value="hourly">Hourly (max 1/hour)</SelectItem>
+                    <SelectItem value="daily">Daily digest (max 3/day)</SelectItem>
+                    <SelectItem value="off">Off</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </>
           )}
         </div>
       </Section>
@@ -434,6 +479,30 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               <Field label="SMTP Password">
                 <Input type="password" value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} placeholder="••••••••" />
               </Field>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={testingEmail}
+                onClick={async () => {
+                  setTestingEmail(true);
+                  try {
+                    const res = await fetch("/api/email/test", { method: "POST" });
+                    const data = await res.json();
+                    if (data.success) {
+                      toast.success("Test email sent! Check your inbox.");
+                    } else {
+                      toast.error(data.hint || data.error || "Test failed");
+                    }
+                  } catch {
+                    toast.error("Failed to send test email");
+                  }
+                  setTestingEmail(false);
+                }}
+              >
+                {testingEmail ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Mail className="h-3.5 w-3.5 mr-1.5" />}
+                Send Test Email
+              </Button>
             </div>
           )}
           <Field label="Resume Match Mode">
@@ -566,6 +635,21 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
                     ))}
                   </SelectContent>
                 </Select>
+              </Field>
+
+              <Field label={`Review Delay Before Auto-Send (${instantApplyDelay} min)`}>
+                <Select value={instantApplyDelay} onValueChange={setInstantApplyDelay}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0 min — send immediately</SelectItem>
+                    <SelectItem value="5">5 min — quick review window</SelectItem>
+                    <SelectItem value="15">15 min — comfortable review</SelectItem>
+                    <SelectItem value="30">30 min — full review</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  How long to wait before auto-sending. During this window you can edit or cancel in the Applications page.
+                </p>
               </Field>
             </>
           )}

@@ -8,7 +8,7 @@ export async function getResumesWithStats() {
   const userId = await getAuthUserId();
 
   const resumes = await prisma.resume.findMany({
-    where: { userId },
+    where: { userId, isDeleted: false },
     include: {
       _count: { select: { applications: true } },
     },
@@ -85,7 +85,10 @@ export async function deleteResume(id: string) {
   const resume = await prisma.resume.findFirst({ where: { id, userId } });
   if (!resume) throw new Error("Resume not found");
 
-  await prisma.resume.delete({ where: { id } });
+  await prisma.resume.update({
+    where: { id },
+    data: { isDeleted: true, deletedAt: new Date() },
+  });
   revalidatePath("/resumes");
   return { success: true };
 }

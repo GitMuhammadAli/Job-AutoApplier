@@ -1,15 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import type { SearchQuery } from "@/types";
 
-/**
- * Aggregate search queries from ALL users' settings.
- * Merges and deduplicates keywords (case-insensitive).
- * Always includes "Remote" as a city for every keyword.
- */
-export async function aggregateSearchQueries(): Promise<SearchQuery[]> {
+export async function aggregateSearchQueries(mode?: string): Promise<SearchQuery[]> {
   const allSettings = await prisma.userSettings.findMany({
     where: {
       keywords: { isEmpty: false },
+      accountStatus: "active",
     },
     select: {
       keywords: true,
@@ -19,6 +15,7 @@ export async function aggregateSearchQueries(): Promise<SearchQuery[]> {
   });
 
   const keywordCityMap = new Map<string, Set<string>>();
+  const keywordPopularity = new Map<string, number>();
 
   for (const settings of allSettings) {
     const cities = new Set<string>();
@@ -30,6 +27,8 @@ export async function aggregateSearchQueries(): Promise<SearchQuery[]> {
       const normalized = keyword.toLowerCase().trim();
       if (!normalized) continue;
 
+      keywordPopularity.set(normalized, (keywordPopularity.get(normalized) || 0) + 1);
+
       if (!keywordCityMap.has(normalized)) {
         keywordCityMap.set(normalized, new Set<string>());
       }
@@ -38,13 +37,25 @@ export async function aggregateSearchQueries(): Promise<SearchQuery[]> {
     }
   }
 
+  let keywords = Array.from(keywordCityMap.keys());
+
+  // For paid APIs, limit to top 5 most popular keywords to preserve quota
+  if (mode === "paid") {
+    keywords = keywords
+      .sort((a, b) => (keywordPopularity.get(b) || 0) - (keywordPopularity.get(a) || 0))
+      .slice(0, 5);
+  }
+
   const queries: SearchQuery[] = [];
-  keywordCityMap.forEach((cities, keyword) => {
-    queries.push({
-      keyword,
-      cities: Array.from(cities),
-    });
-  });
+  for (const keyword of keywords) {
+    const cities = keywordCityMap.get(keyword);
+    if (cities) {
+      queries.push({
+        keyword,
+        cities: Array.from(cities),
+      });
+    }
+  }
 
   return queries;
 }

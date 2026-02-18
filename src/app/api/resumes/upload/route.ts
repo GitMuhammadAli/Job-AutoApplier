@@ -2,13 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
-import { extractTextFromPDF, extractSkillsFromContent } from "@/lib/resume-parser";
+import { extractText, extractSkillsFromContent } from "@/lib/resume-parser";
 
 export const dynamic = "force-dynamic";
+
+const MAX_RESUMES = 10;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export async function POST(req: NextRequest) {
   try {
     const userId = await getAuthUserId();
+
+    const existingCount = await prisma.resume.count({
+      where: { userId, isDeleted: false },
+    });
+    if (existingCount >= MAX_RESUMES) {
+      return NextResponse.json(
+        { error: `Maximum ${MAX_RESUMES} resumes allowed. Delete one first.` },
+        { status: 400 }
+      );
+    }
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -18,6 +31,25 @@ export async function POST(req: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "File must be under 5 MB" },
+        { status: 400 }
+      );
+    }
+
+    const allowedTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Only PDF, DOCX, and TXT files are supported" },
+        { status: 400 }
+      );
     }
 
     const targetCategories: string[] = targetCategoriesRaw
@@ -32,21 +64,12 @@ export async function POST(req: NextRequest) {
       : [];
 
     const isDefault = isDefaultStr === "true";
-
     const buffer = Buffer.from(await file.arrayBuffer());
-    const fileType = file.type;
     const fileName = file.name;
+    const fileType = file.type;
 
-    let textContent = "";
-    let textQuality: "good" | "poor" | "empty" = "good";
-    if (fileType === "application/pdf") {
-      const result = await extractTextFromPDF(buffer);
-      textContent = result.text;
-      textQuality = result.quality;
-    } else if (fileType === "text/plain") {
-      textContent = buffer.toString("utf-8");
-    }
-
+    const ext = fileName.split(".").pop()?.toLowerCase() || "pdf";
+    const { text: textContent, quality: textQuality } = await extractText(buffer, ext);
     const detectedSkills = extractSkillsFromContent(textContent);
 
     const blob = await put(`resumes/${userId}/${fileName}`, buffer, {
@@ -55,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     if (isDefault) {
       await prisma.resume.updateMany({
-        where: { userId },
+        where: { userId, isDeleted: false },
         data: { isDefault: false },
       });
     }
@@ -83,7 +106,6 @@ export async function POST(req: NextRequest) {
         fileName: resume.fileName,
         fileUrl: resume.fileUrl,
         fileType: resume.fileType,
-        content: resume.content,
         textQuality: resume.textQuality,
         targetCategories: resume.targetCategories,
         detectedSkills: resume.detectedSkills,

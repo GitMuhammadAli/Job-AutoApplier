@@ -1,5 +1,11 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+];
+
 export async function fetchLinkedIn(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const jobs: ScrapedJob[] = [];
 
@@ -10,14 +16,19 @@ export async function fetchLinkedIn(queries: SearchQuery[]): Promise<ScrapedJob[
         const location = encodeURIComponent(city);
         const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${keyword}&location=${location}&start=0&f_TPR=r604800`;
 
+        const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
         const res = await fetch(url, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          },
+          headers: { "User-Agent": ua },
         });
         if (!res.ok) continue;
 
         const html = await res.text();
+
+        if (html.includes("captcha") || html.includes("authwall") || html.length < 200) {
+          console.warn("[LinkedIn] Likely blocked — captcha or authwall detected");
+          continue;
+        }
+
         const cards = html.match(/<li[\s\S]*?<\/li>/g) || [];
 
         for (const card of cards.slice(0, 15)) {

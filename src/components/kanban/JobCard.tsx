@@ -15,6 +15,15 @@ interface JobCardProps {
   onStageChange: (jobId: string, newStage: JobStage, oldStage: JobStage) => void;
 }
 
+function getFreshness(days: number | null): { label: string; color: string } {
+  if (days === null) return { label: "", color: "" };
+  if (days <= 1) return { label: "Fresh", color: "bg-emerald-100 text-emerald-700" };
+  if (days <= 3) return { label: "Recent", color: "bg-blue-100 text-blue-700" };
+  if (days <= 7) return { label: "This week", color: "bg-amber-100 text-amber-700" };
+  if (days <= 14) return { label: "Aging", color: "bg-orange-100 text-orange-700" };
+  return { label: "Old", color: "bg-red-100 text-red-700" };
+}
+
 function getApplySpeed(job: UserJobWithGlobal): { label: string; fast: boolean } | null {
   if (job.application?.status !== "SENT" || !job.application.sentAt) return null;
   const sentAt = new Date(job.application.sentAt).getTime();
@@ -41,6 +50,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
   const days = daysAgo(g.postedDate ?? null);
   const hasApp = job.application?.status === "SENT";
   const speed = getApplySpeed(job);
+  const freshness = getFreshness(days);
 
   return (
     <div
@@ -77,6 +87,11 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
 
       <div className="flex flex-wrap items-center gap-1 mb-2">
         <PlatformBadge source={g.source} />
+        {freshness.label && (
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${freshness.color}`}>
+            {freshness.label}
+          </span>
+        )}
         {hasApp && speed && (
           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
             speed.fast
@@ -133,6 +148,11 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
               style={{ width: `${Math.min(job.matchScore, 100)}%` }}
             />
           </div>
+          {job.matchReasons && job.matchReasons.length > 0 && (
+            <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+              {job.matchReasons.slice(0, 3).join(" · ")}
+            </p>
+          )}
         </div>
       )}
 

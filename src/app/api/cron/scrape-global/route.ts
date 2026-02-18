@@ -2,10 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { aggregateSearchQueries } from "@/lib/scrapers/keyword-aggregator";
 import { getPaidSourcesToday, getPriorityPlatforms } from "@/lib/scrapers/source-rotation";
-import { scrapeAllSourcesGlobal } from "@/lib/scrapers";
+import { fetchJSearch } from "@/lib/scrapers/jsearch";
+import { fetchIndeed } from "@/lib/scrapers/indeed";
+import { fetchRemotive } from "@/lib/scrapers/remotive";
+import { fetchArbeitnow } from "@/lib/scrapers/arbeitnow";
+import { fetchAdzuna } from "@/lib/scrapers/adzuna";
+import { fetchLinkedIn } from "@/lib/scrapers/linkedin";
+import { fetchRozee } from "@/lib/scrapers/rozee";
+import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
+import { categorizeJob } from "@/lib/job-categorizer";
+import { sendNotificationEmail } from "@/lib/email";
+import type { ScrapedJob, SearchQuery } from "@/types";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
+
+type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;
+
+const SCRAPERS: Record<string, ScraperFn> = {
+  jsearch: (q) => fetchJSearch(q, 6),
+  indeed: (q) => fetchIndeed(q),
+  remotive: (q) => fetchRemotive(q),
+  arbeitnow: () => fetchArbeitnow(),
+  adzuna: (q) => fetchAdzuna(q),
+  linkedin: (q) => fetchLinkedIn(q),
+  rozee: (q) => fetchRozee(q),
+  google: (q) => fetchGoogleJobs(q),
+};
 
 function verifyCronSecret(req: NextRequest): boolean {
   const secret =
@@ -38,7 +61,6 @@ export async function GET(req: NextRequest) {
           "indeed", "remotive", "arbeitnow", "linkedin", "rozee",
           ...getPaidSourcesToday(),
         ];
-        // Deduplicate in case paid sources overlap
         sources = sources.filter((s, i) => sources.indexOf(s) === i);
     }
 
@@ -46,76 +68,120 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: "No sources to scrape", mode });
     }
 
-    const queries = await aggregateSearchQueries();
+    const queries = await aggregateSearchQueries(mode === "paid" ? "paid" : undefined);
     if (queries.length === 0) {
       return NextResponse.json({ message: "No user keywords configured", mode, scraped: 0 });
     }
 
-    const { jobs, stats } = await scrapeAllSourcesGlobal(queries, sources);
+    const results: { source: string; found: number; new: number; updated: number; status: string; error?: string }[] = [];
 
-    let newCount = 0;
-    let updatedCount = 0;
+    // Scrape each source independently — one failure doesn't kill others
+    for (const source of sources) {
+      const scraperFn = SCRAPERS[source];
+      if (!scraperFn) continue;
 
-    for (const job of jobs) {
       try {
-        const existing = await prisma.globalJob.findUnique({
-          where: { sourceId_source: { sourceId: job.sourceId, source: job.source } },
-          select: { id: true },
-        });
+        const jobs = await scraperFn(queries);
+        let newCount = 0;
+        let updatedCount = 0;
 
-        if (existing) {
-          await prisma.globalJob.update({
-            where: { id: existing.id },
-            data: {
-              lastSeenAt: new Date(),
-              isActive: true,
-              ...(job.description ? { description: job.description } : {}),
-              ...(job.salary ? { salary: job.salary } : {}),
-              ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
-              ...(job.companyEmail ? { companyEmail: job.companyEmail } : {}),
-            },
-          });
-          updatedCount++;
-        } else {
-          await prisma.globalJob.create({
-            data: {
-              title: job.title,
-              company: job.company,
-              location: job.location,
-              description: job.description,
-              salary: job.salary,
-              jobType: job.jobType,
-              experienceLevel: job.experienceLevel,
-              category: job.category,
-              skills: job.skills,
-              postedDate: job.postedDate,
-              source: job.source,
-              sourceId: job.sourceId,
-              sourceUrl: job.sourceUrl,
-              applyUrl: job.applyUrl,
-              companyUrl: job.companyUrl,
-              companyEmail: job.companyEmail,
-              isActive: true,
-              isFresh: true,
-              firstSeenAt: new Date(),
-              lastSeenAt: new Date(),
-            },
-          });
-          newCount++;
+        for (const job of jobs) {
+          try {
+            if (!job.category) {
+              job.category = categorizeJob(job.title, job.skills || [], job.description || "");
+            }
+
+            const existing = await prisma.globalJob.findUnique({
+              where: { sourceId_source: { sourceId: job.sourceId, source: job.source } },
+              select: { id: true },
+            });
+
+            if (existing) {
+              await prisma.globalJob.update({
+                where: { id: existing.id },
+                data: {
+                  lastSeenAt: new Date(),
+                  isActive: true,
+                  ...(job.description ? { description: job.description } : {}),
+                  ...(job.salary ? { salary: job.salary } : {}),
+                  ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
+                  ...(job.companyEmail ? { companyEmail: job.companyEmail } : {}),
+                },
+              });
+              updatedCount++;
+            } else {
+              await prisma.globalJob.create({
+                data: {
+                  title: job.title,
+                  company: job.company,
+                  location: job.location,
+                  description: job.description,
+                  salary: job.salary,
+                  jobType: job.jobType,
+                  experienceLevel: job.experienceLevel,
+                  category: job.category,
+                  skills: job.skills,
+                  postedDate: job.postedDate,
+                  source: job.source,
+                  sourceId: job.sourceId,
+                  sourceUrl: job.sourceUrl,
+                  applyUrl: job.applyUrl,
+                  companyUrl: job.companyUrl,
+                  companyEmail: job.companyEmail,
+                  isActive: true,
+                  isFresh: true,
+                  firstSeenAt: new Date(),
+                  lastSeenAt: new Date(),
+                },
+              });
+              newCount++;
+            }
+          } catch {
+            // skip individual upsert failures
+          }
         }
-      } catch {
-        // Skip individual upsert failures
+
+        results.push({ source, found: jobs.length, new: newCount, updated: updatedCount, status: "success" });
+
+        await prisma.systemLog.create({
+          data: {
+            type: "scrape",
+            source,
+            message: `${source}: ${jobs.length} found, ${newCount} new, ${updatedCount} updated`,
+            metadata: { found: jobs.length, new: newCount, updated: updatedCount },
+          },
+        });
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        results.push({ source, found: 0, new: 0, updated: 0, status: "failed", error: errMsg });
+        console.error(`[Scrape] ${source} failed:`, error);
+
+        await prisma.systemLog.create({
+          data: {
+            type: "error",
+            source,
+            message: `Scraper ${source} failed: ${errMsg}`,
+          },
+        });
       }
+    }
+
+    const failedCount = results.filter((r) => r.status === "failed").length;
+    if (failedCount > sources.length / 2 && process.env.NOTIFICATION_EMAIL) {
+      await sendNotificationEmail({
+        from: `JobPilot <${process.env.NOTIFICATION_EMAIL}>`,
+        to: process.env.NOTIFICATION_EMAIL,
+        subject: `JobPilot Alert: ${failedCount}/${sources.length} scrapers failed`,
+        html: `<p>Failed sources: ${results.filter((r) => r.status === "failed").map((r) => `${r.source}: ${r.error}`).join("<br>")}</p>`,
+      }).catch(() => {});
     }
 
     return NextResponse.json({
       success: true,
       mode,
-      sources,
-      stats,
-      totalScraped: jobs.length,
-      new: newCount,
-      updated: updatedCount,
+      results,
+      totalNew: results.reduce((s, r) => s + r.new, 0),
+      totalUpdated: results.reduce((s, r) => s + r.updated, 0),
     });
   } catch (error) {
     console.error("Scrape global error:", error);

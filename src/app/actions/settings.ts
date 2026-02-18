@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
+import { encrypt, isEncrypted } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -57,6 +58,9 @@ const settingsSchema = z.object({
   priorityPlatforms: z.array(z.string()).default(["rozee"]),
   peakHoursOnly: z.boolean().default(false),
   timezone: z.string().default("Asia/Karachi"),
+  accountStatus: z.string().default("active"),
+  notificationFrequency: z.string().default("hourly"),
+  instantApplyDelay: z.number().min(0).max(30).default(5),
 });
 
 export async function getSettings() {
@@ -78,6 +82,11 @@ export async function getSettings() {
 export async function saveSettings(rawData: unknown) {
   const userId = await getAuthUserId();
   const data = settingsSchema.parse(rawData);
+
+  let smtpPassValue = data.smtpPass || null;
+  if (smtpPassValue && !isEncrypted(smtpPassValue)) {
+    smtpPassValue = encrypt(smtpPassValue);
+  }
 
   const cleaned = {
     ...data,
@@ -101,9 +110,12 @@ export async function saveSettings(rawData: unknown) {
     smtpHost: data.smtpHost || null,
     smtpPort: data.smtpPort ?? null,
     smtpUser: data.smtpUser || null,
-    smtpPass: data.smtpPass || null,
+    smtpPass: smtpPassValue,
     emailProvider: data.emailProvider || "brevo",
     resumeMatchMode: data.resumeMatchMode || "smart",
+    accountStatus: data.accountStatus || "active",
+    notificationFrequency: data.notificationFrequency || "hourly",
+    instantApplyDelay: data.instantApplyDelay ?? 5,
   };
 
   const result = await prisma.userSettings.upsert({

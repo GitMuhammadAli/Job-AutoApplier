@@ -1,2 +1,8 @@
 /** @type {import('next').NextConfig} */
-module.exports = {};
+module.exports = {
+  experimental: {
+    serverActions: {
+      allowedOrigins: ["localhost:3000"],
+    },
+  },
+};

@@ -10,6 +10,7 @@ import {
   Copy,
   XCircle,
   Trash2,
+  Bell,
 } from "lucide-react";
 
 interface ActivityItem {
@@ -34,6 +35,7 @@ const TYPE_CONFIG: Record<ActivityType, { icon: typeof ArrowRight; label: string
   FOLLOW_UP_SENT: { icon: Clock, label: "Follow-up Sent", color: "text-amber-500" },
   MANUAL_UPDATE: { icon: Plus, label: "Manual Update", color: "text-slate-500" },
   DISMISSED: { icon: Trash2, label: "Dismissed", color: "text-slate-400" },
+  NOTIFICATION_SENT: { icon: Bell, label: "Notification Sent", color: "text-cyan-500" },
 };
 
 export function ActivityTimeline({ activities }: ActivityTimelineProps) {

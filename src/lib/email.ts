@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
+import { decrypt, isEncrypted } from "@/lib/encryption";
 
 export interface EmailSettings {
   emailProvider?: string | null;
@@ -23,6 +24,9 @@ function getBrevoTransporter(): Transporter {
 
 export function getTransporterForUser(settings: EmailSettings): Transporter {
   const provider = settings.emailProvider || "brevo";
+  const smtpPassword = settings.smtpPass
+    ? (isEncrypted(settings.smtpPass) ? decrypt(settings.smtpPass) : settings.smtpPass)
+    : undefined;
 
   switch (provider) {
     case "gmail":
@@ -30,7 +34,7 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
         service: "gmail",
         auth: {
           user: settings.smtpUser ?? undefined,
-          pass: settings.smtpPass ?? undefined,
+          pass: smtpPassword,
         },
       });
     case "outlook":
@@ -40,7 +44,7 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
         secure: false,
         auth: {
           user: settings.smtpUser ?? undefined,
-          pass: settings.smtpPass ?? undefined,
+          pass: smtpPassword,
         },
       });
     case "custom":
@@ -50,7 +54,7 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
         secure: false,
         auth: {
           user: settings.smtpUser ?? undefined,
-          pass: settings.smtpPass ?? undefined,
+          pass: smtpPassword,
         },
       });
     default:

@@ -4,9 +4,9 @@ import { computeMatchScore } from "@/lib/matching/score-engine";
 import { pickBestResume } from "@/lib/matching/resume-matcher";
 import { findCompanyEmail } from "@/lib/email-extractor";
 import { isDuplicateApplication } from "@/lib/duplicate-checker";
-import { getTransporterForUser, sendApplicationEmail, formatCoverLetterHtml } from "@/lib/email";
+import { getTransporterForUser, sendApplicationEmail, sendNotificationEmail, formatCoverLetterHtml } from "@/lib/email";
 import { generateWithGroq } from "@/lib/groq";
-import { sendEmail } from "@/lib/email/sender";
+import { acquireLock, releaseLock, isLockHeld } from "@/lib/system-lock";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -23,17 +23,173 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (await isLockHeld("scrape-global")) {
+    return NextResponse.json({ skipped: true, reason: "Scrape still running" });
+  }
+
+  const locked = await acquireLock("instant-apply");
+  if (!locked) {
+    return NextResponse.json({ skipped: true, reason: "Another instant-apply is running" });
+  }
+
   try {
+    // Phase 1: Retry previously failed applications (up to 3 retries)
+    const retryApps = await prisma.jobApplication.findMany({
+      where: {
+        status: "READY",
+        retryCount: { lt: 3 },
+        scheduledSendAt: { lte: new Date() },
+      },
+      include: {
+        userJob: { include: { globalJob: true } },
+        resume: true,
+        user: { select: { id: true } },
+      },
+      take: 10,
+    });
+
+    let retried = 0;
+    for (const app of retryApps) {
+      try {
+        const settings = await prisma.userSettings.findUnique({ where: { userId: app.userId } });
+        if (!settings || settings.accountStatus !== "active") continue;
+
+        const transporter = getTransporterForUser(settings);
+        const htmlBody = formatCoverLetterHtml(app.emailBody, settings.defaultSignature);
+
+        const result = await sendApplicationEmail(
+          {
+            from: `${settings.fullName || "Applicant"} <${app.senderEmail}>`,
+            to: app.recipientEmail,
+            subject: app.subject,
+            html: htmlBody,
+            replyTo: app.senderEmail,
+          },
+          transporter
+        );
+
+        if (result.success) {
+          await prisma.$transaction([
+            prisma.jobApplication.update({
+              where: { id: app.id },
+              data: { status: "SENT", sentAt: new Date(), appliedVia: "EMAIL" },
+            }),
+            prisma.userJob.update({
+              where: { id: app.userJobId },
+              data: { stage: "APPLIED" },
+            }),
+          ]);
+          retried++;
+        } else {
+          await prisma.jobApplication.update({
+            where: { id: app.id },
+            data: {
+              retryCount: { increment: 1 },
+              errorMessage: result.error,
+              status: app.retryCount >= 2 ? "FAILED" : "READY",
+            },
+          });
+        }
+      } catch {
+        await prisma.jobApplication.update({
+          where: { id: app.id },
+          data: { retryCount: { increment: 1 } },
+        }).catch(() => {});
+      }
+    }
+
+    // Phase 2: Send scheduled applications (delayed auto-send)
+    const scheduledApps = await prisma.jobApplication.findMany({
+      where: {
+        status: "READY",
+        scheduledSendAt: { lte: new Date() },
+        retryCount: 0,
+      },
+      include: {
+        userJob: { include: { globalJob: true } },
+        resume: true,
+      },
+      take: 20,
+    });
+
+    let scheduledSent = 0;
+    for (const app of scheduledApps) {
+      try {
+        const settings = await prisma.userSettings.findUnique({ where: { userId: app.userId } });
+        if (!settings || settings.accountStatus !== "active") continue;
+
+        const transporter = getTransporterForUser(settings);
+        const htmlBody = formatCoverLetterHtml(app.emailBody, settings.defaultSignature);
+
+        const attachments: { filename: string; content: Buffer; contentType: string }[] = [];
+        if (app.resume?.fileUrl) {
+          try {
+            const res = await fetch(app.resume.fileUrl);
+            attachments.push({
+              filename: app.resume.fileName || "resume.pdf",
+              content: Buffer.from(await res.arrayBuffer()),
+              contentType: "application/pdf",
+            });
+          } catch {}
+        }
+
+        const result = await sendApplicationEmail(
+          {
+            from: `${settings.fullName || "Applicant"} <${app.senderEmail}>`,
+            to: app.recipientEmail,
+            subject: app.subject,
+            html: htmlBody,
+            replyTo: app.senderEmail,
+            attachments: attachments.length > 0 ? attachments : undefined,
+          },
+          transporter
+        );
+
+        if (result.success) {
+          await prisma.$transaction([
+            prisma.jobApplication.update({
+              where: { id: app.id },
+              data: { status: "SENT", sentAt: new Date(), appliedVia: "EMAIL" },
+            }),
+            prisma.userJob.update({
+              where: { id: app.userJobId },
+              data: { stage: "APPLIED" },
+            }),
+            prisma.activity.create({
+              data: {
+                userJobId: app.userJobId,
+                userId: app.userId,
+                type: "APPLICATION_SENT",
+                description: `Scheduled send completed | To: ${app.recipientEmail}`,
+              },
+            }),
+          ]);
+          scheduledSent++;
+        } else {
+          await prisma.jobApplication.update({
+            where: { id: app.id },
+            data: { retryCount: { increment: 1 }, errorMessage: result.error },
+          });
+        }
+      } catch {}
+    }
+
+    // Phase 3: Process fresh jobs
     const freshJobs = await prisma.globalJob.findMany({
       where: { isFresh: true, isActive: true },
     });
 
     if (freshJobs.length === 0) {
-      return NextResponse.json({ message: "No fresh jobs to process" });
+      await releaseLock("instant-apply");
+      return NextResponse.json({
+        message: "No fresh jobs",
+        retried,
+        scheduledSent,
+      });
     }
 
     const allSettings = await prisma.userSettings.findMany({
-      where: { isOnboarded: true },
+      where: { isOnboarded: true, accountStatus: "active" },
       include: { user: { select: { id: true, name: true, email: true } } },
     });
 
@@ -42,7 +198,7 @@ export async function GET(req: NextRequest) {
     for (const settings of allSettings) {
       const userId = settings.userId;
       const resumes = await prisma.resume.findMany({
-        where: { userId },
+        where: { userId, isDeleted: false },
         select: { id: true, name: true, content: true, isDefault: true },
       });
 
@@ -74,6 +230,7 @@ export async function GET(req: NextRequest) {
       let applied = 0;
       let drafted = 0;
       let skipped = 0;
+      const delay = settings.instantApplyDelay ?? 5;
 
       for (const freshJob of freshJobs) {
         if (existingJobIds.has(freshJob.id)) continue;
@@ -95,7 +252,6 @@ export async function GET(req: NextRequest) {
           },
         });
 
-        // ═══ INSTANT APPLY PATH ═══
         if (
           isInstantApply &&
           !isOutsidePeakHours &&
@@ -111,15 +267,11 @@ export async function GET(req: NextRequest) {
             continue;
           }
 
-          let emailResult = freshJob.companyEmail
+          const emailResult = freshJob.companyEmail
             ? { email: freshJob.companyEmail, confidence: "HIGH" as const, method: "stored" }
-            : findCompanyEmail(
-                freshJob.description,
-                freshJob.companyUrl,
-                freshJob.company
-              );
+            : findCompanyEmail(freshJob.description, freshJob.companyUrl, freshJob.company);
 
-          if (emailResult) {
+          if (emailResult?.email) {
             if (!freshJob.companyEmail && emailResult.email) {
               await prisma.globalJob.update({
                 where: { id: freshJob.id },
@@ -127,30 +279,28 @@ export async function GET(req: NextRequest) {
               });
             }
 
-            const confidence = emailResult.confidence;
-            const recipientEmail = emailResult.email;
-
             try {
               const bestResume = await pickBestResume(userId, freshJob);
               const emailContent = await generateInstantEmail(freshJob, settings, bestResume);
               const senderEmail = settings.applicationEmail || settings.user.email || "";
 
-              const application = await prisma.jobApplication.create({
-                data: {
-                  userJobId: userJob.id,
-                  userId,
-                  senderEmail,
-                  recipientEmail,
-                  subject: emailContent.subject,
-                  emailBody: emailContent.body,
-                  resumeId: bestResume?.id,
-                  coverLetter: emailContent.coverLetter,
-                  status: confidence === "HIGH" || confidence === "MEDIUM" ? "SENDING" : "DRAFT",
-                  emailConfidence: confidence,
-                },
-              });
+              if (delay === 0 && (emailResult.confidence === "HIGH" || emailResult.confidence === "MEDIUM")) {
+                // Immediate send
+                const application = await prisma.jobApplication.create({
+                  data: {
+                    userJobId: userJob.id,
+                    userId,
+                    senderEmail,
+                    recipientEmail: emailResult.email,
+                    subject: emailContent.subject,
+                    emailBody: emailContent.body,
+                    resumeId: bestResume?.id,
+                    coverLetter: emailContent.coverLetter,
+                    status: "SENDING",
+                    emailConfidence: emailResult.confidence,
+                  },
+                });
 
-              if (confidence === "HIGH" || confidence === "MEDIUM") {
                 const htmlBody = formatCoverLetterHtml(emailContent.body, settings.defaultSignature);
                 const transporter = getTransporterForUser(settings);
 
@@ -158,21 +308,18 @@ export async function GET(req: NextRequest) {
                 if (bestResume?.fileUrl) {
                   try {
                     const res = await fetch(bestResume.fileUrl);
-                    const arrayBuffer = await res.arrayBuffer();
                     attachments.push({
                       filename: bestResume.fileName || "resume.pdf",
-                      content: Buffer.from(arrayBuffer),
+                      content: Buffer.from(await res.arrayBuffer()),
                       contentType: "application/pdf",
                     });
-                  } catch (err) {
-                    console.warn(`[InstantApply] Could not fetch resume for ${freshJob.id}:`, err);
-                  }
+                  } catch {}
                 }
 
                 const sendResult = await sendApplicationEmail(
                   {
                     from: `${settings.fullName || settings.user.name || "Applicant"} <${senderEmail}>`,
-                    to: recipientEmail,
+                    to: emailResult.email,
                     subject: emailContent.subject,
                     html: htmlBody,
                     replyTo: senderEmail,
@@ -196,30 +343,55 @@ export async function GET(req: NextRequest) {
                         userJobId: userJob.id,
                         userId,
                         type: "APPLICATION_SENT",
-                        description: `Instant-applied | Match: ${match.score}% | To: ${recipientEmail}`,
+                        description: `Instant-applied | Match: ${match.score}% | To: ${emailResult.email}`,
                       },
                     }),
                   ]);
                   applied++;
                   await new Promise((r) => setTimeout(r, 1500));
                 } else {
+                  // Retry mechanism — keep as READY instead of FAILED
                   await prisma.jobApplication.update({
                     where: { id: application.id },
-                    data: { status: "DRAFT", errorMessage: sendResult.error },
+                    data: {
+                      status: "READY",
+                      errorMessage: sendResult.error,
+                      scheduledSendAt: new Date(Date.now() + 5 * 60 * 1000),
+                    },
                   });
+                  drafted++;
                 }
               } else {
+                // Delayed send or low confidence — schedule for later
+                const scheduledAt = delay > 0
+                  ? new Date(Date.now() + delay * 60 * 1000)
+                  : null;
+
+                await prisma.jobApplication.create({
+                  data: {
+                    userJobId: userJob.id,
+                    userId,
+                    senderEmail,
+                    recipientEmail: emailResult.email,
+                    subject: emailContent.subject,
+                    emailBody: emailContent.body,
+                    resumeId: bestResume?.id,
+                    coverLetter: emailContent.coverLetter,
+                    status: scheduledAt ? "READY" : "DRAFT",
+                    emailConfidence: emailResult.confidence,
+                    scheduledSendAt: scheduledAt,
+                  },
+                });
                 drafted++;
               }
               continue;
             } catch (error) {
               console.error(`[InstantApply] Send failed for ${freshJob.id}:`, error);
             }
-            continue;
           }
         }
 
-        // ═══ DRAFT PATH ═══
+        // Draft path
         if (match.score >= 50) {
           try {
             const bestResume = await pickBestResume(userId, freshJob);
@@ -248,16 +420,27 @@ export async function GET(req: NextRequest) {
       results.push({ userId, applied, drafted, skipped });
 
       if ((applied > 0 || drafted > 0) && settings.emailNotifications) {
-        const notifEmail = settings.notificationEmail || settings.user.email;
-        if (notifEmail) {
-          try {
-            await sendEmail({
-              from: `JobPilot <${process.env.NOTIFICATION_EMAIL || "noreply@jobpilot.app"}>`,
-              to: notifEmail,
-              subject: `JobPilot: ${applied > 0 ? `${applied} instant-applied` : ""}${applied > 0 && drafted > 0 ? " | " : ""}${drafted > 0 ? `${drafted} drafts ready` : ""}`,
-              html: buildNotificationHTML(settings.user.name || "there", applied, drafted),
-            });
-          } catch {}
+        const shouldNotify = await checkNotificationLimit(userId, settings.notificationFrequency);
+        if (shouldNotify) {
+          const notifEmail = settings.notificationEmail || settings.user.email;
+          if (notifEmail) {
+            try {
+              await sendNotificationEmail({
+                from: `JobPilot <${process.env.NOTIFICATION_EMAIL || "noreply@jobpilot.app"}>`,
+                to: notifEmail,
+                subject: `JobPilot: ${applied > 0 ? `${applied} instant-applied` : ""}${applied > 0 && drafted > 0 ? " | " : ""}${drafted > 0 ? `${drafted} drafts ready` : ""}`,
+                html: buildNotificationHTML(settings.user.name || "there", applied, drafted),
+              });
+              await prisma.activity.create({
+                data: {
+                  userJobId: (await prisma.userJob.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } }))?.id || "",
+                  userId,
+                  type: "NOTIFICATION_SENT",
+                  description: `Notification: ${applied} applied, ${drafted} drafted`,
+                },
+              }).catch(() => {});
+            } catch {}
+          }
         }
       }
     }
@@ -267,18 +450,49 @@ export async function GET(req: NextRequest) {
       data: { isFresh: false },
     });
 
+    await prisma.systemLog.create({
+      data: {
+        type: "instant-apply",
+        message: `Processed ${freshJobs.length} fresh jobs for ${allSettings.length} users`,
+        metadata: { freshJobs: freshJobs.length, users: allSettings.length, results, retried, scheduledSent },
+      },
+    });
+
+    await releaseLock("instant-apply");
+
     return NextResponse.json({
       success: true,
       freshJobsProcessed: freshJobs.length,
+      retried,
+      scheduledSent,
       results,
     });
   } catch (error) {
+    await releaseLock("instant-apply");
     console.error("Instant apply error:", error);
     return NextResponse.json(
       { error: "Instant apply failed", details: String(error) },
       { status: 500 }
     );
   }
+}
+
+async function checkNotificationLimit(userId: string, frequency: string | null): Promise<boolean> {
+  const freq = frequency || "hourly";
+  if (freq === "off") return false;
+
+  const windowMs = freq === "realtime" ? 5 * 60 * 1000 : freq === "daily" ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
+  const maxPerWindow = freq === "daily" ? 3 : freq === "hourly" ? 1 : 10;
+
+  const recent = await prisma.activity.count({
+    where: {
+      userId,
+      type: "NOTIFICATION_SENT",
+      createdAt: { gte: new Date(Date.now() - windowMs) },
+    },
+  });
+
+  return recent < maxPerWindow;
 }
 
 function isDuringPeakHours(timezone: string): boolean {
@@ -408,7 +622,7 @@ function buildNotificationHTML(name: string, applied: number, drafted: number): 
   const appUrl = process.env.NEXTAUTH_URL || "https://jobpilot.vercel.app";
   return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
     <h1 style="font-size:22px;color:#1e293b;">Hi ${name}!</h1>
-    ${applied > 0 ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;margin:12px 0;color:#166534;">⚡ <strong>${applied} applications sent instantly</strong> — you're one of the first applicants!</div>` : ""}
+    ${applied > 0 ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;margin:12px 0;color:#166534;">⚡ <strong>${applied} applications sent instantly</strong></div>` : ""}
     ${drafted > 0 ? `<div style="background:#fef3c7;padding:12px 16px;border-radius:8px;margin:12px 0;color:#92400e;">📝 <strong>${drafted} applications drafted</strong> — review and send when ready</div>` : ""}
     <div style="margin-top:20px;text-align:center;">
       <a href="${appUrl}" style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Review Applications →</a>

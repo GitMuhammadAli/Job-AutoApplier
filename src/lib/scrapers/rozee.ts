@@ -1,5 +1,11 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+];
+
 export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const jobs: ScrapedJob[] = [];
 
@@ -8,14 +14,19 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
       const keyword = encodeURIComponent(q.keyword);
       const url = `https://www.rozee.pk/job/jsearch/q/${keyword}`;
 
+      const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
       const res = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        },
+        headers: { "User-Agent": ua },
       });
       if (!res.ok) continue;
 
       const html = await res.text();
+
+      if (html.includes("captcha") || html.includes("access denied") || html.length < 500) {
+        console.warn("[Rozee] Likely blocked — CAPTCHA or access denied detected");
+        continue;
+      }
+
       const listings = html.match(/<div class="job[^"]*"[\s\S]*?<\/div>\s*<\/div>/g) || [];
 
       for (const listing of listings.slice(0, 15)) {

@@ -53,10 +53,15 @@ export async function scrapeAllSourcesGlobal(
     }
   }
 
-  // Cross-source deduplication
+  // Cross-source deduplication with better normalization
   const dedupMap = new Map<string, ScrapedJob>();
   for (const job of allJobs) {
-    const key = `${job.title.toLowerCase().trim()}|${job.company.toLowerCase().trim()}`;
+    const normTitle = job.title.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const normCompany = job.company
+      .toLowerCase()
+      .replace(/\b(inc|llc|ltd|corp|gmbh|co|company|pvt|private|limited)\b/g, "")
+      .replace(/[^a-z0-9]/g, "");
+    const key = `${normTitle}|${normCompany}`;
     const existing = dedupMap.get(key);
 
     if (!existing) {
