@@ -1,21 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
-const DEMO_USER_EMAIL = "ali@demo.com";
-
-async function getDemoUserId(): Promise<string> {
-  const user = await prisma.user.findUnique({
-    where: { email: DEMO_USER_EMAIL },
-    select: { id: true },
-  });
-  if (!user) throw new Error("Demo user not found");
-  return user.id;
-}
-
 export async function getResumesWithStats() {
-  const userId = await getDemoUserId();
+  const userId = await getAuthUserId();
 
   const resumes = await prisma.resume.findMany({
     where: { userId },
@@ -50,7 +40,7 @@ export async function getResumesWithStats() {
 }
 
 export async function createResume(name: string, fileUrl?: string, content?: string) {
-  const userId = await getDemoUserId();
+  const userId = await getAuthUserId();
 
   if (!name.trim()) throw new Error("Name is required");
 

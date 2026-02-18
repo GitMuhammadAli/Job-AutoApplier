@@ -442,167 +442,99 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { email: "ali@demo.com" },
+    const users = await prisma.user.findMany({
+      where: { settings: { isNot: null } },
       include: { settings: true, resumes: true },
     });
-    if (!user)
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const settings = user.settings;
-    const keywords = settings?.searchKeywords?.split(",").map((k) => k.trim()) ?? [
-      "MERN", "NestJS", "Next.js", "React", "Node.js",
-    ];
-    const location = settings?.searchLocation ?? "Lahore";
-
-    // Build user profile for smart matching
-    const profile: UserProfile = {
-      skills: settings?.skills?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
-      keywords,
-      experienceLevel: settings?.experienceLevel ?? null,
-      jobCategories: settings?.jobCategories?.split(",").filter(Boolean) ?? [],
-      preferredWorkType: settings?.preferredWorkType ?? null,
-      minSalary: settings?.minSalary ?? null,
-      maxSalary: settings?.maxSalary ?? null,
-    };
-
-    // Fetch from all 4 sources in parallel
-    const [jsearchJobs, indeedJobs, remotiveJobs, arbeitnowJobs] =
-      await Promise.allSettled([
-        fetchJSearch(keywords, location),
-        fetchIndeedRSS(keywords, location),
-        fetchRemotive(keywords),
-        fetchArbeitnow(),
-      ]);
-
-    const allJobs: RawJob[] = [
-      ...(jsearchJobs.status === "fulfilled" ? jsearchJobs.value : []),
-      ...(indeedJobs.status === "fulfilled" ? indeedJobs.value : []),
-      ...(remotiveJobs.status === "fulfilled" ? remotiveJobs.value : []),
-      ...(arbeitnowJobs.status === "fulfilled" ? arbeitnowJobs.value : []),
-    ];
-
-    const sourceStats = {
-      jsearch: jsearchJobs.status === "fulfilled" ? jsearchJobs.value.length : 0,
-      indeed: indeedJobs.status === "fulfilled" ? indeedJobs.value.length : 0,
-      remotive: remotiveJobs.status === "fulfilled" ? remotiveJobs.value.length : 0,
-      arbeitnow: arbeitnowJobs.status === "fulfilled" ? arbeitnowJobs.value.length : 0,
-    };
-
-    console.log(`Scraped: JSearch=${sourceStats.jsearch}, Indeed=${sourceStats.indeed}, Remotive=${sourceStats.remotive}, Arbeitnow=${sourceStats.arbeitnow}`);
-
-    // Deduplicate by URL
-    const uniqueJobs = Array.from(
-      new Map(allJobs.filter((j) => j.url).map((j) => [j.url, j])).values(),
-    );
-
-    // Check which URLs already exist in DB
-    const existingUrls = new Set(
-      (
-        await prisma.job.findMany({
-          where: { userId: user.id, url: { in: uniqueJobs.map((j) => j.url) } },
-          select: { url: true },
-        })
-      ).map((j) => j.url),
-    );
-
-    const newJobs = uniqueJobs.filter((j) => !existingUrls.has(j.url));
-
-    if (newJobs.length === 0) {
-      return NextResponse.json({
-        message: "No new jobs found",
-        scraped: uniqueJobs.length,
-        sources: sourceStats,
-      });
+    if (users.length === 0) {
+      return NextResponse.json({ message: "No users with settings" });
     }
 
-    // Apply experience and work type filters
-    const filteredJobs = newJobs.filter(
-      (job) => !shouldFilterOut({ role: job.role, description: job.description, workType: job.workType }, profile),
-    );
+    const perUser: Record<string, unknown> = {};
 
-    let filtered = newJobs.length - filteredJobs.length;
-    console.log(`Filtered out ${filtered} jobs by experience/work type preferences`);
+    for (const user of users) {
+      const settings = user.settings;
+      const keywords = settings?.searchKeywords?.split(",").map((k) => k.trim()).filter(Boolean) ?? [];
+      if (keywords.length === 0) { perUser[user.email || user.id] = { skipped: "No keywords" }; continue; }
+      const location = settings?.searchLocation ?? "Remote";
 
-    // Save jobs and send emails
-    let savedCount = 0;
-    let emailsSent = 0;
+      const profile: UserProfile = {
+        skills: settings?.skills?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
+        keywords,
+        experienceLevel: settings?.experienceLevel ?? null,
+        jobCategories: settings?.jobCategories?.split(",").filter(Boolean) ?? [],
+        preferredWorkType: settings?.preferredWorkType ?? null,
+        minSalary: settings?.minSalary ?? null,
+        maxSalary: settings?.maxSalary ?? null,
+      };
 
-    for (const job of filteredJobs.slice(0, 30)) {
-      const matchScore = smartMatchScore(job.role, job.description, profile);
-      const recommended = smartRecommendResume(job.role, job.description, user.resumes);
-      const resume = recommended.id ? user.resumes.find((r) => r.id === recommended.id) : null;
+      const [jsearchJobs, indeedJobs, remotiveJobs, arbeitnowJobs] =
+        await Promise.allSettled([
+          fetchJSearch(keywords, location),
+          fetchIndeedRSS(keywords, location),
+          fetchRemotive(keywords),
+          fetchArbeitnow(),
+        ]);
 
-      const created = await prisma.job.create({
-        data: {
-          company: job.company,
-          role: job.role,
-          url: job.url,
-          platform: job.platform,
-          stage: "SAVED",
-          applyType: job.applyType,
-          isDirectApply: job.isDirectApply,
-          applyOptions: job.applyOptions.length > 0 ? job.applyOptions : undefined,
-          matchScore,
-          description: job.description || null,
-          salary: job.salary,
-          location: job.location,
-          workType: job.workType,
-          resumeId: resume?.id ?? null,
-          userId: user.id,
-        },
-      });
+      const allJobs: RawJob[] = [
+        ...(jsearchJobs.status === "fulfilled" ? jsearchJobs.value : []),
+        ...(indeedJobs.status === "fulfilled" ? indeedJobs.value : []),
+        ...(remotiveJobs.status === "fulfilled" ? remotiveJobs.value : []),
+        ...(arbeitnowJobs.status === "fulfilled" ? arbeitnowJobs.value : []),
+      ];
 
-      await prisma.activity.create({
-        data: {
-          jobId: created.id,
-          type: "job_created",
-          toStage: "SAVED",
-          note: `Auto-scraped from ${job.source}`,
-          metadata: {
-            automated: true,
-            source: job.source,
-            matchScore,
-            matchedSkills: recommended.matchedSkills,
+      const uniqueJobs = Array.from(
+        new Map(allJobs.filter((j) => j.url).map((j) => [j.url, j])).values(),
+      );
+
+      const existingUrls = new Set(
+        (await prisma.job.findMany({ where: { userId: user.id, url: { in: uniqueJobs.map((j) => j.url) } }, select: { url: true } })).map((j) => j.url),
+      );
+
+      const newJobs = uniqueJobs.filter((j) => !existingUrls.has(j.url));
+      const filteredJobs = newJobs.filter(
+        (job) => !shouldFilterOut({ role: job.role, description: job.description, workType: job.workType }, profile),
+      );
+
+      let savedCount = 0, emailsSent = 0;
+      for (const job of filteredJobs.slice(0, 30)) {
+        const matchScore = smartMatchScore(job.role, job.description, profile);
+        const recommended = smartRecommendResume(job.role, job.description, user.resumes);
+        const resume = recommended.id ? user.resumes.find((r) => r.id === recommended.id) : null;
+
+        const created = await prisma.job.create({
+          data: {
+            company: job.company, role: job.role, url: job.url, platform: job.platform, stage: "SAVED",
+            applyType: job.applyType, isDirectApply: job.isDirectApply,
+            applyOptions: job.applyOptions.length > 0 ? job.applyOptions : undefined,
+            matchScore, description: job.description || null, salary: job.salary,
+            location: job.location, workType: job.workType, resumeId: resume?.id ?? null, userId: user.id,
           },
-        },
-      });
+        });
 
-      savedCount++;
+        await prisma.activity.create({
+          data: { jobId: created.id, type: "job_created", toStage: "SAVED", note: `Auto-scraped from ${job.source}`, metadata: { automated: true, source: job.source, matchScore, matchedSkills: recommended.matchedSkills } },
+        });
+        savedCount++;
 
-      if (settings?.emailNotifications !== false) {
-        try {
-          await sendJobEmail({
-            company: job.company,
-            role: job.role,
-            url: job.url,
-            platform: job.platform,
-            location: job.location,
-            salary: job.salary,
-            description: job.description,
-            applyType: job.applyType,
-            isDirectApply: job.isDirectApply,
-            matchScore,
-            recommendedResume: recommended.name,
-            resumeFileUrl: resume?.fileUrl || null,
-            matchedSkills: recommended.matchedSkills,
-            source: job.source,
-          });
-          emailsSent++;
-        } catch (emailErr) {
-          console.error(`Failed to send email for ${job.role} at ${job.company}:`, emailErr);
+        if (settings?.emailNotifications !== false && user.email) {
+          try {
+            await sendJobEmail({
+              company: job.company, role: job.role, url: job.url, platform: job.platform,
+              location: job.location, salary: job.salary, description: job.description,
+              applyType: job.applyType, isDirectApply: job.isDirectApply, matchScore,
+              recommendedResume: recommended.name, resumeFileUrl: resume?.fileUrl || null,
+              matchedSkills: recommended.matchedSkills, source: job.source,
+            }, user.email);
+            emailsSent++;
+          } catch (emailErr) { console.error(`Email failed for ${job.role}:`, emailErr); }
         }
       }
+      perUser[user.email || user.id] = { scraped: uniqueJobs.length, saved: savedCount, emailsSent };
     }
 
-    return NextResponse.json({
-      message: `Saved ${savedCount} new jobs, sent ${emailsSent} emails`,
-      scraped: uniqueJobs.length,
-      saved: savedCount,
-      filtered,
-      emailsSent,
-      sources: sourceStats,
-    });
+    return NextResponse.json({ message: "Scrape completed", users: perUser });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Scrape cron error:", err);

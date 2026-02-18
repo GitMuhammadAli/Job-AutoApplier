@@ -1,21 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
-const DEMO_USER_EMAIL = "ali@demo.com";
-
-async function getDemoUserId(): Promise<string> {
-  const user = await prisma.user.findUnique({
-    where: { email: DEMO_USER_EMAIL },
-    select: { id: true },
-  });
-  if (!user) throw new Error("Demo user not found");
-  return user.id;
-}
-
 export async function getSettings() {
-  const userId = await getDemoUserId();
+  const userId = await getAuthUserId();
 
   const settings = await prisma.userSettings.findUnique({
     where: { userId },
@@ -51,7 +41,7 @@ export async function updateSettings(data: {
   preferredWorkType?: string;
   preferredPlatforms?: string;
 }) {
-  const userId = await getDemoUserId();
+  const userId = await getAuthUserId();
 
   await prisma.userSettings.upsert({
     where: { userId },

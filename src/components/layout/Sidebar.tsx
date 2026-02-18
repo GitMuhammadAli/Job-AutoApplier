@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   Plus,
@@ -12,6 +13,7 @@ import {
   Menu,
   X,
   Radio,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -25,7 +27,15 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings, desc: "Preferences" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  user?: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  };
+}
+
+export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -121,8 +131,8 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="border-t border-slate-100 px-4 py-3">
+        {/* Sources */}
+        <div className="border-t border-slate-100 px-4 py-2.5">
           <div className="flex items-center gap-2 text-[10px] text-slate-400">
             <Radio className="h-3 w-3" />
             <span>4 job sources connected</span>
@@ -138,6 +148,32 @@ export function Sidebar() {
             ))}
           </div>
         </div>
+
+        {/* User info + sign out */}
+        {user && (
+          <div className="border-t border-slate-100 px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              {user.image ? (
+                <img src={user.image} alt="" className="h-8 w-8 rounded-full ring-1 ring-slate-200" />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-violet-500 text-white text-xs font-bold">
+                  {(user.name || user.email || "?")[0].toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-700 truncate">{user.name || "User"}</p>
+                <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
+              </div>
+              <button
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+                title="Sign out"
+              >
+                <LogOut className="h-3.5 w-3.5 text-slate-400" />
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
     </>
   );

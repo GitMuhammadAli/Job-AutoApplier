@@ -11,7 +11,6 @@ const transporter = nodemailer.createTransport({
 });
 
 const FROM = process.env.NOTIFICATION_EMAIL || "alishahid.works@gmail.com";
-const TO = process.env.NOTIFICATION_EMAIL || "alishahid.works@gmail.com";
 
 function wrapHtml(title: string, body: string): string {
   return `
@@ -95,7 +94,8 @@ function matchScoreBarHtml(score: number): string {
     </div>`;
 }
 
-export async function sendJobEmail(job: JobEmailData) {
+export async function sendJobEmail(job: JobEmailData, toEmail?: string) {
+  const to = toEmail || FROM;
   const applyStyle = APPLY_TYPE_STYLES[job.applyType] || APPLY_TYPE_STYLES.UNKNOWN;
   const isEasy = job.applyType === "EASY_APPLY";
 
@@ -152,7 +152,7 @@ export async function sendJobEmail(job: JobEmailData) {
   );
 
   await sendEmail(
-    TO,
+    to,
     `[JobPilot] ${isEasy ? "[Easy Apply] " : ""}${job.role} at ${job.company}`,
     html
   );
@@ -166,7 +166,7 @@ interface FollowUpJob {
   url?: string | null;
 }
 
-export async function sendFollowUpReminder(jobs: FollowUpJob[]) {
+export async function sendFollowUpReminder(jobs: FollowUpJob[], toEmail?: string) {
   if (jobs.length === 0) return;
 
   const rows = jobs
@@ -202,11 +202,11 @@ export async function sendFollowUpReminder(jobs: FollowUpJob[]) {
     `
   );
 
-  await sendEmail(TO, `[JobPilot] ${jobs.length} Applications Need Follow-up`, html);
+  await sendEmail(toEmail || FROM, `[JobPilot] ${jobs.length} Applications Need Follow-up`, html);
 }
 
 // ── Ghost alert ──
-export async function sendGhostAlert(jobs: { company: string; role: string; daysAgo: number }[]) {
+export async function sendGhostAlert(jobs: { company: string; role: string; daysAgo: number }[], toEmail?: string) {
   if (jobs.length === 0) return;
 
   const list = jobs
@@ -223,7 +223,7 @@ export async function sendGhostAlert(jobs: { company: string; role: string; days
     `
   );
 
-  await sendEmail(TO, `[JobPilot] ${jobs.length} Applications Ghosted`, html);
+  await sendEmail(toEmail || FROM, `[JobPilot] ${jobs.length} Applications Ghosted`, html);
 }
 
 // ── Weekly digest ──
@@ -236,7 +236,7 @@ interface DigestStats {
   responseRate: number;
 }
 
-export async function sendWeeklyDigest(stats: DigestStats) {
+export async function sendWeeklyDigest(stats: DigestStats, toEmail?: string) {
   const html = wrapHtml(
     "Weekly Digest",
     `
@@ -267,5 +267,5 @@ export async function sendWeeklyDigest(stats: DigestStats) {
     `
   );
 
-  await sendEmail(TO, `[JobPilot] Weekly Digest - ${stats.appliedThisWeek} Applied, ${stats.responseRate}% Response Rate`, html);
+  await sendEmail(toEmail || FROM, `[JobPilot] Weekly Digest - ${stats.appliedThisWeek} Applied, ${stats.responseRate}% Response Rate`, html);
 }
