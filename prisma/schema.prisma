@@ -63,7 +63,7 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// ── GLOBAL JOB (scraped once, shared across ALL users) ──
+// ── GLOBAL JOB ──
 
 model GlobalJob {
   id              String    @id @default(cuid())
@@ -100,7 +100,7 @@ model GlobalJob {
   @@index([createdAt])
 }
 
-// ── USER JOB (per-user view of a GlobalJob) ──
+// ── USER JOB ──
 
 model UserJob {
   id             String         @id @default(cuid())
@@ -142,18 +142,21 @@ enum JobStage {
 // ── RESUME ──
 
 model Resume {
-  id           String           @id @default(cuid())
-  userId       String
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name         String
-  fileName     String?
-  fileUrl      String?
-  fileType     String?
-  content      String?          @db.Text
-  isDefault    Boolean          @default(false)
-  applications JobApplication[]
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id               String           @id @default(cuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  fileName         String?
+  fileUrl          String?
+  fileType         String?
+  content          String?          @db.Text
+  textQuality      String?          @default("good")
+  targetCategories String[]
+  detectedSkills   String[]
+  isDefault        Boolean          @default(false)
+  applications     JobApplication[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([userId])
 }
@@ -187,13 +190,25 @@ model UserSettings {
   // Notifications
   emailNotifications       Boolean         @default(true)
   notificationEmail        String?
+  // Email Provider
+  emailProvider            String?         @default("brevo")
+  smtpHost                 String?
+  smtpPort                 Int?
+  smtpUser                 String?
+  smtpPass                 String?
   // Application Automation
   applicationEmail         String?
   applicationMode          ApplicationMode @default(SEMI_AUTO)
   autoApplyEnabled         Boolean         @default(false)
+  instantApplyEnabled      Boolean         @default(false)
   maxAutoApplyPerDay       Int             @default(10)
   minMatchScoreForAutoApply Float          @default(75.0)
   defaultSignature         String?         @db.Text
+  priorityPlatforms        String[]
+  peakHoursOnly            Boolean         @default(false)
+  timezone                 String?         @default("Asia/Karachi")
+  // Resume Matching
+  resumeMatchMode          String?         @default("smart")
   // AI Customization
   customSystemPrompt       String?         @db.Text
   preferredTone            String?         @default("professional")
@@ -202,11 +217,6 @@ model UserSettings {
   includeGithub            Boolean         @default(true)
   includePortfolio         Boolean         @default(true)
   customClosing            String?
-  // Speed & Instant Apply
-  instantApplyEnabled      Boolean         @default(false)
-  priorityPlatforms        String[]
-  peakHoursOnly            Boolean         @default(false)
-  timezone                 String?         @default("Asia/Karachi")
   // Relations & State
   emailTemplates           EmailTemplate[]
   isOnboarded              Boolean         @default(false)
@@ -239,26 +249,27 @@ model EmailTemplate {
 // ── JOB APPLICATION ──
 
 model JobApplication {
-  id             String            @id @default(cuid())
-  userJobId      String            @unique
-  userJob        UserJob           @relation(fields: [userJobId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  senderEmail    String
-  recipientEmail String
-  subject        String
-  emailBody      String            @db.Text
-  resumeId       String?
-  resume         Resume?           @relation(fields: [resumeId], references: [id])
-  coverLetter    String?           @db.Text
-  templateId     String?
-  status         ApplicationStatus @default(DRAFT)
-  sentAt         DateTime?
-  errorMessage   String?
-  retryCount     Int               @default(0)
-  appliedVia     ApplyMethod       @default(EMAIL)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id              String            @id @default(cuid())
+  userJobId       String            @unique
+  userJob         UserJob           @relation(fields: [userJobId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  senderEmail     String
+  recipientEmail  String
+  subject         String
+  emailBody       String            @db.Text
+  resumeId        String?
+  resume          Resume?           @relation(fields: [resumeId], references: [id])
+  coverLetter     String?           @db.Text
+  templateId      String?
+  status          ApplicationStatus @default(DRAFT)
+  sentAt          DateTime?
+  errorMessage    String?
+  retryCount      Int               @default(0)
+  appliedVia      ApplyMethod       @default(EMAIL)
+  emailConfidence String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@index([userId, status])
   @@index([userId, createdAt])

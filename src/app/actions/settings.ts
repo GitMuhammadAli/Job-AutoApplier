@@ -29,6 +29,14 @@ const settingsSchema = z.object({
   // Notifications
   emailNotifications: z.boolean().default(true),
   notificationEmail: z.string().email().optional().or(z.literal("")),
+  // Email Provider
+  emailProvider: z.string().default("brevo"),
+  smtpHost: z.string().optional().or(z.literal("")),
+  smtpPort: z.number().nullable().optional(),
+  smtpUser: z.string().optional().or(z.literal("")),
+  smtpPass: z.string().optional().or(z.literal("")),
+  // Resume Matching
+  resumeMatchMode: z.string().default("smart"),
   // Application Automation
   applicationEmail: z.string().email().optional().or(z.literal("")),
   applicationMode: z.enum(["SEMI_AUTO", "FULL_AUTO"]).default("SEMI_AUTO"),
@@ -90,6 +98,12 @@ export async function saveSettings(rawData: unknown) {
     customSystemPrompt: data.customSystemPrompt || null,
     customClosing: data.customClosing || null,
     timezone: data.timezone || null,
+    smtpHost: data.smtpHost || null,
+    smtpPort: data.smtpPort ?? null,
+    smtpUser: data.smtpUser || null,
+    smtpPass: data.smtpPass || null,
+    emailProvider: data.emailProvider || "brevo",
+    resumeMatchMode: data.resumeMatchMode || "smart",
   };
 
   const result = await prisma.userSettings.upsert({

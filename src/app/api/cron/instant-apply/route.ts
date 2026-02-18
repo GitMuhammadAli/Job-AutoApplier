@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeMatchScore } from "@/lib/matching/score-engine";
 import { pickBestResume } from "@/lib/matching/resume-matcher";
-import { extractCompanyEmail } from "@/lib/email/extract-company-email";
+import { findCompanyEmail } from "@/lib/email-extractor";
+import { isDuplicateApplication } from "@/lib/duplicate-checker";
+import { getTransporterForUser, sendApplicationEmail, formatCoverLetterHtml } from "@/lib/email";
 import { generateWithGroq } from "@/lib/groq";
-import { sendEmail, formatCoverLetterHtml } from "@/lib/email/sender";
+import { sendEmail } from "@/lib/email/sender";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -100,22 +102,34 @@ export async function GET(req: NextRequest) {
           match.score >= (settings.minMatchScoreForAutoApply || 75) &&
           applied < remainingToday
         ) {
-          let recipientEmail = freshJob.companyEmail;
-          if (!recipientEmail) {
-            recipientEmail = extractCompanyEmail(
-              freshJob.description,
-              freshJob.companyUrl,
-              freshJob.company
-            );
-            if (recipientEmail) {
-              await prisma.globalJob.update({
-                where: { id: freshJob.id },
-                data: { companyEmail: recipientEmail },
-              });
-            }
+          const isDuplicate = await isDuplicateApplication(userId, {
+            title: freshJob.title,
+            company: freshJob.company,
+          });
+          if (isDuplicate) {
+            skipped++;
+            continue;
           }
 
-          if (recipientEmail) {
+          let emailResult = freshJob.companyEmail
+            ? { email: freshJob.companyEmail, confidence: "HIGH" as const, method: "stored" }
+            : findCompanyEmail(
+                freshJob.description,
+                freshJob.companyUrl,
+                freshJob.company
+              );
+
+          if (emailResult) {
+            if (!freshJob.companyEmail && emailResult.email) {
+              await prisma.globalJob.update({
+                where: { id: freshJob.id },
+                data: { companyEmail: emailResult.email },
+              });
+            }
+
+            const confidence = emailResult.confidence;
+            const recipientEmail = emailResult.email;
+
             try {
               const bestResume = await pickBestResume(userId, freshJob);
               const emailContent = await generateInstantEmail(freshJob, settings, bestResume);
@@ -131,45 +145,77 @@ export async function GET(req: NextRequest) {
                   emailBody: emailContent.body,
                   resumeId: bestResume?.id,
                   coverLetter: emailContent.coverLetter,
-                  status: "SENDING",
+                  status: confidence === "HIGH" || confidence === "MEDIUM" ? "SENDING" : "DRAFT",
+                  emailConfidence: confidence,
                 },
               });
 
-              const htmlBody = formatCoverLetterHtml(emailContent.body, settings.defaultSignature);
+              if (confidence === "HIGH" || confidence === "MEDIUM") {
+                const htmlBody = formatCoverLetterHtml(emailContent.body, settings.defaultSignature);
+                const transporter = getTransporterForUser(settings);
 
-              await sendEmail({
-                from: `${settings.fullName || settings.user.name || "Applicant"} <${senderEmail}>`,
-                to: recipientEmail,
-                subject: emailContent.subject,
-                html: htmlBody,
-                replyTo: senderEmail,
-              });
+                const attachments: { filename: string; content: Buffer; contentType: string }[] = [];
+                if (bestResume?.fileUrl) {
+                  try {
+                    const res = await fetch(bestResume.fileUrl);
+                    const arrayBuffer = await res.arrayBuffer();
+                    attachments.push({
+                      filename: bestResume.fileName || "resume.pdf",
+                      content: Buffer.from(arrayBuffer),
+                      contentType: "application/pdf",
+                    });
+                  } catch (err) {
+                    console.warn(`[InstantApply] Could not fetch resume for ${freshJob.id}:`, err);
+                  }
+                }
 
-              await prisma.$transaction([
-                prisma.jobApplication.update({
-                  where: { id: application.id },
-                  data: { status: "SENT", sentAt: new Date(), appliedVia: "EMAIL" },
-                }),
-                prisma.userJob.update({
-                  where: { id: userJob.id },
-                  data: { stage: "APPLIED" },
-                }),
-                prisma.activity.create({
-                  data: {
-                    userJobId: userJob.id,
-                    userId,
-                    type: "APPLICATION_SENT",
-                    description: `Instant-applied | Match: ${match.score}% | To: ${recipientEmail}`,
+                const sendResult = await sendApplicationEmail(
+                  {
+                    from: `${settings.fullName || settings.user.name || "Applicant"} <${senderEmail}>`,
+                    to: recipientEmail,
+                    subject: emailContent.subject,
+                    html: htmlBody,
+                    replyTo: senderEmail,
+                    attachments: attachments.length > 0 ? attachments : undefined,
                   },
-                }),
-              ]);
+                  transporter
+                );
 
-              applied++;
-              await new Promise((r) => setTimeout(r, 1500));
+                if (sendResult.success) {
+                  await prisma.$transaction([
+                    prisma.jobApplication.update({
+                      where: { id: application.id },
+                      data: { status: "SENT", sentAt: new Date(), appliedVia: "EMAIL" },
+                    }),
+                    prisma.userJob.update({
+                      where: { id: userJob.id },
+                      data: { stage: "APPLIED" },
+                    }),
+                    prisma.activity.create({
+                      data: {
+                        userJobId: userJob.id,
+                        userId,
+                        type: "APPLICATION_SENT",
+                        description: `Instant-applied | Match: ${match.score}% | To: ${recipientEmail}`,
+                      },
+                    }),
+                  ]);
+                  applied++;
+                  await new Promise((r) => setTimeout(r, 1500));
+                } else {
+                  await prisma.jobApplication.update({
+                    where: { id: application.id },
+                    data: { status: "DRAFT", errorMessage: sendResult.error },
+                  });
+                }
+              } else {
+                drafted++;
+              }
               continue;
             } catch (error) {
               console.error(`[InstantApply] Send failed for ${freshJob.id}:`, error);
             }
+            continue;
           }
         }
 

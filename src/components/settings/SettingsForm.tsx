@@ -39,6 +39,7 @@ import {
   Plus,
   Loader2,
   Zap,
+  Mail,
 } from "lucide-react";
 
 interface SettingsFormProps {
@@ -80,6 +81,12 @@ interface SettingsFormProps {
     priorityPlatforms?: string[];
     peakHoursOnly?: boolean;
     timezone?: string | null;
+    emailProvider?: string | null;
+    smtpHost?: string | null;
+    smtpPort?: number | null;
+    smtpUser?: string | null;
+    smtpPass?: string | null;
+    resumeMatchMode?: string | null;
   };
 }
 
@@ -139,6 +146,12 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
   const [priorityPlatforms, setPriorityPlatforms] = useState<string[]>(s.priorityPlatforms || ["rozee"]);
   const [peakHoursOnly, setPeakHoursOnly] = useState(s.peakHoursOnly ?? false);
   const [timezone, setTimezone] = useState(s.timezone || "Asia/Karachi");
+  const [emailProvider, setEmailProvider] = useState(s.emailProvider || "brevo");
+  const [smtpHost, setSmtpHost] = useState(s.smtpHost || "");
+  const [smtpPort, setSmtpPort] = useState(s.smtpPort?.toString() || "");
+  const [smtpUser, setSmtpUser] = useState(s.smtpUser || "");
+  const [smtpPass, setSmtpPass] = useState(s.smtpPass || "");
+  const [resumeMatchMode, setResumeMatchMode] = useState(s.resumeMatchMode || "smart");
 
   const addKeyword = useCallback(() => {
     const val = keywordInput.trim();
@@ -201,6 +214,12 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         priorityPlatforms,
         peakHoursOnly,
         timezone,
+        emailProvider,
+        smtpHost,
+        smtpPort: smtpPort ? parseInt(smtpPort) : null,
+        smtpUser,
+        smtpPass,
+        resumeMatchMode,
       });
       toast.success("Settings saved successfully");
     } catch {
@@ -380,6 +399,53 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               <Input value={notificationEmail} onChange={(e) => setNotificationEmail(e.target.value)} placeholder="alerts@example.com" />
             </Field>
           )}
+        </div>
+      </Section>
+
+      {/* ── Email Provider ── */}
+      <Section icon={<Mail className="h-4 w-4" />} title="Email Provider">
+        <div className="space-y-4">
+          <Field label="Provider">
+            <Select value={emailProvider} onValueChange={setEmailProvider}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="brevo">Brevo (API)</SelectItem>
+                <SelectItem value="gmail">Gmail (SMTP)</SelectItem>
+                <SelectItem value="outlook">Outlook (SMTP)</SelectItem>
+                <SelectItem value="custom">Custom SMTP</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          {(emailProvider === "gmail" || emailProvider === "outlook" || emailProvider === "custom") && (
+            <div className="space-y-4 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
+              <Field label="SMTP Host">
+                <Input
+                  value={smtpHost}
+                  onChange={(e) => setSmtpHost(e.target.value)}
+                  placeholder={emailProvider === "gmail" ? "smtp.gmail.com" : emailProvider === "outlook" ? "smtp.office365.com" : "smtp.example.com"}
+                />
+              </Field>
+              <Field label="SMTP Port">
+                <Input type="number" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} placeholder="587" />
+              </Field>
+              <Field label="SMTP User">
+                <Input value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} placeholder="your@email.com" />
+              </Field>
+              <Field label="SMTP Password">
+                <Input type="password" value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} placeholder="••••••••" />
+              </Field>
+            </div>
+          )}
+          <Field label="Resume Match Mode">
+            <Select value={resumeMatchMode} onValueChange={setResumeMatchMode}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="smart">Smart (AI-powered)</SelectItem>
+                <SelectItem value="keyword">Keyword-based</SelectItem>
+                <SelectItem value="exact">Exact match</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
       </Section>
 

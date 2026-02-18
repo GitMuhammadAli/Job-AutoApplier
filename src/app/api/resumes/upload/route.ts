@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { extractTextFromPDF, extractSkillsFromContent } from "@/lib/resume-parser";
@@ -12,10 +13,25 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const name = (formData.get("name") as string) || "Untitled Resume";
+    const targetCategoriesRaw = formData.get("targetCategories") as string | null;
+    const isDefaultStr = formData.get("isDefault") as string | null;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
+
+    const targetCategories: string[] = targetCategoriesRaw
+      ? (() => {
+          try {
+            const parsed = JSON.parse(targetCategoriesRaw);
+            return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+          } catch {
+            return [];
+          }
+        })()
+      : [];
+
+    const isDefault = isDefaultStr === "true";
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileType = file.type;
@@ -31,17 +47,31 @@ export async function POST(req: NextRequest) {
       textContent = buffer.toString("utf-8");
     }
 
-    const skills = extractSkillsFromContent(textContent);
+    const detectedSkills = extractSkillsFromContent(textContent);
+
+    const blob = await put(`resumes/${userId}/${fileName}`, buffer, {
+      access: "public",
+    });
+
+    if (isDefault) {
+      await prisma.resume.updateMany({
+        where: { userId },
+        data: { isDefault: false },
+      });
+    }
 
     const resume = await prisma.resume.create({
       data: {
         userId,
         name: name.trim(),
         fileName,
+        fileUrl: blob.url,
         fileType,
         content: textContent || null,
         textQuality,
-        detectedSkills: skills,
+        targetCategories,
+        detectedSkills,
+        isDefault,
       },
     });
 
@@ -51,9 +81,15 @@ export async function POST(req: NextRequest) {
         id: resume.id,
         name: resume.name,
         fileName: resume.fileName,
-        hasContent: !!textContent,
-        extractedSkills: skills,
+        fileUrl: resume.fileUrl,
+        fileType: resume.fileType,
+        content: resume.content,
+        textQuality: resume.textQuality,
+        targetCategories: resume.targetCategories,
+        detectedSkills: resume.detectedSkills,
+        isDefault: resume.isDefault,
       },
+      textQuality,
     });
   } catch (error) {
     console.error("Resume upload error:", error);

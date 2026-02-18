@@ -14,6 +14,8 @@ import {
   X,
   Radio,
   LogOut,
+  Mail,
+  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,9 +23,11 @@ import { useState } from "react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, desc: "Kanban board" },
+  { href: "/applications", label: "Application Queue", icon: Inbox, desc: "Manage applications" },
   { href: "/jobs/new", label: "Add Job", icon: Plus, desc: "Track manually" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, desc: "Performance" },
   { href: "/resumes", label: "Resumes", icon: FileText, desc: "CV variants" },
+  { href: "/templates", label: "Templates", icon: Mail, desc: "Email templates" },
   { href: "/settings", label: "Settings", icon: Settings, desc: "Preferences" },
 ];
 

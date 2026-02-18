@@ -75,10 +75,10 @@ export function ResumeList({ resumes }: ResumeListProps) {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("name", name || file.name.replace(/\.pdf$/i, ""));
-      const res = await fetch("/api/resume/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/resumes/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Resume uploaded. Extracted ${data.resume.extractedSkills?.length || 0} skills.`);
+        toast.success(`Resume uploaded. Extracted ${data.resume.detectedSkills?.length || 0} skills.`);
         setDialogOpen(false);
         setName("");
         setFileUrl("");
