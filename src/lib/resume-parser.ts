@@ -97,5 +97,5 @@ export function extractSkillsFromContent(text: string): string[] {
     if (lower.includes(skill)) found.add(skill);
   }
 
-  return [...found];
+  return Array.from(found);
 }
