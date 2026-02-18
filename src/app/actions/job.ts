@@ -4,258 +4,212 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import type { Stage } from "@/types";
+import type { JobStage } from "@prisma/client";
 
-function serializeJob(job: any) {
-  return {
-    ...job,
-    appliedDate: job.appliedDate?.toISOString() ?? null,
-    interviewDate: job.interviewDate?.toISOString() ?? null,
-    followUpDate: job.followUpDate?.toISOString() ?? null,
-    rejectedDate: job.rejectedDate?.toISOString() ?? null,
-    offerDate: job.offerDate?.toISOString() ?? null,
-    createdAt: job.createdAt.toISOString(),
-    updatedAt: job.updatedAt.toISOString(),
-    activities: (job.activities ?? []).map((a: any) => ({
-      ...a,
-      createdAt: a.createdAt.toISOString(),
-    })),
-    resumeUsed: job.resumeUsed
-      ? { ...job.resumeUsed, createdAt: job.resumeUsed.createdAt.toISOString() }
-      : null,
-  };
-}
+// ── Get all user jobs (for Kanban board) ──
 
-// ── Get all jobs ──
 export async function getJobs() {
   const userId = await getAuthUserId();
-  const jobs = await prisma.job.findMany({
-    where: { userId },
+
+  const userJobs = await prisma.userJob.findMany({
+    where: { userId, isDismissed: false },
     include: {
-      resumeUsed: true,
-      activities: { orderBy: { createdAt: "desc" }, take: 5 },
+      globalJob: true,
+      application: {
+        select: { id: true, status: true, sentAt: true },
+      },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { matchScore: "desc" },
   });
-  return jobs.map(serializeJob);
+
+  return userJobs;
 }
 
-// ── Get single job ──
+// ── Get single job by ID (for detail page) ──
+
 export async function getJobById(id: string) {
-  const job = await prisma.job.findUnique({
-    where: { id },
-    include: {
-      resumeUsed: true,
-      activities: { orderBy: { createdAt: "desc" } },
-    },
-  });
-  if (!job) return null;
-  return serializeJob(job);
-}
-
-// ── Create job ──
-const createJobSchema = z.object({
-  company: z.string().min(1, "Company is required"),
-  role: z.string().min(1, "Role is required"),
-  url: z.string().url().optional().or(z.literal("")),
-  platform: z.enum(["LINKEDIN", "INDEED", "GLASSDOOR", "ROZEE_PK", "BAYT", "COMPANY_SITE", "REFERRAL", "OTHER"]),
-  stage: z.enum(["SAVED", "APPLIED", "INTERVIEW", "OFFER", "REJECTED", "GHOSTED"]),
-  salary: z.string().optional(),
-  location: z.string().optional(),
-  workType: z.enum(["ONSITE", "REMOTE", "HYBRID"]),
-  resumeId: z.string().optional().or(z.literal("")),
-  notes: z.string().optional(),
-  contactName: z.string().optional(),
-  contactEmail: z.string().email().optional().or(z.literal("")),
-  appliedDate: z.string().optional().or(z.literal("")),
-  interviewDate: z.string().optional().or(z.literal("")),
-  followUpDate: z.string().optional().or(z.literal("")),
-});
-
-export async function createJob(data: z.infer<typeof createJobSchema>) {
-  const parsed = createJobSchema.parse(data);
   const userId = await getAuthUserId();
 
-  const appliedDate =
-    parsed.stage === "APPLIED" && !parsed.appliedDate
-      ? new Date()
-      : parsed.appliedDate
-        ? new Date(parsed.appliedDate)
-        : undefined;
-
-  const job = await prisma.job.create({
-    data: {
-      company: parsed.company,
-      role: parsed.role,
-      url: parsed.url || null,
-      platform: parsed.platform,
-      stage: parsed.stage,
-      salary: parsed.salary || null,
-      location: parsed.location || null,
-      workType: parsed.workType,
-      resumeId: parsed.resumeId || null,
-      notes: parsed.notes || null,
-      contactName: parsed.contactName || null,
-      contactEmail: parsed.contactEmail || null,
-      appliedDate,
-      interviewDate: parsed.interviewDate ? new Date(parsed.interviewDate) : undefined,
-      followUpDate: parsed.followUpDate ? new Date(parsed.followUpDate) : undefined,
-      userId,
-    },
-  });
-
-  await prisma.activity.create({
-    data: {
-      jobId: job.id,
-      type: "job_created",
-      toStage: parsed.stage,
-      note: `Job created with stage ${parsed.stage}`,
-    },
-  });
-
-  revalidatePath("/");
-  revalidatePath("/jobs");
-  return { success: true, id: job.id };
-}
-
-// ── Update job ──
-export async function updateJob(
-  id: string,
-  data: Partial<z.infer<typeof createJobSchema>>
-) {
-  const existingJob = await prisma.job.findUnique({ where: { id } });
-  if (!existingJob) throw new Error("Job not found");
-
-  const stageChanged = data.stage && data.stage !== existingJob.stage;
-
-  const dateUpdate: Record<string, Date> = {};
-  if (stageChanged && data.stage) {
-    const dateFields: Partial<Record<string, string>> = {
-      APPLIED: "appliedDate",
-      INTERVIEW: "interviewDate",
-      OFFER: "offerDate",
-      REJECTED: "rejectedDate",
-    };
-    const field = dateFields[data.stage];
-    if (field) dateUpdate[field] = new Date();
-  }
-
-  const updated = await prisma.job.update({
-    where: { id },
-    data: {
-      ...(data.company !== undefined && { company: data.company }),
-      ...(data.role !== undefined && { role: data.role }),
-      ...(data.url !== undefined && { url: data.url || null }),
-      ...(data.platform !== undefined && { platform: data.platform }),
-      ...(data.stage !== undefined && { stage: data.stage }),
-      ...(data.salary !== undefined && { salary: data.salary || null }),
-      ...(data.location !== undefined && { location: data.location || null }),
-      ...(data.workType !== undefined && { workType: data.workType }),
-      ...(data.resumeId !== undefined && { resumeId: data.resumeId || null }),
-      ...(data.notes !== undefined && { notes: data.notes || null }),
-      ...(data.contactName !== undefined && { contactName: data.contactName || null }),
-      ...(data.contactEmail !== undefined && { contactEmail: data.contactEmail || null }),
-      ...(data.appliedDate !== undefined && {
-        appliedDate: data.appliedDate ? new Date(data.appliedDate) : null,
-      }),
-      ...(data.interviewDate !== undefined && {
-        interviewDate: data.interviewDate ? new Date(data.interviewDate) : null,
-      }),
-      ...(data.followUpDate !== undefined && {
-        followUpDate: data.followUpDate ? new Date(data.followUpDate) : null,
-      }),
-      isGhosted: data.stage === "GHOSTED",
-      ...dateUpdate,
-    },
-  });
-
-  if (stageChanged && data.stage) {
-    await prisma.activity.create({
-      data: {
-        jobId: id,
-        type: "stage_change",
-        fromStage: existingJob.stage,
-        toStage: data.stage,
-        note: `Moved from ${existingJob.stage} to ${data.stage}`,
+  const userJob = await prisma.userJob.findFirst({
+    where: { id, userId },
+    include: {
+      globalJob: true,
+      application: true,
+      activities: {
+        orderBy: { createdAt: "desc" },
+        take: 50,
       },
-    });
-  }
+    },
+  });
 
-  revalidatePath("/");
-  revalidatePath(`/jobs/${id}`);
-  return { success: true };
+  if (!userJob) throw new Error("Job not found");
+  return userJob;
 }
 
-// ── Update stage (optimistic) ──
-export async function updateStage(
-  jobId: string,
-  newStage: Stage,
-  oldStage: Stage
-) {
-  const dateFields: Partial<Record<Stage, string>> = {
-    APPLIED: "appliedDate",
-    INTERVIEW: "interviewDate",
-    OFFER: "offerDate",
-    REJECTED: "rejectedDate",
-  };
+// ── Update stage (drag-drop or manual) ──
 
-  const dateUpdate: Record<string, Date> = {};
-  const dateField = dateFields[newStage];
-  if (dateField) dateUpdate[dateField] = new Date();
+export async function updateStage(
+  userJobId: string,
+  newStage: JobStage,
+  oldStage: JobStage
+) {
+  const userId = await getAuthUserId();
+
+  const userJob = await prisma.userJob.findFirst({
+    where: { id: userJobId, userId },
+  });
+  if (!userJob) throw new Error("Job not found");
 
   await prisma.$transaction([
-    prisma.job.update({
-      where: { id: jobId },
-      data: { stage: newStage, isGhosted: newStage === "GHOSTED", ...dateUpdate },
+    prisma.userJob.update({
+      where: { id: userJobId },
+      data: { stage: newStage },
     }),
     prisma.activity.create({
       data: {
-        jobId,
-        type: "stage_change",
-        fromStage: oldStage,
-        toStage: newStage,
-        note: `Moved from ${oldStage} to ${newStage}`,
+        userJobId,
+        userId,
+        type: "STAGE_CHANGE",
+        description: `Moved from ${oldStage} to ${newStage}`,
       },
     }),
   ]);
 
   revalidatePath("/");
-  return { success: true };
 }
 
-// ── Delete job ──
-export async function deleteJob(id: string) {
-  await prisma.job.delete({ where: { id } });
+// ── Dismiss job ──
+
+export async function dismissJob(userJobId: string, reason?: string) {
+  const userId = await getAuthUserId();
+
+  await prisma.$transaction([
+    prisma.userJob.update({
+      where: { id: userJobId },
+      data: { isDismissed: true, dismissReason: reason || null },
+    }),
+    prisma.activity.create({
+      data: {
+        userJobId,
+        userId,
+        type: "DISMISSED",
+        description: reason ? `Dismissed: ${reason}` : "Dismissed",
+      },
+    }),
+  ]);
+
   revalidatePath("/");
-  return { success: true };
 }
 
 // ── Add note ──
-export async function addNote(jobId: string, note: string) {
-  if (!note.trim()) throw new Error("Note cannot be empty");
 
-  await prisma.activity.create({
-    data: {
-      jobId,
-      type: "note_added",
-      note: note.trim(),
-    },
-  });
+export async function addNote(userJobId: string, note: string) {
+  const userId = await getAuthUserId();
 
-  revalidatePath(`/jobs/${jobId}`);
-  return { success: true };
+  await prisma.$transaction([
+    prisma.userJob.update({
+      where: { id: userJobId },
+      data: { notes: note },
+    }),
+    prisma.activity.create({
+      data: {
+        userJobId,
+        userId,
+        type: "NOTE_ADDED",
+        description: "Note updated",
+      },
+    }),
+  ]);
+
+  revalidatePath(`/jobs/${userJobId}`);
 }
 
-// ── Get resumes for dropdown ──
+// ── Toggle bookmark ──
+
+export async function toggleBookmark(userJobId: string) {
+  const userId = await getAuthUserId();
+
+  const userJob = await prisma.userJob.findFirst({
+    where: { id: userJobId, userId },
+  });
+  if (!userJob) throw new Error("Job not found");
+
+  await prisma.userJob.update({
+    where: { id: userJobId },
+    data: { isBookmarked: !userJob.isBookmarked },
+  });
+
+  revalidatePath("/");
+}
+
+// ── Create manual job ──
+
+const createJobSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  company: z.string().min(1, "Company is required"),
+  location: z.string().optional(),
+  description: z.string().optional(),
+  salary: z.string().optional(),
+  applyUrl: z.string().url().optional().or(z.literal("")),
+  jobType: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export async function createManualJob(rawData: unknown) {
+  const userId = await getAuthUserId();
+  const data = createJobSchema.parse(rawData);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const globalJob = await tx.globalJob.create({
+      data: {
+        title: data.title,
+        company: data.company,
+        location: data.location || null,
+        description: data.description || null,
+        salary: data.salary || null,
+        applyUrl: data.applyUrl || null,
+        jobType: data.jobType || null,
+        source: "manual",
+        sourceId: `manual-${userId}-${Date.now()}`,
+        isActive: true,
+        lastSeenAt: new Date(),
+        skills: [],
+      },
+    });
+
+    const userJob = await tx.userJob.create({
+      data: {
+        userId,
+        globalJobId: globalJob.id,
+        stage: "SAVED",
+        matchScore: 100,
+        matchReasons: ["Manually added"],
+        notes: data.notes || null,
+      },
+    });
+
+    await tx.activity.create({
+      data: {
+        userJobId: userJob.id,
+        userId,
+        type: "MANUAL_UPDATE",
+        description: "Job manually added",
+      },
+    });
+
+    return userJob;
+  });
+
+  revalidatePath("/");
+  return result;
+}
+
+// ── Get resumes (for dropdowns) ──
+
 export async function getResumes() {
   const userId = await getAuthUserId();
-  const resumes = await prisma.resume.findMany({
+  return prisma.resume.findMany({
     where: { userId },
-    include: { _count: { select: { jobs: true } } },
-    orderBy: { name: "asc" },
+    orderBy: { createdAt: "desc" },
   });
-  return resumes.map((r) => ({
-    ...r,
-    createdAt: r.createdAt.toISOString(),
-  }));
 }

@@ -43,12 +43,14 @@ import {
 interface ResumeWithStats {
   id: string;
   name: string;
+  fileName: string | null;
   fileUrl: string | null;
+  fileType: string | null;
   content: string | null;
+  isDefault: boolean;
   userId: string;
   createdAt: string;
-  jobCount: number;
-  responseRate: number;
+  applicationCount: number;
 }
 
 interface ResumeListProps {
@@ -303,14 +305,11 @@ export function ResumeList({ resumes }: ResumeListProps) {
 
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
-                    {r.jobCount} jobs
+                    {r.applicationCount} applications
                   </Badge>
-                  <div className="flex items-center gap-1 text-[11px] font-medium">
-                    <TrendingUp className={`h-3 w-3 ${r.responseRate > 0 ? "text-emerald-500" : "text-slate-400"}`} />
-                    <span className={r.responseRate > 0 ? "text-emerald-600" : "text-slate-500"}>
-                      {r.responseRate}% response
-                    </span>
-                  </div>
+                  {r.isDefault && (
+                    <Badge className="text-[10px] bg-blue-100 text-blue-700 border-0">Default</Badge>
+                  )}
                   {r.content ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
                       <CheckCircle2 className="h-2.5 w-2.5" />

@@ -3,11 +3,11 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { STAGES, STAGE_CONFIG } from "@/lib/utils";
-import type { Stage } from "@/types";
+import type { JobStage } from "@prisma/client";
 
 interface StageSelectorProps {
-  currentStage: Stage;
-  onStageChange: (newStage: Stage) => void;
+  currentStage: JobStage;
+  onStageChange: (newStage: JobStage) => void;
 }
 
 export function StageSelector({ currentStage, onStageChange }: StageSelectorProps) {
@@ -25,7 +25,7 @@ export function StageSelector({ currentStage, onStageChange }: StageSelectorProp
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
-            onStageChange(prevStage as Stage);
+            onStageChange(prevStage as JobStage);
           }}
           title={`Move to ${STAGE_CONFIG[prevStage].label}`}
         >
@@ -40,7 +40,7 @@ export function StageSelector({ currentStage, onStageChange }: StageSelectorProp
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
-            onStageChange(nextStage as Stage);
+            onStageChange(nextStage as JobStage);
           }}
           title={`Move to ${STAGE_CONFIG[nextStage].label}`}
         >

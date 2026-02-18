@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect, useMemo, useCallback, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -12,22 +12,21 @@ import {
   closestCorners,
 } from "@dnd-kit/core";
 import { toast } from "sonner";
-import { useJobStore } from "@/store/useJobStore";
+import { useJobStore, type UserJobWithGlobal } from "@/store/useJobStore";
 import { STAGES } from "@/lib/utils";
 import { StatsBar } from "@/components/analytics/StatsBar";
 import { KanbanColumn } from "./KanbanColumn";
 import { JobCard } from "./JobCard";
 import { updateStage } from "@/app/actions/job";
-import type { Job, Stage } from "@/types";
-import { useState } from "react";
+import type { JobStage } from "@prisma/client";
 
 interface KanbanBoardProps {
-  initialJobs: Job[];
+  initialJobs: UserJobWithGlobal[];
 }
 
 export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
   const { jobs, setJobs, filter, search, updateJobStage } = useJobStore();
-  const [activeJob, setActiveJob] = useState<Job | null>(null);
+  const [activeJob, setActiveJob] = useState<UserJobWithGlobal | null>(null);
 
   useEffect(() => {
     setJobs(initialJobs);
@@ -51,9 +50,9 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
       const q = search.toLowerCase();
       result = result.filter(
         (j) =>
-          j.company.toLowerCase().includes(q) ||
-          j.role.toLowerCase().includes(q) ||
-          (j.location && j.location.toLowerCase().includes(q))
+          j.globalJob.company.toLowerCase().includes(q) ||
+          j.globalJob.title.toLowerCase().includes(q) ||
+          (j.globalJob.location && j.globalJob.location.toLowerCase().includes(q))
       );
     }
 
@@ -61,7 +60,7 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
   }, [jobs, filter, search]);
 
   const jobsByStage = useMemo(() => {
-    const map: Record<Stage, Job[]> = {
+    const map: Record<JobStage, UserJobWithGlobal[]> = {
       SAVED: [],
       APPLIED: [],
       INTERVIEW: [],
@@ -76,7 +75,7 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
   }, [filteredJobs]);
 
   const handleStageChange = useCallback(
-    async (jobId: string, newStage: Stage, oldStage: Stage) => {
+    async (jobId: string, newStage: JobStage, oldStage: JobStage) => {
       if (newStage === oldStage) return;
 
       updateJobStage(jobId, newStage);
@@ -93,8 +92,8 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
   );
 
   const handleDragStart = useCallback(
-    (event: { active: { data: { current?: { job?: Job } } } }) => {
-      const job = event.active.data.current?.job as Job | undefined;
+    (event: { active: { data: { current?: { job?: UserJobWithGlobal } } } }) => {
+      const job = event.active.data.current?.job;
       if (job) setActiveJob(job);
     },
     []
@@ -107,7 +106,7 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
       if (!over) return;
 
       const jobId = active.id as string;
-      const newStage = over.id as Stage;
+      const newStage = over.id as JobStage;
       const job = jobs.find((j) => j.id === jobId);
       if (!job || job.stage === newStage) return;
 
@@ -130,8 +129,8 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
           {STAGES.map((stage) => (
             <KanbanColumn
               key={stage}
-              stage={stage as Stage}
-              jobs={jobsByStage[stage as Stage]}
+              stage={stage as JobStage}
+              jobs={jobsByStage[stage as JobStage]}
               onStageChange={handleStageChange}
             />
           ))}

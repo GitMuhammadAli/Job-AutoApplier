@@ -6,15 +6,15 @@ import { Input } from "@/components/ui/input";
 import { useJobStore } from "@/store/useJobStore";
 import { STAGES, STAGE_CONFIG } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type { Stage } from "@/types";
+import type { JobStage } from "@prisma/client";
 
 export function Header() {
   const { search, setSearch, filter, setFilter } = useJobStore();
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
-  const filterOptions: Array<{ value: Stage | "ALL"; label: string }> = [
+  const filterOptions: Array<{ value: JobStage | "ALL"; label: string }> = [
     { value: "ALL", label: "All" },
-    ...STAGES.map((s) => ({ value: s as Stage, label: STAGE_CONFIG[s].label })),
+    ...STAGES.map((s) => ({ value: s as JobStage, label: STAGE_CONFIG[s].label })),
   ];
 
   const activeLabel = filterOptions.find((o) => o.value === filter)?.label || "All";
@@ -34,7 +34,6 @@ export function Header() {
           />
         </div>
 
-        {/* Mobile filter button */}
         <button
           onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
           className="md:hidden flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-600"
@@ -46,12 +45,11 @@ export function Header() {
 
         <div className="hidden md:block h-6 w-px bg-slate-200" />
 
-        {/* Desktop stage filter pills */}
         <div className="hidden md:flex items-center gap-1">
           <SlidersHorizontal className="h-3.5 w-3.5 text-slate-400 mr-1" />
           {filterOptions.map((opt) => {
             const isActive = filter === opt.value;
-            const stageConfig = opt.value !== "ALL" ? STAGE_CONFIG[opt.value as Stage] : null;
+            const stageConfig = opt.value !== "ALL" ? STAGE_CONFIG[opt.value as JobStage] : null;
             return (
               <button
                 key={opt.value}
@@ -73,12 +71,11 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobile filter dropdown */}
       {mobileFilterOpen && (
         <div className="md:hidden border-t border-slate-100 px-4 py-2 flex flex-wrap gap-1.5 bg-white/90 backdrop-blur-sm">
           {filterOptions.map((opt) => {
             const isActive = filter === opt.value;
-            const stageConfig = opt.value !== "ALL" ? STAGE_CONFIG[opt.value as Stage] : null;
+            const stageConfig = opt.value !== "ALL" ? STAGE_CONFIG[opt.value as JobStage] : null;
             return (
               <button
                 key={opt.value}

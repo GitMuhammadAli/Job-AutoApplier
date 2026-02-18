@@ -10,33 +10,23 @@ export async function getResumesWithStats() {
   const resumes = await prisma.resume.findMany({
     where: { userId },
     include: {
-      _count: { select: { jobs: true } },
-      jobs: {
-        select: { stage: true },
-      },
+      _count: { select: { applications: true } },
     },
-    orderBy: { name: "asc" },
+    orderBy: { createdAt: "desc" },
   });
 
-  return resumes.map((r) => {
-    const applied = r.jobs.filter((j) => j.stage !== "SAVED").length;
-    const responded = r.jobs.filter((j) =>
-      ["INTERVIEW", "OFFER"].includes(j.stage),
-    ).length;
-    const responseRate =
-      applied > 0 ? Math.round((responded / applied) * 100) : 0;
-
-    return {
-      id: r.id,
-      name: r.name,
-      fileUrl: r.fileUrl,
-      content: r.content,
-      userId: r.userId,
-      createdAt: r.createdAt.toISOString(),
-      jobCount: r._count.jobs,
-      responseRate,
-    };
-  });
+  return resumes.map((r) => ({
+    id: r.id,
+    name: r.name,
+    fileName: r.fileName,
+    fileUrl: r.fileUrl,
+    fileType: r.fileType,
+    content: r.content,
+    isDefault: r.isDefault,
+    userId: r.userId,
+    createdAt: r.createdAt.toISOString(),
+    applicationCount: r._count.applications,
+  }));
 }
 
 export async function createResume(name: string, fileUrl?: string, content?: string) {
@@ -59,14 +49,29 @@ export async function createResume(name: string, fileUrl?: string, content?: str
 
 export async function updateResume(
   id: string,
-  data: { name?: string; fileUrl?: string; content?: string },
+  data: { name?: string; fileUrl?: string; content?: string; isDefault?: boolean },
 ) {
+  const userId = await getAuthUserId();
+
+  // Verify ownership
+  const resume = await prisma.resume.findFirst({ where: { id, userId } });
+  if (!resume) throw new Error("Resume not found");
+
+  if (data.isDefault) {
+    // Unset other defaults first
+    await prisma.resume.updateMany({
+      where: { userId, isDefault: true },
+      data: { isDefault: false },
+    });
+  }
+
   await prisma.resume.update({
     where: { id },
     data: {
       ...(data.name !== undefined && { name: data.name.trim() }),
       ...(data.fileUrl !== undefined && { fileUrl: data.fileUrl || null }),
       ...(data.content !== undefined && { content: data.content || null }),
+      ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
     },
   });
 
@@ -75,6 +80,11 @@ export async function updateResume(
 }
 
 export async function deleteResume(id: string) {
+  const userId = await getAuthUserId();
+
+  const resume = await prisma.resume.findFirst({ where: { id, userId } });
+  if (!resume) throw new Error("Resume not found");
+
   await prisma.resume.delete({ where: { id } });
   revalidatePath("/resumes");
   return { success: true };

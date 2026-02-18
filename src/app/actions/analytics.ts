@@ -6,29 +6,32 @@ import { getAuthUserId } from "@/lib/auth";
 export async function getAnalytics() {
   const userId = await getAuthUserId();
 
-  const jobs = await prisma.job.findMany({
-    where: { userId },
-    include: { resumeUsed: true },
+  const userJobs = await prisma.userJob.findMany({
+    where: { userId, isDismissed: false },
+    include: {
+      globalJob: { select: { source: true, postedDate: true } },
+    },
   });
 
   const activities = await prisma.activity.findMany({
-    where: { job: { userId } },
+    where: { userId },
     orderBy: { createdAt: "asc" },
   });
 
-  const totalJobs = jobs.length;
-  const saved = jobs.filter((j) => j.stage === "SAVED").length;
-  const applied = jobs.filter((j) => j.stage !== "SAVED").length;
-  const interviews = jobs.filter((j) => j.stage === "INTERVIEW").length;
-  const offers = jobs.filter((j) => j.stage === "OFFER").length;
-  const rejected = jobs.filter((j) => j.stage === "REJECTED").length;
-  const ghosted = jobs.filter((j) => j.stage === "GHOSTED").length;
+  const totalJobs = userJobs.length;
+  const saved = userJobs.filter((j) => j.stage === "SAVED").length;
+  const applied = userJobs.filter((j) => j.stage !== "SAVED").length;
+  const interviews = userJobs.filter((j) => j.stage === "INTERVIEW").length;
+  const offers = userJobs.filter((j) => j.stage === "OFFER").length;
+  const rejected = userJobs.filter((j) => j.stage === "REJECTED").length;
+  const ghosted = userJobs.filter((j) => j.stage === "GHOSTED").length;
   const responseRate = applied > 0 ? Math.round(((interviews + offers) / applied) * 100) : 0;
 
+  // Weekly applications over time
   const weeklyApplications: Record<string, number> = {};
-  for (const job of jobs) {
-    if (job.appliedDate) {
-      const week = getWeekLabel(job.appliedDate);
+  for (const job of userJobs) {
+    if (job.stage !== "SAVED" && job.createdAt) {
+      const week = getWeekLabel(job.createdAt);
       weeklyApplications[week] = (weeklyApplications[week] || 0) + 1;
     }
   }
@@ -44,34 +47,18 @@ export async function getAnalytics() {
     { stage: "Offer", count: offers },
   ];
 
-  const platformMap: Record<string, number> = {};
-  for (const job of jobs) {
-    platformMap[job.platform] = (platformMap[job.platform] || 0) + 1;
+  // Source breakdown
+  const sourceMap: Record<string, number> = {};
+  for (const job of userJobs) {
+    const src = job.globalJob.source;
+    sourceMap[src] = (sourceMap[src] || 0) + 1;
   }
-  const platformBreakdown = Object.entries(platformMap).map(([platform, count]) => ({
-    platform: formatPlatform(platform),
+  const sourceBreakdown = Object.entries(sourceMap).map(([source, count]) => ({
+    source: formatSource(source),
     count,
   }));
 
-  const resumeMap: Record<string, { name: string; total: number; responded: number }> = {};
-  for (const job of jobs) {
-    const rName = job.resumeUsed?.name ?? "No Resume";
-    if (!resumeMap[rName]) resumeMap[rName] = { name: rName, total: 0, responded: 0 };
-    if (job.stage !== "SAVED") {
-      resumeMap[rName].total++;
-      if (["INTERVIEW", "OFFER"].includes(job.stage)) {
-        resumeMap[rName].responded++;
-      }
-    }
-  }
-  const resumePerformance = Object.values(resumeMap)
-    .filter((r) => r.total > 0)
-    .map((r) => ({
-      name: r.name,
-      total: r.total,
-      responseRate: Math.round((r.responded / r.total) * 100),
-    }));
-
+  // Weekly activity
   const weeklyActivity: Record<string, number> = {};
   for (const a of activities) {
     const week = getWeekLabel(a.createdAt);
@@ -92,8 +79,7 @@ export async function getAnalytics() {
     responseRate,
     applicationsOverTime,
     stageFunnel,
-    platformBreakdown,
-    resumePerformance,
+    sourceBreakdown,
     activityOverTime,
   };
 }
@@ -105,16 +91,17 @@ function getWeekLabel(date: Date): string {
   return `${d.getFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-function formatPlatform(p: string): string {
+function formatSource(s: string): string {
   const map: Record<string, string> = {
-    LINKEDIN: "LinkedIn",
-    INDEED: "Indeed",
-    GLASSDOOR: "Glassdoor",
-    ROZEE_PK: "Rozee.pk",
-    BAYT: "Bayt",
-    COMPANY_SITE: "Company",
-    REFERRAL: "Referral",
-    OTHER: "Other",
+    jsearch: "JSearch",
+    indeed: "Indeed",
+    remotive: "Remotive",
+    arbeitnow: "Arbeitnow",
+    adzuna: "Adzuna",
+    linkedin: "LinkedIn",
+    rozee: "Rozee.pk",
+    google: "Google",
+    manual: "Manual",
   };
-  return map[p] || p;
+  return map[s] || s;
 }

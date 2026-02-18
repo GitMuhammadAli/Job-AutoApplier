@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -15,549 +14,548 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateSettings } from "@/app/actions/settings";
+import { saveSettings } from "@/app/actions/settings";
 import {
-  Loader2,
+  JOB_CATEGORIES,
+  TONE_OPTIONS,
+  LANGUAGE_OPTIONS,
+  JOB_SOURCES,
+  EXPERIENCE_LEVELS,
+  EDUCATION_LEVELS,
+  WORK_TYPES,
+  JOB_TYPES,
+  SALARY_CURRENCIES,
+} from "@/constants/categories";
+import {
   Save,
-  Zap,
-  Bell,
   User,
-  Code,
-  Search,
-  MapPin,
-  DollarSign,
   Briefcase,
-  GraduationCap,
-  Globe,
+  Grid3X3,
+  Radio,
+  Bell,
+  Send,
+  Sparkles,
+  X,
+  Plus,
+  Loader2,
 } from "lucide-react";
 
-const EXP_LEVELS = [
-  { value: "JUNIOR", label: "Junior (0-2 years)" },
-  { value: "MID", label: "Mid-Level (2-5 years)" },
-  { value: "SENIOR", label: "Senior (5+ years)" },
-  { value: "LEAD", label: "Lead / Principal" },
-  { value: "ANY", label: "Any Level" },
-];
-
-const EDU_LEVELS = [
-  { value: "BACHELORS", label: "Bachelors" },
-  { value: "MASTERS", label: "Masters" },
-  { value: "PHD", label: "PhD" },
-  { value: "ANY", label: "Any / Self-Taught" },
-];
-
-const JOB_CATEGORIES = [
-  "Full-Stack",
-  "Backend",
-  "Frontend",
-  "Mobile",
-  "DevOps",
-  "Software Engineer",
-  "Data Engineering",
-  "Machine Learning",
-  "AI / GenAI",
-  "QA / Testing",
-  "UI/UX Design",
-  "Cybersecurity",
-  "Cloud / Infrastructure",
-  "Blockchain / Web3",
-  "Embedded / IoT",
-  "Game Development",
-  "Database / SQL",
-  "Network Engineering",
-  "Technical Support",
-  "IT / System Admin",
-  "Product Management",
-  "Scrum Master / Agile",
-  "WordPress / CMS",
-  "ERP / SAP",
-  "Salesforce",
-  "Python",
-  "Java",
-  "JavaScript / TypeScript",
-  "C# / .NET",
-  "PHP / Laravel",
-  "Ruby / Rails",
-  "Rust",
-  "Go / Golang",
-  "Swift / iOS",
-  "Kotlin / Android",
-];
-
-const WORK_TYPES = [
-  { value: "", label: "Any (no preference)" },
-  { value: "REMOTE", label: "Remote" },
-  { value: "ONSITE", label: "On-site" },
-  { value: "HYBRID", label: "Hybrid" },
-];
-
-const PLATFORMS = [
-  { value: "LINKEDIN", label: "LinkedIn" },
-  { value: "INDEED", label: "Indeed" },
-  { value: "GLASSDOOR", label: "Glassdoor" },
-  { value: "ROZEE_PK", label: "Rozee.pk" },
-  { value: "REMOTIVE", label: "Remotive" },
-  { value: "ARBEITNOW", label: "Arbeitnow" },
-];
-
-const CURRENCIES = ["PKR", "USD", "EUR", "GBP", "AED", "INR"];
-
-interface Settings {
-  id: string;
-  userId: string;
-  dailyTarget: number;
-  ghostDays: number;
-  staleDays: number;
-  followUpDays: number;
-  emailNotifications: boolean;
-  timezone: string;
-  searchKeywords: string | null;
-  searchLocation: string | null;
-  experienceLevel: string | null;
-  skills: string | null;
-  jobCategories: string | null;
-  educationLevel: string | null;
-  languages: string | null;
-  minSalary: number | null;
-  maxSalary: number | null;
-  salaryCurrency: string;
-  preferredWorkType: string | null;
-  preferredPlatforms: string | null;
-}
-
 interface SettingsFormProps {
-  settings: Settings;
+  initialSettings: {
+    fullName?: string | null;
+    phone?: string | null;
+    linkedinUrl?: string | null;
+    portfolioUrl?: string | null;
+    githubUrl?: string | null;
+    keywords?: string[];
+    city?: string | null;
+    country?: string | null;
+    salaryMin?: number | null;
+    salaryMax?: number | null;
+    salaryCurrency?: string | null;
+    experienceLevel?: string | null;
+    education?: string | null;
+    workType?: string[];
+    jobType?: string[];
+    languages?: string[];
+    preferredCategories?: string[];
+    preferredPlatforms?: string[];
+    emailNotifications?: boolean;
+    notificationEmail?: string | null;
+    applicationEmail?: string | null;
+    applicationMode?: string;
+    autoApplyEnabled?: boolean;
+    maxAutoApplyPerDay?: number;
+    minMatchScoreForAutoApply?: number;
+    defaultSignature?: string | null;
+    customSystemPrompt?: string | null;
+    preferredTone?: string | null;
+    emailLanguage?: string | null;
+    includeLinkedin?: boolean;
+    includeGithub?: boolean;
+    includePortfolio?: boolean;
+    customClosing?: string | null;
+  };
 }
 
-export function SettingsForm({ settings }: SettingsFormProps) {
-  const [isPending, startTransition] = useTransition();
-  const [form, setForm] = useState({
-    dailyTarget: settings.dailyTarget,
-    ghostDays: settings.ghostDays,
-    staleDays: settings.staleDays,
-    followUpDays: settings.followUpDays,
-    emailNotifications: settings.emailNotifications,
-    timezone: settings.timezone,
-    searchKeywords: settings.searchKeywords ?? "",
-    searchLocation: settings.searchLocation ?? "",
-    experienceLevel: settings.experienceLevel ?? "",
-    skills: settings.skills ?? "",
-    jobCategories: settings.jobCategories ?? "",
-    educationLevel: settings.educationLevel ?? "",
-    languages: settings.languages ?? "",
-    minSalary: settings.minSalary ?? "",
-    maxSalary: settings.maxSalary ?? "",
-    salaryCurrency: settings.salaryCurrency ?? "PKR",
-    preferredWorkType: settings.preferredWorkType ?? "",
-    preferredPlatforms: settings.preferredPlatforms ?? "",
-  });
+export function SettingsForm({ initialSettings }: SettingsFormProps) {
+  const s = initialSettings;
+  const [saving, setSaving] = useState(false);
 
-  const update = (field: string, value: string | number | boolean) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
+  // Personal
+  const [fullName, setFullName] = useState(s.fullName || "");
+  const [phone, setPhone] = useState(s.phone || "");
+  const [linkedinUrl, setLinkedinUrl] = useState(s.linkedinUrl || "");
+  const [portfolioUrl, setPortfolioUrl] = useState(s.portfolioUrl || "");
+  const [githubUrl, setGithubUrl] = useState(s.githubUrl || "");
 
-  const selectedCategories = form.jobCategories
-    ? form.jobCategories.split(",").filter(Boolean)
-    : [];
+  // Job Preferences
+  const [keywords, setKeywords] = useState<string[]>(s.keywords || []);
+  const [keywordInput, setKeywordInput] = useState("");
+  const [city, setCity] = useState(s.city || "");
+  const [country, setCountry] = useState(s.country || "");
+  const [salaryMin, setSalaryMin] = useState(s.salaryMin?.toString() || "");
+  const [salaryMax, setSalaryMax] = useState(s.salaryMax?.toString() || "");
+  const [salaryCurrency, setSalaryCurrency] = useState(s.salaryCurrency || "USD");
+  const [experienceLevel, setExperienceLevel] = useState(s.experienceLevel || "");
+  const [education, setEducation] = useState(s.education || "");
+  const [workType, setWorkType] = useState<string[]>(s.workType || []);
+  const [jobType, setJobType] = useState<string[]>(s.jobType || []);
+  const [languages, setLanguages] = useState<string[]>(s.languages || []);
+  const [langInput, setLangInput] = useState("");
 
-  const toggleCategory = (cat: string) => {
-    const cats = selectedCategories.includes(cat)
-      ? selectedCategories.filter((c) => c !== cat)
-      : [...selectedCategories, cat];
-    update("jobCategories", cats.join(","));
+  // Categories & Platforms
+  const [categories, setCategories] = useState<string[]>(s.preferredCategories || []);
+  const [platforms, setPlatforms] = useState<string[]>(s.preferredPlatforms || []);
+
+  // Notifications
+  const [emailNotifications, setEmailNotifications] = useState(s.emailNotifications ?? true);
+  const [notificationEmail, setNotificationEmail] = useState(s.notificationEmail || "");
+
+  // Application Automation
+  const [applicationEmail, setApplicationEmail] = useState(s.applicationEmail || "");
+  const [applicationMode, setApplicationMode] = useState(s.applicationMode || "SEMI_AUTO");
+  const [autoApplyEnabled, setAutoApplyEnabled] = useState(s.autoApplyEnabled ?? false);
+  const [maxAutoApply, setMaxAutoApply] = useState(s.maxAutoApplyPerDay?.toString() || "10");
+  const [minMatchScore, setMinMatchScore] = useState(s.minMatchScoreForAutoApply?.toString() || "75");
+  const [defaultSignature, setDefaultSignature] = useState(s.defaultSignature || "");
+
+  // AI Customization
+  const [customPrompt, setCustomPrompt] = useState(s.customSystemPrompt || "");
+  const [tone, setTone] = useState(s.preferredTone || "professional");
+  const [emailLang, setEmailLang] = useState(s.emailLanguage || "English");
+  const [includeLinkedin, setIncludeLinkedin] = useState(s.includeLinkedin ?? true);
+  const [includeGithub, setIncludeGithub] = useState(s.includeGithub ?? true);
+  const [includePortfolio, setIncludePortfolio] = useState(s.includePortfolio ?? true);
+  const [customClosing, setCustomClosing] = useState(s.customClosing || "");
+
+  const addKeyword = useCallback(() => {
+    const val = keywordInput.trim();
+    if (val && !keywords.includes(val)) {
+      setKeywords([...keywords, val]);
+    }
+    setKeywordInput("");
+  }, [keywordInput, keywords]);
+
+  const addLanguage = useCallback(() => {
+    const val = langInput.trim();
+    if (val && !languages.includes(val)) {
+      setLanguages([...languages, val]);
+    }
+    setLangInput("");
+  }, [langInput, languages]);
+
+  const toggleArray = (arr: string[], val: string, setter: (v: string[]) => void) => {
+    setter(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
   };
 
-  const selectedPlatforms = form.preferredPlatforms
-    ? form.preferredPlatforms.split(",").filter(Boolean)
-    : [];
-
-  const togglePlatform = (plat: string) => {
-    const plats = selectedPlatforms.includes(plat)
-      ? selectedPlatforms.filter((p) => p !== plat)
-      : [...selectedPlatforms, plat];
-    update("preferredPlatforms", plats.join(","));
-  };
-
-  const handleSave = () => {
-    startTransition(async () => {
-      try {
-        await updateSettings({
-          dailyTarget: form.dailyTarget,
-          ghostDays: form.ghostDays,
-          staleDays: form.staleDays,
-          followUpDays: form.followUpDays,
-          emailNotifications: form.emailNotifications,
-          timezone: form.timezone,
-          searchKeywords: form.searchKeywords || undefined,
-          searchLocation: form.searchLocation || undefined,
-          experienceLevel: form.experienceLevel || undefined,
-          skills: form.skills || undefined,
-          jobCategories: form.jobCategories || undefined,
-          educationLevel: form.educationLevel || undefined,
-          languages: form.languages || undefined,
-          minSalary: form.minSalary ? Number(form.minSalary) : null,
-          maxSalary: form.maxSalary ? Number(form.maxSalary) : null,
-          salaryCurrency: form.salaryCurrency,
-          preferredWorkType: form.preferredWorkType || undefined,
-          preferredPlatforms: form.preferredPlatforms || undefined,
-        });
-        toast.success("Settings saved");
-      } catch {
-        toast.error("Failed to save settings");
-      }
-    });
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveSettings({
+        fullName,
+        phone,
+        linkedinUrl,
+        portfolioUrl,
+        githubUrl,
+        keywords,
+        city,
+        country,
+        salaryMin: salaryMin ? parseInt(salaryMin) : null,
+        salaryMax: salaryMax ? parseInt(salaryMax) : null,
+        salaryCurrency,
+        experienceLevel,
+        education,
+        workType,
+        jobType,
+        languages,
+        preferredCategories: categories,
+        preferredPlatforms: platforms,
+        emailNotifications,
+        notificationEmail,
+        applicationEmail,
+        applicationMode,
+        autoApplyEnabled,
+        maxAutoApplyPerDay: parseInt(maxAutoApply) || 10,
+        minMatchScoreForAutoApply: parseInt(minMatchScore) || 75,
+        defaultSignature,
+        customSystemPrompt: customPrompt,
+        preferredTone: tone,
+        emailLanguage: emailLang,
+        includeLinkedin,
+        includeGithub,
+        includePortfolio,
+        customClosing,
+      });
+      toast.success("Settings saved successfully");
+    } catch {
+      toast.error("Failed to save settings");
+    }
+    setSaving(false);
   };
 
   return (
-    <div className="max-w-2xl space-y-5">
-      {/* ── 1. Profile ── */}
-      <Section icon={User} title="Profile" gradient="from-blue-500 to-cyan-500">
+    <div className="space-y-8 max-w-3xl">
+      {/* ── Personal Info ── */}
+      <Section icon={<User className="h-4 w-4" />} title="Personal Info">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs flex items-center gap-1.5">
-              <Briefcase className="h-3 w-3 text-slate-400" />
-              Experience Level
-            </Label>
-            <Select
-              value={form.experienceLevel || undefined}
-              onValueChange={(v) => update("experienceLevel", v)}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Select level..." />
-              </SelectTrigger>
-              <SelectContent>
-                {EXP_LEVELS.map((l) => (
-                  <SelectItem key={l.value} value={l.value}>
-                    {l.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs flex items-center gap-1.5">
-              <GraduationCap className="h-3 w-3 text-slate-400" />
-              Education Level
-            </Label>
-            <Select
-              value={form.educationLevel || undefined}
-              onValueChange={(v) => update("educationLevel", v)}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Select education..." />
-              </SelectTrigger>
-              <SelectContent>
-                {EDU_LEVELS.map((l) => (
-                  <SelectItem key={l.value} value={l.value}>
-                    {l.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-xs flex items-center gap-1.5">
-              <Globe className="h-3 w-3 text-slate-400" />
-              Languages
-            </Label>
-            <Input
-              value={form.languages}
-              onChange={(e) => update("languages", e.target.value)}
-              placeholder="English, Urdu"
-              className="h-9"
-            />
-            <p className="text-[10px] text-slate-400">
-              Comma-separated. Used to match job language requirements.
-            </p>
-          </div>
+          <Field label="Full Name">
+            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Muhammad Ali" />
+          </Field>
+          <Field label="Phone">
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+92 300 1234567" />
+          </Field>
+          <Field label="LinkedIn URL">
+            <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/..." />
+          </Field>
+          <Field label="GitHub URL">
+            <Input value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/..." />
+          </Field>
+          <Field label="Portfolio URL" className="sm:col-span-2">
+            <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://yoursite.com" />
+          </Field>
         </div>
       </Section>
 
-      {/* ── 2. Skills & Categories ── */}
-      <Section icon={Code} title="Skills & Categories" gradient="from-violet-500 to-purple-500">
+      {/* ── Job Preferences ── */}
+      <Section icon={<Briefcase className="h-4 w-4" />} title="Job Preferences">
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Your Skills</Label>
-            <Textarea
-              value={form.skills}
-              onChange={(e) => update("skills", e.target.value)}
-              placeholder="React, Node.js, TypeScript, PostgreSQL, Docker, Next.js, NestJS, Tailwind CSS, Git, AWS..."
-              rows={3}
-              className="resize-none text-sm"
-            />
-            <p className="text-[10px] text-slate-400">
-              Comma-separated. These are matched against job descriptions for scoring. Be thorough -- list everything you know.
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs">Job Categories</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {JOB_CATEGORIES.map((cat) => {
-                const isSelected = selectedCategories.includes(cat);
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => toggleCategory(cat)}
-                    className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
-                      isSelected
-                        ? "bg-violet-600 text-white shadow-sm"
-                        : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
+          <Field label="Keywords (type + Enter to add)">
+            <div className="flex gap-2">
+              <Input
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
+                placeholder="React, Next.js, Node.js..."
+                className="flex-1"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={addKeyword}>
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
             </div>
-            <p className="text-[10px] text-slate-400">
-              Select the job categories you want. Jobs outside these categories get lower match scores.
-            </p>
-          </div>
-        </div>
-      </Section>
+            <TagList items={keywords} onRemove={(i) => setKeywords(keywords.filter((_, idx) => idx !== i))} />
+          </Field>
 
-      {/* ── 3. Search Configuration ── */}
-      <Section icon={Search} title="Search Configuration" gradient="from-emerald-500 to-teal-500">
-        <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Search Keywords</Label>
-              <Input
-                value={form.searchKeywords}
-                onChange={(e) => update("searchKeywords", e.target.value)}
-                placeholder="MERN, NestJS, Next.js, React"
-                className="h-9"
-              />
-              <p className="text-[10px] text-slate-400">
-                Each keyword becomes a separate search query on job sources.
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs flex items-center gap-1.5">
-                <MapPin className="h-3 w-3 text-slate-400" />
-                City / Location
-              </Label>
-              <Input
-                value={form.searchLocation}
-                onChange={(e) => update("searchLocation", e.target.value)}
-                placeholder="Lahore"
-                className="h-9"
-              />
-            </div>
+            <Field label="City">
+              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Lahore" />
+            </Field>
+            <Field label="Country">
+              <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Pakistan" />
+            </Field>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs">Preferred Work Type</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {WORK_TYPES.map((wt) => (
-                <button
-                  key={wt.value}
-                  type="button"
-                  onClick={() => update("preferredWorkType", wt.value)}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
-                    form.preferredWorkType === wt.value
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                  }`}
-                >
-                  {wt.label}
-                </button>
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="Min Salary">
+              <Input type="number" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="30000" />
+            </Field>
+            <Field label="Max Salary">
+              <Input type="number" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="80000" />
+            </Field>
+            <Field label="Currency">
+              <Select value={salaryCurrency} onValueChange={setSalaryCurrency}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SALARY_CURRENCIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Experience Level">
+              <Select value={experienceLevel || undefined} onValueChange={setExperienceLevel}>
+                <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
+                <SelectContent>
+                  {EXPERIENCE_LEVELS.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Education">
+              <Select value={education || undefined} onValueChange={setEducation}>
+                <SelectTrigger><SelectValue placeholder="Select education" /></SelectTrigger>
+                <SelectContent>
+                  {EDUCATION_LEVELS.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+
+          <Field label="Work Type">
+            <div className="flex flex-wrap gap-2">
+              {WORK_TYPES.map((w) => (
+                <ChipToggle key={w.value} label={w.label} active={workType.includes(w.value)} onClick={() => toggleArray(workType, w.value, setWorkType)} />
               ))}
             </div>
-          </div>
+          </Field>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs flex items-center gap-1.5">
-              <DollarSign className="h-3 w-3 text-slate-400" />
-              Salary Range Expectation
-            </Label>
-            <div className="flex items-center gap-2">
-              <Select
-                value={form.salaryCurrency}
-                onValueChange={(v) => update("salaryCurrency", v)}
+          <Field label="Job Type">
+            <div className="flex flex-wrap gap-2">
+              {JOB_TYPES.map((j) => (
+                <ChipToggle key={j.value} label={j.label} active={jobType.includes(j.value)} onClick={() => toggleArray(jobType, j.value, setJobType)} />
+              ))}
+            </div>
+          </Field>
+
+          <Field label="Languages (type + Enter to add)">
+            <div className="flex gap-2">
+              <Input
+                value={langInput}
+                onChange={(e) => setLangInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLanguage(); } }}
+                placeholder="English, Urdu..."
+                className="flex-1"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={addLanguage}>
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {LANGUAGE_OPTIONS.map((lang) => (
+                <ChipToggle key={lang} label={lang} active={languages.includes(lang)} onClick={() => toggleArray(languages, lang, setLanguages)} />
+              ))}
+            </div>
+          </Field>
+        </div>
+      </Section>
+
+      {/* ── Categories ── */}
+      <Section icon={<Grid3X3 className="h-4 w-4" />} title="Job Categories">
+        <p className="text-xs text-slate-400 mb-3">Select the categories you want. Jobs outside these categories get lower match scores.</p>
+        <div className="flex flex-wrap gap-1.5">
+          {JOB_CATEGORIES.map((cat) => (
+            <ChipToggle key={cat} label={cat} active={categories.includes(cat)} onClick={() => toggleArray(categories, cat, setCategories)} />
+          ))}
+        </div>
+      </Section>
+
+      {/* ── Platforms ── */}
+      <Section icon={<Radio className="h-4 w-4" />} title="Job Platforms">
+        <p className="text-xs text-slate-400 mb-3">Select which sources to scrape jobs from.</p>
+        <div className="flex flex-wrap gap-2">
+          {JOB_SOURCES.map((src) => (
+            <ChipToggle
+              key={src.value}
+              label={`${src.label} (${src.limit})`}
+              active={platforms.includes(src.value)}
+              onClick={() => toggleArray(platforms, src.value, setPlatforms)}
+            />
+          ))}
+        </div>
+      </Section>
+
+      {/* ── Notifications ── */}
+      <Section icon={<Bell className="h-4 w-4" />} title="Notifications">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm font-medium">Email Notifications</Label>
+              <p className="text-xs text-slate-400">Get notified about new job matches</p>
+            </div>
+            <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
+          </div>
+          {emailNotifications && (
+            <Field label="Notification Email (optional, defaults to login email)">
+              <Input value={notificationEmail} onChange={(e) => setNotificationEmail(e.target.value)} placeholder="alerts@example.com" />
+            </Field>
+          )}
+        </div>
+      </Section>
+
+      {/* ── Application Automation ── */}
+      <Section icon={<Send className="h-4 w-4" />} title="Application Automation">
+        <div className="space-y-4">
+          <Field label="Application Email (email to send applications FROM)">
+            <Input value={applicationEmail} onChange={(e) => setApplicationEmail(e.target.value)} placeholder="yourname@gmail.com" />
+          </Field>
+
+          <Field label="Application Mode">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setApplicationMode("SEMI_AUTO")}
+                className={`flex-1 rounded-lg border p-3 text-left transition-all ${applicationMode === "SEMI_AUTO" ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500" : "border-slate-200 hover:border-slate-300"}`}
               >
-                <SelectTrigger className="h-9 w-24">
-                  <SelectValue />
-                </SelectTrigger>
+                <div className="text-sm font-medium">Semi-Auto</div>
+                <div className="text-xs text-slate-500 mt-0.5">AI prepares drafts, you review and send</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setApplicationMode("FULL_AUTO")}
+                className={`flex-1 rounded-lg border p-3 text-left transition-all ${applicationMode === "FULL_AUTO" ? "border-violet-500 bg-violet-50 ring-1 ring-violet-500" : "border-slate-200 hover:border-slate-300"}`}
+              >
+                <div className="text-sm font-medium">Full-Auto</div>
+                <div className="text-xs text-slate-500 mt-0.5">AI prepares + auto-sends high-match jobs</div>
+              </button>
+            </div>
+          </Field>
+
+          {applicationMode === "FULL_AUTO" && (
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Auto-Apply Enabled</Label>
+                  <p className="text-xs text-slate-400">Must be ON for Full-Auto to work</p>
+                </div>
+                <Switch checked={autoApplyEnabled} onCheckedChange={setAutoApplyEnabled} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Max Auto-Apply Per Day">
+                  <Input type="number" min={1} max={50} value={maxAutoApply} onChange={(e) => setMaxAutoApply(e.target.value)} />
+                </Field>
+                <Field label={`Min Match Score (${minMatchScore}%)`}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={minMatchScore}
+                    onChange={(e) => setMinMatchScore(e.target.value)}
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-violet-600"
+                  />
+                </Field>
+              </div>
+            </>
+          )}
+
+          <Field label="Default Signature (appended to all application emails)">
+            <Textarea
+              value={defaultSignature}
+              onChange={(e) => setDefaultSignature(e.target.value)}
+              placeholder="Best regards,&#10;Muhammad Ali&#10;linkedin.com/in/ali"
+              rows={3}
+            />
+          </Field>
+        </div>
+      </Section>
+
+      {/* ── AI Customization ── */}
+      <Section icon={<Sparkles className="h-4 w-4" />} title="AI Customization">
+        <div className="space-y-4">
+          <Field label="Custom System Prompt (your own AI instructions, injected into every generation)">
+            <Textarea
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="Always mention my open-source contributions. Reference my Next.js 14 experience. Keep under 200 words."
+              rows={4}
+              maxLength={2000}
+            />
+            <p className="text-[10px] text-slate-400 mt-1">{customPrompt.length}/2000</p>
+          </Field>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Preferred Tone">
+              <Select value={tone} onValueChange={setTone}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CURRENCIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
+                  {TONE_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label} — {t.description}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                type="number"
-                value={form.minSalary}
-                onChange={(e) => update("minSalary", e.target.value)}
-                placeholder="Min"
-                className="h-9 flex-1"
-              />
-              <span className="text-xs text-slate-400">to</span>
-              <Input
-                type="number"
-                value={form.maxSalary}
-                onChange={(e) => update("maxSalary", e.target.value)}
-                placeholder="Max"
-                className="h-9 flex-1"
-              />
-            </div>
-            <p className="text-[10px] text-slate-400">
-              Monthly salary range. Jobs with salary data outside your range get flagged.
-            </p>
+            </Field>
+            <Field label="Email Language">
+              <Select value={emailLang} onValueChange={setEmailLang}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LANGUAGE_OPTIONS.map((l) => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs">Preferred Platforms</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {PLATFORMS.map((p) => {
-                const isSelected = selectedPlatforms.includes(p.value);
-                return (
-                  <button
-                    key={p.value}
-                    type="button"
-                    onClick={() => togglePlatform(p.value)}
-                    className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
-                      isSelected
-                        ? "bg-emerald-600 text-white shadow-sm"
-                        : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Include LinkedIn URL in applications</Label>
+              <Switch checked={includeLinkedin} onCheckedChange={setIncludeLinkedin} />
             </div>
-            <p className="text-[10px] text-slate-400">
-              Optional. Leave empty to search all platforms.
-            </p>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Include GitHub URL in applications</Label>
+              <Switch checked={includeGithub} onCheckedChange={setIncludeGithub} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Include Portfolio URL in applications</Label>
+              <Switch checked={includePortfolio} onCheckedChange={setIncludePortfolio} />
+            </div>
           </div>
+
+          <Field label="Custom Closing">
+            <Input value={customClosing} onChange={(e) => setCustomClosing(e.target.value)} placeholder="Looking forward to connecting" maxLength={100} />
+          </Field>
         </div>
       </Section>
 
-      {/* ── 4. Automation ── */}
-      <Section icon={Zap} title="Automation" gradient="from-amber-400 to-orange-500">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Daily Application Target</Label>
-            <Input
-              type="number"
-              min={1}
-              max={50}
-              value={form.dailyTarget}
-              onChange={(e) => update("dailyTarget", parseInt(e.target.value) || 1)}
-              className="h-9"
-            />
-            <p className="text-[10px] text-slate-400">Applications per day goal</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Follow-up After (days)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={30}
-              value={form.followUpDays}
-              onChange={(e) => update("followUpDays", parseInt(e.target.value) || 5)}
-              className="h-9"
-            />
-            <p className="text-[10px] text-slate-400">Days before follow-up reminder</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Ghost Detection (days)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              value={form.ghostDays}
-              onChange={(e) => update("ghostDays", parseInt(e.target.value) || 14)}
-              className="h-9"
-            />
-            <p className="text-[10px] text-slate-400">Days before marking as ghosted</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Stale Detection (days)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={30}
-              value={form.staleDays}
-              onChange={(e) => update("staleDays", parseInt(e.target.value) || 7)}
-              className="h-9"
-            />
-            <p className="text-[10px] text-slate-400">Days before SAVED jobs flagged stale</p>
-          </div>
-        </div>
-      </Section>
-
-      {/* ── 5. Notifications ── */}
-      <Section icon={Bell} title="Notifications" gradient="from-rose-400 to-pink-500">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
-            <div>
-              <p className="text-sm font-medium text-slate-700">Email Notifications</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                Per-job emails with apply links, recommended resume, and match score.
-              </p>
-            </div>
-            <Switch
-              checked={form.emailNotifications}
-              onCheckedChange={(checked) => update("emailNotifications", checked)}
-            />
-          </div>
-          <Separator />
-          <div className="space-y-1.5">
-            <Label className="text-xs">Timezone</Label>
-            <Input
-              value={form.timezone}
-              onChange={(e) => update("timezone", e.target.value)}
-              placeholder="Asia/Karachi"
-              className="h-9"
-            />
-            <p className="text-[10px] text-slate-400">Used for cron job scheduling and email timestamps.</p>
-          </div>
-        </div>
-      </Section>
-
-      {/* Save */}
-      <div className="flex justify-end pt-1 pb-6">
-        <Button onClick={handleSave} disabled={isPending} className="shadow-md px-6">
-          {isPending ? (
-            <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-1.5" />
-          )}
-          Save All Settings
+      {/* ── Save Button ── */}
+      <div className="sticky bottom-4 flex justify-end">
+        <Button onClick={handleSave} disabled={saving} className="shadow-lg px-6">
+          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          {saving ? "Saving..." : "Save Settings"}
         </Button>
       </div>
     </div>
   );
 }
 
-function Section({
-  icon: Icon,
-  title,
-  gradient,
-  children,
-}: {
-  icon: React.ElementType;
-  title: string;
-  gradient: string;
-  children: React.ReactNode;
-}) {
+// ── Helper Components ──
+
+function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200/60 space-y-4">
-      <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${gradient}`} />
-      <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100">
-          <Icon className="h-3.5 w-3.5 text-slate-600" />
-        </div>
-        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-          {title}
-        </h2>
+    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100/80">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="rounded-lg bg-slate-100 p-1.5 text-slate-500">{icon}</div>
+        <h2 className="text-sm font-bold text-slate-800">{title}</h2>
       </div>
       {children}
+    </div>
+  );
+}
+
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <Label className="text-xs font-medium text-slate-600 mb-1.5 block">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function ChipToggle({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+        active
+          ? "bg-violet-600 text-white shadow-sm"
+          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function TagList({ items, onRemove }: { items: string[]; onRemove: (index: number) => void }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {items.map((item, i) => (
+        <span key={i} className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-100">
+          {item}
+          <button type="button" onClick={() => onRemove(i)} className="text-blue-400 hover:text-blue-600">
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
     </div>
   );
 }

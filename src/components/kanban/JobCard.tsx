@@ -2,18 +2,17 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Building2, Clock, ExternalLink, DollarSign } from "lucide-react";
-import { ApplyTypeBadge } from "@/components/shared/ApplyTypeBadge";
+import { Building2, Clock, ExternalLink, DollarSign, Mail } from "lucide-react";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
-import { ResumeBadge } from "@/components/shared/ResumeBadge";
 import { StageSelector } from "@/components/shared/StageSelector";
 import { daysAgo } from "@/lib/utils";
 import Link from "next/link";
-import type { Job, Stage } from "@/types";
+import type { UserJobWithGlobal } from "@/store/useJobStore";
+import type { JobStage } from "@prisma/client";
 
 interface JobCardProps {
-  job: Job;
-  onStageChange: (jobId: string, newStage: Stage, oldStage: Stage) => void;
+  job: UserJobWithGlobal;
+  onStageChange: (jobId: string, newStage: JobStage, oldStage: JobStage) => void;
 }
 
 export function JobCard({ job, onStageChange }: JobCardProps) {
@@ -27,7 +26,9 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
     ? { transform: CSS.Translate.toString(transform) }
     : undefined;
 
-  const days = daysAgo(job.appliedDate ?? null);
+  const g = job.globalJob;
+  const days = daysAgo(g.postedDate ?? null);
+  const hasApp = job.application?.status === "SENT";
 
   return (
     <div
@@ -43,7 +44,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
             <Building2 className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{job.company}</span>
+            <span className="truncate">{g.company}</span>
           </div>
           <StageSelector
             currentStage={job.stage}
@@ -58,22 +59,28 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          {job.role}
+          {g.title}
         </Link>
       </div>
 
       <div className="flex flex-wrap items-center gap-1 mb-2">
-        {job.applyType && job.applyType !== "UNKNOWN" && (
-          <ApplyTypeBadge applyType={job.applyType} />
+        <PlatformBadge source={g.source} />
+        {hasApp && (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700">
+            <Mail className="h-2.5 w-2.5" /> Applied
+          </span>
         )}
-        <PlatformBadge platform={job.platform} />
-        <ResumeBadge resume={job.resumeUsed} />
+        {job.application?.status === "DRAFT" && (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700">
+            Draft Ready
+          </span>
+        )}
       </div>
 
-      {job.salary && (
+      {g.salary && (
         <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold mb-1.5">
           <DollarSign className="h-3 w-3" />
-          <span>{job.salary}</span>
+          <span>{g.salary}</span>
         </div>
       )}
 
@@ -90,7 +97,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
                     : "text-slate-400"
               }`}
             >
-              {job.matchScore}%
+              {Math.round(job.matchScore)}%
             </span>
           </div>
           <div className="h-1 w-full rounded-full bg-slate-100">
@@ -116,30 +123,22 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
               <span>{days === 0 ? "Today" : days === 1 ? "1d" : `${days}d`}</span>
             </div>
           )}
-          {(job.location || job.workType) && (
-            <div className="text-[11px] text-slate-400 truncate">
-              {[job.location, job.workType !== "ONSITE" ? job.workType : null]
-                .filter(Boolean)
-                .join(" · ")}
-            </div>
+          {g.location && (
+            <div className="text-[11px] text-slate-400 truncate">{g.location}</div>
           )}
         </div>
 
-        {job.url && (
+        {g.applyUrl && (
           <a
-            href={job.url}
+            href={g.applyUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
-            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition-all duration-200 shadow-sm hover:shadow ${
-              job.isDirectApply || job.applyType === "EASY_APPLY"
-                ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                : "bg-blue-500 text-white hover:bg-blue-600"
-            }`}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition-all duration-200 shadow-sm hover:shadow bg-blue-500 text-white hover:bg-blue-600"
           >
             <ExternalLink className="h-2.5 w-2.5" />
-            {job.isDirectApply || job.applyType === "EASY_APPLY" ? "Easy" : "Apply"}
+            Apply
           </a>
         )}
       </div>

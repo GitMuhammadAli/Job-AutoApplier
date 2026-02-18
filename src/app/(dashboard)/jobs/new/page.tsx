@@ -1,10 +1,7 @@
-import { getResumes } from "@/app/actions/job";
 import { JobForm } from "@/components/jobs/JobForm";
 import { Plus } from "lucide-react";
 
-export default async function AddJobPage() {
-  const resumes = await getResumes();
-
+export default function AddJobPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-5 animate-slide-up">
       <div>
@@ -18,7 +15,7 @@ export default async function AddJobPage() {
           Manually track a job application. Auto-scraped jobs appear on the dashboard automatically.
         </p>
       </div>
-      <JobForm resumes={resumes} mode="create" />
+      <JobForm />
     </div>
   );
 }
