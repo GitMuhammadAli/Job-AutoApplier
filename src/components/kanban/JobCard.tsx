@@ -24,9 +24,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
     });
 
   const style = transform
-    ? {
-        transform: CSS.Translate.toString(transform),
-      }
+    ? { transform: CSS.Translate.toString(transform) }
     : undefined;
 
   const days = daysAgo(job.appliedDate ?? null);
@@ -37,14 +35,13 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`group relative cursor-grab active:cursor-grabbing rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200/50 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-300/60 ${
+      className={`group relative cursor-grab active:cursor-grabbing rounded-xl bg-white p-3 md:p-3.5 shadow-sm ring-1 ring-slate-100/80 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 ${
         isDragging ? "opacity-50 shadow-lg rotate-2 z-50 ring-blue-300" : ""
       }`}
     >
-      {/* Company & Role */}
       <div className="mb-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
             <Building2 className="h-3 w-3 flex-shrink-0" />
             <span className="truncate">{job.company}</span>
           </div>
@@ -57,7 +54,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
         </div>
         <Link
           href={`/jobs/${job.id}`}
-          className="mt-1 text-[13px] font-bold text-slate-800 leading-snug hover:text-blue-600 transition-colors block"
+          className="mt-1 text-sm font-bold text-slate-800 leading-snug hover:text-blue-600 transition-colors block"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -65,7 +62,6 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
         </Link>
       </div>
 
-      {/* Apply type + Platform + Resume badges */}
       <div className="flex flex-wrap items-center gap-1 mb-2">
         {job.applyType && job.applyType !== "UNKNOWN" && (
           <ApplyTypeBadge applyType={job.applyType} />
@@ -74,18 +70,16 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
         <ResumeBadge resume={job.resumeUsed} />
       </div>
 
-      {/* Salary */}
       {job.salary && (
-        <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-semibold mb-1.5">
+        <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold mb-1.5">
           <DollarSign className="h-3 w-3" />
           <span>{job.salary}</span>
         </div>
       )}
 
-      {/* Match score */}
       {job.matchScore != null && job.matchScore > 0 && (
         <div className="mb-2">
-          <div className="flex items-center justify-between text-[10px] mb-0.5">
+          <div className="flex items-center justify-between text-[11px] mb-0.5">
             <span className="text-slate-400 font-medium">Match</span>
             <span
               className={`font-bold ${
@@ -114,17 +108,16 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
         </div>
       )}
 
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-1 border-t border-slate-50">
+      <div className="flex items-center justify-between pt-1.5 border-t border-slate-50">
         <div className="flex items-center gap-2 min-w-0">
           {days !== null && (
-            <div className="flex items-center gap-1 text-[10px] text-slate-400">
+            <div className="flex items-center gap-1 text-[11px] text-slate-400">
               <Clock className="h-2.5 w-2.5 flex-shrink-0" />
               <span>{days === 0 ? "Today" : days === 1 ? "1d" : `${days}d`}</span>
             </div>
           )}
           {(job.location || job.workType) && (
-            <div className="text-[10px] text-slate-400 truncate">
+            <div className="text-[11px] text-slate-400 truncate">
               {[job.location, job.workType !== "ONSITE" ? job.workType : null]
                 .filter(Boolean)
                 .join(" · ")}
@@ -132,7 +125,6 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
           )}
         </div>
 
-        {/* Apply button */}
         {job.url && (
           <a
             href={job.url}

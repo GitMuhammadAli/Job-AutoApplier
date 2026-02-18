@@ -23,15 +23,13 @@ export function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) 
   return (
     <div
       className={cn(
-        "flex w-72 flex-shrink-0 flex-col rounded-xl bg-white/60 ring-1 ring-slate-200/50 transition-all duration-200 md:w-full",
+        "flex w-[280px] flex-shrink-0 snap-center flex-col rounded-xl bg-white/60 ring-1 ring-slate-100/80 transition-all duration-200 md:w-full md:snap-align-none",
         isOver && "ring-2 bg-white shadow-md scale-[1.01]",
         isOver && config.ring
       )}
     >
-      {/* Colored top accent bar */}
       <div className={cn("h-1 rounded-t-xl bg-gradient-to-r", config.gradient)} />
 
-      {/* Column header */}
       <div className="flex items-center gap-2.5 px-3 py-2.5">
         <div className={cn("h-2 w-2 rounded-full", config.dot)} />
         <h3 className={cn("text-xs font-bold uppercase tracking-wider", config.text)}>
@@ -42,11 +40,10 @@ export function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) 
         </div>
       </div>
 
-      {/* Cards */}
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 space-y-2 px-2 pb-2.5 min-h-[100px] transition-colors rounded-b-xl scrollbar-thin overflow-y-auto max-h-[65vh]",
+          "flex-1 space-y-2 px-2 pb-2.5 min-h-[80px] transition-colors rounded-b-xl scrollbar-thin overflow-y-auto max-h-[55vh] md:max-h-[68vh]",
           isOver && "bg-slate-50/50"
         )}
       >
