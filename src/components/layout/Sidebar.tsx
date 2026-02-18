@@ -89,7 +89,7 @@ export function Sidebar({ user }: SidebarProps) {
             <span className="text-xs font-semibold text-emerald-700">Automation Active</span>
           </div>
           <p className="mt-1 text-[10px] text-emerald-600/80 leading-relaxed">
-            Daily scan from 4 sources. Emails sent per match.
+            Daily scan from 8 sources. Emails sent per match.
           </p>
         </div>
 
@@ -135,10 +135,10 @@ export function Sidebar({ user }: SidebarProps) {
         <div className="border-t border-slate-100 px-4 py-2.5">
           <div className="flex items-center gap-2 text-[10px] text-slate-400">
             <Radio className="h-3 w-3" />
-            <span>4 job sources connected</span>
+            <span>8 job sources connected</span>
           </div>
-          <div className="mt-1 flex items-center gap-1.5">
-            {["JSearch", "Indeed", "Remotive", "Arbeitnow"].map((s) => (
+          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+            {["JSearch", "Indeed", "Remotive", "Arbeitnow", "Adzuna", "LinkedIn", "Rozee.pk", "Google"].map((s) => (
               <span
                 key={s}
                 className="inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-medium text-slate-500"

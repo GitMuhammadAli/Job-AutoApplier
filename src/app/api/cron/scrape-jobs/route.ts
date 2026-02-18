@@ -32,13 +32,36 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   Frontend: ["frontend", "front-end", "react", "vue", "angular", "ui developer", "css", "tailwind"],
   Mobile: ["mobile", "react native", "flutter", "ios", "android", "swift", "kotlin", "expo"],
   DevOps: ["devops", "sre", "infrastructure", "docker", "kubernetes", "ci/cd", "terraform", "aws", "cloud engineer"],
+  "Software Engineer": ["software engineer", "swe", "sde", "developer", "programmer", "coder"],
   "Data Engineering": ["data engineer", "etl", "pipeline", "spark", "airflow", "data platform"],
   "Machine Learning": ["machine learning", "ml engineer", "ai engineer", "deep learning", "nlp", "data scientist"],
+  "AI / GenAI": ["artificial intelligence", "generative ai", "llm", "chatgpt", "openai", "langchain", "rag", "genai"],
   "QA / Testing": ["qa", "quality assurance", "test engineer", "automation test", "sdet"],
   "UI/UX Design": ["ui/ux", "ux designer", "ui designer", "product design", "figma"],
-  Cybersecurity: ["security engineer", "cybersecurity", "penetration", "infosec"],
+  Cybersecurity: ["security engineer", "cybersecurity", "penetration", "infosec", "soc analyst"],
   "Cloud / Infrastructure": ["cloud", "aws", "azure", "gcp", "infrastructure", "platform engineer"],
-  Blockchain: ["blockchain", "web3", "solidity", "smart contract", "crypto"],
+  "Blockchain / Web3": ["blockchain", "web3", "solidity", "smart contract", "crypto", "defi"],
+  "Embedded / IoT": ["embedded", "firmware", "iot", "microcontroller", "rtos", "arduino", "fpga"],
+  "Game Development": ["game developer", "unity", "unreal", "gamedev", "game engine", "game designer"],
+  "Database / SQL": ["database", "dba", "sql", "postgresql", "mysql", "mongodb", "redis", "database admin"],
+  "Network Engineering": ["network engineer", "cisco", "routing", "switching", "network admin", "ccna"],
+  "Technical Support": ["technical support", "it support", "helpdesk", "service desk", "desktop support"],
+  "IT / System Admin": ["system admin", "sysadmin", "linux admin", "windows server", "active directory"],
+  "Product Management": ["product manager", "product owner", "pm", "roadmap", "product lead"],
+  "Scrum Master / Agile": ["scrum master", "agile coach", "project manager", "jira", "kanban"],
+  "WordPress / CMS": ["wordpress", "cms", "drupal", "shopify", "woocommerce", "elementor"],
+  "ERP / SAP": ["erp", "sap", "oracle erp", "dynamics 365", "sap abap", "sap hana"],
+  Salesforce: ["salesforce", "sfdc", "apex", "lightning", "salesforce admin", "salesforce developer"],
+  Python: ["python", "django", "flask", "fastapi", "pandas", "numpy"],
+  Java: ["java", "spring boot", "spring", "j2ee", "hibernate", "maven"],
+  "JavaScript / TypeScript": ["javascript", "typescript", "node.js", "nodejs", "react", "next.js", "vue", "angular"],
+  "C# / .NET": ["c#", "csharp", ".net", "dotnet", "asp.net", "blazor", "unity"],
+  "PHP / Laravel": ["php", "laravel", "symfony", "codeigniter", "wordpress"],
+  "Ruby / Rails": ["ruby", "rails", "ruby on rails", "sinatra"],
+  Rust: ["rust", "rustlang", "cargo", "tokio", "wasm"],
+  "Go / Golang": ["go", "golang", "gin", "goroutine"],
+  "Swift / iOS": ["swift", "ios", "swiftui", "xcode", "cocoapods", "ios developer"],
+  "Kotlin / Android": ["kotlin", "android", "jetpack compose", "android studio", "android developer"],
 };
 
 interface ResumeWithContent {
@@ -434,6 +457,145 @@ async function fetchArbeitnow(): Promise<RawJob[]> {
   return jobs;
 }
 
+async function fetchAdzuna(keywords: string[], location: string): Promise<RawJob[]> {
+  const appId = process.env.ADZUNA_APP_ID;
+  const appKey = process.env.ADZUNA_APP_KEY;
+  if (!appId || !appKey) return [];
+  const jobs: RawJob[] = [];
+  for (const kw of keywords.slice(0, 3)) {
+    try {
+      const q = encodeURIComponent(kw);
+      const l = encodeURIComponent(location);
+      const res = await fetch(`https://api.adzuna.com/v1/api/jobs/pk/search/1?app_id=${appId}&app_key=${appKey}&what=${q}&where=${l}&results_per_page=15&sort_by=date`, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!data.results || !Array.isArray(data.results)) continue;
+      for (const item of data.results) {
+        const url = item.redirect_url || ""; if (!url) continue;
+        const isRemote = (item.title || "").toLowerCase().includes("remote") || (item.location?.display_name || "").toLowerCase().includes("remote");
+        jobs.push({
+          company: item.company?.display_name || "Unknown", role: item.title || "", url, platform: "OTHER",
+          location: item.location?.display_name || location,
+          salary: item.salary_min && item.salary_max ? `${item.salary_min}-${item.salary_max}` : null,
+          description: (item.description || "").substring(0, 2000), applyType: "REGULAR", isDirectApply: false,
+          applyOptions: [{ link: url, source: "adzuna" }], workType: isRemote ? "REMOTE" : "ONSITE", source: "adzuna",
+        });
+      }
+    } catch (err) { console.error(`Adzuna error for "${kw}":`, err); }
+  }
+  return jobs;
+}
+
+async function fetchLinkedInRSS(keywords: string[], location: string): Promise<RawJob[]> {
+  const jobs: RawJob[] = [];
+  for (const kw of keywords.slice(0, 2)) {
+    try {
+      const q = encodeURIComponent(kw);
+      const l = encodeURIComponent(location);
+      const res = await fetch(`https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${q}&location=${l}&start=0`, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const cardRegex = /<li[\s\S]*?<\/li>/g;
+      let match;
+      while ((match = cardRegex.exec(html)) !== null) {
+        const card = match[0];
+        const titleMatch = card.match(/class="base-search-card__title[^"]*"[^>]*>([\s\S]*?)<\//);
+        const companyMatch = card.match(/class="base-search-card__subtitle[^"]*"[^>]*>([\s\S]*?)<\//);
+        const linkMatch = card.match(/href="(https:\/\/www\.linkedin\.com\/jobs\/view\/[^"?]+)/);
+        const locationMatch = card.match(/class="job-search-card__location[^"]*"[^>]*>([\s\S]*?)<\//);
+        const role = (titleMatch?.[1] || "").replace(/<[^>]*>/g, "").trim();
+        const company = (companyMatch?.[1] || "").replace(/<[^>]*>/g, "").trim();
+        const url = (linkMatch?.[1] || "").trim();
+        const loc = (locationMatch?.[1] || "").replace(/<[^>]*>/g, "").trim();
+        if (role && url) {
+          const isRemote = loc.toLowerCase().includes("remote") || role.toLowerCase().includes("remote");
+          jobs.push({
+            company: company || "Unknown", role, url, platform: "LINKEDIN", location: loc || location,
+            salary: null, description: "", applyType: "QUICK_APPLY", isDirectApply: false,
+            applyOptions: [{ link: url, source: "linkedin" }], workType: isRemote ? "REMOTE" : "ONSITE", source: "linkedin_rss",
+          });
+        }
+      }
+    } catch (err) { console.error(`LinkedIn RSS error for "${kw}":`, err); }
+  }
+  return jobs;
+}
+
+async function fetchRozeePk(keywords: string[], location: string): Promise<RawJob[]> {
+  const jobs: RawJob[] = [];
+  const city = location.toLowerCase().replace(/\s+/g, "-");
+  for (const kw of keywords.slice(0, 3)) {
+    try {
+      const q = encodeURIComponent(kw.toLowerCase());
+      const res = await fetch(`https://www.rozee.pk/job/jsearch/q/${q}/fc/city:${city}`, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const jobRegex = /<div[^>]*class="[^"]*job[^"]*"[\s\S]*?<\/div>\s*<\/div>/g;
+      let match;
+      while ((match = jobRegex.exec(html)) !== null) {
+        const block = match[0];
+        const titleMatch = block.match(/<a[^>]*href="(\/job\/detail\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/);
+        const companyMatch = block.match(/class="[^"]*company[^"]*"[^>]*>([\s\S]*?)<\//);
+        if (titleMatch) {
+          const role = (titleMatch[2] || "").replace(/<[^>]*>/g, "").trim();
+          const path = titleMatch[1];
+          const url = `https://www.rozee.pk${path}`;
+          const company = (companyMatch?.[1] || "").replace(/<[^>]*>/g, "").trim() || "Unknown";
+          if (role) {
+            jobs.push({
+              company, role, url, platform: "OTHER", location,
+              salary: null, description: "", applyType: "REGULAR", isDirectApply: false,
+              applyOptions: [{ link: url, source: "rozee.pk" }], workType: "ONSITE", source: "rozee_pk",
+            });
+          }
+        }
+      }
+    } catch (err) { console.error(`Rozee.pk error for "${kw}":`, err); }
+  }
+  return jobs;
+}
+
+async function fetchGoogleJobs(keywords: string[], location: string): Promise<RawJob[]> {
+  const apiKey = process.env.SERPAPI_KEY;
+  if (!apiKey) return [];
+  const jobs: RawJob[] = [];
+  for (const kw of keywords.slice(0, 2)) {
+    try {
+      const q = encodeURIComponent(`${kw} developer`);
+      const l = encodeURIComponent(location);
+      const res = await fetch(`https://serpapi.com/search.json?engine=google_jobs&q=${q}&location=${l}&api_key=${apiKey}`, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!data.jobs_results || !Array.isArray(data.jobs_results)) continue;
+      for (const item of data.jobs_results) {
+        const applyLinks: Array<{ link: string; source: string }> = [];
+        if (Array.isArray(item.apply_options)) {
+          for (const opt of item.apply_options) { if (opt.link) applyLinks.push({ link: opt.link, source: opt.title || "apply" }); }
+        }
+        const url = applyLinks[0]?.link || "";
+        if (!url) continue;
+        const isRemote = (item.location || "").toLowerCase().includes("remote") || (item.title || "").toLowerCase().includes("remote");
+        const isDirect = applyLinks.some((o) => o.source.toLowerCase().includes("direct") || o.source.toLowerCase().includes("company"));
+        jobs.push({
+          company: item.company_name || "Unknown", role: item.title || "", url, platform: "OTHER",
+          location: item.location || location,
+          salary: item.detected_extensions?.salary || null,
+          description: (item.description || "").substring(0, 2000),
+          applyType: isDirect ? "EASY_APPLY" : "REGULAR", isDirectApply: isDirect,
+          applyOptions: applyLinks, workType: isRemote ? "REMOTE" : "ONSITE", source: "google_jobs",
+        });
+      }
+    } catch (err) { console.error(`Google Jobs error for "${kw}":`, err); }
+  }
+  return jobs;
+}
+
 // ── Main handler ──
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -469,12 +631,16 @@ export async function GET(req: NextRequest) {
         maxSalary: settings?.maxSalary ?? null,
       };
 
-      const [jsearchJobs, indeedJobs, remotiveJobs, arbeitnowJobs] =
+      const [jsearchJobs, indeedJobs, remotiveJobs, arbeitnowJobs, adzunaJobs, linkedinJobs, rozeeJobs, googleJobs] =
         await Promise.allSettled([
           fetchJSearch(keywords, location),
           fetchIndeedRSS(keywords, location),
           fetchRemotive(keywords),
           fetchArbeitnow(),
+          fetchAdzuna(keywords, location),
+          fetchLinkedInRSS(keywords, location),
+          fetchRozeePk(keywords, location),
+          fetchGoogleJobs(keywords, location),
         ]);
 
       const allJobs: RawJob[] = [
@@ -482,6 +648,10 @@ export async function GET(req: NextRequest) {
         ...(indeedJobs.status === "fulfilled" ? indeedJobs.value : []),
         ...(remotiveJobs.status === "fulfilled" ? remotiveJobs.value : []),
         ...(arbeitnowJobs.status === "fulfilled" ? arbeitnowJobs.value : []),
+        ...(adzunaJobs.status === "fulfilled" ? adzunaJobs.value : []),
+        ...(linkedinJobs.status === "fulfilled" ? linkedinJobs.value : []),
+        ...(rozeeJobs.status === "fulfilled" ? rozeeJobs.value : []),
+        ...(googleJobs.status === "fulfilled" ? googleJobs.value : []),
       ];
 
       const uniqueJobs = Array.from(

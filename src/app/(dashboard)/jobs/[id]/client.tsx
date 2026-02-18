@@ -25,7 +25,14 @@ import { ApplyTypeBadge } from "@/components/shared/ApplyTypeBadge";
 import { ActivityTimeline } from "@/components/jobs/ActivityTimeline";
 import { JobForm } from "@/components/jobs/JobForm";
 import { updateStage, deleteJob, addNote } from "@/app/actions/job";
+import { generateCoverLetterAction } from "@/app/actions/cover-letter";
 import type { Job, Resume, Stage } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ExternalLink,
   Trash2,
@@ -46,6 +53,8 @@ import {
   MessageSquare,
   Trophy,
   XCircle,
+  FileText,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -60,6 +69,10 @@ export function JobDetailClient({ job, resumes }: Props) {
   const [newNote, setNewNote] = useState("");
   const [activeTab, setActiveTab] = useState("details");
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [coverLetterOpen, setCoverLetterOpen] = useState(false);
+  const [coverLetter, setCoverLetter] = useState("");
+  const [coverLetterLoading, setCoverLetterLoading] = useState(false);
+  const [coverLetterCopied, setCoverLetterCopied] = useState(false);
 
   const config = STAGE_CONFIG[job.stage];
   const days = daysAgo(job.appliedDate ?? null);
@@ -102,8 +115,29 @@ export function JobDetailClient({ job, resumes }: Props) {
     });
   };
 
+  const handleGenerateCoverLetter = async () => {
+    setCoverLetterLoading(true);
+    setCoverLetter("");
+    setCoverLetterOpen(true);
+    const result = await generateCoverLetterAction(job.id);
+    if (result.error) {
+      toast.error(result.error);
+      setCoverLetterOpen(false);
+    } else {
+      setCoverLetter(result.coverLetter || "");
+    }
+    setCoverLetterLoading(false);
+  };
+
+  const handleCopyCoverLetter = () => {
+    navigator.clipboard.writeText(coverLetter);
+    setCoverLetterCopied(true);
+    toast.success("Cover letter copied");
+    setTimeout(() => setCoverLetterCopied(false), 2000);
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-5 animate-slide-up">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5 animate-slide-up px-0 sm:px-0">
       {/* Back button */}
       <Link
         href="/"
@@ -114,16 +148,16 @@ export function JobDetailClient({ job, resumes }: Props) {
       </Link>
 
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200/60">
+      <div className="relative overflow-hidden rounded-xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-100/80">
         <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${config.gradient}`} />
 
-        <div className="flex items-start justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-sm text-slate-500">
-              <Building2 className="h-4 w-4" />
-              {job.company}
+              <Building2 className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">{job.company}</span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">{job.role}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 mt-1">{job.role}</h1>
             <div className="flex items-center gap-2 mt-2.5 flex-wrap">
               <Badge className={`${config.bg} ${config.text} border-0 font-semibold`}>
                 {config.label}
@@ -149,7 +183,21 @@ export function JobDetailClient({ job, resumes }: Props) {
               )}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="shadow-sm text-violet-600 border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+              onClick={handleGenerateCoverLetter}
+              disabled={coverLetterLoading}
+            >
+              {coverLetterLoading ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <FileText className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Cover Letter
+            </Button>
             {job.url && (
               <Button variant="outline" size="sm" asChild className="shadow-sm">
                 <a href={job.url} target="_blank" rel="noopener noreferrer">
@@ -410,6 +458,55 @@ export function JobDetailClient({ job, resumes }: Props) {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Cover Letter Dialog */}
+      <Dialog open={coverLetterOpen} onOpenChange={setCoverLetterOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-violet-600" />
+              AI Cover Letter
+              <span className="text-xs font-normal text-slate-400 ml-1">
+                {job.role} at {job.company}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {coverLetterLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+              <p className="text-sm text-slate-500">Generating cover letter with AI...</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200/60">
+                <pre className="whitespace-pre-wrap text-sm text-slate-700 leading-relaxed font-sans">
+                  {coverLetter}
+                </pre>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleCopyCoverLetter} variant="outline" size="sm">
+                  {coverLetterCopied ? (
+                    <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {coverLetterCopied ? "Copied" : "Copy"}
+                </Button>
+                <Button
+                  onClick={handleGenerateCoverLetter}
+                  variant="outline"
+                  size="sm"
+                  disabled={coverLetterLoading}
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                  Regenerate
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
