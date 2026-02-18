@@ -22,6 +22,7 @@ import { STAGE_CONFIG, STAGES, daysAgo } from "@/lib/utils";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { ActivityTimeline } from "@/components/jobs/ActivityTimeline";
 import { updateStage, dismissJob, addNote } from "@/app/actions/job";
+import { generateCoverLetter, saveCoverLetter } from "@/app/actions/cover-letter";
 import type { JobStage, ActivityType } from "@prisma/client";
 import {
   ExternalLink,
@@ -34,9 +35,11 @@ import {
   ChevronLeft,
   Loader2,
   ArrowRight,
-  Bookmark,
   Star,
   Tag,
+  Sparkles,
+  Copy,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -96,6 +99,8 @@ export function JobDetailClient({ job }: JobDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [noteText, setNoteText] = useState(job.notes || "");
+  const [coverLetterText, setCoverLetterText] = useState(job.coverLetter || "");
+  const [generating, setGenerating] = useState(false);
 
   const g = job.globalJob;
   const config = STAGE_CONFIG[job.stage];
@@ -248,6 +253,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
       <Tabs defaultValue="details" className="space-y-0">
         <TabsList className="bg-slate-100/80 rounded-lg p-0.5">
           <TabsTrigger value="details" className="text-xs rounded-md">Details</TabsTrigger>
+          <TabsTrigger value="cover-letter" className="text-xs rounded-md">Cover Letter</TabsTrigger>
           <TabsTrigger value="notes" className="text-xs rounded-md">Notes</TabsTrigger>
           <TabsTrigger value="activity" className="text-xs rounded-md">Activity</TabsTrigger>
         </TabsList>
@@ -335,6 +341,88 @@ export function JobDetailClient({ job }: JobDetailProps) {
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="cover-letter" className="mt-4">
+          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-violet-500" />
+                AI Cover Letter
+              </h3>
+              <div className="flex gap-2">
+                {coverLetterText && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(coverLetterText);
+                      toast.success("Copied to clipboard");
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                    Copy
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    setGenerating(true);
+                    try {
+                      const letter = await generateCoverLetter(job.id);
+                      setCoverLetterText(letter);
+                      toast.success("Cover letter generated");
+                    } catch (err: unknown) {
+                      toast.error(err instanceof Error ? err.message : "Generation failed");
+                    }
+                    setGenerating(false);
+                  }}
+                  disabled={generating || isPending}
+                  className="bg-violet-600 hover:bg-violet-700"
+                >
+                  {generating ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
+                  {coverLetterText ? "Regenerate" : "Generate"}
+                </Button>
+              </div>
+            </div>
+
+            {coverLetterText ? (
+              <>
+                <Textarea
+                  value={coverLetterText}
+                  onChange={(e) => setCoverLetterText(e.target.value)}
+                  rows={12}
+                  className="text-sm leading-relaxed"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      startTransition(async () => {
+                        try {
+                          await saveCoverLetter(job.id, coverLetterText);
+                          toast.success("Cover letter saved");
+                        } catch {
+                          toast.error("Failed to save");
+                        }
+                      });
+                    }}
+                    disabled={isPending}
+                  >
+                    <FileText className="h-3.5 w-3.5 mr-1.5" />
+                    Save Edits
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <Sparkles className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                <p className="text-sm text-slate-500">Click Generate to create a personalized cover letter using AI.</p>
+                <p className="text-xs text-slate-400 mt-1">Uses your resume content and settings for tone/language.</p>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="notes" className="mt-4">
