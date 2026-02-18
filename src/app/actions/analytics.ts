@@ -1,20 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-
-const DEMO_USER_EMAIL = "ali@demo.com";
-
-async function getDemoUserId(): Promise<string> {
-  const user = await prisma.user.findUnique({
-    where: { email: DEMO_USER_EMAIL },
-    select: { id: true },
-  });
-  if (!user) throw new Error("Demo user not found");
-  return user.id;
-}
+import { getAuthUserId } from "@/lib/auth";
 
 export async function getAnalytics() {
-  const userId = await getDemoUserId();
+  const userId = await getAuthUserId();
 
   const jobs = await prisma.job.findMany({
     where: { userId },
@@ -26,7 +16,6 @@ export async function getAnalytics() {
     orderBy: { createdAt: "asc" },
   });
 
-  // Stage counts
   const totalJobs = jobs.length;
   const saved = jobs.filter((j) => j.stage === "SAVED").length;
   const applied = jobs.filter((j) => j.stage !== "SAVED").length;
@@ -36,7 +25,6 @@ export async function getAnalytics() {
   const ghosted = jobs.filter((j) => j.stage === "GHOSTED").length;
   const responseRate = applied > 0 ? Math.round(((interviews + offers) / applied) * 100) : 0;
 
-  // Applications over time (weekly buckets)
   const weeklyApplications: Record<string, number> = {};
   for (const job of jobs) {
     if (job.appliedDate) {
@@ -49,7 +37,6 @@ export async function getAnalytics() {
     .sort((a, b) => a.week.localeCompare(b.week))
     .slice(-12);
 
-  // Stage funnel
   const stageFunnel = [
     { stage: "Saved", count: saved + applied },
     { stage: "Applied", count: applied },
@@ -57,7 +44,6 @@ export async function getAnalytics() {
     { stage: "Offer", count: offers },
   ];
 
-  // Platform breakdown
   const platformMap: Record<string, number> = {};
   for (const job of jobs) {
     platformMap[job.platform] = (platformMap[job.platform] || 0) + 1;
@@ -67,7 +53,6 @@ export async function getAnalytics() {
     count,
   }));
 
-  // Resume performance
   const resumeMap: Record<string, { name: string; total: number; responded: number }> = {};
   for (const job of jobs) {
     const rName = job.resumeUsed?.name ?? "No Resume";
@@ -87,7 +72,6 @@ export async function getAnalytics() {
       responseRate: Math.round((r.responded / r.total) * 100),
     }));
 
-  // Weekly activity
   const weeklyActivity: Record<string, number> = {};
   for (const a of activities) {
     const week = getWeekLabel(a.createdAt);

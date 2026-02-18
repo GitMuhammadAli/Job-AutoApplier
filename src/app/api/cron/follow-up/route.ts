@@ -11,43 +11,34 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { email: "ali@demo.com" },
+    const users = await prisma.user.findMany({
+      where: { settings: { isNot: null } },
       include: { settings: true },
     });
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const followUpDays = user.settings?.followUpDays ?? 7;
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - followUpDays);
+    let totalCount = 0;
+    for (const user of users) {
+      const followUpDays = user.settings?.followUpDays ?? 7;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - followUpDays);
 
-    const staleJobs = await prisma.job.findMany({
-      where: {
-        userId: user.id,
-        stage: "APPLIED",
-        appliedDate: { lte: cutoffDate },
-      },
-    });
+      const staleJobs = await prisma.job.findMany({
+        where: { userId: user.id, stage: "APPLIED", appliedDate: { lte: cutoffDate } },
+      });
 
-    if (staleJobs.length === 0) {
-      return NextResponse.json({ message: "No follow-ups needed" });
+      if (staleJobs.length > 0 && user.settings?.emailNotifications !== false && user.email) {
+        const data = staleJobs.map((j) => ({
+          company: j.company,
+          role: j.role,
+          daysAgo: Math.floor((Date.now() - (j.appliedDate?.getTime() ?? Date.now())) / 86400000),
+          url: j.url,
+        }));
+        await sendFollowUpReminder(data, user.email);
+        totalCount += staleJobs.length;
+      }
     }
 
-    const followUpData = staleJobs.map((j) => ({
-      company: j.company,
-      role: j.role,
-      daysAgo: Math.floor((Date.now() - (j.appliedDate?.getTime() ?? Date.now())) / 86400000),
-      url: j.url,
-    }));
-
-    if (user.settings?.emailNotifications !== false) {
-      await sendFollowUpReminder(followUpData);
-    }
-
-    return NextResponse.json({
-      message: `${staleJobs.length} follow-ups sent`,
-      count: staleJobs.length,
-    });
+    return NextResponse.json({ message: `${totalCount} follow-ups sent across ${users.length} users` });
   } catch (err: any) {
     console.error("Follow-up cron error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

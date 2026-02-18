@@ -1,20 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { Stage } from "@/types";
-
-const DEMO_USER_EMAIL = "ali@demo.com";
-
-async function getDemoUserId(): Promise<string> {
-  const user = await prisma.user.findUnique({
-    where: { email: DEMO_USER_EMAIL },
-    select: { id: true },
-  });
-  if (!user) throw new Error("Demo user not found. Run prisma db seed.");
-  return user.id;
-}
 
 function serializeJob(job: any) {
   return {
@@ -38,7 +28,7 @@ function serializeJob(job: any) {
 
 // ── Get all jobs ──
 export async function getJobs() {
-  const userId = await getDemoUserId();
+  const userId = await getAuthUserId();
   const jobs = await prisma.job.findMany({
     where: { userId },
     include: {
@@ -84,7 +74,7 @@ const createJobSchema = z.object({
 
 export async function createJob(data: z.infer<typeof createJobSchema>) {
   const parsed = createJobSchema.parse(data);
-  const userId = await getDemoUserId();
+  const userId = await getAuthUserId();
 
   const appliedDate =
     parsed.stage === "APPLIED" && !parsed.appliedDate
@@ -258,7 +248,7 @@ export async function addNote(jobId: string, note: string) {
 
 // ── Get resumes for dropdown ──
 export async function getResumes() {
-  const userId = await getDemoUserId();
+  const userId = await getAuthUserId();
   const resumes = await prisma.resume.findMany({
     where: { userId },
     include: { _count: { select: { jobs: true } } },

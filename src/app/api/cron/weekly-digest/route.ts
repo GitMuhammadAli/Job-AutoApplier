@@ -11,44 +11,32 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { email: "ali@demo.com" },
+    const users = await prisma.user.findMany({
+      where: { settings: { emailNotifications: true } },
       include: { settings: true },
     });
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const jobs = await prisma.job.findMany({ where: { userId: user.id } });
+    let sentCount = 0;
+    for (const user of users) {
+      if (!user.email) continue;
 
-    // Applied this week
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const appliedThisWeek = jobs.filter(
-      (j) => j.appliedDate && j.appliedDate >= weekAgo
-    ).length;
+      const jobs = await prisma.job.findMany({ where: { userId: user.id } });
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const totalJobs = jobs.length;
-    const interviews = jobs.filter((j) => j.stage === "INTERVIEW").length;
-    const offers = jobs.filter((j) => j.stage === "OFFER").length;
-    const ghosted = jobs.filter((j) => j.stage === "GHOSTED").length;
-    const applied = jobs.filter((j) => j.stage !== "SAVED").length;
-    const responseRate = applied > 0
-      ? Math.round(((interviews + offers) / applied) * 100)
-      : 0;
+      const appliedThisWeek = jobs.filter((j) => j.appliedDate && j.appliedDate >= weekAgo).length;
+      const totalJobs = jobs.length;
+      const interviews = jobs.filter((j) => j.stage === "INTERVIEW").length;
+      const offers = jobs.filter((j) => j.stage === "OFFER").length;
+      const ghosted = jobs.filter((j) => j.stage === "GHOSTED").length;
+      const applied = jobs.filter((j) => j.stage !== "SAVED").length;
+      const responseRate = applied > 0 ? Math.round(((interviews + offers) / applied) * 100) : 0;
 
-    const stats = {
-      totalJobs,
-      appliedThisWeek,
-      interviews,
-      offers,
-      ghosted,
-      responseRate,
-    };
-
-    if (user.settings?.emailNotifications !== false) {
-      await sendWeeklyDigest(stats);
+      await sendWeeklyDigest({ totalJobs, appliedThisWeek, interviews, offers, ghosted, responseRate }, user.email);
+      sentCount++;
     }
 
-    return NextResponse.json({ message: "Weekly digest sent", stats });
+    return NextResponse.json({ message: `Weekly digest sent to ${sentCount} users` });
   } catch (err: any) {
     console.error("Weekly digest cron error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
