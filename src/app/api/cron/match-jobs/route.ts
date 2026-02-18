@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
     const recentJobs = await prisma.globalJob.findMany({
       where: {
         isActive: true,
+        isFresh: false,
         lastSeenAt: { gte: oneDayAgo },
       },
     });

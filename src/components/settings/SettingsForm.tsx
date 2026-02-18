@@ -38,6 +38,7 @@ import {
   X,
   Plus,
   Loader2,
+  Zap,
 } from "lucide-react";
 
 interface SettingsFormProps {
@@ -75,6 +76,10 @@ interface SettingsFormProps {
     includeGithub?: boolean;
     includePortfolio?: boolean;
     customClosing?: string | null;
+    instantApplyEnabled?: boolean;
+    priorityPlatforms?: string[];
+    peakHoursOnly?: boolean;
+    timezone?: string | null;
   };
 }
 
@@ -128,6 +133,12 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
   const [includeGithub, setIncludeGithub] = useState(s.includeGithub ?? true);
   const [includePortfolio, setIncludePortfolio] = useState(s.includePortfolio ?? true);
   const [customClosing, setCustomClosing] = useState(s.customClosing || "");
+
+  // Speed & Instant Apply
+  const [instantApplyEnabled, setInstantApplyEnabled] = useState(s.instantApplyEnabled ?? false);
+  const [priorityPlatforms, setPriorityPlatforms] = useState<string[]>(s.priorityPlatforms || ["rozee"]);
+  const [peakHoursOnly, setPeakHoursOnly] = useState(s.peakHoursOnly ?? false);
+  const [timezone, setTimezone] = useState(s.timezone || "Asia/Karachi");
 
   const addKeyword = useCallback(() => {
     const val = keywordInput.trim();
@@ -186,6 +197,10 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         includeGithub,
         includePortfolio,
         customClosing,
+        instantApplyEnabled,
+        priorityPlatforms,
+        peakHoursOnly,
+        timezone,
       });
       toast.success("Settings saved successfully");
     } catch {
@@ -434,6 +449,63 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         </div>
       </Section>
 
+      {/* ── Speed & Instant Apply ── */}
+      <Section icon={<Zap className="h-4 w-4" />} title="Speed & Instant Apply">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm font-medium">⚡ Instant Apply Mode</Label>
+              <p className="text-xs text-slate-400 max-w-sm">
+                Fresh jobs matching your profile are applied to within 2 minutes of discovery. No review step.
+              </p>
+              {(!autoApplyEnabled || applicationMode !== "FULL_AUTO") && instantApplyEnabled && (
+                <p className="text-xs text-amber-600 mt-1 font-medium">
+                  Requires Full-Auto mode AND Auto-Apply to be enabled above.
+                </p>
+              )}
+            </div>
+            <Switch checked={instantApplyEnabled} onCheckedChange={setInstantApplyEnabled} />
+          </div>
+
+          {instantApplyEnabled && (
+            <>
+              <Field label="Priority Platforms (checked every 15 min — free sources only)">
+                <div className="flex flex-wrap gap-2">
+                  {FREE_PLATFORM_OPTIONS.map((src) => (
+                    <ChipToggle
+                      key={src.value}
+                      label={src.label}
+                      active={priorityPlatforms.includes(src.value)}
+                      onClick={() => toggleArray(priorityPlatforms, src.value, setPriorityPlatforms)}
+                    />
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Other sources are checked every 30 min. Paid APIs run once daily.</p>
+              </Field>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Peak Hours Only</Label>
+                  <p className="text-xs text-slate-400">Only auto-apply during 9 AM – 6 PM your timezone. Off-hours jobs become drafts.</p>
+                </div>
+                <Switch checked={peakHoursOnly} onCheckedChange={setPeakHoursOnly} />
+              </div>
+
+              <Field label="Timezone">
+                <Select value={timezone} onValueChange={setTimezone}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {COMMON_TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </>
+          )}
+        </div>
+      </Section>
+
       {/* ── AI Customization ── */}
       <Section icon={<Sparkles className="h-4 w-4" />} title="AI Customization">
         <div className="space-y-4">
@@ -543,6 +615,31 @@ function ChipToggle({ label, active, onClick }: { label: string; active: boolean
     </button>
   );
 }
+
+const FREE_PLATFORM_OPTIONS = [
+  { value: "indeed", label: "Indeed" },
+  { value: "remotive", label: "Remotive" },
+  { value: "arbeitnow", label: "Arbeitnow" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "rozee", label: "Rozee.pk" },
+];
+
+const COMMON_TIMEZONES = [
+  { value: "Asia/Karachi", label: "Asia/Karachi (PKT, UTC+5)" },
+  { value: "Asia/Kolkata", label: "Asia/Kolkata (IST, UTC+5:30)" },
+  { value: "Asia/Dubai", label: "Asia/Dubai (GST, UTC+4)" },
+  { value: "Asia/Riyadh", label: "Asia/Riyadh (AST, UTC+3)" },
+  { value: "Europe/London", label: "Europe/London (GMT/BST)" },
+  { value: "Europe/Berlin", label: "Europe/Berlin (CET/CEST)" },
+  { value: "America/New_York", label: "America/New_York (EST/EDT)" },
+  { value: "America/Chicago", label: "America/Chicago (CST/CDT)" },
+  { value: "America/Los_Angeles", label: "America/Los_Angeles (PST/PDT)" },
+  { value: "America/Toronto", label: "America/Toronto (EST/EDT)" },
+  { value: "Australia/Sydney", label: "Australia/Sydney (AEST/AEDT)" },
+  { value: "Asia/Singapore", label: "Asia/Singapore (SGT, UTC+8)" },
+  { value: "Asia/Tokyo", label: "Asia/Tokyo (JST, UTC+9)" },
+  { value: "Pacific/Auckland", label: "Pacific/Auckland (NZST/NZDT)" },
+];
 
 function TagList({ items, onRemove }: { items: string[]; onRemove: (index: number) => void }) {
   if (items.length === 0) return null;

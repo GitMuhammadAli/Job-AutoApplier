@@ -2,7 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Building2, Clock, ExternalLink, DollarSign, Mail } from "lucide-react";
+import { Building2, Clock, ExternalLink, DollarSign, Mail, Zap, FileText } from "lucide-react";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { StageSelector } from "@/components/shared/StageSelector";
 import { daysAgo } from "@/lib/utils";
@@ -13,6 +13,17 @@ import type { JobStage } from "@prisma/client";
 interface JobCardProps {
   job: UserJobWithGlobal;
   onStageChange: (jobId: string, newStage: JobStage, oldStage: JobStage) => void;
+}
+
+function getApplySpeed(job: UserJobWithGlobal): { label: string; fast: boolean } | null {
+  if (job.application?.status !== "SENT" || !job.application.sentAt) return null;
+  const sentAt = new Date(job.application.sentAt).getTime();
+  const firstSeen = new Date(job.globalJob.firstSeenAt).getTime();
+  const diffMin = Math.max(0, Math.round((sentAt - firstSeen) / 60000));
+
+  if (diffMin <= 2) return { label: `⚡ ${diffMin}m`, fast: true };
+  if (diffMin <= 20) return { label: `${diffMin}m`, fast: true };
+  return { label: `${diffMin}m`, fast: false };
 }
 
 export function JobCard({ job, onStageChange }: JobCardProps) {
@@ -29,6 +40,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
   const g = job.globalJob;
   const days = daysAgo(g.postedDate ?? null);
   const hasApp = job.application?.status === "SENT";
+  const speed = getApplySpeed(job);
 
   return (
     <div
@@ -65,14 +77,23 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
 
       <div className="flex flex-wrap items-center gap-1 mb-2">
         <PlatformBadge source={g.source} />
-        {hasApp && (
+        {hasApp && speed && (
+          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+            speed.fast
+              ? "bg-amber-50 text-amber-700"
+              : "bg-emerald-50 text-emerald-700"
+          }`}>
+            <Zap className="h-2.5 w-2.5" /> {speed.label}
+          </span>
+        )}
+        {hasApp && !speed && (
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700">
             <Mail className="h-2.5 w-2.5" /> Applied
           </span>
         )}
         {job.application?.status === "DRAFT" && (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700">
-            Draft Ready
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-700">
+            <FileText className="h-2.5 w-2.5" /> Draft
           </span>
         )}
       </div>

@@ -13,8 +13,10 @@ import {
   CartesianGrid,
   Area,
   AreaChart,
+  LineChart,
+  Line,
 } from "recharts";
-import { BarChart3, GitBranch, Globe, Activity } from "lucide-react";
+import { BarChart3, GitBranch, Globe, Activity, Zap, Timer } from "lucide-react";
 
 const COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#06b6d4", "#ef4444", "#ec4899", "#6366f1"];
 
@@ -23,6 +25,8 @@ interface ChartsProps {
   stageFunnel: { stage: string; count: number }[];
   sourceBreakdown: { source: string; count: number }[];
   activityOverTime: { week: string; count: number }[];
+  applyMethodBreakdown: { method: string; count: number }[];
+  speedOverTime: { date: string; avgMinutes: number }[];
 }
 
 function ChartCard({
@@ -63,6 +67,8 @@ export function Charts({
   stageFunnel,
   sourceBreakdown,
   activityOverTime,
+  applyMethodBreakdown,
+  speedOverTime,
 }: ChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -138,6 +144,56 @@ export function Charts({
               </Pie>
               <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
             </PieChart>
+          </ResponsiveContainer>
+        )}
+      </ChartCard>
+
+      <ChartCard title="Apply Method Breakdown" icon={Zap} gradient="from-amber-400 to-orange-500">
+        {applyMethodBreakdown.length === 0 ? (
+          <NoData text="No applications yet" />
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie
+                data={applyMethodBreakdown}
+                dataKey="count"
+                nameKey="method"
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={85}
+                paddingAngle={3}
+                label={({ method, count }: { method: string; count: number }) => `${method} (${count})`}
+                labelLine
+              >
+                {applyMethodBreakdown.map((_, i) => (
+                  <Cell key={i} fill={["#f59e0b", "#8b5cf6", "#3b82f6", "#10b981", "#94a3b8"][i % 5]} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
+      </ChartCard>
+
+      <ChartCard title="Application Speed (min)" icon={Timer} gradient="from-rose-500 to-pink-500">
+        {speedOverTime.length === 0 ? (
+          <NoData text="No speed data yet" />
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={speedOverTime}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                tickFormatter={(v) => v.split("-").slice(1).join("/")}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} label={{ value: "min", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: "#94a3b8" } }} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} formatter={(value: number) => [`${value} min`, "Avg Time"]} />
+              <Line type="monotone" dataKey="avgMinutes" stroke="#ec4899" strokeWidth={2} dot={{ r: 3, fill: "#ec4899" }} name="Avg Minutes" />
+            </LineChart>
           </ResponsiveContainer>
         )}
       </ChartCard>

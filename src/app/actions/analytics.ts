@@ -9,7 +9,8 @@ export async function getAnalytics() {
   const userJobs = await prisma.userJob.findMany({
     where: { userId, isDismissed: false },
     include: {
-      globalJob: { select: { source: true, postedDate: true } },
+      globalJob: { select: { source: true, postedDate: true, firstSeenAt: true } },
+      application: { select: { status: true, sentAt: true, appliedVia: true } },
     },
   });
 
@@ -69,6 +70,58 @@ export async function getAnalytics() {
     .sort((a, b) => a.week.localeCompare(b.week))
     .slice(-12);
 
+  // ── Speed Metrics ──
+  const sentApps = userJobs.filter((j) => j.application?.status === "SENT" && j.application.sentAt);
+  let avgApplyMinutes = 0;
+  let fastApplyCount = 0;
+  const speedTimeline: { date: string; minutes: number }[] = [];
+
+  for (const job of sentApps) {
+    const sentAt = new Date(job.application!.sentAt!).getTime();
+    const firstSeen = new Date(job.globalJob.firstSeenAt).getTime();
+    const diffMin = Math.max(0, (sentAt - firstSeen) / 60000);
+
+    if (diffMin < 20) fastApplyCount++;
+
+    const dateStr = new Date(job.application!.sentAt!).toISOString().split("T")[0];
+    speedTimeline.push({ date: dateStr, minutes: Math.round(diffMin) });
+  }
+
+  if (sentApps.length > 0) {
+    const totalMin = speedTimeline.reduce((sum, s) => sum + s.minutes, 0);
+    avgApplyMinutes = Math.round(totalMin / sentApps.length);
+  }
+
+  // Instant vs manual vs draft breakdown
+  const instantCount = sentApps.filter((j) =>
+    j.application!.appliedVia === "EMAIL" &&
+    (new Date(j.application!.sentAt!).getTime() - new Date(j.globalJob.firstSeenAt).getTime()) < 20 * 60000
+  ).length;
+  const autoSentCount = sentApps.filter((j) => j.application!.appliedVia === "EMAIL").length - instantCount;
+  const manualCount = userJobs.filter((j) => j.application?.appliedVia === "MANUAL").length;
+  const platformCount = userJobs.filter((j) => j.application?.appliedVia === "PLATFORM").length;
+  const draftCount = userJobs.filter((j) => j.application?.status === "DRAFT").length;
+
+  const applyMethodBreakdown = [
+    { method: "Instant", count: instantCount },
+    { method: "Auto-sent", count: autoSentCount },
+    { method: "Manual", count: manualCount },
+    { method: "Platform", count: platformCount },
+    { method: "Draft", count: draftCount },
+  ].filter((m) => m.count > 0);
+
+  // Speed timeline (average per day, last 14 days)
+  const dailySpeed: Record<string, { total: number; count: number }> = {};
+  for (const s of speedTimeline) {
+    if (!dailySpeed[s.date]) dailySpeed[s.date] = { total: 0, count: 0 };
+    dailySpeed[s.date].total += s.minutes;
+    dailySpeed[s.date].count++;
+  }
+  const speedOverTime = Object.entries(dailySpeed)
+    .map(([date, d]) => ({ date, avgMinutes: Math.round(d.total / d.count) }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-14);
+
   return {
     totalJobs,
     applied,
@@ -81,6 +134,14 @@ export async function getAnalytics() {
     stageFunnel,
     sourceBreakdown,
     activityOverTime,
+    speedMetrics: {
+      avgApplyMinutes,
+      fastApplyCount,
+      totalSent: sentApps.length,
+      instantCount,
+    },
+    applyMethodBreakdown,
+    speedOverTime,
   };
 }
 

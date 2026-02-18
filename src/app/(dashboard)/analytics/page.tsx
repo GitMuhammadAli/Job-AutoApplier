@@ -1,6 +1,7 @@
 import { getAnalytics } from "@/app/actions/analytics";
 import { StatsBar } from "@/components/analytics/StatsBar";
 import { Charts } from "@/components/analytics/Charts";
+import { SpeedMetrics } from "@/components/analytics/SpeedMetrics";
 import { getJobs } from "@/app/actions/job";
 import { BarChart3, TrendingUp } from "lucide-react";
 
@@ -37,6 +38,8 @@ export default async function AnalyticsPage() {
         </div>
       </div>
 
+      <SpeedMetrics metrics={analytics.speedMetrics} />
+
       <StatsBar jobs={jobs as any} />
 
       <Charts
@@ -44,6 +47,8 @@ export default async function AnalyticsPage() {
         stageFunnel={analytics.stageFunnel}
         sourceBreakdown={analytics.sourceBreakdown}
         activityOverTime={analytics.activityOverTime}
+        applyMethodBreakdown={analytics.applyMethodBreakdown}
+        speedOverTime={analytics.speedOverTime}
       />
     </div>
   );

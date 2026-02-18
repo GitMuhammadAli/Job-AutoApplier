@@ -85,6 +85,8 @@ model GlobalJob {
   companyUrl      String?
   companyEmail    String?
   isActive        Boolean   @default(true)
+  isFresh         Boolean   @default(true)
+  firstSeenAt     DateTime  @default(now())
   lastSeenAt      DateTime  @default(now())
   userJobs        UserJob[]
   createdAt       DateTime  @default(now())
@@ -94,6 +96,7 @@ model GlobalJob {
   @@index([source])
   @@index([category])
   @@index([isActive, createdAt])
+  @@index([isFresh, isActive])
   @@index([createdAt])
 }
 
@@ -199,6 +202,11 @@ model UserSettings {
   includeGithub            Boolean         @default(true)
   includePortfolio         Boolean         @default(true)
   customClosing            String?
+  // Speed & Instant Apply
+  instantApplyEnabled      Boolean         @default(false)
+  priorityPlatforms        String[]
+  peakHoursOnly            Boolean         @default(false)
+  timezone                 String?         @default("Asia/Karachi")
   // Relations & State
   emailTemplates           EmailTemplate[]
   isOnboarded              Boolean         @default(false)

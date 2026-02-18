@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { aggregateSearchQueries } from "@/lib/scrapers/keyword-aggregator";
-import { getTodaysSources } from "@/lib/scrapers/source-rotation";
+import { getPaidSourcesToday, getPriorityPlatforms } from "@/lib/scrapers/source-rotation";
 import { scrapeAllSourcesGlobal } from "@/lib/scrapers";
 
 export const maxDuration = 60;
@@ -19,103 +19,103 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const mode = req.nextUrl.searchParams.get("mode") || "all";
+
   try {
-    // 1. Aggregate search keywords from all users
-    const queries = await aggregateSearchQueries();
-    if (queries.length === 0) {
-      return NextResponse.json({
-        message: "No user keywords configured. Skipping scrape.",
-        scraped: 0,
-        new: 0,
-        updated: 0,
-      });
+    let sources: string[];
+    switch (mode) {
+      case "priority":
+        sources = await getPriorityPlatforms();
+        break;
+      case "free":
+        sources = ["indeed", "remotive", "arbeitnow", "linkedin", "rozee"];
+        break;
+      case "paid":
+        sources = getPaidSourcesToday();
+        break;
+      default:
+        sources = [
+          "indeed", "remotive", "arbeitnow", "linkedin", "rozee",
+          ...getPaidSourcesToday(),
+        ];
+        // Deduplicate in case paid sources overlap
+        sources = sources.filter((s, i) => sources.indexOf(s) === i);
     }
 
-    // 2. Determine which sources to scrape today
-    const sources = getTodaysSources();
+    if (sources.length === 0) {
+      return NextResponse.json({ message: "No sources to scrape", mode });
+    }
 
-    // 3. Scrape all sources in parallel + deduplicate
+    const queries = await aggregateSearchQueries();
+    if (queries.length === 0) {
+      return NextResponse.json({ message: "No user keywords configured", mode, scraped: 0 });
+    }
+
     const { jobs, stats } = await scrapeAllSourcesGlobal(queries, sources);
 
-    // 4. Upsert into GlobalJob table
     let newCount = 0;
     let updatedCount = 0;
 
     for (const job of jobs) {
       try {
-        const result = await prisma.globalJob.upsert({
-          where: {
-            sourceId_source: {
-              sourceId: job.sourceId,
-              source: job.source,
-            },
-          },
-          create: {
-            title: job.title,
-            company: job.company,
-            location: job.location,
-            description: job.description,
-            salary: job.salary,
-            jobType: job.jobType,
-            experienceLevel: job.experienceLevel,
-            category: job.category,
-            skills: job.skills,
-            postedDate: job.postedDate,
-            source: job.source,
-            sourceId: job.sourceId,
-            sourceUrl: job.sourceUrl,
-            applyUrl: job.applyUrl,
-            companyUrl: job.companyUrl,
-            companyEmail: job.companyEmail,
-            isActive: true,
-            lastSeenAt: new Date(),
-          },
-          update: {
-            lastSeenAt: new Date(),
-            isActive: true,
-            // Update description if new one is longer
-            ...(job.description ? { description: job.description } : {}),
-            ...(job.salary ? { salary: job.salary } : {}),
-            ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
-            ...(job.companyEmail ? { companyEmail: job.companyEmail } : {}),
-          },
+        const existing = await prisma.globalJob.findUnique({
+          where: { sourceId_source: { sourceId: job.sourceId, source: job.source } },
+          select: { id: true },
         });
 
-        // Check if it was a new record by comparing createdAt and updatedAt
-        const isNew =
-          result.createdAt.getTime() === result.updatedAt.getTime() ||
-          Date.now() - result.createdAt.getTime() < 5000;
-
-        if (isNew) newCount++;
-        else updatedCount++;
+        if (existing) {
+          await prisma.globalJob.update({
+            where: { id: existing.id },
+            data: {
+              lastSeenAt: new Date(),
+              isActive: true,
+              ...(job.description ? { description: job.description } : {}),
+              ...(job.salary ? { salary: job.salary } : {}),
+              ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
+              ...(job.companyEmail ? { companyEmail: job.companyEmail } : {}),
+            },
+          });
+          updatedCount++;
+        } else {
+          await prisma.globalJob.create({
+            data: {
+              title: job.title,
+              company: job.company,
+              location: job.location,
+              description: job.description,
+              salary: job.salary,
+              jobType: job.jobType,
+              experienceLevel: job.experienceLevel,
+              category: job.category,
+              skills: job.skills,
+              postedDate: job.postedDate,
+              source: job.source,
+              sourceId: job.sourceId,
+              sourceUrl: job.sourceUrl,
+              applyUrl: job.applyUrl,
+              companyUrl: job.companyUrl,
+              companyEmail: job.companyEmail,
+              isActive: true,
+              isFresh: true,
+              firstSeenAt: new Date(),
+              lastSeenAt: new Date(),
+            },
+          });
+          newCount++;
+        }
       } catch {
-        // Skip individual upsert failures (e.g. constraint violations)
+        // Skip individual upsert failures
       }
-    }
-
-    // 5. Trigger job matching for all users
-    let matchResult = null;
-    try {
-      const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-      const matchRes = await fetch(
-        `${baseUrl}/api/cron/match-jobs?secret=${encodeURIComponent(process.env.CRON_SECRET || "")}`,
-      );
-      if (matchRes.ok) {
-        matchResult = await matchRes.json();
-      }
-    } catch {
-      // Match will run on its own cron schedule too
     }
 
     return NextResponse.json({
       success: true,
-      queries: queries.length,
+      mode,
       sources,
       stats,
       totalScraped: jobs.length,
       new: newCount,
       updated: updatedCount,
-      matching: matchResult,
     });
   } catch (error) {
     console.error("Scrape global error:", error);

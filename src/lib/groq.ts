@@ -1,40 +1,46 @@
-import Groq from "groq-sdk";
+/**
+ * Lightweight Groq API wrapper for AI text generation.
+ */
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "" });
-
-interface CoverLetterInput {
-  jobTitle: string;
-  company: string;
-  jobDescription: string;
-  location?: string | null;
-  resumeContent: string;
-  userName?: string | null;
-  skills?: string | null;
-  experienceLevel?: string | null;
+interface GroqOptions {
+  temperature?: number;
+  max_tokens?: number;
+  model?: string;
 }
 
-export async function generateCoverLetter(input: CoverLetterInput): Promise<string> {
-  const prompt = `Write a professional, concise cover letter for the following job application. The tone should be confident but not arrogant. Keep it under 350 words. Do NOT include placeholder brackets like [Your Name] -- use the actual information provided.
+export async function generateWithGroq(
+  systemPrompt: string,
+  userPrompt: string,
+  options: GroqOptions = {}
+): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("GROQ_API_KEY not configured");
 
-Job Title: ${input.jobTitle}
-Company: ${input.company}
-Location: ${input.location || "Not specified"}
-Job Description: ${input.jobDescription.substring(0, 1500)}
-
-Applicant Info:
-Name: ${input.userName || "the applicant"}
-Experience Level: ${input.experienceLevel || "Not specified"}
-Key Skills: ${input.skills || "See resume"}
-Resume Content: ${input.resumeContent.substring(0, 2000)}
-
-Write the cover letter now. Start directly with "Dear Hiring Manager," -- no subject line or headers.`;
-
-  const completion = await groq.chat.completions.create({
-    messages: [{ role: "user", content: prompt }],
-    model: "llama-3.1-8b-instant",
-    temperature: 0.7,
-    max_tokens: 1024,
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: options.model || "llama-3.1-8b-instant",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.max_tokens ?? 800,
+    }),
   });
 
-  return completion.choices[0]?.message?.content || "Failed to generate cover letter. Please try again.";
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Groq API error: ${err}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content?.trim();
+  if (!text) throw new Error("Empty response from Groq");
+
+  return text;
 }

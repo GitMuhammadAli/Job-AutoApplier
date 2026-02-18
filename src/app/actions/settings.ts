@@ -44,6 +44,11 @@ const settingsSchema = z.object({
   includeGithub: z.boolean().default(true),
   includePortfolio: z.boolean().default(true),
   customClosing: z.string().max(100).optional().or(z.literal("")),
+  // Speed & Instant Apply
+  instantApplyEnabled: z.boolean().default(false),
+  priorityPlatforms: z.array(z.string()).default(["rozee"]),
+  peakHoursOnly: z.boolean().default(false),
+  timezone: z.string().default("Asia/Karachi"),
 });
 
 export async function getSettings() {
@@ -84,6 +89,7 @@ export async function saveSettings(rawData: unknown) {
     defaultSignature: data.defaultSignature || null,
     customSystemPrompt: data.customSystemPrompt || null,
     customClosing: data.customClosing || null,
+    timezone: data.timezone || null,
   };
 
   const result = await prisma.userSettings.upsert({
