@@ -93,6 +93,20 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 5. Trigger job matching for all users
+    let matchResult = null;
+    try {
+      const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+      const matchRes = await fetch(
+        `${baseUrl}/api/cron/match-jobs?secret=${encodeURIComponent(process.env.CRON_SECRET || "")}`,
+      );
+      if (matchRes.ok) {
+        matchResult = await matchRes.json();
+      }
+    } catch {
+      // Match will run on its own cron schedule too
+    }
+
     return NextResponse.json({
       success: true,
       queries: queries.length,
@@ -101,6 +115,7 @@ export async function GET(req: NextRequest) {
       totalScraped: jobs.length,
       new: newCount,
       updated: updatedCount,
+      matching: matchResult,
     });
   } catch (error) {
     console.error("Scrape global error:", error);

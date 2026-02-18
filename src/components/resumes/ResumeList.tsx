@@ -34,7 +34,7 @@ import {
   Trash2,
   ExternalLink,
   Loader2,
-  TrendingUp,
+  Upload,
   ClipboardPaste,
   CheckCircle2,
   Brain,
@@ -66,6 +66,32 @@ export function ResumeList({ resumes }: ResumeListProps) {
   const [name, setName] = useState("");
   const [fileUrl, setFileUrl] = useState("");
   const [content, setContent] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const handlePdfUpload = async (file: File) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("name", name || file.name.replace(/\.pdf$/i, ""));
+      const res = await fetch("/api/resume/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Resume uploaded. Extracted ${data.resume.extractedSkills?.length || 0} skills.`);
+        setDialogOpen(false);
+        setName("");
+        setFileUrl("");
+        setContent("");
+        router.refresh();
+      } else {
+        toast.error(data.error || "Upload failed");
+      }
+    } catch {
+      toast.error("Upload failed");
+    }
+    setUploading(false);
+  };
 
   const handleCreate = () => {
     if (!name.trim()) return;
@@ -176,6 +202,30 @@ export function ResumeList({ resumes }: ResumeListProps) {
                 <Input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://..." className="h-9" />
               </div>
               <div className="space-y-1.5">
+                <Label className="text-xs">Upload PDF (auto-extracts text for matching)</Label>
+                <div className="flex gap-2">
+                  <label className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 hover:border-blue-400 px-3 py-3 cursor-pointer transition-colors">
+                    <Upload className="h-4 w-4 text-slate-400" />
+                    <span className="text-xs text-slate-500">Choose PDF file...</span>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handlePdfUpload(f);
+                      }}
+                    />
+                  </label>
+                </div>
+                {uploading && <p className="text-xs text-blue-600 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Parsing PDF...</p>}
+              </div>
+              <div className="relative flex items-center">
+                <div className="flex-grow border-t border-slate-200" />
+                <span className="flex-shrink mx-3 text-[10px] text-slate-400">OR paste text</span>
+                <div className="flex-grow border-t border-slate-200" />
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-xs">Resume Content (paste your resume text)</Label>
                 <Textarea
                   value={content}
@@ -185,7 +235,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
                   className="resize-none text-xs"
                 />
               </div>
-              <Button onClick={handleCreate} disabled={isPending || !name.trim()} className="w-full">
+              <Button onClick={handleCreate} disabled={isPending || uploading || !name.trim()} className="w-full">
                 {isPending && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
                 Add Resume
               </Button>
