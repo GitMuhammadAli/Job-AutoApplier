@@ -78,6 +78,8 @@ const createJobSchema = z.object({
   contactName: z.string().optional(),
   contactEmail: z.string().email().optional().or(z.literal("")),
   appliedDate: z.string().optional().or(z.literal("")),
+  interviewDate: z.string().optional().or(z.literal("")),
+  followUpDate: z.string().optional().or(z.literal("")),
 });
 
 export async function createJob(data: z.infer<typeof createJobSchema>) {
@@ -106,6 +108,8 @@ export async function createJob(data: z.infer<typeof createJobSchema>) {
       contactName: parsed.contactName || null,
       contactEmail: parsed.contactEmail || null,
       appliedDate,
+      interviewDate: parsed.interviewDate ? new Date(parsed.interviewDate) : undefined,
+      followUpDate: parsed.followUpDate ? new Date(parsed.followUpDate) : undefined,
       userId,
     },
   });
@@ -163,6 +167,12 @@ export async function updateJob(
       ...(data.contactEmail !== undefined && { contactEmail: data.contactEmail || null }),
       ...(data.appliedDate !== undefined && {
         appliedDate: data.appliedDate ? new Date(data.appliedDate) : null,
+      }),
+      ...(data.interviewDate !== undefined && {
+        interviewDate: data.interviewDate ? new Date(data.interviewDate) : null,
+      }),
+      ...(data.followUpDate !== undefined && {
+        followUpDate: data.followUpDate ? new Date(data.followUpDate) : null,
       }),
       isGhosted: data.stage === "GHOSTED",
       ...dateUpdate,

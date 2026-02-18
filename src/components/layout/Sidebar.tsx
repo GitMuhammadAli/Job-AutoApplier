@@ -79,7 +79,7 @@ export function Sidebar() {
             <span className="text-xs font-semibold text-emerald-700">Automation Active</span>
           </div>
           <p className="mt-1 text-[10px] text-emerald-600/80 leading-relaxed">
-            Scraping jobs every hour from 4 sources. Emails sent per match.
+            Daily scan from 4 sources. Emails sent per match.
           </p>
         </div>
 

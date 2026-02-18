@@ -2,12 +2,17 @@ import { getAnalytics } from "@/app/actions/analytics";
 import { StatsBar } from "@/components/analytics/StatsBar";
 import { Charts } from "@/components/analytics/Charts";
 import { getJobs } from "@/app/actions/job";
+import { getSettings } from "@/app/actions/settings";
 import { BarChart3, TrendingUp } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
-  const [analytics, jobs] = await Promise.all([getAnalytics(), getJobs()]);
+  const [analytics, jobs, settings] = await Promise.all([
+    getAnalytics(),
+    getJobs(),
+    getSettings(),
+  ]);
 
   const appliedCount = jobs.filter((j) => j.stage !== "SAVED").length;
   const interviewRate = appliedCount > 0
@@ -34,7 +39,7 @@ export default async function AnalyticsPage() {
         </div>
       </div>
 
-      <StatsBar jobs={jobs} />
+      <StatsBar jobs={jobs} dailyTarget={settings.dailyTarget} />
 
       <Charts
         applicationsOverTime={analytics.applicationsOverTime}

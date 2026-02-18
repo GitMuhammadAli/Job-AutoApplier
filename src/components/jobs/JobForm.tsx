@@ -60,6 +60,8 @@ export function JobForm({ job, resumes, mode }: JobFormProps) {
     contactName: job?.contactName ?? "",
     contactEmail: job?.contactEmail ?? "",
     appliedDate: job?.appliedDate ? job.appliedDate.split("T")[0] : "",
+    interviewDate: job?.interviewDate ? job.interviewDate.split("T")[0] : "",
+    followUpDate: job?.followUpDate ? job.followUpDate.split("T")[0] : "",
   });
 
   const update = (field: string, value: string) =>
@@ -241,6 +243,32 @@ export function JobForm({ job, resumes, mode }: JobFormProps) {
                 type="date"
                 value={form.appliedDate}
                 onChange={(e) => update("appliedDate", e.target.value)}
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="interviewDate" className="text-xs flex items-center gap-1.5">
+                <Calendar className="h-3 w-3 text-slate-400" />
+                Interview Date
+              </Label>
+              <Input
+                id="interviewDate"
+                type="date"
+                value={form.interviewDate}
+                onChange={(e) => update("interviewDate", e.target.value)}
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="followUpDate" className="text-xs flex items-center gap-1.5">
+                <Calendar className="h-3 w-3 text-slate-400" />
+                Follow-up Date
+              </Label>
+              <Input
+                id="followUpDate"
+                type="date"
+                value={form.followUpDate}
+                onChange={(e) => update("followUpDate", e.target.value)}
                 className="h-9"
               />
             </div>
