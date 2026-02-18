@@ -6,85 +6,26 @@ import {
   MessageSquare,
   Trophy,
   TrendingUp,
-  Target,
   Ghost,
   XCircle,
 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import type { Job } from "@/types";
+import type { UserJobWithGlobal } from "@/store/useJobStore";
 
 interface StatsBarProps {
-  jobs: Job[];
-  dailyTarget?: number;
+  jobs: UserJobWithGlobal[];
 }
 
 const STAT_CONFIGS = [
-  {
-    key: "total",
-    label: "Total Jobs",
-    icon: Briefcase,
-    gradient: "from-slate-500 to-slate-700",
-    iconBg: "bg-slate-100",
-    iconColor: "text-slate-600",
-    ring: "ring-slate-200/50",
-  },
-  {
-    key: "applied",
-    label: "Applied",
-    icon: Send,
-    gradient: "from-blue-500 to-blue-700",
-    iconBg: "bg-blue-100",
-    iconColor: "text-blue-600",
-    ring: "ring-blue-200/50",
-  },
-  {
-    key: "interviews",
-    label: "Interviews",
-    icon: MessageSquare,
-    gradient: "from-amber-500 to-amber-700",
-    iconBg: "bg-amber-100",
-    iconColor: "text-amber-600",
-    ring: "ring-amber-200/50",
-  },
-  {
-    key: "offers",
-    label: "Offers",
-    icon: Trophy,
-    gradient: "from-emerald-500 to-emerald-700",
-    iconBg: "bg-emerald-100",
-    iconColor: "text-emerald-600",
-    ring: "ring-emerald-200/50",
-  },
-  {
-    key: "rejected",
-    label: "Rejected",
-    icon: XCircle,
-    gradient: "from-red-400 to-red-600",
-    iconBg: "bg-red-100",
-    iconColor: "text-red-500",
-    ring: "ring-red-200/50",
-  },
-  {
-    key: "ghosted",
-    label: "Ghosted",
-    icon: Ghost,
-    gradient: "from-slate-400 to-slate-600",
-    iconBg: "bg-slate-100",
-    iconColor: "text-slate-500",
-    ring: "ring-slate-200/50",
-  },
-  {
-    key: "response",
-    label: "Response Rate",
-    icon: TrendingUp,
-    gradient: "from-violet-500 to-violet-700",
-    iconBg: "bg-violet-100",
-    iconColor: "text-violet-600",
-    ring: "ring-violet-200/50",
-  },
+  { key: "total", label: "Total Jobs", icon: Briefcase, iconBg: "bg-slate-100", iconColor: "text-slate-600", gradient: "from-slate-500 to-slate-700" },
+  { key: "applied", label: "Applied", icon: Send, iconBg: "bg-blue-100", iconColor: "text-blue-600", gradient: "from-blue-500 to-blue-700" },
+  { key: "interviews", label: "Interviews", icon: MessageSquare, iconBg: "bg-amber-100", iconColor: "text-amber-600", gradient: "from-amber-500 to-amber-700" },
+  { key: "offers", label: "Offers", icon: Trophy, iconBg: "bg-emerald-100", iconColor: "text-emerald-600", gradient: "from-emerald-500 to-emerald-700" },
+  { key: "rejected", label: "Rejected", icon: XCircle, iconBg: "bg-red-100", iconColor: "text-red-500", gradient: "from-red-400 to-red-600" },
+  { key: "ghosted", label: "Ghosted", icon: Ghost, iconBg: "bg-slate-100", iconColor: "text-slate-500", gradient: "from-slate-400 to-slate-600" },
+  { key: "response", label: "Response Rate", icon: TrendingUp, iconBg: "bg-violet-100", iconColor: "text-violet-600", gradient: "from-violet-500 to-violet-700" },
 ] as const;
 
-export function StatsBar({ jobs, dailyTarget = 5 }: StatsBarProps) {
+export function StatsBar({ jobs }: StatsBarProps) {
   const total = jobs.length;
   const applied = jobs.filter((j) => j.stage !== "SAVED").length;
   const interviews = jobs.filter((j) => j.stage === "INTERVIEW").length;
@@ -95,71 +36,30 @@ export function StatsBar({ jobs, dailyTarget = 5 }: StatsBarProps) {
     applied > 0 ? Math.round(((interviews + offers) / applied) * 100) : 0;
 
   const values: Record<string, string | number> = {
-    total,
-    applied,
-    interviews,
-    offers,
-    rejected,
-    ghosted,
+    total, applied, interviews, offers, rejected, ghosted,
     response: `${responseRate}%`,
   };
 
-  const todayApplied = jobs.filter((j) => {
-    if (!j.appliedDate) return false;
-    const d = new Date(j.appliedDate);
-    const today = new Date();
-    return d.toDateString() === today.toDateString();
-  }).length;
-
-  const dailyProgress = Math.min((todayApplied / dailyTarget) * 100, 100);
-
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
-        {STAT_CONFIGS.map((stat, idx) => (
-          <div
-            key={stat.key}
-            className="group relative overflow-hidden rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200/60 transition-all hover:shadow-md hover:-translate-y-0.5"
-            style={{ animationDelay: `${idx * 80}ms` }}
-          >
-            <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${stat.gradient}`} />
-            <div className="flex items-center gap-2.5">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${stat.iconBg} ring-1 ${stat.ring}`}>
-                <stat.icon className={`h-3.5 w-3.5 ${stat.iconColor}`} />
-              </div>
-              <div>
-                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                <p className="text-lg font-bold text-slate-900 animate-count-up">{values[stat.key]}</p>
-              </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
+      {STAT_CONFIGS.map((stat, idx) => (
+        <div
+          key={stat.key}
+          className="group relative overflow-hidden rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-100/80 transition-all hover:shadow-md hover:-translate-y-0.5"
+          style={{ animationDelay: `${idx * 80}ms` }}
+        >
+          <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${stat.gradient}`} />
+          <div className="flex items-center gap-2.5">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${stat.iconBg}`}>
+              <stat.icon className={`h-3.5 w-3.5 ${stat.iconColor}`} />
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Daily target bar */}
-      <div className="relative overflow-hidden rounded-xl bg-white p-3.5 shadow-sm ring-1 ring-slate-200/60">
-        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-blue-500 to-cyan-500" />
-        <div className="flex items-center gap-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 ring-1 ring-blue-200/50">
-            <Target className="h-4 w-4 text-blue-600" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-xs font-semibold text-slate-700">Daily Target</p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-lg font-bold text-blue-600">{todayApplied}</span>
-                <span className="text-xs text-slate-400">/ {dailyTarget}</span>
-              </div>
-            </div>
-            <div className="relative">
-              <Progress value={dailyProgress} className="h-2" />
-              {dailyProgress >= 100 && (
-                <span className="ml-2 text-[10px] font-semibold text-emerald-600">Target hit!</span>
-              )}
+            <div>
+              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{stat.label}</p>
+              <p className="text-lg font-bold text-slate-900">{values[stat.key]}</p>
             </div>
           </div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }

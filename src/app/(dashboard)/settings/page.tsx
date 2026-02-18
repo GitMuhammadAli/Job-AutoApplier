@@ -1,6 +1,6 @@
 import { getSettings } from "@/app/actions/settings";
 import { SettingsForm } from "@/components/settings/SettingsForm";
-import { Settings, Cog } from "lucide-react";
+import { Cog } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +17,10 @@ export default async function SettingsPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Settings</h1>
         </div>
         <p className="text-sm text-slate-500">
-          Configure automation behavior, search preferences, and notifications.
+          Configure your profile, job preferences, automation behavior, and AI customization.
         </p>
       </div>
-      <SettingsForm settings={settings as any} />
+      <SettingsForm initialSettings={settings} />
     </div>
   );
 }

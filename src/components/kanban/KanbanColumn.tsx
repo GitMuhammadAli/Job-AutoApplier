@@ -5,12 +5,13 @@ import { cn } from "@/lib/utils";
 import { STAGE_CONFIG } from "@/lib/utils";
 import { JobCard } from "./JobCard";
 import { EmptyState } from "@/components/shared/EmptyState";
-import type { Job, Stage } from "@/types";
+import type { UserJobWithGlobal } from "@/store/useJobStore";
+import type { JobStage } from "@prisma/client";
 
 interface KanbanColumnProps {
-  stage: Stage;
-  jobs: Job[];
-  onStageChange: (jobId: string, newStage: Stage, oldStage: Stage) => void;
+  stage: JobStage;
+  jobs: UserJobWithGlobal[];
+  onStageChange: (jobId: string, newStage: JobStage, oldStage: JobStage) => void;
 }
 
 export function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) {

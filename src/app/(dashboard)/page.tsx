@@ -78,7 +78,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <KanbanBoard initialJobs={jobs} />
+      <KanbanBoard initialJobs={jobs as any} />
     </div>
   );
 }

@@ -11,19 +11,17 @@ import {
   Pie,
   Cell,
   CartesianGrid,
-  Legend,
   Area,
   AreaChart,
 } from "recharts";
-import { BarChart3, GitBranch, Globe, FileText, Activity } from "lucide-react";
+import { BarChart3, GitBranch, Globe, Activity } from "lucide-react";
 
 const COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#06b6d4", "#ef4444", "#ec4899", "#6366f1"];
 
 interface ChartsProps {
   applicationsOverTime: { week: string; count: number }[];
   stageFunnel: { stage: string; count: number }[];
-  platformBreakdown: { platform: string; count: number }[];
-  resumePerformance: { name: string; total: number; responseRate: number }[];
+  sourceBreakdown: { source: string; count: number }[];
   activityOverTime: { week: string; count: number }[];
 }
 
@@ -41,7 +39,7 @@ function ChartCard({
   className?: string;
 }) {
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/60 ${className}`}>
+    <div className={`relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80 ${className}`}>
       <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${gradient}`} />
       <div className="flex items-center gap-2 mb-4">
         <Icon className="h-4 w-4 text-slate-400" />
@@ -63,13 +61,11 @@ function NoData({ text = "No data yet" }: { text?: string }) {
 export function Charts({
   applicationsOverTime,
   stageFunnel,
-  platformBreakdown,
-  resumePerformance,
+  sourceBreakdown,
   activityOverTime,
 }: ChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* Applications Over Time */}
       <ChartCard title="Applications Over Time" icon={BarChart3} gradient="from-blue-500 to-cyan-500">
         {applicationsOverTime.length === 0 ? (
           <NoData />
@@ -91,16 +87,13 @@ export function Charts({
                 tickLine={false}
               />
               <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}
-              />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
               <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} fill="url(#appGrad)" name="Applications" />
             </AreaChart>
           </ResponsiveContainer>
         )}
       </ChartCard>
 
-      {/* Stage Funnel */}
       <ChartCard title="Stage Funnel" icon={GitBranch} gradient="from-violet-500 to-purple-500">
         {stageFunnel.every((s) => s.count === 0) ? (
           <NoData />
@@ -121,26 +114,25 @@ export function Charts({
         )}
       </ChartCard>
 
-      {/* Platform Breakdown */}
-      <ChartCard title="Platform Breakdown" icon={Globe} gradient="from-emerald-500 to-teal-500">
-        {platformBreakdown.length === 0 ? (
+      <ChartCard title="Source Breakdown" icon={Globe} gradient="from-emerald-500 to-teal-500">
+        {sourceBreakdown.length === 0 ? (
           <NoData />
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
-                data={platformBreakdown}
+                data={sourceBreakdown}
                 dataKey="count"
-                nameKey="platform"
+                nameKey="source"
                 cx="50%"
                 cy="50%"
                 innerRadius={50}
                 outerRadius={85}
                 paddingAngle={3}
-                label={({ platform, count }) => `${platform} (${count})`}
+                label={({ source, count }: { source: string; count: number }) => `${source} (${count})`}
                 labelLine
               >
-                {platformBreakdown.map((_, i) => (
+                {sourceBreakdown.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
@@ -150,27 +142,7 @@ export function Charts({
         )}
       </ChartCard>
 
-      {/* Resume Performance */}
-      <ChartCard title="Resume Performance" icon={FileText} gradient="from-indigo-500 to-blue-500">
-        {resumePerformance.length === 0 ? (
-          <NoData text="Apply with different resumes to see data" />
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={resumePerformance}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#94a3b8" }} interval={0} angle={-15} textAnchor="end" height={45} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Applied" />
-              <Bar dataKey="responseRate" fill="#10b981" radius={[4, 4, 0, 0]} name="Response %" />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </ChartCard>
-
-      {/* Weekly Activity */}
-      <ChartCard title="Weekly Activity" icon={Activity} gradient="from-amber-400 to-orange-500" className="lg:col-span-2">
+      <ChartCard title="Weekly Activity" icon={Activity} gradient="from-amber-400 to-orange-500">
         {activityOverTime.length === 0 ? (
           <NoData text="No activity yet" />
         ) : (

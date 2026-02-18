@@ -1,29 +1,40 @@
 import { STAGE_CONFIG } from "@/lib/utils";
-import type { Activity } from "@/types";
+import type { ActivityType } from "@prisma/client";
 import {
   ArrowRight,
   MessageSquare,
   Plus,
   Clock,
-  Ghost,
-  Zap,
+  Send,
+  FileText,
+  Copy,
+  XCircle,
+  Trash2,
 } from "lucide-react";
 
-interface ActivityTimelineProps {
-  activities: Activity[];
+interface ActivityItem {
+  id: string;
+  type: ActivityType;
+  description: string;
+  createdAt: Date | string;
 }
 
-const TYPE_CONFIG: Record<string, { icon: typeof ArrowRight; label: string; color: string }> = {
-  stage_change: { icon: ArrowRight, label: "Stage Changed", color: "text-blue-500" },
-  note_added: { icon: MessageSquare, label: "Note Added", color: "text-slate-500" },
-  job_created: { icon: Plus, label: "Job Created", color: "text-emerald-500" },
-  follow_up_sent: { icon: Clock, label: "Follow-up Sent", color: "text-amber-500" },
-  ghost_detected: { icon: Ghost, label: "Marked as Ghosted", color: "text-slate-400" },
-  reminder: { icon: Clock, label: "Reminder", color: "text-violet-500" },
-  interview_scheduled: { icon: Zap, label: "Interview Scheduled", color: "text-amber-500" },
-};
+interface ActivityTimelineProps {
+  activities: ActivityItem[];
+}
 
-const DEFAULT_CONFIG = { icon: MessageSquare, label: "Activity", color: "text-slate-500" };
+const TYPE_CONFIG: Record<ActivityType, { icon: typeof ArrowRight; label: string; color: string }> = {
+  STAGE_CHANGE: { icon: ArrowRight, label: "Stage Changed", color: "text-blue-500" },
+  NOTE_ADDED: { icon: MessageSquare, label: "Note Added", color: "text-slate-500" },
+  COVER_LETTER_GENERATED: { icon: FileText, label: "Cover Letter Generated", color: "text-violet-500" },
+  APPLICATION_PREPARED: { icon: Plus, label: "Application Prepared", color: "text-emerald-500" },
+  APPLICATION_SENT: { icon: Send, label: "Application Sent", color: "text-emerald-600" },
+  APPLICATION_FAILED: { icon: XCircle, label: "Application Failed", color: "text-red-500" },
+  APPLICATION_COPIED: { icon: Copy, label: "Application Copied", color: "text-blue-500" },
+  FOLLOW_UP_SENT: { icon: Clock, label: "Follow-up Sent", color: "text-amber-500" },
+  MANUAL_UPDATE: { icon: Plus, label: "Manual Update", color: "text-slate-500" },
+  DISMISSED: { icon: Trash2, label: "Dismissed", color: "text-slate-400" },
+};
 
 export function ActivityTimeline({ activities }: ActivityTimelineProps) {
   if (activities.length === 0) {
@@ -36,13 +47,15 @@ export function ActivityTimeline({ activities }: ActivityTimelineProps) {
     <div className="relative space-y-0">
       <div className="absolute left-[15px] top-2 bottom-2 w-px bg-slate-200" />
       {activities.map((activity) => {
-        const config = TYPE_CONFIG[activity.type] ?? DEFAULT_CONFIG;
+        const config = TYPE_CONFIG[activity.type];
         const Icon = config.icon;
-        const fromConfig = activity.fromStage
-          ? STAGE_CONFIG[activity.fromStage as keyof typeof STAGE_CONFIG]
+
+        const stageMatch = activity.description.match(/from (\w+) to (\w+)/);
+        const fromConfig = stageMatch
+          ? STAGE_CONFIG[stageMatch[1] as keyof typeof STAGE_CONFIG]
           : null;
-        const toConfig = activity.toStage
-          ? STAGE_CONFIG[activity.toStage as keyof typeof STAGE_CONFIG]
+        const toConfig = stageMatch
+          ? STAGE_CONFIG[stageMatch[2] as keyof typeof STAGE_CONFIG]
           : null;
 
         return (
@@ -54,24 +67,15 @@ export function ActivityTimeline({ activities }: ActivityTimelineProps) {
               <p className="text-sm font-medium text-slate-700">
                 {config.label}
               </p>
-              {activity.type === "stage_change" && fromConfig && toConfig && (
+              {activity.type === "STAGE_CHANGE" && fromConfig && toConfig && (
                 <p className="text-xs text-slate-500 mt-0.5">
                   <span className={fromConfig.text}>{fromConfig.label}</span>
                   {" → "}
                   <span className={toConfig.text}>{toConfig.label}</span>
                 </p>
               )}
-              {activity.type === "ghost_detected" && fromConfig && toConfig && (
-                <p className="text-xs text-slate-500 mt-0.5">
-                  <span className={fromConfig.text}>{fromConfig.label}</span>
-                  {" → "}
-                  <span className={toConfig.text}>{toConfig.label}</span>
-                </p>
-              )}
-              {activity.note && (
-                <p className="text-sm text-slate-600 mt-1 bg-slate-50 rounded-lg px-3 py-2">
-                  {activity.note}
-                </p>
+              {activity.type !== "STAGE_CHANGE" && activity.description && (
+                <p className="text-xs text-slate-500 mt-0.5">{activity.description}</p>
               )}
               <p className="text-[10px] text-slate-400 mt-1">
                 {new Date(activity.createdAt).toLocaleString()}

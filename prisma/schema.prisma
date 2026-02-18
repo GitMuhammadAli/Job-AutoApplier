@@ -7,17 +7,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ── AUTH (NextAuth) ──
+
 model User {
   id            String    @id @default(cuid())
   name          String?
-  email         String    @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
   accounts      Account[]
   sessions      Session[]
-  jobs          Job[]
+  userJobs      UserJob[]
   resumes       Resume[]
   settings      UserSettings?
+  activities    Activity[]
+  applications  JobApplication[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -38,6 +42,7 @@ model Account {
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -46,134 +51,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
 
-model UserSettings {
-  id                 String  @id @default(cuid())
-  userId             String  @unique
-  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Automation
-  dailyTarget        Int     @default(5)
-  ghostDays          Int     @default(14)
-  staleDays          Int     @default(7)
-  followUpDays       Int     @default(7)
-  emailNotifications Boolean @default(true)
-  timezone           String  @default("Asia/Karachi")
-  // Search
-  searchKeywords     String?
-  searchLocation     String?
-  // Profile
-  experienceLevel    String? // JUNIOR, MID, SENIOR, LEAD, ANY
-  skills             String? @db.Text // comma-separated skills
-  jobCategories      String? // comma-separated: Full-Stack,Backend,Frontend,DevOps,Mobile
-  educationLevel     String? // BACHELORS, MASTERS, PHD, ANY
-  languages          String? // comma-separated: English,Urdu
-  // Preferences
-  minSalary          Int?
-  maxSalary          Int?
-  salaryCurrency     String  @default("PKR")
-  preferredWorkType  String? // REMOTE, ONSITE, HYBRID, or null = any
-  preferredPlatforms String? // comma-separated platform preferences
-}
-
-model Job {
-  id            String      @id @default(cuid())
-  company       String
-  role          String
-  url           String?
-  platform      Platform    @default(LINKEDIN)
-  stage         Stage       @default(SAVED)
-  applyType     ApplyType   @default(UNKNOWN)
-  isDirectApply Boolean     @default(false)
-  applyOptions  Json?       // array of { link, source } from multiple platforms
-  matchScore    Int?        // 0-100 keyword match score
-  description   String?     @db.Text // full job description
-  salary        String?
-  location      String?
-  workType      WorkType    @default(ONSITE)
-  resumeId      String?
-  resumeUsed    Resume?     @relation(fields: [resumeId], references: [id])
-  notes         String?     @db.Text
-  contactName   String?
-  contactEmail  String?
-  appliedDate   DateTime?
-  interviewDate DateTime?
-  followUpDate  DateTime?
-  rejectedDate  DateTime?
-  offerDate     DateTime?
-  isGhosted     Boolean     @default(false)
-  isStale       Boolean     @default(false)
-  userId        String
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  activities    Activity[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  @@index([userId, stage])
-  @@index([userId, platform])
-  @@index([userId, createdAt])
-  @@index([url])
-}
-
-model Resume {
-  id        String   @id @default(cuid())
-  name      String
-  fileUrl   String?
-  content   String?  @db.Text // pasted resume text for intelligent matching
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  jobs      Job[]
-  createdAt DateTime @default(now())
-
-  @@unique([userId, name])
-}
-
-model Activity {
-  id        String   @id @default(cuid())
-  jobId     String
-  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  type      String   // stage_change, note_added, follow_up_sent, interview_scheduled, reminder
-  fromStage String?
-  toStage   String?
-  note      String?  @db.Text
-  metadata  Json?    // extra data (email sent, n8n workflow id, etc)
-  createdAt DateTime @default(now())
-
-  @@index([jobId, createdAt])
-}
-
-enum Platform {
-  LINKEDIN
-  INDEED
-  GLASSDOOR
-  ROZEE_PK
-  BAYT
-  COMPANY_SITE
-  REFERRAL
-  OTHER
-}
-
-enum Stage {
-  SAVED
-  APPLIED
-  INTERVIEW
-  OFFER
-  REJECTED
-  GHOSTED
-}
-
-enum WorkType {
-  ONSITE
-  REMOTE
-  HYBRID
-}
-
-enum ApplyType {
-  EASY_APPLY
-  QUICK_APPLY
-  REGULAR
-  EMAIL
-  UNKNOWN
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -182,4 +61,241 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ── GLOBAL JOB (scraped once, shared across ALL users) ──
+
+model GlobalJob {
+  id              String    @id @default(cuid())
+  title           String
+  company         String
+  location        String?
+  description     String?   @db.Text
+  salary          String?
+  jobType         String?
+  experienceLevel String?
+  category        String?
+  skills          String[]
+  postedDate      DateTime?
+  expiryDate      DateTime?
+  source          String
+  sourceId        String
+  sourceUrl       String?
+  applyUrl        String?
+  companyUrl      String?
+  companyEmail    String?
+  isActive        Boolean   @default(true)
+  lastSeenAt      DateTime  @default(now())
+  userJobs        UserJob[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([sourceId, source])
+  @@index([source])
+  @@index([category])
+  @@index([isActive, createdAt])
+  @@index([createdAt])
+}
+
+// ── USER JOB (per-user view of a GlobalJob) ──
+
+model UserJob {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  globalJobId    String
+  globalJob      GlobalJob      @relation(fields: [globalJobId], references: [id], onDelete: Cascade)
+  stage          JobStage       @default(SAVED)
+  matchScore     Float?
+  matchReasons   String[]
+  notes          String?        @db.Text
+  coverLetter    String?        @db.Text
+  isBookmarked   Boolean        @default(false)
+  isDismissed    Boolean        @default(false)
+  dismissReason  String?
+  lastFollowUpAt DateTime?
+  followUpCount  Int            @default(0)
+  activities     Activity[]
+  application    JobApplication?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([userId, globalJobId])
+  @@index([userId, stage])
+  @@index([userId, matchScore])
+  @@index([userId, isDismissed])
+  @@index([userId, createdAt])
+}
+
+enum JobStage {
+  SAVED
+  APPLIED
+  INTERVIEW
+  OFFER
+  REJECTED
+  GHOSTED
+}
+
+// ── RESUME ──
+
+model Resume {
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  fileName     String?
+  fileUrl      String?
+  fileType     String?
+  content      String?          @db.Text
+  isDefault    Boolean          @default(false)
+  applications JobApplication[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([userId])
+}
+
+// ── USER SETTINGS ──
+
+model UserSettings {
+  id                       String          @id @default(cuid())
+  userId                   String          @unique
+  user                     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Personal
+  fullName                 String?
+  phone                    String?
+  linkedinUrl              String?
+  portfolioUrl             String?
+  githubUrl                String?
+  // Job Preferences
+  keywords                 String[]
+  city                     String?
+  country                  String?
+  salaryMin                Int?
+  salaryMax                Int?
+  salaryCurrency           String?         @default("USD")
+  experienceLevel          String?
+  education                String?
+  workType                 String[]
+  jobType                  String[]
+  languages                String[]
+  preferredCategories      String[]
+  preferredPlatforms       String[]
+  // Notifications
+  emailNotifications       Boolean         @default(true)
+  notificationEmail        String?
+  // Application Automation
+  applicationEmail         String?
+  applicationMode          ApplicationMode @default(SEMI_AUTO)
+  autoApplyEnabled         Boolean         @default(false)
+  maxAutoApplyPerDay       Int             @default(10)
+  minMatchScoreForAutoApply Float          @default(75.0)
+  defaultSignature         String?         @db.Text
+  // AI Customization
+  customSystemPrompt       String?         @db.Text
+  preferredTone            String?         @default("professional")
+  emailLanguage            String?         @default("English")
+  includeLinkedin          Boolean         @default(true)
+  includeGithub            Boolean         @default(true)
+  includePortfolio         Boolean         @default(true)
+  customClosing            String?
+  // Relations & State
+  emailTemplates           EmailTemplate[]
+  isOnboarded              Boolean         @default(false)
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+}
+
+enum ApplicationMode {
+  SEMI_AUTO
+  FULL_AUTO
+}
+
+// ── EMAIL TEMPLATE ──
+
+model EmailTemplate {
+  id         String       @id @default(cuid())
+  userId     String
+  settingsId String
+  settings   UserSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  name       String
+  subject    String
+  body       String       @db.Text
+  isDefault  Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([userId])
+}
+
+// ── JOB APPLICATION ──
+
+model JobApplication {
+  id             String            @id @default(cuid())
+  userJobId      String            @unique
+  userJob        UserJob           @relation(fields: [userJobId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  senderEmail    String
+  recipientEmail String
+  subject        String
+  emailBody      String            @db.Text
+  resumeId       String?
+  resume         Resume?           @relation(fields: [resumeId], references: [id])
+  coverLetter    String?           @db.Text
+  templateId     String?
+  status         ApplicationStatus @default(DRAFT)
+  sentAt         DateTime?
+  errorMessage   String?
+  retryCount     Int               @default(0)
+  appliedVia     ApplyMethod       @default(EMAIL)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
+
+enum ApplicationStatus {
+  DRAFT
+  READY
+  SENDING
+  SENT
+  FAILED
+  BOUNCED
+}
+
+enum ApplyMethod {
+  EMAIL
+  MANUAL
+  PLATFORM
+}
+
+// ── ACTIVITY TIMELINE ──
+
+model Activity {
+  id        String       @id @default(cuid())
+  userJobId String
+  userJob   UserJob      @relation(fields: [userJobId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      ActivityType
+  description String
+  createdAt DateTime     @default(now())
+
+  @@index([userJobId])
+  @@index([userId, createdAt])
+}
+
+enum ActivityType {
+  STAGE_CHANGE
+  NOTE_ADDED
+  COVER_LETTER_GENERATED
+  APPLICATION_PREPARED
+  APPLICATION_SENT
+  APPLICATION_FAILED
+  APPLICATION_COPIED
+  FOLLOW_UP_SENT
+  MANUAL_UPDATE
+  DISMISSED
 }

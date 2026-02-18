@@ -16,7 +16,6 @@ export const STAGE_CONFIG = {
   GHOSTED: { label: "Ghosted", bg: "bg-purple-50", text: "text-purple-700", dot: "bg-purple-400", border: "border-purple-300", gradient: "from-purple-400 to-purple-500", ring: "ring-purple-200" },
 } as const;
 
-export const PLATFORMS = ["LINKEDIN", "INDEED", "GLASSDOOR", "ROZEE_PK", "BAYT", "COMPANY_SITE", "REFERRAL", "OTHER"] as const;
 
 export function daysAgo(date: Date | string | null): number | null {
   if (!date) return null;
