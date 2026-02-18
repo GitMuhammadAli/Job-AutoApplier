@@ -1,0 +1,93 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { sendJobMatchNotification } from "@/lib/email/notifications";
+
+export const dynamic = "force-dynamic";
+
+function verifyCronSecret(req: NextRequest): boolean {
+  const secret =
+    req.headers.get("authorization")?.replace("Bearer ", "") ||
+    req.nextUrl.searchParams.get("secret");
+  return secret === process.env.CRON_SECRET;
+}
+
+export async function GET(req: NextRequest) {
+  if (!verifyCronSecret(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    // Get all users with email notifications enabled
+    const users = await prisma.userSettings.findMany({
+      where: { emailNotifications: true },
+      select: {
+        userId: true,
+        fullName: true,
+        notificationEmail: true,
+        user: { select: { email: true, name: true } },
+      },
+    });
+
+    let notified = 0;
+
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+    for (const user of users) {
+      const email = user.notificationEmail || user.user.email;
+      if (!email) continue;
+
+      // Find new matched jobs from last 24h
+      const newJobs = await prisma.userJob.findMany({
+        where: {
+          userId: user.userId,
+          isDismissed: false,
+          createdAt: { gte: oneDayAgo },
+        },
+        include: {
+          globalJob: {
+            select: {
+              title: true,
+              company: true,
+              location: true,
+              salary: true,
+              applyUrl: true,
+              source: true,
+            },
+          },
+        },
+        orderBy: { matchScore: "desc" },
+        take: 20,
+      });
+
+      if (newJobs.length === 0) continue;
+
+      const jobNotifications = newJobs.map((uj) => ({
+        title: uj.globalJob.title,
+        company: uj.globalJob.company,
+        location: uj.globalJob.location,
+        salary: uj.globalJob.salary,
+        matchScore: uj.matchScore || 0,
+        applyUrl: uj.globalJob.applyUrl,
+        source: uj.globalJob.source,
+        matchReasons: uj.matchReasons,
+      }));
+
+      try {
+        await sendJobMatchNotification(
+          email,
+          jobNotifications,
+          user.fullName || user.user.name || "there"
+        );
+        notified++;
+      } catch (err) {
+        console.error(`Failed to notify ${email}:`, err);
+      }
+    }
+
+    return NextResponse.json({ success: true, usersNotified: notified });
+  } catch (error) {
+    console.error("Notify matches error:", error);
+    return NextResponse.json({ error: "Notification failed", details: String(error) }, { status: 500 });
+  }
+}
