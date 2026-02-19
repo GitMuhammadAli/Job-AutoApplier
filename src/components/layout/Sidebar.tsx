@@ -17,10 +17,12 @@ import {
   Mail,
   Inbox,
   ShieldCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useSidebarStore } from "@/store/useSidebarStore";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, desc: "Kanban board" },
@@ -44,26 +46,28 @@ interface SidebarProps {
 
 export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { collapsed, mobileOpen, toggle, setMobileOpen } = useSidebarStore();
 
   const navItems = adminUser
     ? [...NAV_ITEMS, { href: "/admin", label: "Admin Panel", icon: ShieldCheck, desc: "System admin" }]
     : NAV_ITEMS;
 
+  const isVisible = mobileOpen || !collapsed;
+
   return (
     <>
-      {/* Mobile trigger */}
+      {/* Mobile hamburger — only shows on small screens when sidebar is hidden */}
       <Button
         variant="ghost"
         size="icon"
         aria-label={mobileOpen ? "Close menu" : "Open menu"}
-        className="fixed top-4 left-4 z-50 md:hidden bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-sm touch-manipulation focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="fixed top-3 left-3 z-50 md:hidden bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-sm touch-manipulation focus-visible:ring-2 focus-visible:ring-blue-500"
         onClick={() => setMobileOpen(!mobileOpen)}
       >
         {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
 
-      {/* Overlay */}
+      {/* Mobile backdrop overlay */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden"
@@ -71,11 +75,15 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar panel */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-white dark:bg-zinc-900 border-r border-slate-200/80 dark:border-zinc-700/80 transition-transform duration-300 ease-out md:translate-x-0",
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-white dark:bg-zinc-900 border-r border-slate-200/80 dark:border-zinc-700/80 transition-transform duration-300 ease-out",
+          mobileOpen
+            ? "translate-x-0"
+            : collapsed
+              ? "-translate-x-full"
+              : "max-md:-translate-x-full md:translate-x-0"
         )}
       >
         {/* Logo area */}
@@ -83,12 +91,31 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 shadow-lg shadow-blue-600/20">
             <Zap className="h-4.5 w-4.5 text-white" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-zinc-100">JobPilot</span>
             <span className="ml-1.5 inline-flex items-center rounded-md bg-gradient-to-r from-blue-500/10 to-violet-500/10 dark:from-blue-500/20 dark:to-violet-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-blue-600 dark:text-blue-400 ring-1 ring-inset ring-blue-500/20">
               PRO
             </span>
           </div>
+          {/* Desktop collapse button */}
+          <button
+            onClick={() => {
+              if (mobileOpen) setMobileOpen(false);
+              else toggle();
+            }}
+            aria-label="Collapse sidebar"
+            className="hidden md:flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 dark:text-zinc-500 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
+          {/* Mobile close button */}
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close sidebar"
+            className="md:hidden flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 dark:text-zinc-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Automation status */}
