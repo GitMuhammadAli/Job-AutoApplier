@@ -1,11 +1,30 @@
 import { getSettings } from "@/app/actions/settings";
+import { getResumeCount } from "@/app/actions/resume";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { Cog } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const settings = await getSettings();
+  let settings: Awaited<ReturnType<typeof getSettings>> | null = null;
+  let resumeCount = 0;
+
+  try {
+    [settings, resumeCount] = await Promise.all([
+      getSettings(),
+      getResumeCount().catch(() => 0),
+    ]);
+  } catch (error) {
+    console.error("[SettingsPage] Failed to load settings:", error);
+  }
+
+  if (!settings) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
+        <p className="text-sm text-slate-500 dark:text-zinc-400">Failed to load settings. Please try again.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 animate-slide-up">
@@ -20,7 +39,7 @@ export default async function SettingsPage() {
           Configure your profile, job preferences, automation behavior, and AI customization.
         </p>
       </div>
-      <SettingsForm initialSettings={settings} />
+      <SettingsForm initialSettings={settings} resumeCount={resumeCount} />
     </div>
   );
 }

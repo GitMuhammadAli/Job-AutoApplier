@@ -9,9 +9,16 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [jobs, settings] = await Promise.all([getJobs(), getSettings()]);
+  let jobs: Awaited<ReturnType<typeof getJobs>> = [];
+  let settings: Awaited<ReturnType<typeof getSettings>> | null = null;
 
-  if (!settings.isOnboarded) {
+  try {
+    [jobs, settings] = await Promise.all([getJobs(), getSettings()]);
+  } catch (error) {
+    console.error("[DashboardPage] Failed to load data:", error);
+  }
+
+  if (!settings || !settings.isOnboarded) {
     return (
       <div className="animate-slide-up">
         <OnboardingWizard />

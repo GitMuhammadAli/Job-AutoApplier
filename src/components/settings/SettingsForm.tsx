@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 
 interface SettingsFormProps {
+  resumeCount?: number;
   initialSettings: {
     fullName?: string | null;
     phone?: string | null;
@@ -122,7 +123,7 @@ const RISK_COLORS: Record<string, string> = {
   high: "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300",
 };
 
-export function SettingsForm({ initialSettings }: SettingsFormProps) {
+export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormProps) {
   const s = initialSettings;
   const [saving, setSaving] = useState(false);
 
@@ -234,7 +235,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
 
   const readinessChecks = [
     { key: "emailProvider", label: "Email provider set up", met: emailProvider !== "brevo" },
-    { key: "resume", label: "Resume uploaded", met: true },
+    { key: "resume", label: "Resume uploaded", met: resumeCount > 0 },
     { key: "fullName", label: "Full name added", met: !!fullName },
     { key: "keywords", label: "Keywords defined", met: keywords.length > 0 },
     { key: "categories", label: "Job categories selected", met: categories.length > 0 },

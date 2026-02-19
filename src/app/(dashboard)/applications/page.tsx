@@ -7,12 +7,20 @@ import { getAuthUserId } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export default async function ApplicationsPage() {
-  const userId = await getAuthUserId();
-  const [applications, counts, sendingStats] = await Promise.all([
-    getApplications(),
-    getApplicationCounts(),
-    getSendingStats(userId),
-  ]);
+  let applications: Awaited<ReturnType<typeof getApplications>> = [];
+  let counts: Awaited<ReturnType<typeof getApplicationCounts>> = { draft: 0, ready: 0, sent: 0, failed: 0, bounced: 0, total: 0 };
+  let sendingStats: Awaited<ReturnType<typeof getSendingStats>> = { todaySent: 0, todayMax: 20, hourSent: 0, hourMax: 8, isPaused: false, pausedUntil: null };
+
+  try {
+    const userId = await getAuthUserId();
+    [applications, counts, sendingStats] = await Promise.all([
+      getApplications(),
+      getApplicationCounts(),
+      getSendingStats(userId),
+    ]);
+  } catch (error) {
+    console.error("[ApplicationsPage] Failed to load data:", error);
+  }
 
   return (
     <div className="space-y-6">

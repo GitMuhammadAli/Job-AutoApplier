@@ -5,11 +5,17 @@ import { Mail } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function TemplatesPage() {
-  let templates = await getEmailTemplates();
+  let templates: Awaited<ReturnType<typeof getEmailTemplates>> = [];
 
-  if (templates.length === 0) {
-    await seedStarterTemplates();
+  try {
     templates = await getEmailTemplates();
+
+    if (templates.length === 0) {
+      await seedStarterTemplates();
+      templates = await getEmailTemplates();
+    }
+  } catch (error) {
+    console.error("[TemplatesPage] Failed to load templates:", error);
   }
 
   return (
