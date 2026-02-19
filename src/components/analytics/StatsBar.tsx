@@ -45,7 +45,7 @@ export function StatsBar({ jobs }: StatsBarProps) {
       {STAT_CONFIGS.map((stat, idx) => (
         <div
           key={stat.key}
-          className="group relative overflow-hidden rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-100/80 transition-all hover:shadow-md hover:-translate-y-0.5"
+          className="group relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-3 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-all hover:shadow-md hover:-translate-y-0.5"
           style={{ animationDelay: `${idx * 80}ms` }}
         >
           <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${stat.gradient}`} />
@@ -54,8 +54,8 @@ export function StatsBar({ jobs }: StatsBarProps) {
               <stat.icon className={`h-3.5 w-3.5 ${stat.iconColor}`} />
             </div>
             <div>
-              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{stat.label}</p>
-              <p className="text-lg font-bold text-slate-900 tabular-nums">{values[stat.key]}</p>
+              <p className="text-[10px] font-medium text-slate-400 dark:text-zinc-500 uppercase tracking-wider">{stat.label}</p>
+              <p className="text-lg font-bold text-slate-900 dark:text-zinc-100 tabular-nums">{values[stat.key]}</p>
             </div>
           </div>
         </div>

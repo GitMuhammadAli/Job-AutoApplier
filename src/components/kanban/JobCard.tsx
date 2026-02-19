@@ -58,13 +58,13 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`group relative cursor-grab active:cursor-grabbing rounded-xl bg-white p-3 md:p-3.5 shadow-sm ring-1 ring-slate-100/80 transition-shadow transition-transform duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 touch-manipulation ${
+      className={`group relative cursor-grab active:cursor-grabbing rounded-xl bg-white dark:bg-zinc-800 p-3 md:p-3.5 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-shadow transition-transform duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 dark:hover:ring-zinc-600/80 touch-manipulation ${
         isDragging ? "opacity-50 shadow-lg rotate-2 z-50 ring-blue-300" : ""
       }`}
     >
       <div className="mb-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-zinc-500 font-medium">
             <Building2 className="h-3 w-3 flex-shrink-0" />
             <span className="truncate">{g.company}</span>
           </div>
@@ -77,7 +77,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
         </div>
         <Link
           href={`/jobs/${job.id}`}
-          className="mt-1 text-sm font-bold text-slate-800 leading-snug hover:text-blue-600 transition-colors block"
+          className="mt-1 text-sm font-bold text-slate-800 dark:text-zinc-100 leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors block"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -123,7 +123,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
       {job.matchScore != null && job.matchScore > 0 && (
         <div className="mb-2">
           <div className="flex items-center justify-between text-[11px] mb-0.5">
-            <span className="text-slate-400 font-medium">Match</span>
+            <span className="text-slate-400 dark:text-zinc-500 font-medium">Match</span>
             <span
               className={`font-bold ${
                 job.matchScore >= 70
@@ -136,7 +136,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
               {Math.round(job.matchScore)}%
             </span>
           </div>
-          <div className="h-1 w-full rounded-full bg-slate-100">
+          <div className="h-1 w-full rounded-full bg-slate-100 dark:bg-zinc-700">
             <div
               className={`h-1 rounded-full transition-all duration-500 ${
                 job.matchScore >= 70
@@ -149,23 +149,23 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
             />
           </div>
           {job.matchReasons && job.matchReasons.length > 0 && (
-            <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+            <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5 truncate">
               {job.matchReasons.slice(0, 3).join(" · ")}
             </p>
           )}
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-1.5 border-t border-slate-50">
+      <div className="flex items-center justify-between pt-1.5 border-t border-slate-50 dark:border-zinc-700/50">
         <div className="flex items-center gap-2 min-w-0">
           {days !== null && (
-            <div className="flex items-center gap-1 text-[11px] text-slate-400">
+            <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-zinc-500">
               <Clock className="h-2.5 w-2.5 flex-shrink-0" />
               <span>{days === 0 ? "Today" : days === 1 ? "1d" : `${days}d`}</span>
             </div>
           )}
           {g.location && (
-            <div className="text-[11px] text-slate-400 truncate">{g.location}</div>
+            <div className="text-[11px] text-slate-400 dark:text-zinc-500 truncate">{g.location}</div>
           )}
         </div>
 

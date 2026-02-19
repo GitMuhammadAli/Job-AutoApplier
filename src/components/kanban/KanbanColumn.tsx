@@ -24,8 +24,8 @@ export function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) 
   return (
     <div
       className={cn(
-        "flex w-[280px] flex-shrink-0 snap-center flex-col rounded-xl bg-white/60 ring-1 ring-slate-100/80 transition-all duration-200 md:w-full md:snap-align-none",
-        isOver && "ring-2 bg-white shadow-md scale-[1.01]",
+        "flex w-[280px] flex-shrink-0 snap-center flex-col rounded-xl bg-white/60 dark:bg-zinc-900/60 ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-all duration-200 md:w-full md:snap-align-none",
+        isOver && "ring-2 bg-white dark:bg-zinc-900 shadow-md scale-[1.01]",
         isOver && config.ring
       )}
     >
@@ -36,8 +36,8 @@ export function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) 
         <h3 className={cn("text-xs font-bold uppercase tracking-wider", config.text)}>
           {config.label}
         </h3>
-        <div className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-100 px-1.5">
-          <span className="text-[10px] font-bold text-slate-500">{jobs.length}</span>
+        <div className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-100 dark:bg-zinc-800 px-1.5">
+          <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400">{jobs.length}</span>
         </div>
       </div>
 
@@ -45,7 +45,7 @@ export function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) 
         ref={setNodeRef}
         className={cn(
           "flex-1 space-y-2 px-2 pb-2.5 min-h-[80px] transition-colors rounded-b-xl scrollbar-thin overflow-y-auto max-h-[55vh] md:max-h-[68vh]",
-          isOver && "bg-slate-50/50"
+          isOver && "bg-slate-50/50 dark:bg-zinc-800/50"
         )}
       >
         {jobs.length === 0 ? (

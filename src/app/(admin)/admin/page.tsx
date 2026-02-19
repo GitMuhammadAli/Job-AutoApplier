@@ -79,7 +79,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400 dark:text-zinc-500" />
       </div>
     );
   }
@@ -90,8 +90,8 @@ export default function AdminDashboard() {
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Admin Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5">System overview and controls</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Admin Dashboard</h1>
+          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">System overview and controls</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={fetchStats} className="gap-1.5">
@@ -139,9 +139,9 @@ export default function AdminDashboard() {
       </div>
 
       {/* Scraper Health */}
-      <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100/80">
-        <h2 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-          <Activity className="h-4 w-4 text-slate-500" />
+      <div className="rounded-xl bg-white dark:bg-zinc-800 p-5 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
+        <h2 className="text-sm font-bold text-slate-800 dark:text-zinc-100 mb-3 flex items-center gap-2">
+          <Activity className="h-4 w-4 text-slate-500 dark:text-zinc-400" />
           Scraper Health
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -150,19 +150,19 @@ export default function AdminDashboard() {
               key={s.source}
               className={`rounded-lg p-3 ring-1 ${
                 s.isHealthy
-                  ? "bg-emerald-50/50 ring-emerald-100/50"
-                  : "bg-red-50/50 ring-red-100/50"
+                  ? "bg-emerald-50/50 dark:bg-emerald-900/30 ring-emerald-100/50 dark:ring-emerald-800/50"
+                  : "bg-red-50/50 dark:bg-red-900/30 ring-red-100/50 dark:ring-red-800/50"
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-slate-700 capitalize">{s.source}</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-zinc-200 capitalize">{s.source}</span>
                 <span className={`h-2 w-2 rounded-full ${s.isHealthy ? "bg-emerald-500" : "bg-red-400"}`} />
               </div>
-              <div className="text-[10px] text-slate-500">
+              <div className="text-[10px] text-slate-500 dark:text-zinc-400">
                 {s.lastRun ? new Date(s.lastRun).toLocaleString() : "Never run"}
               </div>
               {s.lastMessage && (
-                <div className="text-[10px] text-slate-400 mt-0.5 truncate">{s.lastMessage}</div>
+                <div className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5 truncate">{s.lastMessage}</div>
               )}
               <Button
                 size="sm"
@@ -184,22 +184,22 @@ export default function AdminDashboard() {
       </div>
 
       {/* API Quotas */}
-      <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100/80">
-        <h2 className="text-sm font-bold text-slate-800 mb-3">API Quotas</h2>
+      <div className="rounded-xl bg-white dark:bg-zinc-800 p-5 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
+        <h2 className="text-sm font-bold text-slate-800 dark:text-zinc-100 mb-3">API Quotas</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {Object.entries(stats.quotas).map(([name, q]) => {
             const pct = Math.min(Math.round((q.used / q.limit) * 100), 100);
             const isWarning = pct >= 80;
             return (
-              <div key={name} className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100">
+              <div key={name} className="rounded-lg bg-slate-50 dark:bg-zinc-800/50 p-3 ring-1 ring-slate-100 dark:ring-zinc-700">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-slate-500 capitalize">{name}</span>
-                  <span className="text-[10px] text-slate-400">/{q.period}</span>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 capitalize">{name}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-zinc-500">/{q.period}</span>
                 </div>
-                <div className="text-sm font-bold text-slate-800 tabular-nums mt-0.5">
+                <div className="text-sm font-bold text-slate-800 dark:text-zinc-100 tabular-nums mt-0.5">
                   {q.used} / {q.limit}
                 </div>
-                <div className="mt-1.5 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                <div className="mt-1.5 h-1.5 w-full rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${isWarning ? "bg-amber-500" : "bg-blue-500"}`}
                     style={{ width: `${pct}%` }}
@@ -213,19 +213,19 @@ export default function AdminDashboard() {
 
       {/* Recent Errors */}
       {stats.recentErrors.length > 0 && (
-        <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100/80">
-          <h2 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+        <div className="rounded-xl bg-white dark:bg-zinc-800 p-5 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
+          <h2 className="text-sm font-bold text-slate-800 dark:text-zinc-100 mb-3 flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-red-500" />
             Recent Errors (24h)
           </h2>
           <div className="space-y-2 max-h-80 overflow-y-auto">
             {stats.recentErrors.map((err, i) => (
-              <div key={i} className="rounded-lg bg-red-50/50 p-3 ring-1 ring-red-100/50">
+              <div key={i} className="rounded-lg bg-red-50/50 dark:bg-red-900/30 p-3 ring-1 ring-red-100/50 dark:ring-red-800/50">
                 <div className="flex items-center gap-2 text-[10px] text-red-400 mb-1">
                   {err.source && <span className="font-medium">{err.source}</span>}
                   <span>{new Date(err.createdAt).toLocaleString()}</span>
                 </div>
-                <p className="text-xs text-red-700">{err.message}</p>
+                <p className="text-xs text-red-700 dark:text-red-300">{err.message}</p>
               </div>
             ))}
           </div>
@@ -247,12 +247,12 @@ function StatCard({
   bg: string;
 }) {
   return (
-    <div className={`rounded-xl ${bg} p-4 ring-1 ring-slate-100/50`}>
+    <div className={`rounded-xl ${bg} dark:bg-opacity-20 p-4 ring-1 ring-slate-100/50 dark:ring-zinc-700/50`}>
       <div className="flex items-center gap-2 mb-1">{icon}</div>
-      <div className="text-lg font-bold text-slate-800 tabular-nums">
+      <div className="text-lg font-bold text-slate-800 dark:text-zinc-100 tabular-nums">
         {value.toLocaleString()}
       </div>
-      <div className="text-[11px] text-slate-500">{label}</div>
+      <div className="text-[11px] text-slate-500 dark:text-zinc-400">{label}</div>
     </div>
   );
 }

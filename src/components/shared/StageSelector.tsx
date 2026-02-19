@@ -22,7 +22,7 @@ export function StageSelector({ currentStage, onStageChange }: StageSelectorProp
           variant="ghost"
           size="icon"
           aria-label={`Move to ${STAGE_CONFIG[prevStage].label}`}
-          className="h-6 w-6 rounded-lg hover:bg-slate-100 touch-manipulation"
+          className="h-6 w-6 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 touch-manipulation"
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -38,7 +38,7 @@ export function StageSelector({ currentStage, onStageChange }: StageSelectorProp
           variant="ghost"
           size="icon"
           aria-label={`Move to ${STAGE_CONFIG[nextStage].label}`}
-          className="h-6 w-6 rounded-lg hover:bg-slate-100 touch-manipulation"
+          className="h-6 w-6 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 touch-manipulation"
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
