@@ -209,12 +209,12 @@ export function ResumeList({ resumes }: ResumeListProps) {
   return (
     <div className="space-y-4">
       {/* Info banner */}
-      <div className="rounded-xl bg-gradient-to-r from-indigo-50 to-blue-50 p-3 ring-1 ring-indigo-100/50">
+      <div className="rounded-xl bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 p-3 ring-1 ring-indigo-100/50 dark:ring-indigo-800/30">
         <div className="flex items-start gap-2">
-          <Brain className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+          <Brain className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-xs font-semibold text-indigo-700">Smart Resume Matching</p>
-            <p className="text-[10px] text-indigo-600/80 mt-0.5 leading-relaxed">
+            <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Smart Resume Matching</p>
+            <p className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 mt-0.5 leading-relaxed">
               Paste your resume text into each variant. The scraper reads it to match jobs and recommend the best resume per job.
               Without content, matching falls back to resume name keywords only.
             </p>
@@ -247,9 +247,9 @@ export function ResumeList({ resumes }: ResumeListProps) {
               <div className="space-y-1.5">
                 <Label className="text-xs">Upload PDF (auto-extracts text for matching)</Label>
                 <div className="flex gap-2">
-                  <label className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 hover:border-blue-400 px-3 py-3 cursor-pointer transition-colors">
-                    <Upload className="h-4 w-4 text-slate-400" />
-                    <span className="text-xs text-slate-500">Choose PDF file...</span>
+                  <label className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 dark:border-zinc-700 hover:border-blue-400 dark:hover:border-blue-500 px-3 py-3 cursor-pointer transition-colors">
+                    <Upload className="h-4 w-4 text-slate-400 dark:text-zinc-500" />
+                    <span className="text-xs text-slate-500 dark:text-zinc-400">Choose PDF file...</span>
                     <input
                       type="file"
                       accept=".pdf"
@@ -264,9 +264,9 @@ export function ResumeList({ resumes }: ResumeListProps) {
                 {uploading && <p className="text-xs text-blue-600 flex items-center gap-1" aria-live="polite"><Loader2 className="h-3 w-3 animate-spin" /> Parsing PDF&hellip;</p>}
               </div>
               <div className="relative flex items-center">
-                <div className="flex-grow border-t border-slate-200" />
-                <span className="flex-shrink mx-3 text-[10px] text-slate-400">OR paste text</span>
-                <div className="flex-grow border-t border-slate-200" />
+                <div className="flex-grow border-t border-slate-200 dark:border-zinc-700" />
+                <span className="flex-shrink mx-3 text-[10px] text-slate-400 dark:text-zinc-500">OR paste text</span>
+                <div className="flex-grow border-t border-slate-200 dark:border-zinc-700" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Resume Content (paste your resume text)</Label>
@@ -300,12 +300,12 @@ export function ResumeList({ resumes }: ResumeListProps) {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ClipboardPaste className="h-4 w-4 text-indigo-600" />
+              <ClipboardPaste className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               Paste Resume Content
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-1">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-zinc-400">
               Paste your full resume text below. The automation reads this to match your skills against job descriptions and recommend this resume for relevant positions.
             </p>
             <Textarea
@@ -345,7 +345,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Tags className="h-4 w-4 text-indigo-600" />
+              <Tags className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               Assign Job Categories
             </DialogTitle>
           </DialogHeader>
@@ -373,7 +373,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
             ))}
           </div>
           <div className="flex justify-between items-center pt-3">
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[10px] text-slate-400 dark:text-zinc-500">
               {selectedCategories.length} selected
             </span>
             <div className="flex gap-2">
@@ -398,7 +398,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
         {resumes.map((r) => (
           <div
             key={r.id}
-            className="relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/60 space-y-3 transition-all hover:shadow-md hover:-translate-y-0.5"
+            className="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-200/60 dark:ring-zinc-700/50 space-y-3 transition-all hover:shadow-md dark:hover:shadow-zinc-900/50 hover:-translate-y-0.5"
           >
             <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-blue-500" />
 
@@ -419,23 +419,23 @@ export function ResumeList({ resumes }: ResumeListProps) {
               <>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 ring-1 ring-indigo-200/50">
-                      <FileText className="h-4 w-4 text-indigo-600" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30 ring-1 ring-indigo-200/50 dark:ring-indigo-700/50">
+                      <FileText className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-800">{r.name}</p>
-                      <p className="text-[10px] text-slate-400">
+                      <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">{r.name}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-zinc-500">
                         Added {new Date(r.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-0.5">
                     <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => openEdit(r)}>
-                      <Pencil className="h-3 w-3 text-slate-400" />
+                      <Pencil className="h-3 w-3 text-slate-400 dark:text-zinc-500" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30">
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </AlertDialogTrigger>
@@ -462,27 +462,27 @@ export function ResumeList({ resumes }: ResumeListProps) {
                     {r.applicationCount} applications
                   </Badge>
                   {r.isDefault && (
-                    <Badge className="text-[10px] bg-blue-100 text-blue-700 border-0">Default</Badge>
+                    <Badge className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-0">Default</Badge>
                   )}
                   {r.content ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
                       <CheckCircle2 className="h-2.5 w-2.5" />
                       Content added
                     </span>
                   ) : (
-                    <span className="text-[10px] text-amber-600 font-medium">No content</span>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">No content</span>
                   )}
                 </div>
 
                 {(r.targetCategories ?? []).length > 0 && (
                   <div className="flex items-center gap-1 flex-wrap">
                     {(r.targetCategories ?? []).slice(0, 3).map((cat) => (
-                      <Badge key={cat} variant="outline" className="text-[9px] px-1.5 py-0 border-indigo-200 text-indigo-600">
+                      <Badge key={cat} variant="outline" className="text-[9px] px-1.5 py-0 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400">
                         {cat}
                       </Badge>
                     ))}
                     {(r.targetCategories ?? []).length > 3 && (
-                      <span className="text-[9px] text-slate-400">+{(r.targetCategories ?? []).length - 3} more</span>
+                      <span className="text-[9px] text-slate-400 dark:text-zinc-500">+{(r.targetCategories ?? []).length - 3} more</span>
                     )}
                   </div>
                 )}
@@ -523,7 +523,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
                       href={r.fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                      className="inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                     >
                       <ExternalLink className="h-3 w-3" />
                       View file
@@ -537,13 +537,13 @@ export function ResumeList({ resumes }: ResumeListProps) {
       </div>
 
       {resumes.length === 0 && (
-        <div className="relative overflow-hidden rounded-xl bg-white p-10 shadow-sm ring-1 ring-slate-200/60 text-center">
+        <div className="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-10 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-200/60 dark:ring-zinc-700/50 text-center">
           <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-blue-500" />
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 mx-auto mb-3">
-            <FileText className="h-6 w-6 text-slate-300" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-zinc-700 mx-auto mb-3">
+            <FileText className="h-6 w-6 text-slate-300 dark:text-zinc-500" />
           </div>
-          <p className="text-sm font-medium text-slate-600">No resumes yet</p>
-          <p className="text-xs text-slate-400 mt-1">Add your first resume variant to enable smart matching.</p>
+          <p className="text-sm font-medium text-slate-600 dark:text-zinc-400">No resumes yet</p>
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">Add your first resume variant to enable smart matching.</p>
         </div>
       )}
     </div>

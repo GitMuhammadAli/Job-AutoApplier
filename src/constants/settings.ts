@@ -121,7 +121,7 @@ export const EMAIL_PROVIDERS = [
     hrSees: "From: {name} <{email}>",
     hrResult:
       "\u2705 No warnings \u00b7 \u2705 Primary inbox \u00b7 \u2705 Passes spam checks",
-    previewBg: "bg-emerald-50 ring-emerald-200",
+    previewBg: "bg-emerald-50 dark:bg-emerald-900/30 ring-emerald-200 dark:ring-emerald-800/40",
     fields: ["email", "appPassword"] as const,
     helpLink: "How to get a Gmail App Password",
     helpSteps: [
@@ -130,7 +130,9 @@ export const EMAIL_PROVIDERS = [
       "Search \u2018App Passwords\u2019 in settings",
       "Create new \u2192 Name: \u2018JobPilot\u2019",
       "Copy the 16-character password",
-      "Paste into JobPilot settings",
+      "Set SMTP Host to smtp.gmail.com and SMTP Port to 587",
+      "Enter your Gmail address as Email / Username",
+      "Paste the 16-character password into App Password",
     ],
   },
   {
@@ -141,7 +143,7 @@ export const EMAIL_PROVIDERS = [
     description: "Sends from your Outlook account.",
     hrSees: "From: {name} <{email}>",
     hrResult: "\u2705 No warnings \u00b7 \u2705 Primary inbox",
-    previewBg: "bg-emerald-50 ring-emerald-200",
+    previewBg: "bg-emerald-50 dark:bg-emerald-900/30 ring-emerald-200 dark:ring-emerald-800/40",
     fields: ["email", "appPassword"] as const,
     helpLink: "How to get an Outlook App Password",
     helpSteps: [
@@ -149,7 +151,9 @@ export const EMAIL_PROVIDERS = [
       "Security \u2192 Advanced security options",
       "App passwords \u2192 Create a new app password",
       "Copy the generated password",
-      "Paste into JobPilot settings",
+      "Set SMTP Host to smtp.office365.com and SMTP Port to 587",
+      "Enter your Outlook address as Email / Username",
+      "Paste the generated password into App Password",
     ],
   },
   {
@@ -160,7 +164,7 @@ export const EMAIL_PROVIDERS = [
     description: "Use your company or custom domain email server.",
     hrSees: "From: {name} <{email}>",
     hrResult: "\u2705 Professional company domain",
-    previewBg: "bg-emerald-50 ring-emerald-200",
+    previewBg: "bg-emerald-50 dark:bg-emerald-900/30 ring-emerald-200 dark:ring-emerald-800/40",
     fields: ["host", "port", "username", "password"] as const,
     helpLink: null,
     helpSteps: [],
@@ -175,7 +179,7 @@ export const EMAIL_PROVIDERS = [
     hrSees: "From: {name} <{email}> \u26a0\ufe0f via brevo.com",
     hrResult:
       "\u26a0\ufe0f May land in Spam \u00b7 \u26a0\ufe0f \u2018via brevo.com\u2019 warning \u00b7 \u274c Fails spam checks",
-    previewBg: "bg-amber-50 ring-amber-200",
+    previewBg: "bg-amber-50 dark:bg-amber-900/30 ring-amber-200 dark:ring-amber-800/40",
     fields: [] as const,
     helpLink: null,
     helpSteps: [],

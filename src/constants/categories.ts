@@ -1,3 +1,77 @@
+export const KEYWORD_PRESETS: { group: string; keywords: string[] }[] = [
+  {
+    group: "Architecture & Design",
+    keywords: [
+      "Code structure", "Modular routing", "Data flow design",
+      "ERD modelling", "Folder conventions", "Request/response pipelines",
+    ],
+  },
+  {
+    group: "Backend Stack",
+    keywords: [
+      "Node.js", "Express.js", "MongoDB", "React.js",
+      "Mongoose", "CRUD pipelines",
+    ],
+  },
+  {
+    group: "JavaScript (ES6+)",
+    keywords: [
+      "JavaScript", "ES6+", "Async/await",
+      "Closures", "Promises", "Event-driven patterns",
+    ],
+  },
+  {
+    group: "TypeScript",
+    keywords: [
+      "TypeScript", "Typed interfaces", "DTOs",
+      "NestJS modules", "Class-based services",
+    ],
+  },
+  {
+    group: "Frontend",
+    keywords: [
+      "React", "React hooks", "Responsive layouts",
+      "Tailwind CSS", "Next.js", "HTML/CSS",
+    ],
+  },
+  {
+    group: "Backend",
+    keywords: [
+      "Node.js", "Express.js", "NestJS",
+      "JWT auth", "Middleware", "Validation",
+      "REST APIs", "GraphQL",
+    ],
+  },
+  {
+    group: "DevOps & Cloud",
+    keywords: [
+      "Docker", "Kubernetes", "CI/CD",
+      "AWS", "Azure", "GCP", "Terraform",
+    ],
+  },
+  {
+    group: "Data & AI",
+    keywords: [
+      "Python", "Machine Learning", "Data Science",
+      "Pandas", "TensorFlow", "PyTorch", "SQL",
+    ],
+  },
+  {
+    group: "Mobile",
+    keywords: [
+      "React Native", "Flutter", "Swift",
+      "Kotlin", "iOS", "Android",
+    ],
+  },
+  {
+    group: "Database",
+    keywords: [
+      "PostgreSQL", "MySQL", "MongoDB",
+      "Redis", "Prisma", "Sequelize",
+    ],
+  },
+];
+
 export const JOB_CATEGORIES = [
   "Frontend Development",
   "Backend Development",

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAuthSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
+import { hasValidAdminSession } from "@/lib/admin-auth";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -9,6 +10,7 @@ import {
   ArrowLeft,
   Radio,
 } from "lucide-react";
+import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
 
 const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -22,10 +24,15 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getAuthSession();
-  if (!session?.user?.email || !isAdmin(session.user.email)) {
-    redirect("/");
+  const oauthSession = await getAuthSession();
+  const isOAuthAdmin = !!(oauthSession?.user?.email && isAdmin(oauthSession.user.email));
+  const isCredentialAdmin = hasValidAdminSession();
+
+  if (!isOAuthAdmin && !isCredentialAdmin) {
+    redirect("/admin/login");
   }
+
+  const authMethod = isOAuthAdmin ? "oauth" : "credentials";
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-zinc-950">
@@ -40,8 +47,11 @@ export default async function AdminLayout({
             Back to App
           </Link>
           <h1 className="mt-3 text-base font-bold text-slate-900 dark:text-zinc-100">Admin Panel</h1>
+          <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
+            {authMethod === "oauth" ? oauthSession?.user?.email : "Credential login"}
+          </p>
         </div>
-        <nav className="space-y-1">
+        <nav className="space-y-1 flex-1">
           {ADMIN_NAV.map((item) => (
             <Link
               key={item.href}
@@ -53,6 +63,9 @@ export default async function AdminLayout({
             </Link>
           ))}
         </nav>
+        {authMethod === "credentials" && (
+          <AdminLogoutButton />
+        )}
       </aside>
 
       {/* Mobile nav */}
@@ -72,6 +85,9 @@ export default async function AdminLayout({
               <item.icon className="h-4 w-4" />
             </Link>
           ))}
+          {authMethod === "credentials" && (
+            <AdminLogoutButton mobile />
+          )}
         </div>
       </div>
 

@@ -19,9 +19,9 @@ export default async function TemplatesPage() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 shadow-md shadow-slate-600/20">
             <Mail className="h-4 w-4 text-white" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Email Templates</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Email Templates</h1>
         </div>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-500 dark:text-zinc-400">
           Manage your application email templates. Use placeholders like {"{{company}}"}, {"{{position}}"}, {"{{name}}"} for personalization.
         </p>
       </div>

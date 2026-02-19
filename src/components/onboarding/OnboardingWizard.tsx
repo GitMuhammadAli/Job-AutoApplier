@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { saveSettings, completeOnboarding } from "@/app/actions/settings";
-import { JOB_CATEGORIES, WORK_TYPES, EXPERIENCE_LEVELS, TONE_OPTIONS, LANGUAGE_OPTIONS } from "@/constants/categories";
+import { JOB_CATEGORIES, WORK_TYPES, EXPERIENCE_LEVELS, TONE_OPTIONS, LANGUAGE_OPTIONS, KEYWORD_PRESETS } from "@/constants/categories";
 import { EMAIL_PROVIDERS } from "@/constants/settings";
 import {
   Loader2, ChevronRight, ChevronLeft, User, Briefcase, Grid3X3,
   Sparkles, FileUp, Mail, Brain, Rocket, Upload, CheckCircle2,
+  Settings, ChevronDown,
 } from "lucide-react";
+import Link from "next/link";
 
 const STEPS = [
   { title: "About You", icon: User, description: "Basic info for personalized applications" },
@@ -196,7 +198,7 @@ export function OnboardingWizard() {
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="ob-keywords" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Keywords (press Enter to add)</Label>
+                <Label htmlFor="ob-keywords" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Keywords (type + Enter to add, or pick from presets below)</Label>
                 <Input
                   id="ob-keywords"
                   value={keywordInput}
@@ -209,13 +211,81 @@ export function OnboardingWizard() {
                 {keywords.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {keywords.map((kw, i) => (
-                      <span key={i} className="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-100">
+                      <span key={i} className="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-800/40">
                         {kw}
                         <button onClick={() => setKeywords(keywords.filter((_, idx) => idx !== i))} aria-label={`Remove ${kw}`} className="text-blue-400 hover:text-blue-600 ml-0.5 touch-manipulation">×</button>
                       </span>
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Keyword Presets */}
+              <div>
+                <Label className="text-xs font-medium text-slate-600 dark:text-zinc-300 mb-1.5 block">Quick Add — Skill Groups</Label>
+                <div className="max-h-52 overflow-y-auto space-y-1 rounded-lg border border-slate-200 dark:border-zinc-700 p-2 scrollbar-thin">
+                  {KEYWORD_PRESETS.map((preset) => {
+                    const allSelected = preset.keywords.every((kw) => keywords.includes(kw));
+                    const someSelected = preset.keywords.some((kw) => keywords.includes(kw));
+                    return (
+                      <details key={preset.group} className="group rounded-lg">
+                        <summary className="flex items-center gap-2 cursor-pointer select-none rounded-lg px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors list-none">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (allSelected) {
+                                setKeywords(keywords.filter((kw) => !preset.keywords.includes(kw)));
+                              } else {
+                                const merged = Array.from(new Set([...keywords, ...preset.keywords]));
+                                setKeywords(merged);
+                              }
+                            }}
+                            className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors ${
+                              allSelected
+                                ? "bg-blue-600 border-blue-600 text-white"
+                                : someSelected
+                                  ? "bg-blue-100 dark:bg-blue-900/40 border-blue-400"
+                                  : "border-slate-300 dark:border-zinc-600"
+                            }`}
+                          >
+                            {allSelected && <span className="text-[9px] font-bold">✓</span>}
+                            {someSelected && !allSelected && <span className="text-[8px] text-blue-600 dark:text-blue-400 font-bold">–</span>}
+                          </button>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-zinc-200 flex-1">{preset.group}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-zinc-500 tabular-nums">{preset.keywords.filter((kw) => keywords.includes(kw)).length}/{preset.keywords.length}</span>
+                          <ChevronDown className="h-3 w-3 text-slate-400 dark:text-zinc-500 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="flex flex-wrap gap-1 px-2 pb-2 pt-1">
+                          {preset.keywords.map((kw) => {
+                            const selected = keywords.includes(kw);
+                            return (
+                              <button
+                                key={kw}
+                                type="button"
+                                onClick={() => {
+                                  if (selected) {
+                                    setKeywords(keywords.filter((k) => k !== kw));
+                                  } else {
+                                    setKeywords([...keywords, kw]);
+                                  }
+                                }}
+                                className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors touch-manipulation ${
+                                  selected
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600"
+                                }`}
+                              >
+                                {kw}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">{keywords.length} keyword{keywords.length !== 1 ? "s" : ""} selected</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -362,21 +432,17 @@ export function OnboardingWizard() {
                 </div>
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600 dark:text-zinc-300">Language</Label>
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                <Label htmlFor="ob-language" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Language</Label>
+                <select
+                  id="ob-language"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                >
                   {LANGUAGE_OPTIONS.map((l) => (
-                    <button
-                      key={l}
-                      type="button"
-                      onClick={() => setLanguage(l)}
-                      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
-                        language === l ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
-                      }`}
-                    >
-                      {l}
-                    </button>
+                    <option key={l} value={l}>{l}</option>
                   ))}
-                </div>
+                </select>
               </div>
               <div>
                 <Label htmlFor="ob-prompt" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Custom AI Instructions (optional)</Label>
@@ -484,6 +550,21 @@ export function OnboardingWizard() {
                 {uploadedResume && <p><strong>Resume:</strong> {uploadedResume.name} ({uploadedResume.skills.length} skills)</p>}
                 <p><strong>AI Tone:</strong> {tone} / {language}</p>
                 <p><strong>Email:</strong> {EMAIL_PROVIDERS.find((p) => p.value === emailProvider)?.label}</p>
+              </div>
+
+              {/* Advanced settings prompt */}
+              <div className="mt-4 rounded-lg border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30 p-3 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+                  <Settings className="h-3.5 w-3.5" />
+                  <span>Want more control?</span>
+                </div>
+                <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">
+                  For advanced options like email credentials, salary filters, job sources, and notification preferences, visit{" "}
+                  <Link href="/settings" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                    Settings
+                  </Link>{" "}
+                  after setup.
+                </p>
               </div>
             </div>
           )}
