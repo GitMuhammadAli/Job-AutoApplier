@@ -21,13 +21,14 @@ export function StageSelector({ currentStage, onStageChange }: StageSelectorProp
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 rounded-lg hover:bg-slate-100"
+          aria-label={`Move to ${STAGE_CONFIG[prevStage].label}`}
+          className="h-6 w-6 rounded-lg hover:bg-slate-100 touch-manipulation"
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
             onStageChange(prevStage as JobStage);
           }}
-          title={`Move to ${STAGE_CONFIG[prevStage].label}`}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <ChevronLeft className="h-3.5 w-3.5" />
         </Button>
@@ -36,13 +37,14 @@ export function StageSelector({ currentStage, onStageChange }: StageSelectorProp
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 rounded-lg hover:bg-slate-100"
+          aria-label={`Move to ${STAGE_CONFIG[nextStage].label}`}
+          className="h-6 w-6 rounded-lg hover:bg-slate-100 touch-manipulation"
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
             onStageChange(nextStage as JobStage);
           }}
-          title={`Move to ${STAGE_CONFIG[nextStage].label}`}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </Button>

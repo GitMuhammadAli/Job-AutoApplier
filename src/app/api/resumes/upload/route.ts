@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { put, list } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
-import { extractText, extractSkillsFromContent } from "@/lib/resume-parser";
+import { extractText } from "@/lib/resume-parser";
+import { extractSkillsFromContent } from "@/lib/skill-extractor";
 
 export const dynamic = "force-dynamic";
 
 const MAX_RESUMES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_TOTAL_STORAGE = 20 * 1024 * 1024; // 20 MB per user
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,6 +18,20 @@ export async function POST(req: NextRequest) {
     const existingCount = await prisma.resume.count({
       where: { userId, isDeleted: false },
     });
+
+    // 20 MB total storage check
+    try {
+      const blobs = await list({ prefix: `resumes/${userId}/` });
+      const totalSize = blobs.blobs.reduce((acc, b) => acc + b.size, 0);
+      if (totalSize >= MAX_TOTAL_STORAGE) {
+        return NextResponse.json(
+          { error: "Storage limit reached (20 MB). Delete a resume first." },
+          { status: 400 }
+        );
+      }
+    } catch {
+      // Blob list may fail in dev — continue
+    }
     if (existingCount >= MAX_RESUMES) {
       return NextResponse.json(
         { error: `Maximum ${MAX_RESUMES} resumes allowed. Delete one first.` },
@@ -98,6 +114,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const needsManualText = textQuality === "poor" || textQuality === "empty";
+
     return NextResponse.json({
       success: true,
       resume: {
@@ -112,6 +130,7 @@ export async function POST(req: NextRequest) {
         isDefault: resume.isDefault,
       },
       textQuality,
+      needsManualText,
     });
   } catch (error) {
     console.error("Resume upload error:", error);

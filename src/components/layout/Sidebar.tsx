@@ -16,6 +16,7 @@ import {
   LogOut,
   Mail,
   Inbox,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { href: "/analytics", label: "Analytics", icon: BarChart3, desc: "Performance" },
   { href: "/resumes", label: "Resumes", icon: FileText, desc: "CV variants" },
   { href: "/templates", label: "Templates", icon: Mail, desc: "Email templates" },
+  { href: "/system-health", label: "System Health", icon: Radio, desc: "Monitor crons" },
   { href: "/settings", label: "Settings", icon: Settings, desc: "Preferences" },
 ];
 
@@ -37,11 +39,16 @@ interface SidebarProps {
     email?: string | null;
     image?: string | null;
   };
+  isAdmin?: boolean;
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navItems = adminUser
+    ? [...NAV_ITEMS, { href: "/admin", label: "Admin Panel", icon: ShieldCheck, desc: "System admin" }]
+    : NAV_ITEMS;
 
   return (
     <>
@@ -49,7 +56,8 @@ export function Sidebar({ user }: SidebarProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-4 left-4 z-50 md:hidden bg-white/80 backdrop-blur-sm shadow-sm"
+        aria-label={mobileOpen ? "Close menu" : "Open menu"}
+        className="fixed top-4 left-4 z-50 md:hidden bg-white/80 backdrop-blur-sm shadow-sm touch-manipulation focus-visible:ring-2 focus-visible:ring-blue-500"
         onClick={() => setMobileOpen(!mobileOpen)}
       >
         {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -99,7 +107,7 @@ export function Sidebar({ user }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 space-y-0.5 px-3 py-3 overflow-y-auto scrollbar-thin">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const isActive =
               item.href === "/"
                 ? pathname === "/"
@@ -170,8 +178,8 @@ export function Sidebar({ user }: SidebarProps) {
               </div>
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
-                title="Sign out"
+                aria-label="Sign out"
+                className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none touch-manipulation"
               >
                 <LogOut className="h-3.5 w-3.5 text-slate-400" />
               </button>

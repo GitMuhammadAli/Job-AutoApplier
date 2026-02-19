@@ -120,7 +120,7 @@ export default function SystemHealthPage() {
             {Object.entries(data.sourceStats).map(([source, stats]) => (
               <div key={source} className="rounded-lg bg-slate-50 p-3">
                 <div className="text-xs font-semibold text-slate-600 capitalize">{source}</div>
-                <div className="text-lg font-bold text-slate-800">{stats.found}</div>
+                <div className="text-lg font-bold text-slate-800 tabular-nums">{stats.found}</div>
                 <div className="text-[10px] text-slate-400">
                   {stats.errors > 0 ? (
                     <span className="text-red-500">{stats.errors} errors</span>
@@ -201,7 +201,7 @@ function StatusCard({ title, message, timeAgo: ago }: {
 function StatBox({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className="text-center">
-      <div className={`text-2xl font-bold ${color}`}>{value}</div>
+      <div className={`text-2xl font-bold tabular-nums ${color}`}>{value}</div>
       <div className="text-[10px] text-slate-400 font-medium">{label}</div>
     </div>
   );

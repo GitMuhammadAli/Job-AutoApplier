@@ -58,7 +58,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`group relative cursor-grab active:cursor-grabbing rounded-xl bg-white p-3 md:p-3.5 shadow-sm ring-1 ring-slate-100/80 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 ${
+      className={`group relative cursor-grab active:cursor-grabbing rounded-xl bg-white p-3 md:p-3.5 shadow-sm ring-1 ring-slate-100/80 transition-shadow transition-transform duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 touch-manipulation ${
         isDragging ? "opacity-50 shadow-lg rotate-2 z-50 ring-blue-300" : ""
       }`}
     >
@@ -176,7 +176,7 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition-all duration-200 shadow-sm hover:shadow bg-blue-500 text-white hover:bg-blue-600"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors duration-200 shadow-sm hover:shadow bg-blue-500 text-white hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-none touch-manipulation"
           >
             <ExternalLink className="h-2.5 w-2.5" />
             Apply

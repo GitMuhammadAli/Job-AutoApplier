@@ -16,7 +16,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { BarChart3, GitBranch, Globe, Activity, Zap, Timer } from "lucide-react";
+import { BarChart3, GitBranch, Globe, Activity, Zap, Timer, Star } from "lucide-react";
 
 const COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#06b6d4", "#ef4444", "#ec4899", "#6366f1"];
 
@@ -27,6 +27,7 @@ interface ChartsProps {
   activityOverTime: { week: string; count: number }[];
   applyMethodBreakdown: { method: string; count: number }[];
   speedOverTime: { date: string; avgMinutes: number }[];
+  matchScoreDistribution?: { range: string; count: number }[];
 }
 
 function ChartCard({
@@ -69,6 +70,7 @@ export function Charts({
   activityOverTime,
   applyMethodBreakdown,
   speedOverTime,
+  matchScoreDistribution,
 }: ChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -225,6 +227,28 @@ export function Charts({
           </ResponsiveContainer>
         )}
       </ChartCard>
+
+      {matchScoreDistribution && (
+        <ChartCard title="Match Score Distribution" icon={Star} gradient="from-emerald-500 to-cyan-500" className="lg:col-span-2">
+          {matchScoreDistribution.every((d) => d.count === 0) ? (
+            <NoData text="No match data yet" />
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={matchScoreDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="range" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]} name="Jobs">
+                  {matchScoreDistribution.map((_, i) => (
+                    <Cell key={i} fill={["#ef4444", "#f59e0b", "#eab308", "#22c55e", "#10b981"][i % 5]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
+      )}
     </div>
   );
 }

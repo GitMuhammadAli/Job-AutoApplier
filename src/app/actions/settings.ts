@@ -40,7 +40,7 @@ const settingsSchema = z.object({
   resumeMatchMode: z.string().default("smart"),
   // Application Automation
   applicationEmail: z.string().email().optional().or(z.literal("")),
-  applicationMode: z.enum(["SEMI_AUTO", "FULL_AUTO"]).default("SEMI_AUTO"),
+  applicationMode: z.enum(["MANUAL", "SEMI_AUTO", "FULL_AUTO"]).default("SEMI_AUTO"),
   autoApplyEnabled: z.boolean().default(false),
   maxAutoApplyPerDay: z.number().min(1).max(50).default(10),
   minMatchScoreForAutoApply: z.number().min(0).max(100).default(75),
@@ -61,6 +61,12 @@ const settingsSchema = z.object({
   accountStatus: z.string().default("active"),
   notificationFrequency: z.string().default("hourly"),
   instantApplyDelay: z.number().min(0).max(30).default(5),
+  // Sending Safety
+  sendDelaySeconds: z.number().min(30).max(600).default(120),
+  maxSendsPerHour: z.number().min(1).max(30).default(8),
+  maxSendsPerDay: z.number().min(1).max(100).default(20),
+  cooldownMinutes: z.number().min(5).max(120).default(30),
+  bouncePauseHours: z.number().min(1).max(72).default(24),
 });
 
 export async function getSettings() {
@@ -116,6 +122,11 @@ export async function saveSettings(rawData: unknown) {
     accountStatus: data.accountStatus || "active",
     notificationFrequency: data.notificationFrequency || "hourly",
     instantApplyDelay: data.instantApplyDelay ?? 5,
+    sendDelaySeconds: data.sendDelaySeconds ?? 120,
+    maxSendsPerHour: data.maxSendsPerHour ?? 8,
+    maxSendsPerDay: data.maxSendsPerDay ?? 20,
+    cooldownMinutes: data.cooldownMinutes ?? 30,
+    bouncePauseHours: data.bouncePauseHours ?? 24,
   };
 
   const result = await prisma.userSettings.upsert({

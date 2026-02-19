@@ -21,6 +21,7 @@ import {
 import { STAGE_CONFIG, STAGES, daysAgo } from "@/lib/utils";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { ActivityTimeline } from "@/components/jobs/ActivityTimeline";
+import { QuickApplyPanel } from "@/components/jobs/QuickApplyPanel";
 import { updateStage, dismissJob, addNote } from "@/app/actions/job";
 import { generateCoverLetter, saveCoverLetter } from "@/app/actions/cover-letter";
 import type { JobStage, ActivityType } from "@prisma/client";
@@ -75,8 +76,10 @@ interface ApplicationData {
   sentAt: Date | string | null;
   subject: string;
   emailBody: string;
+  coverLetter: string | null;
   recipientEmail: string;
   senderEmail: string;
+  resume?: { id: string; name: string; fileName: string | null } | null;
 }
 
 interface JobDetailProps {
@@ -101,6 +104,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
   const [noteText, setNoteText] = useState(job.notes || "");
   const [coverLetterText, setCoverLetterText] = useState(job.coverLetter || "");
   const [generating, setGenerating] = useState(false);
+  const [dismissReason, setDismissReason] = useState("");
 
   const g = job.globalJob;
   const config = STAGE_CONFIG[job.stage];
@@ -121,7 +125,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
   const handleDismiss = () => {
     startTransition(async () => {
       try {
-        await dismissJob(job.id);
+        await dismissJob(job.id, dismissReason || undefined);
         toast.success("Job dismissed");
         router.push("/");
       } catch {
@@ -213,6 +217,22 @@ export function JobDetailClient({ job }: JobDetailProps) {
                     This will hide the job from your pipeline. You can find it in dismissed jobs later.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
+                <div className="flex flex-wrap gap-1.5 py-2">
+                  {DISMISS_REASONS.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setDismissReason(dismissReason === r ? "" : r)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                        dismissReason === r
+                          ? "bg-red-600 text-white"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={handleDismiss} className="bg-red-600 hover:bg-red-700">
@@ -249,6 +269,10 @@ export function JobDetailClient({ job }: JobDetailProps) {
         })}
       </div>
 
+      {/* Main Content: Split Layout */}
+      <div className="flex flex-col lg:flex-row gap-5">
+        {/* Left: Job Details */}
+        <div className="flex-1 min-w-0">
       {/* Tabs */}
       <Tabs defaultValue="details" className="space-y-0">
         <TabsList className="bg-slate-100/80 rounded-lg p-0.5">
@@ -448,6 +472,28 @@ export function JobDetailClient({ job }: JobDetailProps) {
           </div>
         </TabsContent>
       </Tabs>
+        </div>
+
+        {/* Right: Quick Apply Panel */}
+        <div className="w-full lg:w-[380px] shrink-0">
+          <div className="sticky top-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80">
+            <QuickApplyPanel
+              userJob={{
+                id: job.id,
+                matchScore: job.matchScore,
+                matchReasons: job.matchReasons,
+                globalJob: {
+                  title: g.title,
+                  company: g.company,
+                  companyEmail: g.companyEmail,
+                  location: g.location,
+                },
+              }}
+              application={job.application}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -461,3 +507,15 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
     </div>
   );
 }
+
+const DISMISS_REASONS = [
+  "Not relevant",
+  "Low salary",
+  "Wrong location",
+  "Already applied",
+  "Company not interested",
+  "Role too junior",
+  "Role too senior",
+  "Bad reviews",
+  "Other",
+];

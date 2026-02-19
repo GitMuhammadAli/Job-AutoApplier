@@ -3,28 +3,37 @@ export interface VerifyEmailMXResult {
   hasMX: boolean;
 }
 
+export async function verifyMxRecord(domain: string): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=MX`,
+      { signal: AbortSignal.timeout(3000) }
+    );
+
+    if (!response.ok) return false;
+
+    const data = (await response.json()) as {
+      Status?: number;
+      Answer?: Array<{ type?: number }>;
+    };
+
+    return (
+      data.Status === 0 &&
+      Array.isArray(data.Answer) &&
+      data.Answer.length > 0
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function verifyEmailMX(email: string): Promise<VerifyEmailMXResult> {
   const atIndex = email.lastIndexOf("@");
-  if (atIndex === -1) {
-    return { valid: false, hasMX: false };
-  }
+  if (atIndex === -1) return { valid: false, hasMX: false };
 
   const domain = email.slice(atIndex + 1);
-  if (!domain) {
-    return { valid: false, hasMX: false };
-  }
+  if (!domain) return { valid: false, hasMX: false };
 
-  try {
-    const url = `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=MX`;
-    const res = await fetch(url);
-    const data = (await res.json()) as { Answer?: Array<{ type?: number }> };
-    const answers = data.Answer ?? [];
-    const hasMX = answers.some((a) => a.type === 15);
-    return {
-      valid: hasMX,
-      hasMX,
-    };
-  } catch {
-    return { valid: false, hasMX: false };
-  }
+  const hasMX = await verifyMxRecord(domain);
+  return { valid: hasMX, hasMX };
 }

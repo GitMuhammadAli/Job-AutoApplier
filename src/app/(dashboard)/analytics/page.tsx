@@ -49,6 +49,7 @@ export default async function AnalyticsPage() {
         activityOverTime={analytics.activityOverTime}
         applyMethodBreakdown={analytics.applyMethodBreakdown}
         speedOverTime={analytics.speedOverTime}
+        matchScoreDistribution={analytics.matchScoreDistribution}
       />
     </div>
   );

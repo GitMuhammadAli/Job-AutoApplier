@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendJobMatchNotification } from "@/lib/email/notifications";
+import { checkNotificationLimit, recordNotification } from "@/lib/notification-limiter";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,10 @@ export async function GET(req: NextRequest) {
 
       if (newJobs.length === 0) continue;
 
+      // Check notification limits (max 1/hour, 3/day)
+      const canNotify = await checkNotificationLimit(user.userId);
+      if (!canNotify) continue;
+
       const jobNotifications = newJobs.map((uj) => ({
         title: uj.globalJob.title,
         company: uj.globalJob.company,
@@ -79,6 +84,7 @@ export async function GET(req: NextRequest) {
           jobNotifications,
           user.fullName || user.user.name || "there"
         );
+        await recordNotification(user.userId, `Sent ${newJobs.length} job match notification to ${email}`);
         notified++;
       } catch (err) {
         console.error(`Failed to notify ${email}:`, err);

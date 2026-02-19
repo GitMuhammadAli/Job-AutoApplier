@@ -26,7 +26,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { createResume, updateResume, deleteResume } from "@/app/actions/resume";
+import { createResume, updateResume, deleteResume, updateResumeCategories, setDefaultResume } from "@/app/actions/resume";
+import { JOB_CATEGORIES } from "@/constants/categories";
 import {
   FileText,
   Plus,
@@ -38,6 +39,8 @@ import {
   ClipboardPaste,
   CheckCircle2,
   Brain,
+  Tags,
+  Star,
 } from "lucide-react";
 
 interface ResumeWithStats {
@@ -51,6 +54,7 @@ interface ResumeWithStats {
   userId: string;
   createdAt: string;
   applicationCount: number;
+  targetCategories?: string[];
 }
 
 interface ResumeListProps {
@@ -67,6 +71,8 @@ export function ResumeList({ resumes }: ResumeListProps) {
   const [fileUrl, setFileUrl] = useState("");
   const [content, setContent] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [categoryDialogId, setCategoryDialogId] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   const handlePdfUpload = async (file: File) => {
     if (!file) return;
@@ -152,6 +158,43 @@ export function ResumeList({ resumes }: ResumeListProps) {
     });
   };
 
+  const openCategoryDialog = (r: ResumeWithStats) => {
+    setCategoryDialogId(r.id);
+    setSelectedCategories(r.targetCategories ?? []);
+  };
+
+  const handleSaveCategories = () => {
+    if (!categoryDialogId) return;
+    startTransition(async () => {
+      try {
+        await updateResumeCategories(categoryDialogId, selectedCategories);
+        toast.success("Categories updated");
+        setCategoryDialogId(null);
+        router.refresh();
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to update categories");
+      }
+    });
+  };
+
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
+
+  const handleSetDefault = (id: string) => {
+    startTransition(async () => {
+      try {
+        await setDefaultResume(id);
+        toast.success("Default resume updated");
+        router.refresh();
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to set default");
+      }
+    });
+  };
+
   const openEdit = (r: ResumeWithStats) => {
     setEditingId(r.id);
     setName(r.name);
@@ -218,7 +261,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
                     />
                   </label>
                 </div>
-                {uploading && <p className="text-xs text-blue-600 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Parsing PDF...</p>}
+                {uploading && <p className="text-xs text-blue-600 flex items-center gap-1" aria-live="polite"><Loader2 className="h-3 w-3 animate-spin" /> Parsing PDF&hellip;</p>}
               </div>
               <div className="relative flex items-center">
                 <div className="flex-grow border-t border-slate-200" />
@@ -283,6 +326,67 @@ export function ResumeList({ resumes }: ResumeListProps) {
               >
                 {isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
                 Save Content
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category mapper dialog */}
+      <Dialog
+        open={categoryDialogId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCategoryDialogId(null);
+            setSelectedCategories([]);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tags className="h-4 w-4 text-indigo-600" />
+              Assign Job Categories
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-slate-500">
+            Select which job categories this resume targets. The matcher will prefer this resume for jobs in these categories.
+          </p>
+          <div className="grid grid-cols-1 gap-1.5 pt-2">
+            {JOB_CATEGORIES.map((cat) => (
+              <label
+                key={cat}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 cursor-pointer text-xs transition-colors ${
+                  selectedCategories.includes(cat)
+                    ? "bg-indigo-50 ring-1 ring-indigo-200 text-indigo-700 font-medium"
+                    : "hover:bg-slate-50 text-slate-600"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedCategories.includes(cat)}
+                  onChange={() => toggleCategory(cat)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                {cat}
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-between items-center pt-3">
+            <span className="text-[10px] text-slate-400">
+              {selectedCategories.length} selected
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setCategoryDialogId(null); setSelectedCategories([]); }}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSaveCategories} disabled={isPending}>
+                {isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                Save Categories
               </Button>
             </div>
           </div>
@@ -370,7 +474,20 @@ export function ResumeList({ resumes }: ResumeListProps) {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                {(r.targetCategories ?? []).length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {(r.targetCategories ?? []).slice(0, 3).map((cat) => (
+                      <Badge key={cat} variant="outline" className="text-[9px] px-1.5 py-0 border-indigo-200 text-indigo-600">
+                        {cat}
+                      </Badge>
+                    ))}
+                    {(r.targetCategories ?? []).length > 3 && (
+                      <span className="text-[9px] text-slate-400">+{(r.targetCategories ?? []).length - 3} more</span>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
@@ -380,6 +497,27 @@ export function ResumeList({ resumes }: ResumeListProps) {
                     <ClipboardPaste className="h-3 w-3 mr-1" />
                     {r.content ? "Edit Content" : "Paste Resume"}
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[10px] px-2"
+                    onClick={() => openCategoryDialog(r)}
+                  >
+                    <Tags className="h-3 w-3 mr-1" />
+                    Categories
+                  </Button>
+                  {!r.isDefault && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] px-2"
+                      onClick={() => handleSetDefault(r.id)}
+                      disabled={isPending}
+                    >
+                      <Star className="h-3 w-3 mr-1" />
+                      Set Default
+                    </Button>
+                  )}
                   {r.fileUrl && (
                     <a
                       href={r.fileUrl}

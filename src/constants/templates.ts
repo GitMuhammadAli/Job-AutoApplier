@@ -1,30 +1,70 @@
 export const STARTER_TEMPLATES = [
   {
-    name: "General Application",
-    subject: "Application for {{position}} — {{name}}",
-    body: "Hi,\n\nI'm reaching out about the {{position}} opening at {{company}}. My background aligns well with what you're looking for, and I'd love to bring that experience to your team.\n\nI've attached my resume for your review. Would love to chat if you think there's a fit.\n\nBest,\n{{name}}",
-  },
-  {
-    name: "Technical Role",
+    name: "Professional Standard",
     subject: "{{position}} — {{name}}",
-    body: "Hi there,\n\nI came across the {{position}} role at {{company}} and it caught my attention. I've been working with relevant technologies and have hands-on experience with the skills you're looking for.\n\nMy resume is attached. I'd welcome the chance to discuss how I can contribute to your team.\n\n{{name}}",
+    body: `Hi {{company}} team,
+
+I came across your {{position}} opening and believe my background makes me a strong fit.
+
+[AI will fill in 2-3 specific qualifications from resume]
+
+I'd welcome the opportunity to discuss how I can contribute to {{company}}. I'm available for a call at your convenience.
+
+Best regards,
+{{name}}`,
+    isDefault: true,
   },
   {
-    name: "Startup / Casual",
-    subject: "Excited about {{position}} at {{company}}",
-    body: "Hey team,\n\nThe {{position}} role at {{company}} looks like exactly the kind of challenge I'm looking for. I love what you're building.\n\nI thrive in fast-paced environments where I can wear multiple hats. Resume attached — would love to connect.\n\nCheers,\n{{name}}",
+    name: "Confident & Direct",
+    subject: "{{position}} Application — {{name}}",
+    body: `Hi {{company}} team,
+
+Your {{position}} role caught my attention. Here's why I'm the right person:
+
+[AI will fill in specific qualifications]
+
+Let's set up a time to talk. I'm confident I can make an immediate impact.
+
+{{name}}`,
+    isDefault: false,
   },
   {
-    name: "Referral Mention",
-    subject: "{{position}} at {{company}} — Referred by [Referrer]",
-    body: "Hi,\n\n[Referrer Name] suggested I reach out regarding the {{position}} position at {{company}}. After learning more about the role, I believe my experience would be a strong fit.\n\nI've attached my resume. Looking forward to the possibility of joining your team.\n\nBest,\n{{name}}",
+    name: "Referral / Connection",
+    subject: "{{position}} — Referred by [Connection Name]",
+    body: `Hi {{company}} team,
+
+[Connection Name] suggested I reach out about your {{position}} opening.
+
+[AI will fill in qualifications]
+
+I'd love to learn more about the role and how I can contribute. Happy to chat whenever works best.
+
+Warm regards,
+{{name}}`,
+    isDefault: false,
+  },
+  {
+    name: "Short & Sweet",
+    subject: "Re: {{position}} at {{company}}",
+    body: `Hi,
+
+Applying for your {{position}} role. Quick background:
+
+[AI will fill in 2-3 bullet points]
+
+Resume attached. Happy to jump on a quick call.
+
+{{name}}`,
+    isDefault: false,
   },
 ] as const;
 
-export const TEMPLATE_PLACEHOLDERS = [
-  { key: "{{company}}", label: "Company Name" },
-  { key: "{{position}}", label: "Position Title" },
-  { key: "{{name}}", label: "Your Name" },
-  { key: "{{location}}", label: "Job Location" },
-  { key: "{{salary}}", label: "Salary" },
+export const APPLY_PLATFORMS = [
+  "LinkedIn",
+  "Indeed",
+  "Company Website",
+  "Rozee.pk",
+  "Email",
+  "Referral",
+  "Other",
 ] as const;

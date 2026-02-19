@@ -55,7 +55,7 @@ export function StatsBar({ jobs }: StatsBarProps) {
             </div>
             <div>
               <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{stat.label}</p>
-              <p className="text-lg font-bold text-slate-900">{values[stat.key]}</p>
+              <p className="text-lg font-bold text-slate-900 tabular-nums">{values[stat.key]}</p>
             </div>
           </div>
         </div>

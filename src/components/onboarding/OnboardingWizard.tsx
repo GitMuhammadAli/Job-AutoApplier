@@ -6,26 +6,38 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { saveSettings, completeOnboarding } from "@/app/actions/settings";
-import { JOB_CATEGORIES, WORK_TYPES, EXPERIENCE_LEVELS } from "@/constants/categories";
-import { Loader2, ChevronRight, ChevronLeft, User, Briefcase, Grid3X3, Sparkles } from "lucide-react";
+import { JOB_CATEGORIES, WORK_TYPES, EXPERIENCE_LEVELS, TONE_OPTIONS, LANGUAGE_OPTIONS } from "@/constants/categories";
+import { EMAIL_PROVIDERS } from "@/constants/settings";
+import {
+  Loader2, ChevronRight, ChevronLeft, User, Briefcase, Grid3X3,
+  Sparkles, FileUp, Mail, Brain, Rocket, Upload, CheckCircle2,
+} from "lucide-react";
 
 const STEPS = [
   { title: "About You", icon: User, description: "Basic info for personalized applications" },
   { title: "What You Want", icon: Briefcase, description: "Keywords, location, and preferences" },
   { title: "Categories", icon: Grid3X3, description: "Select job categories you're interested in" },
-  { title: "Ready!", icon: Sparkles, description: "You're all set to start" },
+  { title: "Resume", icon: FileUp, description: "Upload your resume for smart matching" },
+  { title: "AI Settings", icon: Brain, description: "Configure AI tone and language" },
+  { title: "Email Provider", icon: Mail, description: "Set up email for sending applications" },
+  { title: "Ready!", icon: Rocket, description: "Let's find your first matches" },
 ];
 
 export function OnboardingWizard() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [matching, setMatching] = useState(false);
+  const [matchResult, setMatchResult] = useState<{ totalScanned: number; matched: number } | null>(null);
 
+  // Step 0: About You
   const [fullName, setFullName] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
 
+  // Step 1: What You Want
   const [keywords, setKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState("");
   const [city, setCity] = useState("");
@@ -33,7 +45,20 @@ export function OnboardingWizard() {
   const [experienceLevel, setExperienceLevel] = useState("");
   const [workTypes, setWorkTypes] = useState<string[]>([]);
 
+  // Step 2: Categories
   const [categories, setCategories] = useState<string[]>([]);
+
+  // Step 3: Resume
+  const [uploading, setUploading] = useState(false);
+  const [uploadedResume, setUploadedResume] = useState<{ name: string; skills: string[] } | null>(null);
+
+  // Step 4: AI Settings
+  const [tone, setTone] = useState("professional");
+  const [language, setLanguage] = useState("English");
+  const [customPrompt, setCustomPrompt] = useState("");
+
+  // Step 5: Email Provider
+  const [emailProvider, setEmailProvider] = useState("brevo");
 
   const addKeyword = useCallback(() => {
     const val = keywordInput.trim();
@@ -45,6 +70,34 @@ export function OnboardingWizard() {
 
   const toggleArr = (arr: string[], val: string, setter: (v: string[]) => void) => {
     setter(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
+  };
+
+  const handleResumeUpload = async (file: File) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("name", file.name.replace(/\.[^.]+$/, ""));
+      formData.append("isDefault", "true");
+      if (categories.length > 0) {
+        formData.append("targetCategories", JSON.stringify(categories));
+      }
+      const res = await fetch("/api/resumes/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.success) {
+        setUploadedResume({
+          name: data.resume.name,
+          skills: data.resume.detectedSkills || [],
+        });
+        toast.success(`Resume uploaded! Detected ${data.resume.detectedSkills?.length || 0} skills.`);
+      } else {
+        toast.error(data.error || "Upload failed");
+      }
+    } catch {
+      toast.error("Upload failed");
+    }
+    setUploading(false);
   };
 
   const handleFinish = async () => {
@@ -62,8 +115,26 @@ export function OnboardingWizard() {
         preferredCategories: categories,
         emailNotifications: true,
         preferredPlatforms: ["jsearch", "indeed", "remotive", "linkedin", "arbeitnow"],
+        tone,
+        language,
+        customSystemPrompt: customPrompt || undefined,
+        emailProvider,
       });
       await completeOnboarding();
+
+      // Trigger instant match
+      setMatching(true);
+      try {
+        const matchRes = await fetch("/api/onboarding/complete", { method: "POST" });
+        if (matchRes.ok) {
+          const result = await matchRes.json();
+          setMatchResult(result);
+        }
+      } catch {
+        // Non-critical — jobs will appear on next scrape
+      }
+      setMatching(false);
+
       toast.success("Profile configured! Jobs will start appearing soon.");
       router.push("/");
       router.refresh();
@@ -77,10 +148,10 @@ export function OnboardingWizard() {
     <div className="min-h-[70vh] flex items-center justify-center">
       <div className="w-full max-w-lg">
         {/* Progress */}
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center gap-1.5 mb-8 overflow-x-auto">
           {STEPS.map((s, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+            <div key={i} className="flex items-center gap-1.5">
+              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
                 i === step ? "bg-blue-600 text-white shadow-lg scale-110" :
                 i < step ? "bg-emerald-500 text-white" :
                 "bg-slate-100 text-slate-400"
@@ -88,7 +159,7 @@ export function OnboardingWizard() {
                 {i < step ? "✓" : i + 1}
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`h-0.5 w-8 rounded ${i < step ? "bg-emerald-400" : "bg-slate-200"}`} />
+                <div className={`h-0.5 w-5 rounded ${i < step ? "bg-emerald-400" : "bg-slate-200"}`} />
               )}
             </div>
           ))}
@@ -107,16 +178,16 @@ export function OnboardingWizard() {
           {step === 0 && (
             <div className="space-y-4">
               <div>
-                <Label className="text-xs font-medium text-slate-600">Full Name</Label>
-                <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Muhammad Ali" className="mt-1" />
+                <Label htmlFor="ob-fullname" className="text-xs font-medium text-slate-600">Full Name</Label>
+                <Input id="ob-fullname" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Muhammad Ali" autoComplete="name" className="mt-1" />
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600">LinkedIn URL (optional)</Label>
-                <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/..." className="mt-1" />
+                <Label htmlFor="ob-linkedin" className="text-xs font-medium text-slate-600">LinkedIn URL (optional)</Label>
+                <Input id="ob-linkedin" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/…" autoComplete="url" spellCheck={false} className="mt-1" />
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600">GitHub URL (optional)</Label>
-                <Input value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/..." className="mt-1" />
+                <Label htmlFor="ob-github" className="text-xs font-medium text-slate-600">GitHub URL (optional)</Label>
+                <Input id="ob-github" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/…" autoComplete="url" spellCheck={false} className="mt-1" />
               </div>
             </div>
           )}
@@ -125,12 +196,14 @@ export function OnboardingWizard() {
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <Label className="text-xs font-medium text-slate-600">Keywords (press Enter to add)</Label>
+                <Label htmlFor="ob-keywords" className="text-xs font-medium text-slate-600">Keywords (press Enter to add)</Label>
                 <Input
+                  id="ob-keywords"
                   value={keywordInput}
                   onChange={(e) => setKeywordInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
-                  placeholder="React, Node.js, Python..."
+                  placeholder="React, Node.js, Python…"
+                  autoComplete="off"
                   className="mt-1"
                 />
                 {keywords.length > 0 && (
@@ -138,7 +211,7 @@ export function OnboardingWizard() {
                     {keywords.map((kw, i) => (
                       <span key={i} className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-100">
                         {kw}
-                        <button onClick={() => setKeywords(keywords.filter((_, idx) => idx !== i))} className="text-blue-400 hover:text-blue-600 ml-0.5">×</button>
+                        <button onClick={() => setKeywords(keywords.filter((_, idx) => idx !== i))} aria-label={`Remove ${kw}`} className="text-blue-400 hover:text-blue-600 ml-0.5 touch-manipulation">×</button>
                       </span>
                     ))}
                   </div>
@@ -146,12 +219,12 @@ export function OnboardingWizard() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs font-medium text-slate-600">City</Label>
-                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Lahore" className="mt-1" />
+                  <Label htmlFor="ob-city" className="text-xs font-medium text-slate-600">City</Label>
+                  <Input id="ob-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Lahore" autoComplete="address-level2" className="mt-1" />
                 </div>
                 <div>
-                  <Label className="text-xs font-medium text-slate-600">Country</Label>
-                  <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Pakistan" className="mt-1" />
+                  <Label htmlFor="ob-country" className="text-xs font-medium text-slate-600">Country</Label>
+                  <Input id="ob-country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Pakistan" autoComplete="country-name" className="mt-1" />
                 </div>
               </div>
               <div>
@@ -162,7 +235,7 @@ export function OnboardingWizard() {
                       key={l.value}
                       type="button"
                       onClick={() => setExperienceLevel(experienceLevel === l.value ? "" : l.value)}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors touch-manipulation ${
                         experienceLevel === l.value ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
@@ -179,7 +252,7 @@ export function OnboardingWizard() {
                       key={w.value}
                       type="button"
                       onClick={() => toggleArr(workTypes, w.value, setWorkTypes)}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors touch-manipulation ${
                         workTypes.includes(w.value) ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
@@ -201,7 +274,7 @@ export function OnboardingWizard() {
                     key={cat}
                     type="button"
                     onClick={() => toggleArr(categories, cat, setCategories)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                    className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
                       categories.includes(cat) ? "bg-violet-600 text-white shadow-sm" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                     }`}
                   >
@@ -213,21 +286,204 @@ export function OnboardingWizard() {
             </div>
           )}
 
-          {/* Step 3: Ready */}
+          {/* Step 3: Resume Upload */}
           {step === 3 && (
-            <div className="text-center py-6">
-              <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-violet-50 p-5 mb-4 inline-block ring-1 ring-blue-100/50">
-                <Sparkles className="h-10 w-10 text-blue-500" />
-              </div>
-              <h3 className="text-base font-bold text-slate-800">You&apos;re all set!</h3>
-              <p className="text-sm text-slate-500 mt-2 max-w-xs mx-auto">
-                JobPilot will now scrape jobs from 8 sources and match them to your profile. Add your resumes next for smarter matching.
+            <div className="space-y-4">
+              {uploadedResume ? (
+                <div className="rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    <p className="text-sm font-semibold text-emerald-800">{uploadedResume.name}</p>
+                  </div>
+                  {uploadedResume.skills.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {uploadedResume.skills.slice(0, 12).map((s) => (
+                        <span key={s} className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">{s}</span>
+                      ))}
+                      {uploadedResume.skills.length > 12 && (
+                        <span className="text-[10px] text-emerald-600">+{uploadedResume.skills.length - 12} more</span>
+                      )}
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 text-xs"
+                    onClick={() => setUploadedResume(null)}
+                  >
+                    Upload Different Resume
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-400 p-8 cursor-pointer transition-colors">
+                  <Upload className="h-8 w-8 text-slate-300" />
+                  <span className="text-sm text-slate-500">Drop your resume here or click to browse</span>
+                  <span className="text-[10px] text-slate-400">PDF, DOCX, or TXT (max 5 MB)</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleResumeUpload(f);
+                    }}
+                  />
+                  {uploading && (
+                    <p className="text-xs text-blue-600 flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Parsing…
+                    </p>
+                  )}
+                </label>
+              )}
+              <p className="text-[10px] text-slate-400 text-center">
+                You can skip this and upload later from the Resumes page.
               </p>
+            </div>
+          )}
+
+          {/* Step 4: AI Settings */}
+          {step === 4 && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs font-medium text-slate-600">Cover Letter Tone</Label>
+                <div className="flex flex-wrap gap-2 mt-1.5">
+                  {TONE_OPTIONS.map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setTone(t.value)}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors touch-manipulation ${
+                        tone === t.value ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-slate-600">Language</Label>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {LANGUAGE_OPTIONS.map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => setLanguage(l)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
+                        language === l ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="ob-prompt" className="text-xs font-medium text-slate-600">Custom AI Instructions (optional)</Label>
+                <Textarea
+                  id="ob-prompt"
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="e.g. Always mention my 3 years of React experience. Use a formal tone for German companies."
+                  rows={3}
+                  className="mt-1 resize-none text-xs"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Email Provider */}
+          {step === 5 && (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-400">Choose how JobPilot sends application emails. You can change this later in Settings.</p>
+              <div className="grid gap-2">
+                {EMAIL_PROVIDERS.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => setEmailProvider(p.value)}
+                    className={`flex items-start gap-3 rounded-xl p-3 text-left transition-all ${
+                      emailProvider === p.value
+                        ? "bg-blue-50 ring-2 ring-blue-500"
+                        : "bg-slate-50 ring-1 ring-slate-200 hover:ring-slate-300"
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-800">{p.label}</span>
+                        {p.badge && (
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                            p.badgeColor === "green" ? "bg-emerald-100 text-emerald-700" :
+                            p.badgeColor === "yellow" ? "bg-amber-100 text-amber-700" :
+                            "bg-slate-100 text-slate-600"
+                          }`}>
+                            {p.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">{p.description}</p>
+                      <p className="text-[10px] text-slate-400 mt-1 font-mono">{p.hrSees.replace("{name}", fullName || "Your Name").replace("{email}", "you@email.com")}</p>
+                    </div>
+                    <div className={`h-4 w-4 rounded-full border-2 mt-0.5 flex-shrink-0 ${
+                      emailProvider === p.value ? "border-blue-500 bg-blue-500" : "border-slate-300"
+                    }`}>
+                      {emailProvider === p.value && (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 text-center">
+                You&apos;ll configure email credentials in Settings after onboarding.
+              </p>
+            </div>
+          )}
+
+          {/* Step 6: Ready */}
+          {step === 6 && (
+            <div className="text-center py-4">
+              {matching ? (
+                <div className="space-y-4">
+                  <Loader2 className="h-10 w-10 text-blue-500 animate-spin mx-auto" />
+                  <p className="text-sm font-medium text-slate-600">Matching you against recent jobs…</p>
+                  <div className="w-full bg-slate-100 rounded-full h-2">
+                    <div className="bg-blue-500 h-2 rounded-full animate-pulse" style={{ width: "60%" }} />
+                  </div>
+                </div>
+              ) : matchResult ? (
+                <div className="space-y-3">
+                  <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-blue-50 p-5 inline-block ring-1 ring-emerald-100/50">
+                    <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                  </div>
+                  <h3 className="text-base font-bold text-slate-800">
+                    Found {matchResult.matched} matches!
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Scanned {matchResult.totalScanned} recent jobs. {matchResult.matched} matched your profile.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-violet-50 p-5 mb-4 inline-block ring-1 ring-blue-100/50">
+                    <Sparkles className="h-10 w-10 text-blue-500" />
+                  </div>
+                  <h3 className="text-base font-bold text-slate-800">You&apos;re all set!</h3>
+                  <p className="text-sm text-slate-500 mt-2 max-w-xs mx-auto">
+                    JobPilot will scrape jobs from 8 sources and match them to your profile.
+                  </p>
+                </>
+              )}
               <div className="bg-slate-50 rounded-lg p-3 mt-4 text-left text-xs text-slate-600 space-y-1">
                 {fullName && <p><strong>Name:</strong> {fullName}</p>}
                 {keywords.length > 0 && <p><strong>Keywords:</strong> {keywords.join(", ")}</p>}
                 {city && <p><strong>Location:</strong> {city}{country ? `, ${country}` : ""}</p>}
                 {categories.length > 0 && <p><strong>Categories:</strong> {categories.length} selected</p>}
+                {uploadedResume && <p><strong>Resume:</strong> {uploadedResume.name} ({uploadedResume.skills.length} skills)</p>}
+                <p><strong>AI Tone:</strong> {tone} / {language}</p>
+                <p><strong>Email:</strong> {EMAIL_PROVIDERS.find((p) => p.value === emailProvider)?.label}</p>
               </div>
             </div>
           )}
@@ -246,12 +502,12 @@ export function OnboardingWizard() {
 
             {step < STEPS.length - 1 ? (
               <Button size="sm" onClick={() => setStep(step + 1)}>
-                Next
+                {step === 3 && !uploadedResume ? "Skip" : "Next"}
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             ) : (
-              <Button size="sm" onClick={handleFinish} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
-                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+              <Button size="sm" onClick={handleFinish} disabled={saving || matching} className="bg-blue-600 hover:bg-blue-700">
+                {(saving || matching) ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Rocket className="h-4 w-4 mr-1.5" />}
                 Start Finding Jobs
               </Button>
             )}

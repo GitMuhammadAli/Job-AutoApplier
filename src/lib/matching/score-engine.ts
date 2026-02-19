@@ -3,6 +3,11 @@
  * Returns the score + an array of human-readable match reasons.
  */
 
+export const MATCH_THRESHOLDS = {
+  SHOW_ON_KANBAN: 30,
+  AUTO_DRAFT: 50,
+} as const;
+
 interface GlobalJobLike {
   title: string;
   company: string;
@@ -13,6 +18,8 @@ interface GlobalJobLike {
   experienceLevel: string | null;
   category: string | null;
   skills: string[];
+  isFresh?: boolean;
+  firstSeenAt?: Date | null;
 }
 
 interface UserSettingsLike {
@@ -185,7 +192,22 @@ export function computeMatchScore(
     earnedWeight += Math.round(typeWeight * 0.5);
   }
 
-  const score = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 50;
+  let score = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 50;
+
+  // Freshness bonus based on when the job was first seen
+  if (job.firstSeenAt) {
+    const daysSinceFound = (Date.now() - new Date(job.firstSeenAt).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceFound < 1) {
+      score = Math.min(score + 5, 100);
+      reasons.push("Freshness: Posted today (+5)");
+    } else if (daysSinceFound < 3) {
+      score = Math.min(score + 3, 100);
+      reasons.push("Freshness: Posted recently (+3)");
+    }
+  } else if (job.isFresh) {
+    score = Math.min(score + 5, 100);
+    reasons.push("Fresh posting bonus");
+  }
 
   return {
     score: Math.min(score, 100),

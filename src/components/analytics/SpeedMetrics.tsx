@@ -78,7 +78,7 @@ function MetricCard({
         </div>
         <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">{label}</span>
       </div>
-      <div className="text-2xl font-bold text-slate-900">{value}</div>
+      <div className="text-2xl font-bold text-slate-900 tabular-nums">{value}</div>
       {sublabel && <p className="text-[10px] text-slate-400 mt-0.5">{sublabel}</p>}
     </div>
   );

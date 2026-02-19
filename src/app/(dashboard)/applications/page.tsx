@@ -1,10 +1,17 @@
 import { getApplications, getApplicationCounts } from "@/app/actions/application";
 import { ApplicationQueue } from "@/components/applications/ApplicationQueue";
+import { SendingStatusBar } from "@/components/applications/SendingStatusBar";
+import { getSendingStats } from "@/lib/send-limiter";
+import { getAuthUserId } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export default async function ApplicationsPage() {
-  const [applications, counts] = await Promise.all([
+  const userId = await getAuthUserId();
+  const [applications, counts, sendingStats] = await Promise.all([
     getApplications(),
     getApplicationCounts(),
+    getSendingStats(userId),
   ]);
 
   return (
@@ -17,6 +24,13 @@ export default async function ApplicationsPage() {
           Manage your prepared applications before sending
         </p>
       </div>
+      <SendingStatusBar
+        sentToday={sendingStats.todaySent}
+        maxPerDay={sendingStats.todayMax}
+        sentThisHour={sendingStats.hourSent}
+        maxPerHour={sendingStats.hourMax}
+        isPaused={sendingStats.isPaused}
+      />
       <ApplicationQueue
         applications={applications}
         counts={counts}

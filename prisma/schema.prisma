@@ -223,6 +223,16 @@ model UserSettings {
   accountStatus            String?         @default("active")
   notificationFrequency    String?         @default("hourly")
   instantApplyDelay        Int?            @default(5)
+  // Sending Safety
+  sendDelaySeconds         Int             @default(120)
+  maxSendsPerHour          Int             @default(8)
+  maxSendsPerDay           Int             @default(20)
+  cooldownMinutes          Int             @default(30)
+  bouncePauseHours         Int             @default(24)
+  sendingPausedUntil       DateTime?
+  smtpVerifiedAt           DateTime?
+  // User Tracking
+  lastVisitedAt            DateTime?
   // Relations & State
   emailTemplates           EmailTemplate[]
   isOnboarded              Boolean         @default(false)
@@ -231,6 +241,7 @@ model UserSettings {
 }
 
 enum ApplicationMode {
+  MANUAL
   SEMI_AUTO
   FULL_AUTO
 }
@@ -274,9 +285,12 @@ model JobApplication {
   retryCount      Int               @default(0)
   appliedVia      ApplyMethod       @default(EMAIL)
   emailConfidence String?
-  scheduledSendAt DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  scheduledSendAt  DateTime?
+  followUpSubject  String?
+  followUpBody     String?           @db.Text
+  followUpStatus   String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@index([userId, status])
   @@index([userId, createdAt])
@@ -301,8 +315,8 @@ enum ApplyMethod {
 
 model Activity {
   id        String       @id @default(cuid())
-  userJobId String
-  userJob   UserJob      @relation(fields: [userJobId], references: [id], onDelete: Cascade)
+  userJobId String?
+  userJob   UserJob?     @relation(fields: [userJobId], references: [id], onDelete: Cascade)
   userId    String
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      ActivityType
@@ -320,6 +334,7 @@ enum ActivityType {
   APPLICATION_PREPARED
   APPLICATION_SENT
   APPLICATION_FAILED
+  APPLICATION_BOUNCED
   APPLICATION_COPIED
   FOLLOW_UP_SENT
   MANUAL_UPDATE

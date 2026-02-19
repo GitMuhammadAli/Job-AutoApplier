@@ -155,32 +155,69 @@ const createJobSchema = z.object({
   notes: z.string().optional(),
 });
 
+function normalizeForMatch(str: string): string {
+  return str.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+}
+
 export async function createManualJob(rawData: unknown) {
   const userId = await getAuthUserId();
   const data = createJobSchema.parse(rawData);
 
+  const normTitle = normalizeForMatch(data.title);
+  const normCompany = normalizeForMatch(data.company);
+
+  // Fuzzy duplicate check: look for existing GlobalJob with same normalized title+company
+  const candidates = await prisma.globalJob.findMany({
+    where: {
+      company: { contains: data.company.split(" ")[0], mode: "insensitive" },
+    },
+    select: { id: true, title: true, company: true },
+    take: 100,
+  });
+
+  const existingMatch = candidates.find((c) => {
+    const ct = normalizeForMatch(c.title);
+    const cc = normalizeForMatch(c.company);
+    return ct === normTitle && cc === normCompany;
+  });
+
   const result = await prisma.$transaction(async (tx) => {
-    const globalJob = await tx.globalJob.create({
-      data: {
-        title: data.title,
-        company: data.company,
-        location: data.location || null,
-        description: data.description || null,
-        salary: data.salary || null,
-        applyUrl: data.applyUrl || null,
-        jobType: data.jobType || null,
-        source: "manual",
-        sourceId: `manual-${userId}-${Date.now()}`,
-        isActive: true,
-        lastSeenAt: new Date(),
-        skills: [],
-      },
-    });
+    let globalJobId: string;
+
+    if (existingMatch) {
+      globalJobId = existingMatch.id;
+
+      // Check if user already has this job linked
+      const existingLink = await tx.userJob.findFirst({
+        where: { userId, globalJobId },
+      });
+      if (existingLink) {
+        throw new Error("You already have this job in your board.");
+      }
+    } else {
+      const globalJob = await tx.globalJob.create({
+        data: {
+          title: data.title,
+          company: data.company,
+          location: data.location || null,
+          description: data.description || null,
+          salary: data.salary || null,
+          applyUrl: data.applyUrl || null,
+          jobType: data.jobType || null,
+          source: "manual",
+          sourceId: `manual-${userId}-${Date.now()}`,
+          isActive: true,
+          lastSeenAt: new Date(),
+          skills: [],
+        },
+      });
+      globalJobId = globalJob.id;
+    }
 
     const userJob = await tx.userJob.create({
       data: {
         userId,
-        globalJobId: globalJob.id,
+        globalJobId,
         stage: "SAVED",
         matchScore: 100,
         matchReasons: ["Manually added"],
@@ -193,7 +230,9 @@ export async function createManualJob(rawData: unknown) {
         userJobId: userJob.id,
         userId,
         type: "MANUAL_UPDATE",
-        description: "Job manually added",
+        description: existingMatch
+          ? "Job manually added (linked to existing listing)"
+          : "Job manually added",
       },
     });
 

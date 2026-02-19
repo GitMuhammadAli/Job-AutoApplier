@@ -122,6 +122,23 @@ export async function getAnalytics() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-14);
 
+  // Match score distribution
+  const scoreBuckets = [
+    { range: "0-20%", min: 0, max: 20, count: 0 },
+    { range: "21-40%", min: 21, max: 40, count: 0 },
+    { range: "41-60%", min: 41, max: 60, count: 0 },
+    { range: "61-80%", min: 61, max: 80, count: 0 },
+    { range: "81-100%", min: 81, max: 100, count: 0 },
+  ];
+  for (const job of userJobs) {
+    if (job.matchScore != null) {
+      const score = Math.round(job.matchScore);
+      const bucket = scoreBuckets.find((b) => score >= b.min && score <= b.max);
+      if (bucket) bucket.count++;
+    }
+  }
+  const matchScoreDistribution = scoreBuckets.map(({ range, count }) => ({ range, count }));
+
   return {
     totalJobs,
     applied,
@@ -142,6 +159,7 @@ export async function getAnalytics() {
     },
     applyMethodBreakdown,
     speedOverTime,
+    matchScoreDistribution,
   };
 }
 

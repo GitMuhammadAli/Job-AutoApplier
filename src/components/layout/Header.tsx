@@ -26,17 +26,22 @@ export function Header() {
 
         <div className="relative flex-1 md:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <label htmlFor="search-jobs" className="sr-only">Search jobs</label>
           <Input
-            placeholder="Search companies, roles..."
+            id="search-jobs"
+            placeholder="Search companies, roles&hellip;"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            autoComplete="off"
             className="h-8 md:h-9 pl-9 text-sm bg-slate-50/80 border-slate-200/60 rounded-lg focus:bg-white transition-colors"
           />
         </div>
 
         <button
           onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
-          className="md:hidden flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-600"
+          aria-label="Toggle filters"
+          aria-expanded={mobileFilterOpen}
+          className="md:hidden flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-600 touch-manipulation focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
         >
           <SlidersHorizontal className="h-3 w-3" />
           {activeLabel}
@@ -55,7 +60,7 @@ export function Header() {
                 key={opt.value}
                 onClick={() => setFilter(opt.value)}
                 className={cn(
-                  "rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all duration-200",
+                  "rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 touch-manipulation",
                   isActive
                     ? "bg-slate-900 text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
@@ -81,7 +86,7 @@ export function Header() {
                 key={opt.value}
                 onClick={() => { setFilter(opt.value); setMobileFilterOpen(false); }}
                 className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors touch-manipulation",
                   isActive
                     ? "bg-slate-900 text-white shadow-sm"
                     : "bg-slate-50 text-slate-600 hover:bg-slate-100"
