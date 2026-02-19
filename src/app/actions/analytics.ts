@@ -139,6 +139,68 @@ export async function getAnalytics() {
   }
   const matchScoreDistribution = scoreBuckets.map(({ range, count }) => ({ range, count }));
 
+  // ── Response Rate (donut chart) ──
+  const responseRateBreakdown = [
+    { name: "Interview/Offer", value: interviews + offers },
+    { name: "Rejected", value: rejected },
+    { name: "Ghosted", value: ghosted },
+    { name: "Awaiting", value: Math.max(0, applied - (interviews + offers) - rejected - ghosted) },
+  ];
+
+  // ── Top Companies Applied To (horizontal bar) ──
+  const sentAppsAll = await prisma.jobApplication.findMany({
+    where: { userId, status: "SENT" },
+    include: { userJob: { include: { globalJob: { select: { company: true } } } } },
+  });
+  const companyCounts: Record<string, number> = {};
+  for (const app of sentAppsAll) {
+    const company = app.userJob.globalJob.company;
+    companyCounts[company] = (companyCounts[company] || 0) + 1;
+  }
+  const topCompanies = Object.entries(companyCounts)
+    .map(([company, count]) => ({ company, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // ── Weekly Comparison ──
+  const now2 = new Date();
+  const thisWeekStart = new Date(now2);
+  thisWeekStart.setDate(now2.getDate() - now2.getDay());
+  thisWeekStart.setHours(0, 0, 0, 0);
+  const lastWeekStart = new Date(thisWeekStart.getTime() - 7 * 86400000);
+
+  const [thisWeekApps, lastWeekApps, thisWeekMatches, lastWeekMatches] =
+    await Promise.all([
+      prisma.jobApplication.count({
+        where: { userId, createdAt: { gte: thisWeekStart } },
+      }),
+      prisma.jobApplication.count({
+        where: { userId, createdAt: { gte: lastWeekStart, lt: thisWeekStart } },
+      }),
+      prisma.userJob.count({
+        where: { userId, createdAt: { gte: thisWeekStart } },
+      }),
+      prisma.userJob.count({
+        where: { userId, createdAt: { gte: lastWeekStart, lt: thisWeekStart } },
+      }),
+    ]);
+
+  const weeklyComparison = {
+    thisWeek: { applications: thisWeekApps, matches: thisWeekMatches },
+    lastWeek: { applications: lastWeekApps, matches: lastWeekMatches },
+  };
+
+  // ── Summary Stats ──
+  const totalApplications = await prisma.jobApplication.count({ where: { userId } });
+  const totalSent = sentAppsAll.length;
+  const allScores = userJobs.filter((j) => j.matchScore != null).map((j) => j.matchScore!);
+  const avgScore =
+    allScores.length > 0
+      ? Math.round(allScores.reduce((s, v) => s + v, 0) / allScores.length)
+      : 0;
+  const responseRatePercent =
+    totalSent > 0 ? Math.round(((interviews + offers) / totalSent) * 100) : 0;
+
   return {
     totalJobs,
     applied,
@@ -160,8 +222,19 @@ export async function getAnalytics() {
     applyMethodBreakdown,
     speedOverTime,
     matchScoreDistribution,
+    responseRateBreakdown,
+    topCompanies,
+    weeklyComparison,
+    summary: {
+      totalJobs,
+      totalApplications,
+      totalSent,
+      avgMatchScore: avgScore,
+      responseRatePercent,
+    },
   };
 }
+
 
 function getWeekLabel(date: Date): string {
   const d = new Date(date);

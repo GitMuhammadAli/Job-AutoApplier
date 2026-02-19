@@ -13,7 +13,7 @@ const SCRAPE_SOURCES = [
   "rozee",
   "jsearch",
   "adzuna",
-  "serpapi",
+  "google",
 ];
 
 export async function GET() {
@@ -22,79 +22,116 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   const [
-    userCount,
-    globalJobCount,
-    applicationCount,
+    totalUsers,
+    activeUsers,
+    pausedUsers,
+    neverOnboarded,
+    activeJobs,
+    inactiveJobs,
+    freshJobs,
     sentToday,
     failedToday,
+    bouncedToday,
     recentErrors,
   ] = await Promise.all([
     prisma.user.count(),
-    prisma.globalJob.count(),
-    prisma.jobApplication.count(),
+    prisma.userSettings.count({ where: { accountStatus: "active" } }),
+    prisma.userSettings.count({ where: { accountStatus: "paused" } }),
+    prisma.userSettings.count({ where: { isOnboarded: false } }),
+    prisma.globalJob.count({ where: { isActive: true } }),
+    prisma.globalJob.count({ where: { isActive: false } }),
+    prisma.globalJob.count({ where: { isFresh: true } }),
     prisma.jobApplication.count({
-      where: { status: "SENT", sentAt: { gte: todayStart } },
+      where: { status: "SENT", sentAt: { gte: startOfDay } },
     }),
     prisma.jobApplication.count({
-      where: { status: "FAILED", updatedAt: { gte: todayStart } },
+      where: { status: "FAILED", updatedAt: { gte: startOfDay } },
+    }),
+    prisma.jobApplication.count({
+      where: { status: "BOUNCED", updatedAt: { gte: startOfDay } },
     }),
     prisma.systemLog.findMany({
       where: { type: "error", createdAt: { gte: dayAgo } },
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: 20,
     }),
   ]);
 
-  const scraperHealth = await Promise.all(
+  const scraperStatus = await Promise.all(
     SCRAPE_SOURCES.map(async (source) => {
-      const [lastLog, jobsFound, errors] = await Promise.all([
+      const [lastLog, lastError] = await Promise.all([
         prisma.systemLog.findFirst({
           where: { type: "scrape", source },
           orderBy: { createdAt: "desc" },
         }),
-        prisma.globalJob.count({ where: { source } }),
-        prisma.systemLog.count({
-          where: { type: "error", source, createdAt: { gte: dayAgo } },
+        prisma.systemLog.findFirst({
+          where: { type: "error", source },
+          orderBy: { createdAt: "desc" },
         }),
       ]);
       return {
         source,
         lastRun: lastLog?.createdAt ?? null,
-        jobsFound,
-        errors,
+        lastMessage: lastLog?.message ?? null,
+        jobCount: (lastLog?.metadata as Record<string, number>)?.jobs ?? 0,
+        isHealthy:
+          !!lastLog &&
+          (!lastError || lastLog.createdAt > lastError.createdAt),
+        lastError: lastError?.message ?? null,
       };
     })
   );
 
-  const quotaLogs = await prisma.systemLog.groupBy({
-    by: ["source"],
-    where: { type: "api_call", createdAt: { gte: todayStart } },
-    _count: true,
-  });
-
-  const quotas = quotaLogs.map((q) => ({
-    name: q.source || "Unknown",
-    used: q._count,
-    limit: "varies",
-  }));
+  const [jsearchUsed, groqUsed, brevoUsed] = await Promise.all([
+    prisma.systemLog.count({
+      where: {
+        type: { in: ["api_usage", "api_call"] },
+        source: "jsearch",
+        createdAt: { gte: startOfMonth },
+      },
+    }),
+    prisma.systemLog.count({
+      where: {
+        type: { in: ["api_usage", "api_call"] },
+        source: "groq",
+        createdAt: { gte: startOfDay },
+      },
+    }),
+    prisma.activity.count({
+      where: { type: "NOTIFICATION_SENT", createdAt: { gte: startOfDay } },
+    }),
+  ]);
 
   return NextResponse.json({
-    userCount,
-    globalJobCount,
-    applicationCount,
-    sentToday,
-    failedToday,
-    scraperHealth,
+    users: {
+      total: totalUsers,
+      active: activeUsers,
+      paused: pausedUsers,
+      neverOnboarded,
+    },
+    jobs: { active: activeJobs, inactive: inactiveJobs, fresh: freshJobs },
+    applicationsToday: {
+      sent: sentToday,
+      failed: failedToday,
+      bounced: bouncedToday,
+    },
+    scrapers: scraperStatus,
+    quotas: {
+      jsearch: { used: jsearchUsed, limit: 200, period: "month" },
+      groq: { used: groqUsed, limit: 14400, period: "day" },
+      brevo: { used: brevoUsed, limit: 300, period: "day" },
+    },
     recentErrors: recentErrors.map((e) => ({
       message: e.message,
       createdAt: e.createdAt,
       source: e.source,
     })),
-    quotas,
   });
 }

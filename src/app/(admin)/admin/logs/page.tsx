@@ -1,15 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 
 interface LogEntry {
@@ -21,136 +14,177 @@ interface LogEntry {
   createdAt: string;
 }
 
-const LOG_TYPES = [
-  { value: "all", label: "All Types" },
-  { value: "scrape", label: "Scrape" },
-  { value: "apply", label: "Apply" },
-  { value: "error", label: "Error" },
-  { value: "notification", label: "Notification" },
-  { value: "email", label: "Email" },
-  { value: "match", label: "Match" },
-];
+const LOG_TYPES = ["", "scrape", "error", "apply", "send", "api_usage", "api_call", "bounce", "notification", "follow-up"];
+const LOG_SOURCES = ["", "indeed", "remotive", "arbeitnow", "linkedin", "rozee", "jsearch", "adzuna", "google", "groq", "system"];
 
 export default function AdminLogsPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [type, setType] = useState("");
+  const [source, setSource] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const fetchLogs = useCallback(async (reset = false) => {
+  useEffect(() => {
+    fetchLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, source, page]);
+
+  async function fetchLogs() {
     setLoading(true);
-    const currentPage = reset ? 0 : page;
     try {
-      const params = new URLSearchParams({
-        skip: String(currentPage * 50),
-        take: "50",
-      });
-      if (typeFilter !== "all") params.set("type", typeFilter);
-
+      const params = new URLSearchParams();
+      if (type) params.set("type", type);
+      if (source) params.set("source", source);
+      params.set("page", String(page));
+      params.set("limit", "50");
       const res = await fetch(`/api/admin/logs?${params}`);
       if (!res.ok) throw new Error();
-      const data: LogEntry[] = await res.json();
-      if (reset) {
-        setLogs(data);
-        setPage(0);
-      } else {
-        setLogs((prev) => [...prev, ...data]);
-      }
-      setHasMore(data.length === 50);
+      const data = await res.json();
+      setLogs(data.logs || data);
+      setTotalPages(data.totalPages || 1);
+      setTotal(data.total || (data.logs || data).length);
     } catch {
       toast.error("Failed to load logs");
     }
     setLoading(false);
-  }, [typeFilter, page]);
+  }
 
-  useEffect(() => {
-    fetchLogs(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeFilter]);
-
-  const typeColor = (type: string): string => {
-    switch (type) {
-      case "error": return "bg-red-100 text-red-700";
-      case "scrape": return "bg-blue-100 text-blue-700";
-      case "apply": return "bg-violet-100 text-violet-700";
-      case "notification": return "bg-emerald-100 text-emerald-700";
-      default: return "bg-slate-100 text-slate-600";
-    }
+  const typeBadgeColor: Record<string, string> = {
+    scrape: "bg-blue-100 text-blue-700",
+    error: "bg-red-100 text-red-700",
+    apply: "bg-violet-100 text-violet-700",
+    send: "bg-emerald-100 text-emerald-700",
+    bounce: "bg-orange-100 text-orange-700",
+    notification: "bg-cyan-100 text-cyan-700",
+    "follow-up": "bg-amber-100 text-amber-700",
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-4 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">System Logs</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Recent system events</p>
+          <p className="text-sm text-slate-500 mt-0.5">{total} total entries</p>
         </div>
-        <div className="flex gap-2">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-36 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {LOG_TYPES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button size="sm" variant="outline" onClick={() => fetchLogs(true)} className="gap-1.5">
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
-          </Button>
-        </div>
+        <Button size="sm" variant="outline" onClick={fetchLogs} className="gap-1.5">
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh
+        </Button>
       </div>
 
-      <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-100/80 overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-slate-100 text-slate-500">
-              <th className="py-3 px-4 text-left font-semibold">Time</th>
-              <th className="py-3 px-4 text-left font-semibold">Type</th>
-              <th className="py-3 px-4 text-left font-semibold">Source</th>
-              <th className="py-3 px-4 text-left font-semibold">Message</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((log) => (
-              <tr key={log.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                <td className="py-2.5 px-4 text-slate-500 whitespace-nowrap tabular-nums">
-                  {new Date(log.createdAt).toLocaleString()}
-                </td>
-                <td className="py-2.5 px-4">
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${typeColor(log.type)}`}>
-                    {log.type}
-                  </span>
-                </td>
-                <td className="py-2.5 px-4 text-slate-500">{log.source || "—"}</td>
-                <td className="py-2.5 px-4 text-slate-700 max-w-md truncate">{log.message}</td>
-              </tr>
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <label className="text-[11px] font-medium text-slate-500">Type:</label>
+          <select
+            value={type}
+            onChange={(e) => { setType(e.target.value); setPage(1); }}
+            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          >
+            <option value="">All</option>
+            {LOG_TYPES.filter(Boolean).map((t) => (
+              <option key={t} value={t}>{t}</option>
             ))}
-          </tbody>
-        </table>
+          </select>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <label className="text-[11px] font-medium text-slate-500">Source:</label>
+          <select
+            value={source}
+            onChange={(e) => { setSource(e.target.value); setPage(1); }}
+            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          >
+            <option value="">All</option>
+            {LOG_SOURCES.filter(Boolean).map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {loading && (
-        <div className="flex justify-center py-4">
-          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        </div>
+      ) : logs.length === 0 ? (
+        <div className="rounded-xl bg-white p-8 text-center ring-1 ring-slate-100">
+          <p className="text-sm text-slate-400">No logs found</p>
+        </div>
+      ) : (
+        <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-100/80 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-500">
+                <th className="py-2.5 px-4 text-left font-semibold w-40">Time</th>
+                <th className="py-2.5 px-4 text-left font-semibold w-24">Type</th>
+                <th className="py-2.5 px-4 text-left font-semibold w-24">Source</th>
+                <th className="py-2.5 px-4 text-left font-semibold">Message</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log) => (
+                <tr
+                  key={log.id}
+                  className="border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer"
+                  onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                >
+                  <td className="py-2.5 px-4 text-slate-500 whitespace-nowrap">
+                    {new Date(log.createdAt).toLocaleString()}
+                  </td>
+                  <td className="py-2.5 px-4">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        typeBadgeColor[log.type] || "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {log.type}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-4 text-slate-600 capitalize">{log.source || "-"}</td>
+                  <td className="py-2.5 px-4 text-slate-700">
+                    <div className="truncate max-w-md">{log.message}</div>
+                    {expandedId === log.id && log.metadata && (
+                      <pre className="mt-2 rounded-lg bg-slate-50 p-2 text-[10px] text-slate-500 overflow-x-auto whitespace-pre-wrap">
+                        {JSON.stringify(log.metadata, null, 2)}
+                      </pre>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {!loading && hasMore && (
-        <div className="flex justify-center">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setPage((p) => p + 1);
-              fetchLogs();
-            }}
-          >
-            Load More
-          </Button>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-500">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       )}
     </div>

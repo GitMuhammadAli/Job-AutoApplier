@@ -14,19 +14,28 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
   const source = searchParams.get("source");
-  const skip = parseInt(searchParams.get("skip") || "0");
-  const take = Math.min(parseInt(searchParams.get("take") || "50"), 100);
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
 
   const where: Record<string, unknown> = {};
   if (type) where.type = type;
   if (source) where.source = source;
 
-  const logs = await prisma.systemLog.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    skip,
-    take,
-  });
+  const [logs, total] = await Promise.all([
+    prisma.systemLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.systemLog.count({ where }),
+  ]);
 
-  return NextResponse.json(logs);
+  return NextResponse.json({
+    logs,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  });
 }

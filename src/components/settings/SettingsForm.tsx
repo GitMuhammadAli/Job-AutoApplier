@@ -1004,6 +1004,36 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         </div>
       </Section>
 
+      {/* ── Data Export ── */}
+      <Section title="Data Export" icon={<Save className="h-4 w-4" />}>
+        <p className="text-xs text-slate-500 mb-3">
+          Download all your data as a ZIP file including jobs, applications, resumes, templates, and activity logs.
+        </p>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            try {
+              const res = await fetch("/api/export");
+              if (!res.ok) throw new Error();
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `jobpilot-export-${new Date().toISOString().split("T")[0]}.zip`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success("Export downloaded!");
+            } catch {
+              toast.error("Export failed. Try again.");
+            }
+          }}
+          className="gap-2"
+        >
+          <Save className="h-4 w-4" />
+          Export All My Data
+        </Button>
+      </Section>
+
       {/* ── Save Button ── */}
       <div className="sticky bottom-4 flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="shadow-lg px-6">

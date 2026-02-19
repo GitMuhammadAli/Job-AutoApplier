@@ -1,110 +1,148 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import JSZip from "jszip";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+function escapeCsv(val: string): string {
+  if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+    return `"${val.replace(/"/g, '""')}"`;
+  }
+  return val;
+}
 
 export async function GET() {
   try {
     const userId = await getAuthUserId();
 
-    const [userJobs, applications, resumes, settings, activities] = await Promise.all([
-      prisma.userJob.findMany({
-        where: { userId },
-        include: { globalJob: true },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.jobApplication.findMany({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.resume.findMany({
-        where: { userId, isDeleted: false },
-        select: { id: true, name: true, fileName: true, fileUrl: true, targetCategories: true, detectedSkills: true, isDefault: true, createdAt: true },
-      }),
-      prisma.userSettings.findUnique({ where: { userId } }),
-      prisma.activity.findMany({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        take: 500,
-      }),
-    ]);
+    const [settings, jobs, applications, resumes, activities, templates] =
+      await Promise.all([
+        prisma.userSettings.findUnique({ where: { userId } }),
+        prisma.userJob.findMany({
+          where: { userId },
+          include: { globalJob: true },
+        }),
+        prisma.jobApplication.findMany({ where: { userId } }),
+        prisma.resume.findMany({ where: { userId } }),
+        prisma.activity.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: 1000,
+        }),
+        prisma.emailTemplate.findMany({ where: { userId } }),
+      ]);
 
+    const zip = new JSZip();
+
+    // Settings JSON (strip sensitive fields)
+    if (settings) {
+      const safeSettings = { ...settings, smtpPass: undefined };
+      zip.file("settings.json", JSON.stringify(safeSettings, null, 2));
+    }
+
+    // Jobs CSV
     const jobsCsv = [
-      "Title,Company,Location,Stage,Match Score,Source,Applied Via,Created",
-      ...userJobs.map((j) =>
+      "Title,Company,Location,Source,Score,Stage,Category,Skills,Created",
+      ...jobs.map((j) =>
         [
-          quote(j.globalJob.title),
-          quote(j.globalJob.company),
-          quote(j.globalJob.location || ""),
-          j.stage,
-          j.matchScore ?? "",
-          j.globalJob.source,
-          "",
+          escapeCsv(j.globalJob.title),
+          escapeCsv(j.globalJob.company),
+          escapeCsv(j.globalJob.location || ""),
+          escapeCsv(j.globalJob.source),
+          String(j.matchScore || 0),
+          escapeCsv(j.stage),
+          escapeCsv(j.globalJob.category || ""),
+          escapeCsv(j.globalJob.skills.join("; ")),
           j.createdAt.toISOString(),
         ].join(",")
       ),
     ].join("\n");
+    zip.file("jobs.csv", jobsCsv);
 
-    const applicationsCsv = [
-      "Subject,Recipient,Status,Sent At,Applied Via,Email Confidence,Created",
+    // Applications CSV
+    const appsCsv = [
+      "Status,Recipient,Subject,Via,SentAt,Created",
       ...applications.map((a) =>
         [
-          quote(a.subject),
-          a.recipientEmail,
-          a.status,
+          escapeCsv(a.status),
+          escapeCsv(a.recipientEmail),
+          escapeCsv(a.subject),
+          escapeCsv(a.appliedVia || ""),
           a.sentAt?.toISOString() || "",
-          a.appliedVia,
-          a.emailConfidence || "",
           a.createdAt.toISOString(),
         ].join(",")
       ),
     ].join("\n");
+    zip.file("applications.csv", appsCsv);
 
-    const activitiesCsv = [
-      "Type,Description,Created",
-      ...activities.map((a) =>
-        [a.type, quote(a.description), a.createdAt.toISOString()].join(",")
+    // Resumes metadata CSV
+    const resumesCsv = [
+      "Name,FileName,Categories,Skills,Quality,IsDefault,Created",
+      ...resumes.map((r) =>
+        [
+          escapeCsv(r.name),
+          escapeCsv(r.fileName || ""),
+          escapeCsv(r.targetCategories.join("; ")),
+          escapeCsv(r.detectedSkills.join("; ")),
+          escapeCsv(r.textQuality || ""),
+          String(r.isDefault),
+          r.createdAt.toISOString(),
+        ].join(",")
       ),
     ].join("\n");
+    zip.file("resumes.csv", resumesCsv);
 
-    const exportData = {
-      exportDate: new Date().toISOString(),
-      jobs: jobsCsv,
-      applications: applicationsCsv,
-      activities: activitiesCsv,
-      resumes: resumes.map((r) => ({
-        name: r.name,
-        fileName: r.fileName,
-        fileUrl: r.fileUrl,
-        categories: r.targetCategories,
-        skills: r.detectedSkills,
-        isDefault: r.isDefault,
-      })),
-      settings: settings
-        ? {
-            fullName: settings.fullName,
-            keywords: settings.keywords,
-            city: settings.city,
-            country: settings.country,
-            experienceLevel: settings.experienceLevel,
-            preferredCategories: settings.preferredCategories,
-          }
-        : null,
-    };
+    // Activity log CSV
+    const activityCsv = [
+      "Type,Description,Created",
+      ...activities.map((a) =>
+        [
+          escapeCsv(a.type),
+          escapeCsv(a.description || ""),
+          a.createdAt.toISOString(),
+        ].join(",")
+      ),
+    ].join("\n");
+    zip.file("activity_log.csv", activityCsv);
 
-    return new NextResponse(JSON.stringify(exportData, null, 2), {
+    // Templates JSON
+    zip.file("templates.json", JSON.stringify(templates, null, 2));
+
+    // Download resume files from Blob
+    const resumeFolder = zip.folder("resume_files");
+    for (const resume of resumes.filter(
+      (r) => !r.isDeleted && r.fileUrl
+    )) {
+      try {
+        const response = await fetch(resume.fileUrl!);
+        if (response.ok) {
+          const buffer = await response.arrayBuffer();
+          resumeFolder!.file(
+            resume.fileName || `${resume.name}.pdf`,
+            buffer
+          );
+        }
+      } catch {
+        // Skip failed downloads
+      }
+    }
+
+    const buffer = await zip.generateAsync({ type: "arraybuffer" });
+    const dateStr = new Date().toISOString().split("T")[0];
+
+    return new Response(buffer, {
       headers: {
-        "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="jobpilot-export-${new Date().toISOString().split("T")[0]}.json"`,
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="jobpilot-export-${dateStr}.zip"`,
       },
     });
   } catch (error) {
-    console.error("Export error:", error);
-    return NextResponse.json({ error: "Export failed" }, { status: 500 });
+    console.error("[Export] Error:", error);
+    return NextResponse.json(
+      { error: "Export failed" },
+      { status: 500 }
+    );
   }
-}
-
-function quote(s: string): string {
-  return `"${s.replace(/"/g, '""')}"`;
 }

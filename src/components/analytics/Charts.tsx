@@ -16,9 +16,10 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { BarChart3, GitBranch, Globe, Activity, Zap, Timer, Star } from "lucide-react";
+import { BarChart3, GitBranch, Globe, Activity, Zap, Timer, Star, PieChartIcon, Building2 } from "lucide-react";
 
 const COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#06b6d4", "#ef4444", "#ec4899", "#6366f1"];
+const RESPONSE_COLORS = ["#10b981", "#ef4444", "#94a3b8", "#f59e0b"];
 
 interface ChartsProps {
   applicationsOverTime: { week: string; count: number }[];
@@ -28,6 +29,8 @@ interface ChartsProps {
   applyMethodBreakdown: { method: string; count: number }[];
   speedOverTime: { date: string; avgMinutes: number }[];
   matchScoreDistribution?: { range: string; count: number }[];
+  responseRateBreakdown?: { name: string; value: number }[];
+  topCompanies?: { company: string; count: number }[];
 }
 
 function ChartCard({
@@ -71,6 +74,8 @@ export function Charts({
   applyMethodBreakdown,
   speedOverTime,
   matchScoreDistribution,
+  responseRateBreakdown,
+  topCompanies,
 }: ChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -227,6 +232,55 @@ export function Charts({
           </ResponsiveContainer>
         )}
       </ChartCard>
+
+      {responseRateBreakdown && responseRateBreakdown.some((d) => d.value > 0) && (
+        <ChartCard title="Response Rate" icon={PieChartIcon} gradient="from-teal-500 to-cyan-500">
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie
+                data={responseRateBreakdown}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={55}
+                outerRadius={85}
+                paddingAngle={3}
+                label={({ name, value }: { name: string; value: number }) =>
+                  value > 0 ? `${name} (${value})` : ""
+                }
+                labelLine
+              >
+                {responseRateBreakdown.map((_, i) => (
+                  <Cell key={i} fill={RESPONSE_COLORS[i % RESPONSE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
+      {topCompanies && topCompanies.length > 0 && (
+        <ChartCard title="Top Companies" icon={Building2} gradient="from-indigo-500 to-blue-500">
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={topCompanies} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis type="number" tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
+              <YAxis
+                dataKey="company"
+                type="category"
+                tick={{ fontSize: 10, fill: "#64748b", fontWeight: 600 }}
+                width={100}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <Bar dataKey="count" radius={[0, 6, 6, 0]} name="Applications" fill="#6366f1" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
 
       {matchScoreDistribution && (
         <ChartCard title="Match Score Distribution" icon={Star} gradient="from-emerald-500 to-cyan-500" className="lg:col-span-2">

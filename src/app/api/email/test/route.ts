@@ -78,6 +78,12 @@ export async function POST() {
       `,
     });
 
+    // Mark SMTP as verified for readiness checker
+    await prisma.userSettings.update({
+      where: { userId },
+      data: { smtpVerifiedAt: new Date() },
+    });
+
     return NextResponse.json({ success: true, sentTo: fromEmail });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

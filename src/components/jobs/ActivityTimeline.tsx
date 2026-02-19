@@ -11,6 +11,7 @@ import {
   XCircle,
   Trash2,
   Bell,
+  AlertTriangle,
 } from "lucide-react";
 
 interface ActivityItem {
@@ -31,6 +32,7 @@ const TYPE_CONFIG: Record<ActivityType, { icon: typeof ArrowRight; label: string
   APPLICATION_PREPARED: { icon: Plus, label: "Application Prepared", color: "text-emerald-500" },
   APPLICATION_SENT: { icon: Send, label: "Application Sent", color: "text-emerald-600" },
   APPLICATION_FAILED: { icon: XCircle, label: "Application Failed", color: "text-red-500" },
+  APPLICATION_BOUNCED: { icon: AlertTriangle, label: "Email Bounced", color: "text-orange-500" },
   APPLICATION_COPIED: { icon: Copy, label: "Application Copied", color: "text-blue-500" },
   FOLLOW_UP_SENT: { icon: Clock, label: "Follow-up Sent", color: "text-amber-500" },
   MANUAL_UPDATE: { icon: Plus, label: "Manual Update", color: "text-slate-500" },

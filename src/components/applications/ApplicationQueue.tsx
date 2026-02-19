@@ -10,6 +10,8 @@ import {
   Send,
   Check,
   Loader2,
+  RotateCcw,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +26,7 @@ import {
   deleteApplication,
 } from "@/app/actions/application";
 import type { ApplicationStatus } from "@prisma/client";
+import { Mail } from "lucide-react";
 
 type ApplicationWithRelations = Awaited<
   ReturnType<typeof import("@/app/actions/application").getApplications>
@@ -78,6 +81,26 @@ function ApplicationCard({
 }) {
   const [loading, setLoading] = useState<string | null>(null);
 
+  const handleSend = async () => {
+    setLoading("send");
+    try {
+      const res = await fetch(`/api/applications/${app.id}/send`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Sent to ${app.recipientEmail}!`);
+        onRefresh();
+      } else {
+        toast.error(data.error || "Send failed");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const handleMarkReady = async () => {
     setLoading("ready");
     try {
@@ -112,6 +135,19 @@ function ApplicationCard({
       onRefresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleRetry = async () => {
+    setLoading("retry");
+    try {
+      await markApplicationReady(app.id);
+      toast.success("Queued for retry");
+      onRefresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Retry failed");
     } finally {
       setLoading(null);
     }
@@ -159,6 +195,22 @@ function ApplicationCard({
       </CardHeader>
       <CardContent className="pt-0 space-y-3">
         <div className="flex flex-wrap gap-2">
+          {(app.status === "DRAFT" || app.status === "READY") &&
+            app.recipientEmail && (
+              <Button
+                size="sm"
+                onClick={handleSend}
+                disabled={!!loading}
+                className="gap-1.5"
+              >
+                {loading === "send" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Mail className="h-3.5 w-3.5" />
+                )}
+                Send
+              </Button>
+            )}
           {app.status === "DRAFT" && (
             <Button
               size="sm"
@@ -217,6 +269,54 @@ function ApplicationCard({
             </Button>
           )}
         </div>
+
+        {app.status === "FAILED" && (
+          <div className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/20 px-3 py-2 ring-1 ring-red-200/60 dark:ring-red-800/40">
+            <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+              Failed: {app.retryCount || 0}/3 attempts
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRetry}
+              disabled={!!loading}
+              className="gap-1 text-xs h-7"
+            >
+              {loading === "retry" ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <RotateCcw className="h-3 w-3" />
+              )}
+              Retry
+            </Button>
+            <CopyApplicationBundle
+              senderEmail={app.senderEmail}
+              recipientEmail={app.recipientEmail}
+              subject={app.subject}
+              emailBody={app.emailBody}
+              coverLetter={app.coverLetter}
+              resumeName={app.resume?.name}
+              variant="compact"
+            />
+          </div>
+        )}
+
+        {app.status === "BOUNCED" && (
+          <div className="flex items-center gap-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 px-3 py-2 ring-1 ring-orange-200/60 dark:ring-orange-800/40">
+            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+              Email bounced — address may be invalid
+            </span>
+            <CopyApplicationBundle
+              senderEmail={app.senderEmail}
+              recipientEmail={app.recipientEmail}
+              subject={app.subject}
+              emailBody={app.emailBody}
+              coverLetter={app.coverLetter}
+              resumeName={app.resume?.name}
+              variant="compact"
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -273,6 +373,42 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const selectedSendable = filteredApplications.filter(
+    (a) =>
+      selectedIds.has(a.id) &&
+      (a.status === "DRAFT" || a.status === "READY") &&
+      !!a.recipientEmail
+  );
+
+  const handleBulkSend = async () => {
+    const ids = selectedSendable.map((a) => a.id);
+    if (ids.length === 0) {
+      toast.error("Select applications with recipient emails first");
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/applications/bulk-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationIds: ids }),
+      });
+      const data = await res.json();
+      if (data.sent > 0) {
+        toast.success(`${data.sent} application(s) sent!`);
+      }
+      if (data.failed > 0) {
+        toast.error(`${data.failed} failed to send`);
+      }
+      setSelectedIds(new Set());
+      router.refresh();
+    } catch {
+      toast.error("Bulk send failed");
     } finally {
       setBulkLoading(false);
     }
@@ -356,6 +492,19 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
             <span className="text-sm font-medium text-slate-700">
               {selectedCount} selected
             </span>
+            <Button
+              size="sm"
+              onClick={handleBulkSend}
+              disabled={bulkLoading || selectedSendable.length === 0}
+              className="gap-1.5"
+            >
+              {bulkLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Mail className="h-3.5 w-3.5" />
+              )}
+              Send ({selectedSendable.length})
+            </Button>
             <Button
               size="sm"
               variant="secondary"

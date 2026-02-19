@@ -7,11 +7,13 @@ import {
   Users,
   ScrollText,
   ArrowLeft,
+  Radio,
 } from "lucide-react";
 
 const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/scrapers", label: "Scrapers", icon: Radio },
   { href: "/admin/logs", label: "Logs", icon: ScrollText },
 ];
 

@@ -102,7 +102,7 @@ export async function markApplicationReady(applicationId: string) {
 
   await prisma.jobApplication.update({
     where: { id: applicationId },
-    data: { status: "READY" },
+    data: { status: "READY", retryCount: 0 },
   });
 
   revalidatePath("/applications");

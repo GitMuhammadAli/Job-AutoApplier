@@ -2,6 +2,7 @@ import { getAnalytics } from "@/app/actions/analytics";
 import { StatsBar } from "@/components/analytics/StatsBar";
 import { Charts } from "@/components/analytics/Charts";
 import { SpeedMetrics } from "@/components/analytics/SpeedMetrics";
+import { WeeklyComparison } from "@/components/analytics/WeeklyComparison";
 import { getJobs } from "@/app/actions/job";
 import { BarChart3, TrendingUp } from "lucide-react";
 
@@ -42,6 +43,10 @@ export default async function AnalyticsPage() {
 
       <StatsBar jobs={jobs as any} />
 
+      {analytics.weeklyComparison && (
+        <WeeklyComparison data={analytics.weeklyComparison} />
+      )}
+
       <Charts
         applicationsOverTime={analytics.applicationsOverTime}
         stageFunnel={analytics.stageFunnel}
@@ -50,6 +55,8 @@ export default async function AnalyticsPage() {
         applyMethodBreakdown={analytics.applyMethodBreakdown}
         speedOverTime={analytics.speedOverTime}
         matchScoreDistribution={analytics.matchScoreDistribution}
+        responseRateBreakdown={analytics.responseRateBreakdown}
+        topCompanies={analytics.topCompanies}
       />
     </div>
   );

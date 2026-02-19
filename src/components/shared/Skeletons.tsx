@@ -4,7 +4,7 @@ function Bone({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "animate-pulse rounded-lg bg-slate-200/70",
+        "animate-pulse rounded-lg bg-slate-200/70 dark:bg-zinc-700/70",
         className
       )}
     />

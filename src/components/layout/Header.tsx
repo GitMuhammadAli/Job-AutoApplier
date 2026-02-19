@@ -1,16 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useJobStore } from "@/store/useJobStore";
 import { STAGES, STAGE_CONFIG } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { JobStage } from "@prisma/client";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { PauseToggle } from "@/components/shared/PauseToggle";
 
 export function Header() {
   const { search, setSearch, filter, setFilter } = useJobStore();
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [accountStatus, setAccountStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/mode")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.status) setAccountStatus(data.status);
+      })
+      .catch(() => {});
+  }, []);
 
   const filterOptions: Array<{ value: JobStage | "ALL"; label: string }> = [
     { value: "ALL", label: "All" },
@@ -20,7 +32,7 @@ export function Header() {
   const activeLabel = filterOptions.find((o) => o.value === filter)?.label || "All";
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-20 border-b border-slate-200/60 dark:border-zinc-700/60 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl">
       <div className="flex h-12 md:h-14 items-center gap-3 px-4 md:px-6">
         <div className="w-8 md:hidden" />
 
@@ -62,8 +74,8 @@ export function Header() {
                 className={cn(
                   "rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 touch-manipulation",
                   isActive
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                    ? "bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm"
+                    : "text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-700 dark:hover:text-zinc-200"
                 )}
               >
                 {stageConfig && (
@@ -73,6 +85,15 @@ export function Header() {
               </button>
             );
           })}
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          {accountStatus && (
+            <div className="hidden sm:block">
+              <PauseToggle initialStatus={accountStatus} />
+            </div>
+          )}
+          <ThemeToggle />
         </div>
       </div>
 

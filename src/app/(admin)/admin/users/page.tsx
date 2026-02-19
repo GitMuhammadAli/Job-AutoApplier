@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Pause, Play, Trash2, RefreshCw } from "lucide-react";
+import { Loader2, Pause, Play, Trash2, RefreshCw, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -11,8 +11,13 @@ interface AdminUser {
   email: string | null;
   mode: string;
   sentToday: number;
+  totalJobs: number;
+  totalApplications: number;
+  resumeCount: number;
+  isOnboarded: boolean;
   lastActive: string | null;
   status: string;
+  createdAt: string;
 }
 
 export default function AdminUsersPage() {
@@ -35,12 +40,10 @@ export default function AdminUsersPage() {
     setLoading(false);
   }
 
-  async function handleAction(userId: string, action: "pause" | "resume" | "delete") {
-    const confirmed =
-      action === "delete"
-        ? window.confirm("Permanently delete this user and all their data?")
-        : true;
-    if (!confirmed) return;
+  async function handleAction(userId: string, action: "pause" | "activate" | "reset_sending" | "delete") {
+    if (action === "delete") {
+      if (!window.confirm("Permanently delete this user and all their data?")) return;
+    }
 
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
@@ -49,13 +52,13 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ action }),
       });
       if (!res.ok) throw new Error();
-      toast.success(
-        action === "pause"
-          ? "User paused"
-          : action === "resume"
-            ? "User resumed"
-            : "User deleted"
-      );
+      const msgs: Record<string, string> = {
+        pause: "User paused",
+        activate: "User activated",
+        reset_sending: "Sending reset",
+        delete: "User deleted",
+      };
+      toast.success(msgs[action]);
       fetchUsers();
     } catch {
       toast.error("Action failed");
@@ -91,6 +94,7 @@ export default function AdminUsersPage() {
               <th className="py-3 px-4 text-left font-semibold">Status</th>
               <th className="py-3 px-4 text-left font-semibold">Mode</th>
               <th className="py-3 px-4 text-right font-semibold">Sent Today</th>
+              <th className="py-3 px-4 text-right font-semibold">Total Apps</th>
               <th className="py-3 px-4 text-left font-semibold">Last Active</th>
               <th className="py-3 px-4 text-right font-semibold">Actions</th>
             </tr>
@@ -117,6 +121,7 @@ export default function AdminUsersPage() {
                 </td>
                 <td className="py-3 px-4 text-slate-600">{user.mode}</td>
                 <td className="py-3 px-4 text-right tabular-nums text-slate-700">{user.sentToday}</td>
+                <td className="py-3 px-4 text-right tabular-nums text-slate-700">{user.totalApplications}</td>
                 <td className="py-3 px-4 text-slate-500">
                   {user.lastActive
                     ? new Date(user.lastActive).toLocaleString()
@@ -130,7 +135,7 @@ export default function AdminUsersPage() {
                         variant="ghost"
                         className="h-7 w-7 p-0"
                         onClick={() => handleAction(user.id, "pause")}
-                        aria-label="Pause user"
+                        title="Pause user"
                       >
                         <Pause className="h-3.5 w-3.5 text-amber-500" />
                       </Button>
@@ -139,8 +144,8 @@ export default function AdminUsersPage() {
                         size="sm"
                         variant="ghost"
                         className="h-7 w-7 p-0"
-                        onClick={() => handleAction(user.id, "resume")}
-                        aria-label="Resume user"
+                        onClick={() => handleAction(user.id, "activate")}
+                        title="Activate user"
                       >
                         <Play className="h-3.5 w-3.5 text-emerald-500" />
                       </Button>
@@ -149,8 +154,17 @@ export default function AdminUsersPage() {
                       size="sm"
                       variant="ghost"
                       className="h-7 w-7 p-0"
+                      onClick={() => handleAction(user.id, "reset_sending")}
+                      title="Reset sending pause"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 text-blue-400" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
                       onClick={() => handleAction(user.id, "delete")}
-                      aria-label="Delete user"
+                      title="Delete user"
                     >
                       <Trash2 className="h-3.5 w-3.5 text-red-400" />
                     </Button>

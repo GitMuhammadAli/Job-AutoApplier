@@ -16,23 +16,44 @@ export async function PATCH(
   const body = await request.json();
   const action = body.action as string;
 
-  if (action === "pause") {
-    await prisma.userSettings.update({
-      where: { userId: id },
-      data: { accountStatus: "paused" },
-    });
-    return NextResponse.json({ success: true });
-  }
+  try {
+    switch (action) {
+      case "pause":
+        await prisma.userSettings.update({
+          where: { userId: id },
+          data: { accountStatus: "paused" },
+        });
+        break;
 
-  if (action === "resume") {
-    await prisma.userSettings.update({
-      where: { userId: id },
-      data: { accountStatus: "active" },
-    });
-    return NextResponse.json({ success: true });
-  }
+      case "activate":
+        await prisma.userSettings.update({
+          where: { userId: id },
+          data: { accountStatus: "active", sendingPausedUntil: null },
+        });
+        break;
 
-  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+      case "reset_sending":
+        await prisma.userSettings.update({
+          where: { userId: id },
+          data: { sendingPausedUntil: null },
+        });
+        break;
+
+      default:
+        return NextResponse.json(
+          { error: "Unknown action" },
+          { status: 400 }
+        );
+    }
+
+    return NextResponse.json({ success: true, action });
+  } catch (error) {
+    console.error("[AdminUserAction]", error);
+    return NextResponse.json(
+      { error: "Action failed" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function DELETE(
@@ -46,7 +67,23 @@ export async function DELETE(
 
   const { id } = await params;
 
-  await prisma.user.delete({ where: { id } });
+  try {
+    await prisma.activity.deleteMany({ where: { userId: id } });
+    await prisma.jobApplication.deleteMany({ where: { userId: id } });
+    await prisma.userJob.deleteMany({ where: { userId: id } });
+    await prisma.resume.deleteMany({ where: { userId: id } });
+    await prisma.emailTemplate.deleteMany({ where: { userId: id } });
+    await prisma.userSettings
+      .delete({ where: { userId: id } })
+      .catch(() => {});
+    await prisma.user.delete({ where: { id } });
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[AdminDeleteUser]", error);
+    return NextResponse.json(
+      { error: "Delete failed" },
+      { status: 500 }
+    );
+  }
 }

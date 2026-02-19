@@ -1,54 +1,90 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
-import { prisma } from "@/lib/prisma";
-import { scrapeAndUpsert } from "@/lib/scrapers/scrape-source";
-import { fetchIndeed } from "@/lib/scrapers/indeed";
-import { fetchRemotive } from "@/lib/scrapers/remotive";
-import { fetchArbeitnow } from "@/lib/scrapers/arbeitnow";
-import { aggregateSearchQueries } from "@/lib/scrapers/keyword-aggregator";
-import type { SearchQuery } from "@/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const session = await getAuthSession();
   if (!isAdmin(session?.user?.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const queries = await aggregateSearchQueries("free");
+  const body = await req.json().catch(() => ({}));
+  const source = (body.source as string) || "all";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const secret = process.env.CRON_SECRET;
 
-  if (!queries.length) {
-    return NextResponse.json({ error: "No keywords found" }, { status: 400 });
+  if (!secret) {
+    return NextResponse.json(
+      { error: "CRON_SECRET not configured" },
+      { status: 500 }
+    );
   }
 
-  const sources = [
-    { name: "indeed", fn: fetchIndeed },
-    { name: "remotive", fn: fetchRemotive },
-    { name: "arbeitnow", fn: () => fetchArbeitnow() },
-  ];
-
-  let totalNew = 0;
-  for (const source of sources) {
+  if (source === "instant-apply") {
     try {
-      const result = await scrapeAndUpsert(
-        source.name,
-        source.fn as (q: SearchQuery[]) => Promise<any>,
-        queries
+      const res = await fetch(
+        `${baseUrl}/api/cron/instant-apply?secret=${secret}`
       );
-      totalNew += (result as any).newJobs ?? 0;
-    } catch {
-      await prisma.systemLog.create({
-        data: {
-          type: "error",
-          source: source.name,
-          message: `Admin-triggered scrape failed for ${source.name}`,
+      const data = await res.json();
+      return NextResponse.json(data);
+    } catch (err: unknown) {
+      return NextResponse.json(
+        {
+          error: "Instant apply trigger failed",
+          details: String(err),
         },
-      });
+        { status: 500 }
+      );
     }
   }
 
-  return NextResponse.json({ success: true, newJobs: totalNew });
+  if (source === "all") {
+    const sources = [
+      "indeed",
+      "remotive",
+      "arbeitnow",
+      "rozee",
+      "linkedin",
+    ];
+    const results: {
+      source: string;
+      status: number | string;
+      error?: string;
+    }[] = [];
+
+    for (const s of sources) {
+      try {
+        const res = await fetch(
+          `${baseUrl}/api/cron/scrape/${s}?secret=${secret}`
+        );
+        results.push({ source: s, status: res.status });
+      } catch (err: unknown) {
+        results.push({
+          source: s,
+          status: "error",
+          error: String(err),
+        });
+      }
+    }
+    return NextResponse.json({ results });
+  }
+
+  try {
+    const res = await fetch(
+      `${baseUrl}/api/cron/scrape/${source}?secret=${secret}`
+    );
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (err: unknown) {
+    return NextResponse.json(
+      {
+        error: `Trigger failed for ${source}`,
+        details: String(err),
+      },
+      { status: 500 }
+    );
+  }
 }

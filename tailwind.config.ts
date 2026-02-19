@@ -1,5 +1,5 @@
 import type { Config } from "tailwindcss";
-const config: Config = { darkMode: ["class", "class"], content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"], theme: {
+const config: Config = { darkMode: "class", content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"], theme: {
 	extend: {
 		borderRadius: {
 			lg: 'var(--radius)',
