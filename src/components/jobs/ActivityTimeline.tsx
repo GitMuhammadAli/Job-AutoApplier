@@ -43,13 +43,13 @@ const TYPE_CONFIG: Record<ActivityType, { icon: typeof ArrowRight; label: string
 export function ActivityTimeline({ activities }: ActivityTimelineProps) {
   if (activities.length === 0) {
     return (
-      <p className="text-sm text-slate-400 italic py-4">No activity yet.</p>
+      <p className="text-sm text-slate-400 dark:text-zinc-500 italic py-4">No activity yet.</p>
     );
   }
 
   return (
     <div className="relative space-y-0">
-      <div className="absolute left-[15px] top-2 bottom-2 w-px bg-slate-200" />
+      <div className="absolute left-[15px] top-2 bottom-2 w-px bg-slate-200 dark:bg-zinc-700" />
       {activities.map((activity) => {
         const config = TYPE_CONFIG[activity.type];
         const Icon = config.icon;
@@ -64,24 +64,24 @@ export function ActivityTimeline({ activities }: ActivityTimelineProps) {
 
         return (
           <div key={activity.id} className="relative flex gap-3 pb-4">
-            <div className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white border border-slate-200 shadow-sm">
+            <div className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-sm dark:shadow-zinc-900/50">
               <Icon className={`h-3.5 w-3.5 ${config.color}`} />
             </div>
             <div className="flex-1 pt-0.5">
-              <p className="text-sm font-medium text-slate-700">
+              <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">
                 {config.label}
               </p>
               {activity.type === "STAGE_CHANGE" && fromConfig && toConfig && (
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                   <span className={fromConfig.text}>{fromConfig.label}</span>
                   {" → "}
                   <span className={toConfig.text}>{toConfig.label}</span>
                 </p>
               )}
               {activity.type !== "STAGE_CHANGE" && activity.description && (
-                <p className="text-xs text-slate-500 mt-0.5">{activity.description}</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{activity.description}</p>
               )}
-              <p className="text-[10px] text-slate-400 mt-1">
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
                 {new Date(activity.createdAt).toLocaleString()}
               </p>
             </div>
