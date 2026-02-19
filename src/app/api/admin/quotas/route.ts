@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthSession } from "@/lib/auth";
-import { isAdmin } from "@/lib/admin";
+import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +13,7 @@ const QUOTA_LIMITS: Record<string, { daily: number; monthly: number }> = {
 };
 
 export async function GET() {
-  const session = await getAuthSession();
-  if (!isAdmin(session?.user?.email)) {
+  if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

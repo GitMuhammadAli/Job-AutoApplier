@@ -53,13 +53,13 @@ export default function AdminLogsPage() {
   }
 
   const typeBadgeColor: Record<string, string> = {
-    scrape: "bg-blue-100 text-blue-700",
-    error: "bg-red-100 text-red-700",
-    apply: "bg-violet-100 text-violet-700",
-    send: "bg-emerald-100 text-emerald-700",
-    bounce: "bg-orange-100 text-orange-700",
-    notification: "bg-cyan-100 text-cyan-700",
-    "follow-up": "bg-amber-100 text-amber-700",
+    scrape: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
+    error: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300",
+    apply: "bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300",
+    send: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300",
+    bounce: "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
+    notification: "bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300",
+    "follow-up": "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300",
   };
 
   return (

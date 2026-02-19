@@ -149,22 +149,22 @@ export function JobDetailClient({ job }: JobDetailProps) {
   return (
     <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5 animate-slide-up">
       {/* Back */}
-      <Link href="/" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+      <Link href="/" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors">
         <ChevronLeft className="h-4 w-4" />
         Back to Pipeline
       </Link>
 
       {/* Header Card */}
-      <div className="relative overflow-hidden rounded-xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-100/80">
+      <div className="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-4 sm:p-5 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
         <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${config.gradient}`} />
 
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-sm text-slate-500">
+            <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-zinc-400">
               <Building2 className="h-4 w-4 flex-shrink-0" />
               <span className="truncate">{g.company}</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 mt-1">{g.title}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 mt-1">{g.title}</h1>
 
             <div className="flex flex-wrap items-center gap-2 mt-2">
               <PlatformBadge source={g.source} />
@@ -173,9 +173,9 @@ export function JobDetailClient({ job }: JobDetailProps) {
               </Badge>
               {job.matchScore != null && (
                 <Badge variant="outline" className={`border-0 text-xs font-bold ${
-                  job.matchScore >= 70 ? "bg-emerald-50 text-emerald-700" :
-                  job.matchScore >= 40 ? "bg-amber-50 text-amber-700" :
-                  "bg-slate-50 text-slate-600"
+                  job.matchScore >= 70 ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" :
+                  job.matchScore >= 40 ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" :
+                  "bg-slate-50 dark:bg-zinc-800/50 text-slate-600 dark:text-zinc-400"
                 }`}>
                   <Star className="h-3 w-3 mr-1" />
                   {Math.round(job.matchScore)}% Match
@@ -183,9 +183,9 @@ export function JobDetailClient({ job }: JobDetailProps) {
               )}
               {job.application && (
                 <Badge variant="outline" className={`border-0 text-xs ${
-                  job.application.status === "SENT" ? "bg-emerald-50 text-emerald-700" :
-                  job.application.status === "DRAFT" ? "bg-amber-50 text-amber-700" :
-                  "bg-slate-50 text-slate-600"
+                  job.application.status === "SENT" ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" :
+                  job.application.status === "DRAFT" ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" :
+                  "bg-slate-50 dark:bg-zinc-800/50 text-slate-600 dark:text-zinc-400"
                 }`}>
                   <Send className="h-3 w-3 mr-1" />
                   {job.application.status}
@@ -205,7 +205,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
             )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                <Button variant="outline" size="sm" className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30">
                   <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                   Dismiss
                 </Button>
@@ -226,7 +226,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
                       className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                         dismissReason === r
                           ? "bg-red-600 text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          : "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600"
                       }`}
                     >
                       {r}
@@ -257,8 +257,8 @@ export function JobDetailClient({ job }: JobDetailProps) {
               disabled={isPending}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap ${
                 isActive
-                  ? `${sc.bg} ${sc.text} ring-1 ${sc.ring} shadow-sm`
-                  : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                  ? `${sc.bg} ${sc.text} ring-1 ${sc.ring} shadow-sm dark:shadow-zinc-900/50`
+                  : "bg-slate-50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700"
               }`}
             >
               <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
@@ -275,7 +275,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
         <div className="flex-1 min-w-0">
       {/* Tabs */}
       <Tabs defaultValue="details" className="space-y-0">
-        <TabsList className="bg-slate-100/80 rounded-lg p-0.5">
+        <TabsList className="bg-slate-100/80 dark:bg-zinc-700/80 rounded-lg p-0.5">
           <TabsTrigger value="details" className="text-xs rounded-md">Details</TabsTrigger>
           <TabsTrigger value="cover-letter" className="text-xs rounded-md">Cover Letter</TabsTrigger>
           <TabsTrigger value="notes" className="text-xs rounded-md">Notes</TabsTrigger>
@@ -285,8 +285,8 @@ export function JobDetailClient({ job }: JobDetailProps) {
         <TabsContent value="details" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Info card */}
-            <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80 space-y-3">
-              <h3 className="text-sm font-bold text-slate-800">Job Info</h3>
+            <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-3">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Job Info</h3>
               {g.location && <InfoRow icon={<MapPin className="h-3.5 w-3.5" />} label="Location" value={g.location} />}
               {g.salary && <InfoRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Salary" value={g.salary} />}
               {g.jobType && <InfoRow icon={<Tag className="h-3.5 w-3.5" />} label="Type" value={g.jobType} />}
@@ -299,11 +299,11 @@ export function JobDetailClient({ job }: JobDetailProps) {
             {/* Skills & Match */}
             <div className="space-y-4">
               {g.skills.length > 0 && (
-                <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80">
-                  <h3 className="text-sm font-bold text-slate-800 mb-2">Skills</h3>
+                <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Skills</h3>
                   <div className="flex flex-wrap gap-1.5">
                     {g.skills.map((skill) => (
-                      <Badge key={skill} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-0">
+                      <Badge key={skill} variant="outline" className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-0">
                         {skill}
                       </Badge>
                     ))}
@@ -312,11 +312,11 @@ export function JobDetailClient({ job }: JobDetailProps) {
               )}
 
               {job.matchReasons.length > 0 && (
-                <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80">
-                  <h3 className="text-sm font-bold text-slate-800 mb-2">Match Reasons</h3>
+                <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Match Reasons</h3>
                   <ul className="space-y-1">
                     {job.matchReasons.map((reason, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-slate-600">
+                      <li key={i} className="flex items-start gap-2 text-xs text-slate-600 dark:text-zinc-400">
                         <ArrowRight className="h-3 w-3 text-emerald-500 mt-0.5 flex-shrink-0" />
                         {reason}
                       </li>
@@ -329,9 +329,9 @@ export function JobDetailClient({ job }: JobDetailProps) {
 
           {/* Description */}
           {g.description && (
-            <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80">
-              <h3 className="text-sm font-bold text-slate-800 mb-2">Job Description</h3>
-              <div className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
+            <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Job Description</h3>
+              <div className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
                 {g.description}
               </div>
             </div>
@@ -339,26 +339,26 @@ export function JobDetailClient({ job }: JobDetailProps) {
 
           {/* Apply links */}
           {(g.applyUrl || g.companyUrl || g.companyEmail || g.sourceUrl) && (
-            <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80">
-              <h3 className="text-sm font-bold text-slate-800 mb-2">Apply Links</h3>
+            <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Apply Links</h3>
               <div className="space-y-2">
                 {g.applyUrl && (
-                  <a href={g.applyUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 hover:underline">
+                  <a href={g.applyUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline">
                     <ExternalLink className="h-3.5 w-3.5" /> Apply Link
                   </a>
                 )}
                 {g.sourceUrl && g.sourceUrl !== g.applyUrl && (
-                  <a href={g.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 hover:underline">
+                  <a href={g.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline">
                     <ExternalLink className="h-3.5 w-3.5" /> Source Link
                   </a>
                 )}
                 {g.companyUrl && (
-                  <a href={g.companyUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-700 hover:underline">
+                  <a href={g.companyUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:underline">
                     <Building2 className="h-3.5 w-3.5" /> Company Website
                   </a>
                 )}
                 {g.companyEmail && (
-                  <a href={`mailto:${g.companyEmail}`} className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-700 hover:underline">
+                  <a href={`mailto:${g.companyEmail}`} className="flex items-center gap-2 text-sm text-slate-600 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:underline">
                     <Send className="h-3.5 w-3.5" /> {g.companyEmail}
                   </a>
                 )}
@@ -368,9 +368,9 @@ export function JobDetailClient({ job }: JobDetailProps) {
         </TabsContent>
 
         <TabsContent value="cover-letter" className="mt-4">
-          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80 space-y-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-violet-500" />
                 AI Cover Letter
               </h3>
@@ -441,17 +441,17 @@ export function JobDetailClient({ job }: JobDetailProps) {
               </>
             ) : (
               <div className="text-center py-8">
-                <Sparkles className="h-8 w-8 text-slate-200 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">Click Generate to create a personalized cover letter using AI.</p>
-                <p className="text-xs text-slate-400 mt-1">Uses your resume content and settings for tone/language.</p>
+                <Sparkles className="h-8 w-8 text-slate-200 dark:text-zinc-600 mx-auto mb-2" />
+                <p className="text-sm text-slate-500 dark:text-zinc-400">Click Generate to create a personalized cover letter using AI.</p>
+                <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">Uses your resume content and settings for tone/language.</p>
               </div>
             )}
           </div>
         </TabsContent>
 
         <TabsContent value="notes" className="mt-4">
-          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80 space-y-3">
-            <h3 className="text-sm font-bold text-slate-800">Notes</h3>
+          <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-3">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Notes</h3>
             <Textarea
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
@@ -466,8 +466,8 @@ export function JobDetailClient({ job }: JobDetailProps) {
         </TabsContent>
 
         <TabsContent value="activity" className="mt-4">
-          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80">
-            <h3 className="text-sm font-bold text-slate-800 mb-4">Activity Timeline</h3>
+          <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">Activity Timeline</h3>
             <ActivityTimeline activities={job.activities} />
           </div>
         </TabsContent>
@@ -476,7 +476,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
 
         {/* Right: Quick Apply Panel */}
         <div className="w-full lg:w-[380px] shrink-0">
-          <div className="sticky top-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80">
+          <div className="sticky top-4 rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
             <QuickApplyPanel
               userJob={{
                 id: job.id,
@@ -501,9 +501,9 @@ export function JobDetailClient({ job }: JobDetailProps) {
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-2 text-sm">
-      <span className="text-slate-400">{icon}</span>
-      <span className="text-slate-500 min-w-[60px]">{label}:</span>
-      <span className="text-slate-700 font-medium">{value}</span>
+      <span className="text-slate-400 dark:text-zinc-500">{icon}</span>
+      <span className="text-slate-500 dark:text-zinc-400 min-w-[60px]">{label}:</span>
+      <span className="text-slate-700 dark:text-zinc-300 font-medium">{value}</span>
     </div>
   );
 }

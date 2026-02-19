@@ -26,20 +26,20 @@ function ChangeIndicator({
 
   if (pct > 0) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-emerald-600 text-xs font-semibold">
+      <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
         <ArrowUp className="h-3 w-3" />+{pct}%
       </span>
     );
   }
   if (pct < 0) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-red-500 text-xs font-semibold">
+      <span className="inline-flex items-center gap-0.5 text-red-500 dark:text-red-400 text-xs font-semibold">
         <ArrowDown className="h-3 w-3" />{pct}%
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-0.5 text-slate-400 text-xs font-semibold">
+    <span className="inline-flex items-center gap-0.5 text-slate-400 dark:text-zinc-500 text-xs font-semibold">
       <Minus className="h-3 w-3" />0%
     </span>
   );
@@ -47,7 +47,7 @@ function ChangeIndicator({
 
 export function WeeklyComparison({ data }: WeeklyComparisonProps) {
   return (
-    <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/50">
+    <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700/50">
       <h3 className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-3">
         This Week vs Last Week
       </h3>

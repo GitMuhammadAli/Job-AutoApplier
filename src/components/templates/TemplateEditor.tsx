@@ -167,12 +167,12 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
         {templates.map((t) => (
           <div
             key={t.id}
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
+            className="rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 transition-all hover:shadow-md dark:hover:shadow-zinc-900/50"
           >
             {editingId === t.id ? (
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-medium text-slate-600 mb-1.5 block">Name</label>
+                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">Name</label>
                   <Input
                     ref={nameRef}
                     data-field="name"
@@ -182,7 +182,7 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 mb-1.5 block">Subject</label>
+                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">Subject</label>
                   <Input
                     ref={subjectRef}
                     data-field="subject"
@@ -192,7 +192,7 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 mb-1.5 block">Body</label>
+                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">Body</label>
                   <Textarea
                     ref={bodyRef}
                     data-field="body"
@@ -204,13 +204,13 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="text-xs text-slate-500 mr-1">Insert:</span>
+                    <span className="text-xs text-slate-500 dark:text-zinc-400 mr-1">Insert:</span>
                   {PLACEHOLDER_CHIPS.map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => insertPlaceholder(p)}
-                      className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 transition-colors"
+                      className="rounded-md bg-slate-100 dark:bg-zinc-700 px-2 py-1 text-xs font-medium text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
                     >
                       {p}
                     </button>
@@ -254,7 +254,7 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <h3 className="font-semibold text-slate-900 truncate">{t.name}</h3>
+                    <h3 className="font-semibold text-slate-900 dark:text-zinc-100 truncate">{t.name}</h3>
                     {t.isDefault && (
                       <Badge variant="secondary" className="shrink-0">
                         <Star className="h-3 w-3 mr-0.5 fill-amber-400 text-amber-600" />
@@ -262,9 +262,9 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
                       </Badge>
                     )}
                   </div>
-                  <Pencil className="h-4 w-4 text-slate-400 shrink-0" />
+                  <Pencil className="h-4 w-4 text-slate-400 dark:text-zinc-500 shrink-0" />
                 </div>
-                <p className="mt-1 text-sm text-slate-500 truncate">{t.subject}</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400 truncate">{t.subject}</p>
               </button>
             )}
           </div>
@@ -353,7 +353,7 @@ function CreateTemplateDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1.5 block">Name</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">Name</label>
             <Input
               ref={nameRef}
               value={name}
@@ -373,7 +373,7 @@ function CreateTemplateDialog({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1.5 block">Body</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">Body</label>
             <Textarea
               ref={bodyRef}
               value={body}
@@ -385,13 +385,13 @@ function CreateTemplateDialog({
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="text-xs text-slate-500 mr-1">Insert:</span>
+                    <span className="text-xs text-slate-500 dark:text-zinc-400 mr-1">Insert:</span>
             {placeholderChips.map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => insertPlaceholder(p)}
-                className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 transition-colors"
+                className="rounded-md bg-slate-100 dark:bg-zinc-700 px-2 py-1 text-xs font-medium text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
               >
                 {p}
               </button>

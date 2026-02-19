@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -20,6 +21,19 @@ import { BarChart3, GitBranch, Globe, Activity, Zap, Timer, Star, PieChartIcon, 
 
 const COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#06b6d4", "#ef4444", "#ec4899", "#6366f1"];
 const RESPONSE_COLORS = ["#10b981", "#ef4444", "#94a3b8", "#f59e0b"];
+
+function useIsDark() {
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const el = document.documentElement;
+    const check = () => el.classList.contains("dark");
+    setIsDark(check());
+    const obs = new MutationObserver(() => setIsDark(check()));
+    obs.observe(el, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return isDark;
+}
 
 interface ChartsProps {
   applicationsOverTime: { week: string; count: number }[];
@@ -47,11 +61,11 @@ function ChartCard({
   className?: string;
 }) {
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80 ${className}`}>
+    <div className={`relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700/50 ${className}`}>
       <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${gradient}`} />
       <div className="flex items-center gap-2 mb-4">
-        <Icon className="h-4 w-4 text-slate-400" />
-        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">{title}</h3>
+        <Icon className="h-4 w-4 text-slate-400 dark:text-zinc-500" />
+        <h3 className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">{title}</h3>
       </div>
       {children}
     </div>
@@ -61,10 +75,17 @@ function ChartCard({
 function NoData({ text = "No data yet" }: { text?: string }) {
   return (
     <div className="flex items-center justify-center h-[200px]">
-      <p className="text-xs text-slate-400">{text}</p>
+      <p className="text-xs text-slate-400 dark:text-zinc-500">{text}</p>
     </div>
   );
 }
+
+const GRID_LIGHT = "#f1f5f9";
+const GRID_DARK = "#3f3f46";
+const TICK_LIGHT = "#94a3b8";
+const TICK_DARK = "#a1a1aa";
+const TOOLTIP_BORDER_LIGHT = "#e2e8f0";
+const TOOLTIP_BORDER_DARK = "#52525b";
 
 export function Charts({
   applicationsOverTime,
@@ -77,6 +98,12 @@ export function Charts({
   responseRateBreakdown,
   topCompanies,
 }: ChartsProps) {
+  const isDark = useIsDark();
+  const gridStroke = isDark ? GRID_DARK : GRID_LIGHT;
+  const tickFill = isDark ? TICK_DARK : TICK_LIGHT;
+  const tooltipBorder = isDark ? TOOLTIP_BORDER_DARK : TOOLTIP_BORDER_LIGHT;
+  const tooltipBg = isDark ? "#27272a" : "#ffffff";
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <ChartCard title="Applications Over Time" icon={BarChart3} gradient="from-blue-500 to-cyan-500">
@@ -91,16 +118,16 @@ export function Charts({
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
               <XAxis
                 dataKey="week"
-                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                tick={{ fontSize: 10, fill: tickFill }}
                 tickFormatter={(v) => v.split("-W")[1] ? `W${v.split("-W")[1]}` : v}
                 axisLine={false}
                 tickLine={false}
               />
-              <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 10, fill: tickFill }} allowDecimals={false} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${tooltipBorder}`, backgroundColor: tooltipBg, fontSize: 12 }} />
               <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} fill="url(#appGrad)" name="Applications" />
             </AreaChart>
           </ResponsiveContainer>
@@ -113,10 +140,10 @@ export function Charts({
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={stageFunnel} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis type="number" tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
-              <YAxis dataKey="stage" type="category" tick={{ fontSize: 10, fill: "#64748b", fontWeight: 600 }} width={70} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: tickFill }} allowDecimals={false} axisLine={false} tickLine={false} />
+              <YAxis dataKey="stage" type="category" tick={{ fontSize: 10, fill: isDark ? "#a1a1aa" : "#64748b", fontWeight: 600 }} width={70} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${tooltipBorder}`, backgroundColor: tooltipBg, fontSize: 12 }} />
               <Bar dataKey="count" radius={[0, 6, 6, 0]} name="Jobs">
                 {stageFunnel.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -149,7 +176,7 @@ export function Charts({
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${tooltipBorder}`, backgroundColor: tooltipBg, fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
         )}
@@ -177,7 +204,7 @@ export function Charts({
                   <Cell key={i} fill={["#f59e0b", "#8b5cf6", "#3b82f6", "#10b981", "#94a3b8"][i % 5]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${tooltipBorder}`, backgroundColor: tooltipBg, fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
         )}
@@ -189,16 +216,16 @@ export function Charts({
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={speedOverTime}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                tick={{ fontSize: 10, fill: tickFill }}
                 tickFormatter={(v) => v.split("-").slice(1).join("/")}
                 axisLine={false}
                 tickLine={false}
               />
-              <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} label={{ value: "min", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: "#94a3b8" } }} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} formatter={(value: number) => [`${value} min`, "Avg Time"]} />
+              <YAxis tick={{ fontSize: 10, fill: tickFill }} axisLine={false} tickLine={false} label={{ value: "min", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: tickFill } }} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${tooltipBorder}`, backgroundColor: tooltipBg, fontSize: 12 }} formatter={(value: number) => [`${value} min`, "Avg Time"]} />
               <Line type="monotone" dataKey="avgMinutes" stroke="#ec4899" strokeWidth={2} dot={{ r: 3, fill: "#ec4899" }} name="Avg Minutes" />
             </LineChart>
           </ResponsiveContainer>
@@ -217,16 +244,16 @@ export function Charts({
                   <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
               <XAxis
                 dataKey="week"
-                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                tick={{ fontSize: 10, fill: tickFill }}
                 tickFormatter={(v) => v.split("-W")[1] ? `W${v.split("-W")[1]}` : v}
                 axisLine={false}
                 tickLine={false}
               />
-              <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 10, fill: tickFill }} allowDecimals={false} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${tooltipBorder}`, backgroundColor: tooltipBg, fontSize: 12 }} />
               <Area type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={2} fill="url(#actGrad)" name="Activities" />
             </AreaChart>
           </ResponsiveContainer>
@@ -255,7 +282,7 @@ export function Charts({
                   <Cell key={i} fill={RESPONSE_COLORS[i % RESPONSE_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${tooltipBorder}`, backgroundColor: tooltipBg, fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -265,17 +292,17 @@ export function Charts({
         <ChartCard title="Top Companies" icon={Building2} gradient="from-indigo-500 to-blue-500">
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={topCompanies} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis type="number" tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: tickFill }} allowDecimals={false} axisLine={false} tickLine={false} />
               <YAxis
                 dataKey="company"
                 type="category"
-                tick={{ fontSize: 10, fill: "#64748b", fontWeight: 600 }}
+                tick={{ fontSize: 10, fill: isDark ? "#a1a1aa" : "#64748b", fontWeight: 600 }}
                 width={100}
                 axisLine={false}
                 tickLine={false}
               />
-              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+              <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${tooltipBorder}`, backgroundColor: tooltipBg, fontSize: 12 }} />
               <Bar dataKey="count" radius={[0, 6, 6, 0]} name="Applications" fill="#6366f1" />
             </BarChart>
           </ResponsiveContainer>
@@ -289,10 +316,10 @@ export function Charts({
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={matchScoreDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="range" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} allowDecimals={false} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                <XAxis dataKey="range" tick={{ fontSize: 10, fill: tickFill }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: tickFill }} allowDecimals={false} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${tooltipBorder}`, backgroundColor: tooltipBg, fontSize: 12 }} />
                 <Bar dataKey="count" radius={[6, 6, 0, 0]} name="Jobs">
                   {matchScoreDistribution.map((_, i) => (
                     <Cell key={i} fill={["#ef4444", "#f59e0b", "#eab308", "#22c55e", "#10b981"][i % 5]} />

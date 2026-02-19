@@ -57,9 +57,9 @@ export function SendingStatusBar(props: SendingStatusBarProps) {
 
   if (isPaused) {
     return (
-      <div className="flex items-center gap-2.5 rounded-xl bg-red-50 px-4 py-2.5 ring-1 ring-red-200/60">
-        <PauseCircle className="h-4 w-4 text-red-600" />
-        <span className="text-xs font-semibold text-red-700">
+      <div className="flex items-center gap-2.5 rounded-xl bg-red-50 dark:bg-red-900/30 px-4 py-2.5 ring-1 ring-red-200/60 dark:ring-red-800/40">
+        <PauseCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+        <span className="text-xs font-semibold text-red-700 dark:text-red-300">
           Sending paused — bounces detected.
           {stats.pausedUntil && (
             <> Resumes at {new Date(stats.pausedUntil).toLocaleTimeString()}.</>

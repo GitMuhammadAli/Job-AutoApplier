@@ -144,6 +144,12 @@ export default function LoginPage() {
         <p className="text-center text-[11px] text-slate-400 dark:text-zinc-500">
           By signing in, you agree to let JobPilot scrape jobs and send email notifications on your behalf.
         </p>
+
+        <p className="text-center text-[11px] text-slate-400 dark:text-zinc-500">
+          <a href="/admin/login" className="text-violet-500 dark:text-violet-400 hover:underline font-medium">
+            Admin login
+          </a>
+        </p>
       </div>
     </div>
   );

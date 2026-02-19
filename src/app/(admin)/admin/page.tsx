@@ -247,7 +247,7 @@ function StatCard({
   bg: string;
 }) {
   return (
-    <div className={`rounded-xl ${bg} dark:bg-opacity-20 p-4 ring-1 ring-slate-100/50 dark:ring-zinc-700/50`}>
+    <div className={`rounded-xl ${bg} p-4 ring-1 ring-slate-100/50 dark:ring-zinc-700/50`}>
       <div className="flex items-center gap-2 mb-1">{icon}</div>
       <div className="text-lg font-bold text-slate-800 dark:text-zinc-100 tabular-nums">
         {value.toLocaleString()}

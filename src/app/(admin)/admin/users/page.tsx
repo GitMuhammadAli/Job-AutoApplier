@@ -110,9 +110,9 @@ export default function AdminUsersPage() {
                   <span
                     className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                       user.status === "active"
-                        ? "bg-emerald-100 text-emerald-700"
+                        ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
                         : user.status === "paused"
-                          ? "bg-amber-100 text-amber-700"
+                          ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
                           : "bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400"
                     }`}
                   >

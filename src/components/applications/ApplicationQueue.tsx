@@ -48,12 +48,12 @@ const STATUS_CONFIG: Record<
   ApplicationStatus,
   { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className?: string }
 > = {
-  DRAFT: { label: "Draft", variant: "secondary", className: "bg-amber-100 text-amber-800 border-amber-200" },
-  READY: { label: "Ready", variant: "default", className: "bg-blue-100 text-blue-800 border-blue-200" },
-  SENDING: { label: "Sending", variant: "outline", className: "bg-slate-100 text-slate-700" },
-  SENT: { label: "Sent", variant: "default", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-  FAILED: { label: "Failed", variant: "destructive", className: "bg-red-100 text-red-800 border-red-200" },
-  BOUNCED: { label: "Bounced", variant: "destructive", className: "bg-rose-100 text-rose-800 border-rose-200" },
+  DRAFT: { label: "Draft", variant: "secondary", className: "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800" },
+  READY: { label: "Ready", variant: "default", className: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
+  SENDING: { label: "Sending", variant: "outline", className: "bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300" },
+  SENT: { label: "Sent", variant: "default", className: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800" },
+  FAILED: { label: "Failed", variant: "destructive", className: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800" },
+  BOUNCED: { label: "Bounced", variant: "destructive", className: "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800" },
 };
 
 function StatusBadge({ status }: { status: ApplicationStatus }) {
@@ -158,7 +158,7 @@ function ApplicationCard({
   const createdDate = typeof app.createdAt === "string" ? new Date(app.createdAt) : app.createdAt;
 
   return (
-    <Card className="transition-shadow hover:shadow-md">
+    <Card className="transition-shadow hover:shadow-md dark:hover:shadow-zinc-900/50">
       <CardHeader className="flex flex-row items-start gap-3 pb-2">
         <button
           type="button"
@@ -169,7 +169,7 @@ function ApplicationCard({
           {selected ? (
             <CheckSquare className="h-4 w-4 text-blue-600" />
           ) : (
-            <Square className="h-4 w-4 text-slate-300" />
+            <Square className="h-4 w-4 text-slate-300 dark:text-zinc-500" />
           )}
         </button>
         <div className="flex-1 min-w-0">
@@ -181,7 +181,7 @@ function ApplicationCard({
             <StatusBadge status={app.status} />
           </div>
           <p className="text-sm text-slate-600 mt-0.5">{job.company}</p>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-slate-500">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-slate-500 dark:text-zinc-400">
             <span title="Recipient">{app.recipientEmail}</span>
             {matchScore != null && (
               <span>Match: {Math.round(matchScore)}%</span>
@@ -258,7 +258,7 @@ function ApplicationCard({
               variant="ghost"
               onClick={handleDelete}
               disabled={!!loading}
-              className="gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="gap-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
             >
               {loading === "delete" ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -488,8 +488,8 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
         </TabsList>
 
         {selectedCount > 0 && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg border bg-slate-50 px-4 py-2">
-            <span className="text-sm font-medium text-slate-700">
+          <div className="mt-4 flex items-center gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2">
+            <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">
               {selectedCount} selected
             </span>
             <Button
@@ -524,7 +524,7 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
               variant="outline"
               onClick={handleBulkDelete}
               disabled={bulkLoading || selectedDrafts.length === 0}
-              className="gap-1.5 text-red-600 hover:text-red-700"
+              className="gap-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
             >
               {bulkLoading ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -573,8 +573,8 @@ function ApplicationList({
 }) {
   if (applications.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 py-12 text-center">
-        <p className="text-sm text-slate-500">No applications in this tab</p>
+      <div className="rounded-xl border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/50 py-12 text-center">
+        <p className="text-sm text-slate-500 dark:text-zinc-400">No applications in this tab</p>
       </div>
     );
   }
@@ -585,12 +585,12 @@ function ApplicationList({
         <button
           type="button"
           onClick={onToggleSelectAll}
-          className="text-xs font-medium text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
+          className="text-xs font-medium text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 flex items-center gap-1.5"
         >
           {allSelected ? (
             <CheckSquare className="h-3.5 w-3.5 text-blue-600" />
           ) : (
-            <Square className="h-3.5 w-3.5 text-slate-300" />
+            <Square className="h-3.5 w-3.5 text-slate-300 dark:text-zinc-500" />
           )}
           {allSelected ? "Deselect all" : "Select all"}
         </button>
