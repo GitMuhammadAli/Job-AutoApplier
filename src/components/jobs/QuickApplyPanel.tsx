@@ -236,16 +236,16 @@ export function QuickApplyPanel({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-800">Quick Apply</h3>
+          <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Quick Apply</h3>
           {score != null && (
             <Badge
               variant="outline"
               className={`border-0 text-xs font-bold ${
                 score >= 70
-                  ? "bg-emerald-50 text-emerald-700"
+                  ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
                   : score >= 40
-                    ? "bg-amber-50 text-amber-700"
-                    : "bg-slate-50 text-slate-600"
+                    ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+                    : "bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400"
               }`}
             >
               <Star className="h-3 w-3 mr-1" />
@@ -254,12 +254,12 @@ export function QuickApplyPanel({
           )}
         </div>
         <div className="space-y-3 animate-pulse">
-          <div className="h-4 bg-slate-200 rounded w-2/3" />
-          <div className="h-10 bg-slate-100 rounded" />
-          <div className="h-4 bg-slate-200 rounded w-1/2" />
-          <div className="h-32 bg-slate-100 rounded" />
+          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-2/3" />
+          <div className="h-10 bg-slate-100 dark:bg-zinc-700 rounded" />
+          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+          <div className="h-32 bg-slate-100 dark:bg-zinc-700 rounded" />
         </div>
-        <p className="text-xs text-slate-400 flex items-center gap-1.5">
+        <p className="text-xs text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
           <Loader2 className="h-3 w-3 animate-spin" />
           Generating email draft...
         </p>
@@ -271,16 +271,16 @@ export function QuickApplyPanel({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-slate-800">Quick Apply</h3>
+        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Quick Apply</h3>
         {score != null && (
           <Badge
             variant="outline"
             className={`border-0 text-xs font-bold ${
               score >= 70
-                ? "bg-emerald-50 text-emerald-700"
+                ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
                 : score >= 40
-                  ? "bg-amber-50 text-amber-700"
-                  : "bg-slate-50 text-slate-600"
+                  ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+                  : "bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400"
             }`}
           >
             <Star className="h-3 w-3 mr-1" />
@@ -289,20 +289,20 @@ export function QuickApplyPanel({
         )}
       </div>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-500 dark:text-zinc-400">
         {userJob.globalJob.title} at {userJob.globalJob.company}
       </p>
 
       {/* Resume Selected */}
       {matchInfo && (
-        <div className="rounded-lg bg-blue-50 p-3 ring-1 ring-blue-100">
+        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/30 p-3 ring-1 ring-blue-100 dark:ring-blue-800/40">
           <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-blue-600 shrink-0" />
+            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-blue-800 truncate">
+              <p className="text-xs font-semibold text-blue-800 dark:text-blue-200 truncate">
                 {matchInfo.name}
               </p>
-              <p className="text-[10px] text-blue-600">
+              <p className="text-[10px] text-blue-600 dark:text-blue-400">
                 {matchInfo.tier}: {matchInfo.reason}
               </p>
             </div>
@@ -314,7 +314,7 @@ export function QuickApplyPanel({
         <>
           {/* Recipient */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">To</Label>
+            <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400">To</Label>
             <Input
               value={recipientEmail}
               onChange={(e) => {
@@ -335,7 +335,7 @@ export function QuickApplyPanel({
 
           {/* Subject */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">
+            <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400">
               Subject
             </Label>
             <Input
@@ -350,7 +350,7 @@ export function QuickApplyPanel({
 
           {/* Email Body */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">
+            <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400">
               Email Body
             </Label>
             <Textarea
@@ -367,7 +367,7 @@ export function QuickApplyPanel({
           {/* Cover Letter */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium text-slate-600">
+              <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400">
                 Cover Letter (optional)
               </Label>
               <Button
@@ -396,8 +396,8 @@ export function QuickApplyPanel({
                 className="text-xs leading-relaxed resize-y"
               />
             ) : (
-              <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center">
-                <p className="text-xs text-slate-400">
+              <div className="rounded-lg border border-dashed border-slate-200 dark:border-zinc-700 p-4 text-center">
+                <p className="text-xs text-slate-400 dark:text-zinc-500">
                   Click Generate to create a cover letter
                 </p>
               </div>
@@ -405,7 +405,7 @@ export function QuickApplyPanel({
           </div>
 
           {/* Actions */}
-          <div className="space-y-3 pt-2 border-t border-slate-100">
+          <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-zinc-700">
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -455,7 +455,7 @@ export function QuickApplyPanel({
                   <Send className="h-3.5 w-3.5" />
                   Send (set up in Settings)
                 </Button>
-                <p className="text-[10px] text-slate-400 mt-1.5 text-center">
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1.5 text-center">
                   You&apos;re in Manual mode. Use &quot;Copy All&quot; to apply yourself.
                   Switch to Semi-Auto in Settings to enable in-app sending.
                 </p>
@@ -478,10 +478,10 @@ export function QuickApplyPanel({
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-200" />
+                <span className="w-full border-t border-slate-200 dark:border-zinc-700" />
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="bg-white px-2 text-slate-400">
+                <span className="bg-white dark:bg-zinc-800 px-2 text-slate-400 dark:text-zinc-500">
                   or apply manually
                 </span>
               </div>
@@ -502,14 +502,14 @@ export function QuickApplyPanel({
                 />
               </Button>
               {showPlatforms && (
-                <div className="flex flex-wrap gap-1.5 p-2 rounded-lg bg-slate-50">
+                <div className="flex flex-wrap gap-1.5 p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50">
                   {APPLY_PLATFORMS.map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => handleMarkApplied(p)}
                       disabled={markingApplied}
-                      className="rounded-md bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:ring-blue-200 transition-colors"
+                      className="rounded-md bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-zinc-300 ring-1 ring-slate-200 dark:ring-zinc-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-300 hover:ring-blue-200 dark:hover:ring-blue-800/40 transition-colors"
                     >
                       {markingApplied ? (
                         <Loader2 className="h-3 w-3 animate-spin inline mr-1" />
@@ -524,8 +524,8 @@ export function QuickApplyPanel({
         </>
       ) : (
         <div className="text-center py-6 space-y-3">
-          <AlertCircle className="h-8 w-8 text-slate-200 mx-auto" />
-          <p className="text-sm text-slate-500">
+          <AlertCircle className="h-8 w-8 text-slate-200 dark:text-zinc-600 mx-auto" />
+          <p className="text-sm text-slate-500 dark:text-zinc-400">
             No draft yet. Click below to generate.
           </p>
           <Button size="sm" onClick={handleGenerate} disabled={isGenerating}>
@@ -541,14 +541,14 @@ export function QuickApplyPanel({
 
       {/* Match Reasons */}
       {userJob.matchReasons.length > 0 && (
-        <div className="rounded-lg bg-slate-50 p-3 space-y-1.5">
-          <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="rounded-lg bg-slate-50 dark:bg-zinc-800/50 p-3 space-y-1.5">
+          <h4 className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
             Why This Match
           </h4>
           {userJob.matchReasons.map((reason, i) => (
             <div
               key={i}
-              className="flex items-start gap-1.5 text-xs text-slate-600"
+              className="flex items-start gap-1.5 text-xs text-slate-600 dark:text-zinc-400"
             >
               <ArrowRight className="h-3 w-3 text-emerald-500 mt-0.5 shrink-0" />
               {reason}
