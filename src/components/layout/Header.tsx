@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { Search, SlidersHorizontal, ChevronDown, PanelLeftOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useJobStore } from "@/store/useJobStore";
+import { useSidebarStore } from "@/store/useSidebarStore";
 import { STAGES, STAGE_CONFIG } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { JobStage } from "@prisma/client";
@@ -12,6 +13,7 @@ import { PauseToggle } from "@/components/shared/PauseToggle";
 
 export function Header() {
   const { search, setSearch, filter, setFilter } = useJobStore();
+  const { collapsed, toggle } = useSidebarStore();
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [accountStatus, setAccountStatus] = useState<string | null>(null);
 
@@ -34,7 +36,19 @@ export function Header() {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/60 dark:border-zinc-700/60 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl">
       <div className="flex h-12 md:h-14 items-center gap-3 px-4 md:px-6">
+        {/* Spacer for mobile hamburger */}
         <div className="w-8 md:hidden" />
+
+        {/* Desktop sidebar open button — visible only when sidebar is collapsed */}
+        {collapsed && (
+          <button
+            onClick={toggle}
+            aria-label="Open sidebar"
+            className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors"
+          >
+            <PanelLeftOpen className="h-4.5 w-4.5" />
+          </button>
+        )}
 
         <div className="relative flex-1 md:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import {
   CheckSquare,
@@ -11,7 +12,7 @@ import {
   Check,
   Loader2,
   RotateCcw,
-  Copy,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -156,31 +157,35 @@ function ApplicationCard({
   const job = app.userJob.globalJob;
   const matchScore = app.userJob.matchScore;
   const createdDate = typeof app.createdAt === "string" ? new Date(app.createdAt) : app.createdAt;
+  const jobDetailHref = `/jobs/${app.userJob.id}`;
 
   return (
-    <Card className="transition-shadow hover:shadow-md dark:hover:shadow-zinc-900/50">
+    <Card className="group/card transition-shadow hover:shadow-md dark:hover:shadow-zinc-900/50 dark:border-zinc-700/80">
       <CardHeader className="flex flex-row items-start gap-3 pb-2">
         <button
           type="button"
           onClick={onToggleSelect}
-          className="mt-0.5 shrink-0 rounded p-0.5 hover:bg-slate-100 transition-colors"
+          className="mt-0.5 shrink-0 rounded p-0.5 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
           aria-label={selected ? "Deselect" : "Select"}
         >
           {selected ? (
-            <CheckSquare className="h-4 w-4 text-blue-600" />
+            <CheckSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           ) : (
             <Square className="h-4 w-4 text-slate-300 dark:text-zinc-500" />
           )}
         </button>
-        <div className="flex-1 min-w-0">
+        <Link href={jobDetailHref} className="flex-1 min-w-0 cursor-pointer">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-slate-900 truncate">{job.title}</h3>
-            <Badge variant="outline" className="text-[10px] font-medium shrink-0">
+            <h3 className="font-semibold text-slate-900 dark:text-zinc-100 truncate group-hover/card:text-blue-600 dark:group-hover/card:text-blue-400 transition-colors">
+              {job.title}
+            </h3>
+            <ExternalLink className="h-3.5 w-3.5 text-slate-300 dark:text-zinc-600 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0" />
+            <Badge variant="outline" className="text-[10px] font-medium shrink-0 dark:border-zinc-600 dark:text-zinc-300">
               {job.source}
             </Badge>
             <StatusBadge status={app.status} />
           </div>
-          <p className="text-sm text-slate-600 mt-0.5">{job.company}</p>
+          <p className="text-sm text-slate-600 dark:text-zinc-400 mt-0.5">{job.company}</p>
           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-slate-500 dark:text-zinc-400">
             <span title="Recipient">{app.recipientEmail}</span>
             {matchScore != null && (
@@ -191,7 +196,7 @@ function ApplicationCard({
             )}
             <span>{formatDistanceToNow(createdDate, { addSuffix: true })}</span>
           </div>
-        </div>
+        </Link>
       </CardHeader>
       <CardContent className="pt-0 space-y-3">
         <div className="flex flex-wrap gap-2">
