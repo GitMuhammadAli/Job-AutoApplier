@@ -154,39 +154,39 @@ export function OnboardingWizard() {
               <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
                 i === step ? "bg-blue-600 text-white shadow-lg scale-110" :
                 i < step ? "bg-emerald-500 text-white" :
-                "bg-slate-100 text-slate-400"
+                "bg-slate-100 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500"
               }`}>
                 {i < step ? "✓" : i + 1}
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`h-0.5 w-5 rounded ${i < step ? "bg-emerald-400" : "bg-slate-200"}`} />
+                <div className={`h-0.5 w-5 rounded ${i < step ? "bg-emerald-400" : "bg-slate-200 dark:bg-zinc-700"}`} />
               )}
             </div>
           ))}
         </div>
 
-        <div className="rounded-2xl bg-white p-6 shadow-lg ring-1 ring-slate-100">
+        <div className="rounded-2xl bg-white dark:bg-zinc-800 p-6 shadow-lg ring-1 ring-slate-100 dark:ring-zinc-700">
           <div className="text-center mb-6">
             <div className="flex items-center justify-center gap-2 mb-2">
               {(() => { const Icon = STEPS[step].icon; return <Icon className="h-5 w-5 text-blue-600" />; })()}
-              <h2 className="text-lg font-bold text-slate-900">{STEPS[step].title}</h2>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-zinc-100">{STEPS[step].title}</h2>
             </div>
-            <p className="text-sm text-slate-500">{STEPS[step].description}</p>
+            <p className="text-sm text-slate-500 dark:text-zinc-400">{STEPS[step].description}</p>
           </div>
 
           {/* Step 0: About You */}
           {step === 0 && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="ob-fullname" className="text-xs font-medium text-slate-600">Full Name</Label>
+                <Label htmlFor="ob-fullname" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Full Name</Label>
                 <Input id="ob-fullname" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Muhammad Ali" autoComplete="name" className="mt-1" />
               </div>
               <div>
-                <Label htmlFor="ob-linkedin" className="text-xs font-medium text-slate-600">LinkedIn URL (optional)</Label>
+                <Label htmlFor="ob-linkedin" className="text-xs font-medium text-slate-600 dark:text-zinc-300">LinkedIn URL (optional)</Label>
                 <Input id="ob-linkedin" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/…" autoComplete="url" spellCheck={false} className="mt-1" />
               </div>
               <div>
-                <Label htmlFor="ob-github" className="text-xs font-medium text-slate-600">GitHub URL (optional)</Label>
+                <Label htmlFor="ob-github" className="text-xs font-medium text-slate-600 dark:text-zinc-300">GitHub URL (optional)</Label>
                 <Input id="ob-github" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/…" autoComplete="url" spellCheck={false} className="mt-1" />
               </div>
             </div>
@@ -196,7 +196,7 @@ export function OnboardingWizard() {
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="ob-keywords" className="text-xs font-medium text-slate-600">Keywords (press Enter to add)</Label>
+                <Label htmlFor="ob-keywords" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Keywords (press Enter to add)</Label>
                 <Input
                   id="ob-keywords"
                   value={keywordInput}
@@ -209,7 +209,7 @@ export function OnboardingWizard() {
                 {keywords.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {keywords.map((kw, i) => (
-                      <span key={i} className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-100">
+                      <span key={i} className="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-100">
                         {kw}
                         <button onClick={() => setKeywords(keywords.filter((_, idx) => idx !== i))} aria-label={`Remove ${kw}`} className="text-blue-400 hover:text-blue-600 ml-0.5 touch-manipulation">×</button>
                       </span>
@@ -219,16 +219,16 @@ export function OnboardingWizard() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="ob-city" className="text-xs font-medium text-slate-600">City</Label>
+                  <Label htmlFor="ob-city" className="text-xs font-medium text-slate-600 dark:text-zinc-300">City</Label>
                   <Input id="ob-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Lahore" autoComplete="address-level2" className="mt-1" />
                 </div>
                 <div>
-                  <Label htmlFor="ob-country" className="text-xs font-medium text-slate-600">Country</Label>
+                  <Label htmlFor="ob-country" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Country</Label>
                   <Input id="ob-country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Pakistan" autoComplete="country-name" className="mt-1" />
                 </div>
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600">Experience Level</Label>
+                <Label className="text-xs font-medium text-slate-600 dark:text-zinc-300">Experience Level</Label>
                 <div className="flex flex-wrap gap-2 mt-1.5">
                   {EXPERIENCE_LEVELS.map((l) => (
                     <button
@@ -236,7 +236,7 @@ export function OnboardingWizard() {
                       type="button"
                       onClick={() => setExperienceLevel(experienceLevel === l.value ? "" : l.value)}
                       className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors touch-manipulation ${
-                        experienceLevel === l.value ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        experienceLevel === l.value ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
                       }`}
                     >
                       {l.label}
@@ -245,7 +245,7 @@ export function OnboardingWizard() {
                 </div>
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600">Work Type</Label>
+                <Label className="text-xs font-medium text-slate-600 dark:text-zinc-300">Work Type</Label>
                 <div className="flex flex-wrap gap-2 mt-1.5">
                   {WORK_TYPES.map((w) => (
                     <button
@@ -253,7 +253,7 @@ export function OnboardingWizard() {
                       type="button"
                       onClick={() => toggleArr(workTypes, w.value, setWorkTypes)}
                       className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors touch-manipulation ${
-                        workTypes.includes(w.value) ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        workTypes.includes(w.value) ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
                       }`}
                     >
                       {w.label}
@@ -267,7 +267,7 @@ export function OnboardingWizard() {
           {/* Step 2: Categories */}
           {step === 2 && (
             <div>
-              <p className="text-xs text-slate-400 mb-3">Select categories that match your skills. This helps us find the right jobs.</p>
+              <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Select categories that match your skills. This helps us find the right jobs.</p>
               <div className="flex flex-wrap gap-1.5 max-h-60 overflow-y-auto">
                 {JOB_CATEGORIES.map((cat) => (
                   <button
@@ -275,14 +275,14 @@ export function OnboardingWizard() {
                     type="button"
                     onClick={() => toggleArr(categories, cat, setCategories)}
                     className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
-                      categories.includes(cat) ? "bg-violet-600 text-white shadow-sm" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      categories.includes(cat) ? "bg-violet-600 text-white shadow-sm" : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700"
                     }`}
                   >
                     {cat}
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-slate-400 mt-2">{categories.length} selected</p>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-2">{categories.length} selected</p>
             </div>
           )}
 
@@ -290,7 +290,7 @@ export function OnboardingWizard() {
           {step === 3 && (
             <div className="space-y-4">
               {uploadedResume ? (
-                <div className="rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-4 ring-1 ring-emerald-200">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                     <p className="text-sm font-semibold text-emerald-800">{uploadedResume.name}</p>
@@ -315,10 +315,10 @@ export function OnboardingWizard() {
                   </Button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-400 p-8 cursor-pointer transition-colors">
-                  <Upload className="h-8 w-8 text-slate-300" />
-                  <span className="text-sm text-slate-500">Drop your resume here or click to browse</span>
-                  <span className="text-[10px] text-slate-400">PDF, DOCX, or TXT (max 5 MB)</span>
+                <label className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-200 dark:border-zinc-700 hover:border-blue-400 p-8 cursor-pointer transition-colors">
+                  <Upload className="h-8 w-8 text-slate-300 dark:text-zinc-500" />
+                  <span className="text-sm text-slate-500 dark:text-zinc-400">Drop your resume here or click to browse</span>
+                  <span className="text-[10px] text-slate-400 dark:text-zinc-500">PDF, DOCX, or TXT (max 5 MB)</span>
                   <input
                     type="file"
                     accept=".pdf,.docx,.txt"
@@ -335,7 +335,7 @@ export function OnboardingWizard() {
                   )}
                 </label>
               )}
-              <p className="text-[10px] text-slate-400 text-center">
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 text-center">
                 You can skip this and upload later from the Resumes page.
               </p>
             </div>
@@ -345,7 +345,7 @@ export function OnboardingWizard() {
           {step === 4 && (
             <div className="space-y-4">
               <div>
-                <Label className="text-xs font-medium text-slate-600">Cover Letter Tone</Label>
+                <Label className="text-xs font-medium text-slate-600 dark:text-zinc-300">Cover Letter Tone</Label>
                 <div className="flex flex-wrap gap-2 mt-1.5">
                   {TONE_OPTIONS.map((t) => (
                     <button
@@ -353,7 +353,7 @@ export function OnboardingWizard() {
                       type="button"
                       onClick={() => setTone(t.value)}
                       className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors touch-manipulation ${
-                        tone === t.value ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        tone === t.value ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
                       }`}
                     >
                       {t.label}
@@ -362,7 +362,7 @@ export function OnboardingWizard() {
                 </div>
               </div>
               <div>
-                <Label className="text-xs font-medium text-slate-600">Language</Label>
+                <Label className="text-xs font-medium text-slate-600 dark:text-zinc-300">Language</Label>
                 <div className="flex flex-wrap gap-1.5 mt-1.5">
                   {LANGUAGE_OPTIONS.map((l) => (
                     <button
@@ -370,7 +370,7 @@ export function OnboardingWizard() {
                       type="button"
                       onClick={() => setLanguage(l)}
                       className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
-                        language === l ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        language === l ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
                       }`}
                     >
                       {l}
@@ -379,7 +379,7 @@ export function OnboardingWizard() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="ob-prompt" className="text-xs font-medium text-slate-600">Custom AI Instructions (optional)</Label>
+                <Label htmlFor="ob-prompt" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Custom AI Instructions (optional)</Label>
                 <Textarea
                   id="ob-prompt"
                   value={customPrompt}
@@ -395,7 +395,7 @@ export function OnboardingWizard() {
           {/* Step 5: Email Provider */}
           {step === 5 && (
             <div className="space-y-3">
-              <p className="text-xs text-slate-400">Choose how JobPilot sends application emails. You can change this later in Settings.</p>
+              <p className="text-xs text-slate-400 dark:text-zinc-500">Choose how JobPilot sends application emails. You can change this later in Settings.</p>
               <div className="grid gap-2">
                 {EMAIL_PROVIDERS.map((p) => (
                   <button
@@ -404,39 +404,39 @@ export function OnboardingWizard() {
                     onClick={() => setEmailProvider(p.value)}
                     className={`flex items-start gap-3 rounded-xl p-3 text-left transition-all ${
                       emailProvider === p.value
-                        ? "bg-blue-50 ring-2 ring-blue-500"
-                        : "bg-slate-50 ring-1 ring-slate-200 hover:ring-slate-300"
+                        ? "bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-500"
+                        : "bg-slate-50 dark:bg-zinc-800/50 ring-1 ring-slate-200 dark:ring-zinc-700 hover:ring-slate-300 dark:hover:ring-zinc-600"
                     }`}
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-800">{p.label}</span>
+                        <span className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{p.label}</span>
                         {p.badge && (
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                             p.badgeColor === "green" ? "bg-emerald-100 text-emerald-700" :
                             p.badgeColor === "yellow" ? "bg-amber-100 text-amber-700" :
-                            "bg-slate-100 text-slate-600"
+                            "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300"
                           }`}>
                             {p.badge}
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{p.description}</p>
-                      <p className="text-[10px] text-slate-400 mt-1 font-mono">{p.hrSees.replace("{name}", fullName || "Your Name").replace("{email}", "you@email.com")}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">{p.description}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1 font-mono">{p.hrSees.replace("{name}", fullName || "Your Name").replace("{email}", "you@email.com")}</p>
                     </div>
                     <div className={`h-4 w-4 rounded-full border-2 mt-0.5 flex-shrink-0 ${
-                      emailProvider === p.value ? "border-blue-500 bg-blue-500" : "border-slate-300"
+                      emailProvider === p.value ? "border-blue-500 bg-blue-500" : "border-slate-300 dark:border-zinc-600"
                     }`}>
                       {emailProvider === p.value && (
                         <div className="h-full w-full flex items-center justify-center">
-                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                          <div className="h-1.5 w-1.5 rounded-full bg-white dark:bg-zinc-800" />
                         </div>
                       )}
                     </div>
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-slate-400 text-center">
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 text-center">
                 You&apos;ll configure email credentials in Settings after onboarding.
               </p>
             </div>
@@ -448,35 +448,35 @@ export function OnboardingWizard() {
               {matching ? (
                 <div className="space-y-4">
                   <Loader2 className="h-10 w-10 text-blue-500 animate-spin mx-auto" />
-                  <p className="text-sm font-medium text-slate-600">Matching you against recent jobs…</p>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
+                  <p className="text-sm font-medium text-slate-600 dark:text-zinc-300">Matching you against recent jobs…</p>
+                  <div className="w-full bg-slate-100 dark:bg-zinc-700 rounded-full h-2">
                     <div className="bg-blue-500 h-2 rounded-full animate-pulse" style={{ width: "60%" }} />
                   </div>
                 </div>
               ) : matchResult ? (
                 <div className="space-y-3">
-                  <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-blue-50 p-5 inline-block ring-1 ring-emerald-100/50">
+                  <div className="rounded-2xl bg-gradient-to-br from-emerald-50 dark:from-emerald-950/40 to-blue-50 dark:to-blue-950/40 p-5 inline-block ring-1 ring-emerald-100/50">
                     <CheckCircle2 className="h-10 w-10 text-emerald-500" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-800">
+                  <h3 className="text-base font-bold text-slate-800 dark:text-zinc-100">
                     Found {matchResult.matched} matches!
                   </h3>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-slate-500 dark:text-zinc-400">
                     Scanned {matchResult.totalScanned} recent jobs. {matchResult.matched} matched your profile.
                   </p>
                 </div>
               ) : (
                 <>
-                  <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-violet-50 p-5 mb-4 inline-block ring-1 ring-blue-100/50">
+                  <div className="rounded-2xl bg-gradient-to-br from-blue-50 dark:from-blue-950/40 to-violet-50 dark:to-violet-950/40 p-5 mb-4 inline-block ring-1 ring-blue-100/50">
                     <Sparkles className="h-10 w-10 text-blue-500" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-800">You&apos;re all set!</h3>
-                  <p className="text-sm text-slate-500 mt-2 max-w-xs mx-auto">
+                  <h3 className="text-base font-bold text-slate-800 dark:text-zinc-100">You&apos;re all set!</h3>
+                  <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2 max-w-xs mx-auto">
                     JobPilot will scrape jobs from 8 sources and match them to your profile.
                   </p>
                 </>
               )}
-              <div className="bg-slate-50 rounded-lg p-3 mt-4 text-left text-xs text-slate-600 space-y-1">
+              <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-lg p-3 mt-4 text-left text-xs text-slate-600 dark:text-zinc-300 space-y-1">
                 {fullName && <p><strong>Name:</strong> {fullName}</p>}
                 {keywords.length > 0 && <p><strong>Keywords:</strong> {keywords.join(", ")}</p>}
                 {city && <p><strong>Location:</strong> {city}{country ? `, ${country}` : ""}</p>}
@@ -489,7 +489,7 @@ export function OnboardingWizard() {
           )}
 
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100 dark:border-zinc-700">
             <Button
               variant="ghost"
               size="sm"

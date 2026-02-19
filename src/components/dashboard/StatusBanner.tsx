@@ -72,9 +72,9 @@ export function StatusBanner() {
 
   if (data.scrapeRunning) {
     return (
-      <div className="flex items-center gap-2.5 rounded-xl bg-blue-50 px-4 py-2.5 ring-1 ring-blue-200/60">
-        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-        <span className="text-xs font-semibold text-blue-700">
+      <div className="flex items-center gap-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 px-4 py-2.5 ring-1 ring-blue-200/60 dark:ring-blue-800/40">
+        <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
+        <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
           Fetching new jobs&hellip;
         </span>
       </div>
@@ -83,10 +83,10 @@ export function StatusBanner() {
 
   if (data.newJobsCount > 0) {
     return (
-      <div className="flex items-center justify-between rounded-xl bg-violet-50 px-4 py-2.5 ring-1 ring-violet-200/60">
+      <div className="flex items-center justify-between rounded-xl bg-violet-50 dark:bg-violet-950/30 px-4 py-2.5 ring-1 ring-violet-200/60 dark:ring-violet-800/40">
         <div className="flex items-center gap-2.5">
-          <Sparkles className="h-4 w-4 text-violet-600" />
-          <span className="text-xs font-semibold text-violet-700">
+          <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+          <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
             {data.newJobsCount} new job{data.newJobsCount !== 1 ? "s" : ""}{" "}
             matched since your last visit!
           </span>
@@ -97,9 +97,9 @@ export function StatusBanner() {
 
   if (data.recentAutoApply) {
     return (
-      <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50 px-4 py-2.5 ring-1 ring-emerald-200/60">
-        <Zap className="h-4 w-4 text-emerald-600" />
-        <span className="text-xs font-semibold text-emerald-700">
+      <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2.5 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40">
+        <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
           Auto-apply ran recently. Check your Application Queue.
         </span>
       </div>
@@ -108,10 +108,10 @@ export function StatusBanner() {
 
   if (hasWarnings) {
     return (
-      <div className="flex items-center justify-between rounded-xl bg-amber-50 px-4 py-2.5 ring-1 ring-amber-200/60">
+      <div className="flex items-center justify-between rounded-xl bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5 ring-1 ring-amber-200/60 dark:ring-amber-800/40">
         <div className="flex items-center gap-2.5 min-w-0">
-          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-          <span className="text-xs font-medium text-amber-700 truncate">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <span className="text-xs font-medium text-amber-700 dark:text-amber-300 truncate">
             {data.warnings[0]}
           </span>
         </div>
@@ -124,8 +124,8 @@ export function StatusBanner() {
     : "Never";
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-4 py-2.5 ring-1 ring-slate-200/60">
-      <div className="flex items-center gap-4 text-[11px] text-slate-500">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 dark:bg-zinc-800/50 px-4 py-2.5 ring-1 ring-slate-200/60 dark:ring-zinc-700/60">
+      <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-zinc-400">
         <span className="flex items-center gap-1.5">
           <Radio className="h-3 w-3" />
           Last scan: {timeAgo}

@@ -17,11 +17,11 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center">
-      <div className="rounded-xl bg-slate-50 p-3 mb-3 ring-1 ring-slate-100">
-        <Inbox className="h-7 w-7 text-slate-300" />
+      <div className="rounded-xl bg-slate-50 dark:bg-zinc-800 p-3 mb-3 ring-1 ring-slate-100 dark:ring-zinc-700">
+        <Inbox className="h-7 w-7 text-slate-300 dark:text-zinc-600" />
       </div>
-      <h3 className="text-xs font-semibold text-slate-500">{title}</h3>
-      <p className="mt-1 text-[11px] text-slate-400 max-w-[200px] leading-relaxed">{description}</p>
+      <h3 className="text-xs font-semibold text-slate-500 dark:text-zinc-400">{title}</h3>
+      <p className="mt-1 text-[11px] text-slate-400 dark:text-zinc-500 max-w-[200px] leading-relaxed">{description}</p>
       {actionLabel && actionHref && (
         <Button
           asChild

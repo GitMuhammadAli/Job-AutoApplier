@@ -66,8 +66,8 @@ export default function AdminLogsPage() {
     <div className="space-y-4 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">System Logs</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{total} total entries</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-zinc-100">System Logs</h1>
+          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">{total} total entries</p>
         </div>
         <Button size="sm" variant="outline" onClick={fetchLogs} className="gap-1.5">
           <RefreshCw className="h-3.5 w-3.5" />
@@ -78,11 +78,11 @@ export default function AdminLogsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1.5">
-          <label className="text-[11px] font-medium text-slate-500">Type:</label>
+          <label className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">Type:</label>
           <select
             value={type}
             onChange={(e) => { setType(e.target.value); setPage(1); }}
-            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            className="h-8 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-xs text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             <option value="">All</option>
             {LOG_TYPES.filter(Boolean).map((t) => (
@@ -91,11 +91,11 @@ export default function AdminLogsPage() {
           </select>
         </div>
         <div className="flex items-center gap-1.5">
-          <label className="text-[11px] font-medium text-slate-500">Source:</label>
+          <label className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">Source:</label>
           <select
             value={source}
             onChange={(e) => { setSource(e.target.value); setPage(1); }}
-            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            className="h-8 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 text-xs text-slate-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             <option value="">All</option>
             {LOG_SOURCES.filter(Boolean).map((s) => (
@@ -107,17 +107,17 @@ export default function AdminLogsPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400 dark:text-zinc-500" />
         </div>
       ) : logs.length === 0 ? (
-        <div className="rounded-xl bg-white p-8 text-center ring-1 ring-slate-100">
-          <p className="text-sm text-slate-400">No logs found</p>
+        <div className="rounded-xl bg-white dark:bg-zinc-800 p-8 text-center ring-1 ring-slate-100 dark:ring-zinc-700">
+          <p className="text-sm text-slate-400 dark:text-zinc-500">No logs found</p>
         </div>
       ) : (
-        <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-100/80 overflow-x-auto">
+        <div className="rounded-xl bg-white dark:bg-zinc-800 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-slate-100 text-slate-500">
+              <tr className="border-b border-slate-100 dark:border-zinc-700 text-slate-500 dark:text-zinc-400">
                 <th className="py-2.5 px-4 text-left font-semibold w-40">Time</th>
                 <th className="py-2.5 px-4 text-left font-semibold w-24">Type</th>
                 <th className="py-2.5 px-4 text-left font-semibold w-24">Source</th>
@@ -128,26 +128,26 @@ export default function AdminLogsPage() {
               {logs.map((log) => (
                 <tr
                   key={log.id}
-                  className="border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer"
+                  className="border-b border-slate-50 dark:border-zinc-800 hover:bg-slate-50/50 dark:hover:bg-zinc-700/50 cursor-pointer"
                   onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
                 >
-                  <td className="py-2.5 px-4 text-slate-500 whitespace-nowrap">
+                  <td className="py-2.5 px-4 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
                     {new Date(log.createdAt).toLocaleString()}
                   </td>
                   <td className="py-2.5 px-4">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        typeBadgeColor[log.type] || "bg-slate-100 text-slate-600"
+                        typeBadgeColor[log.type] || "bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300"
                       }`}
                     >
                       {log.type}
                     </span>
                   </td>
-                  <td className="py-2.5 px-4 text-slate-600 capitalize">{log.source || "-"}</td>
-                  <td className="py-2.5 px-4 text-slate-700">
+                  <td className="py-2.5 px-4 text-slate-600 dark:text-zinc-300 capitalize">{log.source || "-"}</td>
+                  <td className="py-2.5 px-4 text-slate-700 dark:text-zinc-200">
                     <div className="truncate max-w-md">{log.message}</div>
                     {expandedId === log.id && log.metadata && (
-                      <pre className="mt-2 rounded-lg bg-slate-50 p-2 text-[10px] text-slate-500 overflow-x-auto whitespace-pre-wrap">
+                      <pre className="mt-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 p-2 text-[10px] text-slate-500 dark:text-zinc-400 overflow-x-auto whitespace-pre-wrap">
                         {JSON.stringify(log.metadata, null, 2)}
                       </pre>
                     )}
@@ -162,7 +162,7 @@ export default function AdminLogsPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-500 dark:text-zinc-400">
             Page {page} of {totalPages}
           </span>
           <div className="flex gap-1">

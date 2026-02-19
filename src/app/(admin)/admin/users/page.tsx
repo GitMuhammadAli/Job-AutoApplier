@@ -68,7 +68,7 @@ export default function AdminUsersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400 dark:text-zinc-500" />
       </div>
     );
   }
@@ -77,8 +77,8 @@ export default function AdminUsersPage() {
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">User Management</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{users.length} users</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-zinc-100">User Management</h1>
+          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">{users.length} users</p>
         </div>
         <Button size="sm" variant="outline" onClick={fetchUsers} className="gap-1.5">
           <RefreshCw className="h-3.5 w-3.5" />
@@ -86,10 +86,10 @@ export default function AdminUsersPage() {
         </Button>
       </div>
 
-      <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-100/80 overflow-x-auto">
+      <div className="rounded-xl bg-white dark:bg-zinc-800 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-slate-100 text-slate-500">
+            <tr className="border-b border-slate-100 dark:border-zinc-700 text-slate-500 dark:text-zinc-400">
               <th className="py-3 px-4 text-left font-semibold">User</th>
               <th className="py-3 px-4 text-left font-semibold">Status</th>
               <th className="py-3 px-4 text-left font-semibold">Mode</th>
@@ -101,10 +101,10 @@ export default function AdminUsersPage() {
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+              <tr key={user.id} className="border-b border-slate-50 dark:border-zinc-800 hover:bg-slate-50/50 dark:hover:bg-zinc-700/50">
                 <td className="py-3 px-4">
-                  <div className="font-medium text-slate-800">{user.name || "Unnamed"}</div>
-                  <div className="text-slate-400">{user.email}</div>
+                  <div className="font-medium text-slate-800 dark:text-zinc-100">{user.name || "Unnamed"}</div>
+                  <div className="text-slate-400 dark:text-zinc-500">{user.email}</div>
                 </td>
                 <td className="py-3 px-4">
                   <span
@@ -113,16 +113,16 @@ export default function AdminUsersPage() {
                         ? "bg-emerald-100 text-emerald-700"
                         : user.status === "paused"
                           ? "bg-amber-100 text-amber-700"
-                          : "bg-slate-100 text-slate-500"
+                          : "bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400"
                     }`}
                   >
                     {user.status}
                   </span>
                 </td>
-                <td className="py-3 px-4 text-slate-600">{user.mode}</td>
-                <td className="py-3 px-4 text-right tabular-nums text-slate-700">{user.sentToday}</td>
-                <td className="py-3 px-4 text-right tabular-nums text-slate-700">{user.totalApplications}</td>
-                <td className="py-3 px-4 text-slate-500">
+                <td className="py-3 px-4 text-slate-600 dark:text-zinc-300">{user.mode}</td>
+                <td className="py-3 px-4 text-right tabular-nums text-slate-700 dark:text-zinc-200">{user.sentToday}</td>
+                <td className="py-3 px-4 text-right tabular-nums text-slate-700 dark:text-zinc-200">{user.totalApplications}</td>
+                <td className="py-3 px-4 text-slate-500 dark:text-zinc-400">
                   {user.lastActive
                     ? new Date(user.lastActive).toLocaleString()
                     : "Never"}

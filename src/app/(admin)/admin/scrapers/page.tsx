@@ -59,7 +59,7 @@ export default function AdminScrapersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400 dark:text-zinc-500" />
       </div>
     );
   }
@@ -68,8 +68,8 @@ export default function AdminScrapersPage() {
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Scrapers</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Scrapers</h1>
+          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
             {scrapers.filter((s) => s.isHealthy).length}/{scrapers.length} healthy
           </p>
         </div>
@@ -103,10 +103,10 @@ export default function AdminScrapersPage() {
         {scrapers.map((s) => (
           <div
             key={s.source}
-            className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-100/80"
+            className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60"
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-800 capitalize">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100 capitalize">
                 {s.source}
               </h3>
               {s.isHealthy ? (
@@ -118,23 +118,23 @@ export default function AdminScrapersPage() {
 
             <div className="space-y-1.5 text-[11px]">
               <div className="flex justify-between">
-                <span className="text-slate-500">Last run</span>
-                <span className="text-slate-700 font-medium">
+                <span className="text-slate-500 dark:text-zinc-400">Last run</span>
+                <span className="text-slate-700 dark:text-zinc-200 font-medium">
                   {s.lastRun
                     ? new Date(s.lastRun).toLocaleString()
                     : "Never"}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Jobs found (last)</span>
-                <span className="text-slate-700 font-medium tabular-nums">
+                <span className="text-slate-500 dark:text-zinc-400">Jobs found (last)</span>
+                <span className="text-slate-700 dark:text-zinc-200 font-medium tabular-nums">
                   {s.jobCount}
                 </span>
               </div>
             </div>
 
             {s.lastMessage && (
-              <div className="mt-2 rounded-lg bg-slate-50 p-2 text-[10px] text-slate-500 truncate">
+              <div className="mt-2 rounded-lg bg-slate-50 dark:bg-zinc-800/50 p-2 text-[10px] text-slate-500 dark:text-zinc-400 truncate">
                 {s.lastMessage}
               </div>
             )}

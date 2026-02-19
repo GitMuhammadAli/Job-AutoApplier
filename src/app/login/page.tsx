@@ -26,7 +26,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
         {/* Logo */}
         <div className="text-center space-y-2">
@@ -34,18 +34,18 @@ export default function LoginPage() {
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 shadow-lg shadow-blue-600/20">
               <Zap className="h-5 w-5 text-white" />
             </div>
-            <span className="text-2xl font-bold tracking-tight text-slate-900">JobPilot</span>
+            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">JobPilot</span>
           </div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-zinc-400">
             Automated job tracker with smart matching
           </p>
         </div>
 
         {/* Card */}
-        <div className="relative overflow-hidden rounded-2xl bg-white p-6 shadow-xl ring-1 ring-slate-200/60">
+        <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-zinc-800 p-6 shadow-xl ring-1 ring-slate-200/60 dark:ring-zinc-700/60">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-violet-500 to-emerald-500" />
 
-          <h2 className="text-lg font-bold text-slate-800 mb-4">Sign in to your account</h2>
+          <h2 className="text-lg font-bold text-slate-800 dark:text-zinc-100 mb-4">Sign in to your account</h2>
 
           {/* OAuth buttons */}
           <div className="space-y-2.5">
@@ -88,10 +88,10 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
+              <div className="w-full border-t border-slate-200 dark:border-zinc-700" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-3 text-slate-400 font-medium">or sign in with email</span>
+              <span className="bg-white dark:bg-zinc-800 px-3 text-slate-400 dark:text-zinc-500 font-medium">or sign in with email</span>
             </div>
           </div>
 
@@ -141,7 +141,7 @@ export default function LoginPage() {
           )}
         </div>
 
-        <p className="text-center text-[11px] text-slate-400">
+        <p className="text-center text-[11px] text-slate-400 dark:text-zinc-500">
           By signing in, you agree to let JobPilot scrape jobs and send email notifications on your behalf.
         </p>
       </div>

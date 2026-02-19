@@ -73,6 +73,9 @@
     scrollbar-width: thin;
     scrollbar-color: hsl(214 32% 85%) transparent;
   }
+  .dark .scrollbar-thin {
+    scrollbar-color: hsl(217 33% 25%) transparent;
+  }
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -137,11 +140,18 @@
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
+  .dark .glass {
+    background: rgba(24, 24, 27, 0.7);
+  }
   .glass-card {
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+  .dark .glass-card {
+    background: rgba(24, 24, 27, 0.85);
+    border-color: rgba(63, 63, 70, 0.5);
   }
 }
 
