@@ -168,7 +168,12 @@ export async function POST() {
     }
 
     return NextResponse.json({ success: true, newJobs: totalNew, matched });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "Not authenticated" || message.includes("Unauthorized")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[scan-now] Error:", error);
+    return NextResponse.json({ error: "Scan failed. Please try again." }, { status: 500 });
   }
 }

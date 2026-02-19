@@ -485,6 +485,14 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
               {counts.failed}
             </Badge>
           </TabsTrigger>
+          {counts.bounced > 0 && (
+            <TabsTrigger value="bounced" className="gap-1.5">
+              Bounced
+              <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 text-[10px]">
+                {counts.bounced}
+              </Badge>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {selectedCount > 0 && (
@@ -551,6 +559,11 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
         <TabsContent value="failed" className="mt-4">
           {renderTabContent("failed")}
         </TabsContent>
+        {counts.bounced > 0 && (
+          <TabsContent value="bounced" className="mt-4">
+            {renderTabContent("bounced")}
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

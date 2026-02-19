@@ -1,15 +1,37 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Zap, Mail, Loader2 } from "lucide-react";
+import { Zap, Mail, Loader2, AlertCircle } from "lucide-react";
+
+const AUTH_ERRORS: Record<string, string> = {
+  OAuthAccountNotLinked: "This email is already linked to a different sign-in method.",
+  OAuthSignin: "Could not start the sign-in flow. Please try again.",
+  OAuthCallback: "Authentication was rejected. Please try again.",
+  AccessDenied: "Access denied. You may not have permission to sign in.",
+  Verification: "The sign-in link has expired. Please request a new one.",
+  Default: "An authentication error occurred. Please try again.",
+};
 
 export default function LoginPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
+
+  const errorParam = searchParams.get("error");
+  const authError = errorParam ? (AUTH_ERRORS[errorParam] || AUTH_ERRORS.Default) : null;
+
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      router.replace("/");
+    }
+  }, [status, session, router]);
 
   const handleOAuth = (provider: string) => {
     setLoading(provider);
@@ -46,6 +68,13 @@ export default function LoginPage() {
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-violet-500 to-emerald-500" />
 
           <h2 className="text-lg font-bold text-slate-800 dark:text-zinc-100 mb-4">Sign in to your account</h2>
+
+          {authError && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-950/30 p-3 ring-1 ring-red-200 dark:ring-red-800/50">
+              <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-red-700 dark:text-red-300">{authError}</p>
+            </div>
+          )}
 
           {/* OAuth buttons */}
           <div className="space-y-2.5">
@@ -121,7 +150,7 @@ export default function LoginPage() {
                 spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com&hellip;"
+                placeholder="you@example.com..."
                 required
                 className="h-10"
               />
@@ -143,12 +172,6 @@ export default function LoginPage() {
 
         <p className="text-center text-[11px] text-slate-400 dark:text-zinc-500">
           By signing in, you agree to let JobPilot scrape jobs and send email notifications on your behalf.
-        </p>
-
-        <p className="text-center text-[11px] text-slate-400 dark:text-zinc-500">
-          <a href="/admin/login" className="text-violet-500 dark:text-violet-400 hover:underline font-medium">
-            Admin login
-          </a>
         </p>
       </div>
     </div>

@@ -11,7 +11,15 @@ export function isAdmin(userEmail: string | null | undefined): boolean {
 }
 
 export async function requireAdmin(): Promise<boolean> {
-  if (hasValidAdminSession()) return true;
-  const session = await getAuthSession();
-  return isAdmin(session?.user?.email);
+  try {
+    if (hasValidAdminSession()) return true;
+  } catch {
+    // cookies() not available — fall through to OAuth check
+  }
+  try {
+    const session = await getAuthSession();
+    return isAdmin(session?.user?.email);
+  } catch {
+    return false;
+  }
 }

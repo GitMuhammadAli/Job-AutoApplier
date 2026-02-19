@@ -119,8 +119,12 @@ export async function POST() {
       totalScanned: globalJobs.length,
       matched,
     });
-  } catch (error) {
-    console.error("Onboarding match error:", error);
-    return NextResponse.json({ totalScanned: 0, matched: 0 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "Not authenticated" || message.includes("Unauthorized")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[onboarding/complete] Error:", error);
+    return NextResponse.json({ totalScanned: 0, matched: 0, error: "Matching encountered an error" }, { status: 500 });
   }
 }

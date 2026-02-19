@@ -9,10 +9,22 @@ import { BarChart3, TrendingUp } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
-  const [analytics, jobs] = await Promise.all([
-    getAnalytics(),
-    getJobs(),
-  ]);
+  let analytics: Awaited<ReturnType<typeof getAnalytics>> | null = null;
+  let jobs: Awaited<ReturnType<typeof getJobs>> = [];
+
+  try {
+    [analytics, jobs] = await Promise.all([getAnalytics(), getJobs()]);
+  } catch (error) {
+    console.error("[AnalyticsPage] Failed to load data:", error);
+  }
+
+  if (!analytics) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
+        <p className="text-sm text-slate-500 dark:text-zinc-400">Failed to load analytics data.</p>
+      </div>
+    );
+  }
 
   const appliedCount = jobs.filter((j) => j.stage !== "SAVED").length;
   const interviewRate = appliedCount > 0

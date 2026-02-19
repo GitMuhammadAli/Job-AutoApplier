@@ -24,9 +24,22 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const oauthSession = await getAuthSession();
-  const isOAuthAdmin = !!(oauthSession?.user?.email && isAdmin(oauthSession.user.email));
-  const isCredentialAdmin = hasValidAdminSession();
+  let oauthSession: Awaited<ReturnType<typeof getAuthSession>> = null;
+  let isOAuthAdmin = false;
+  let isCredentialAdmin = false;
+
+  try {
+    oauthSession = await getAuthSession();
+    isOAuthAdmin = !!(oauthSession?.user?.email && isAdmin(oauthSession.user.email));
+  } catch {
+    // DB or auth unavailable — continue to credential check
+  }
+
+  try {
+    isCredentialAdmin = hasValidAdminSession();
+  } catch {
+    // cookies() unavailable
+  }
 
   if (!isOAuthAdmin && !isCredentialAdmin) {
     redirect("/admin/login");

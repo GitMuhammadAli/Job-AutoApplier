@@ -15,7 +15,12 @@ export async function GET() {
       mode: settings?.applicationMode || "MANUAL",
       status: settings?.accountStatus || "active",
     });
-  } catch {
-    return NextResponse.json({ mode: "MANUAL", status: "active" });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "Not authenticated" || message.includes("Unauthorized")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[settings/mode] Error:", error);
+    return NextResponse.json({ error: "Failed to load mode" }, { status: 500 });
   }
 }

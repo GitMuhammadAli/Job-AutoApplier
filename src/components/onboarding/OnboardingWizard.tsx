@@ -62,16 +62,47 @@ export function OnboardingWizard() {
   // Step 5: Email Provider
   const [emailProvider, setEmailProvider] = useState("brevo");
 
+  // Validation
+  const [stepError, setStepError] = useState<string | null>(null);
+
+  const validateStep = (s: number): string | null => {
+    switch (s) {
+      case 0:
+        if (!fullName.trim()) return "Full name is required.";
+        return null;
+      case 1:
+        if (keywords.length === 0) return "Add at least one keyword.";
+        return null;
+      case 2:
+        if (categories.length === 0) return "Select at least one category.";
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  const goNext = () => {
+    const err = validateStep(step);
+    if (err) {
+      setStepError(err);
+      return;
+    }
+    setStepError(null);
+    setStep(step + 1);
+  };
+
   const addKeyword = useCallback(() => {
     const val = keywordInput.trim();
     if (val && !keywords.includes(val)) {
       setKeywords([...keywords, val]);
+      setStepError(null);
     }
     setKeywordInput("");
-  }, [keywordInput, keywords]);
+  }, [keywordInput, keywords, stepError]);
 
   const toggleArr = (arr: string[], val: string, setter: (v: string[]) => void) => {
     setter(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
+    if (stepError) setStepError(null);
   };
 
   const handleResumeUpload = async (file: File) => {
@@ -117,8 +148,8 @@ export function OnboardingWizard() {
         preferredCategories: categories,
         emailNotifications: true,
         preferredPlatforms: ["jsearch", "indeed", "remotive", "linkedin", "arbeitnow"],
-        tone,
-        language,
+        preferredTone: tone,
+        emailLanguage: language,
         customSystemPrompt: customPrompt || undefined,
         emailProvider,
       });
@@ -181,7 +212,7 @@ export function OnboardingWizard() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="ob-fullname" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Full Name</Label>
-                <Input id="ob-fullname" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Muhammad Ali" autoComplete="name" className="mt-1" />
+                <Input id="ob-fullname" value={fullName} onChange={(e) => { setFullName(e.target.value); if (stepError) setStepError(null); }} placeholder="Muhammad Ali" autoComplete="name" className="mt-1" />
               </div>
               <div>
                 <Label htmlFor="ob-linkedin" className="text-xs font-medium text-slate-600 dark:text-zinc-300">LinkedIn URL (optional)</Label>
@@ -569,12 +600,17 @@ export function OnboardingWizard() {
             </div>
           )}
 
+          {/* Validation error */}
+          {stepError && (
+            <p className="mt-4 text-xs text-red-600 dark:text-red-400 text-center font-medium">{stepError}</p>
+          )}
+
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100 dark:border-zinc-700">
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 dark:border-zinc-700">
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setStep(Math.max(0, step - 1))}
+              onClick={() => { setStepError(null); setStep(Math.max(0, step - 1)); }}
               disabled={step === 0}
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
@@ -582,7 +618,7 @@ export function OnboardingWizard() {
             </Button>
 
             {step < STEPS.length - 1 ? (
-              <Button size="sm" onClick={() => setStep(step + 1)}>
+              <Button size="sm" onClick={goNext}>
                 {step === 3 && !uploadedResume ? "Skip" : "Next"}
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>

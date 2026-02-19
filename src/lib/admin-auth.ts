@@ -18,21 +18,37 @@ function makeToken(expiresAt: number): string {
 }
 
 function verifyToken(token: string): boolean {
-  const lastDot = token.lastIndexOf(".");
-  if (lastDot === -1) return false;
+  try {
+    const lastDot = token.lastIndexOf(".");
+    if (lastDot === -1) return false;
 
-  const payload = token.slice(0, lastDot);
-  const signature = token.slice(lastDot + 1);
+    const payload = token.slice(0, lastDot);
+    const signature = token.slice(lastDot + 1);
 
-  const expected = sign(payload);
-  if (expected.length !== signature.length) return false;
+    const expected = sign(payload);
+    if (expected.length !== signature.length) return false;
 
-  const valid = timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
-  if (!valid) return false;
+    const expectedBuf = Buffer.from(expected, "utf8");
+    const signatureBuf = Buffer.from(signature, "utf8");
+    if (expectedBuf.length !== signatureBuf.length) return false;
 
-  const parts = payload.split(":");
-  const expiresAt = parseInt(parts[1], 10);
-  return Date.now() < expiresAt;
+    if (!timingSafeEqual(expectedBuf, signatureBuf)) return false;
+
+    const parts = payload.split(":");
+    const expiresAt = parseInt(parts[1], 10);
+    return Date.now() < expiresAt;
+  } catch {
+    return false;
+  }
+}
+
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
+  } catch {
+    return false;
+  }
 }
 
 export function validateAdminCredentials(
@@ -41,18 +57,8 @@ export function validateAdminCredentials(
 ): boolean {
   const envUser = process.env.ADMIN_USERNAME;
   const envPass = process.env.ADMIN_PASSWORD;
-
-  if (!envUser || !envPass) return false;
-
-  const userMatch =
-    username.length === envUser.length &&
-    timingSafeEqual(Buffer.from(username), Buffer.from(envUser));
-
-  const passMatch =
-    password.length === envPass.length &&
-    timingSafeEqual(Buffer.from(password), Buffer.from(envPass));
-
-  return userMatch && passMatch;
+  if (!envUser || !envPass || !username || !password) return false;
+  return safeEqual(username, envUser) && safeEqual(password, envPass);
 }
 
 export function createAdminSession(): void {
@@ -69,11 +75,19 @@ export function createAdminSession(): void {
 }
 
 export function destroyAdminSession(): void {
-  cookies().delete(COOKIE_NAME);
+  try {
+    cookies().delete(COOKIE_NAME);
+  } catch {
+    // Ignore — may be called outside request context
+  }
 }
 
 export function hasValidAdminSession(): boolean {
-  const token = cookies().get(COOKIE_NAME)?.value;
-  if (!token) return false;
-  return verifyToken(token);
+  try {
+    const token = cookies().get(COOKIE_NAME)?.value;
+    if (!token) return false;
+    return verifyToken(token);
+  } catch {
+    return false;
+  }
 }

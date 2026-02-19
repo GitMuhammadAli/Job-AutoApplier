@@ -5,7 +5,13 @@ import { FileText, Sparkles } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function ResumesPage() {
-  const resumes = await getResumesWithStats();
+  let resumes: Awaited<ReturnType<typeof getResumesWithStats>> = [];
+
+  try {
+    resumes = await getResumesWithStats();
+  } catch (error) {
+    console.error("[ResumesPage] Failed to load resumes:", error);
+  }
 
   return (
     <div className="space-y-5 animate-slide-up">

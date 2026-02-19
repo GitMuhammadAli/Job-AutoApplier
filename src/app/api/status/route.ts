@@ -71,7 +71,12 @@ export async function GET() {
       warnings: recentWarnings.map((w) => w.message),
       nextScrapeIn,
     });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "Not authenticated" || message.includes("Unauthorized")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[status] Error:", error);
+    return NextResponse.json({ error: "Failed to load status" }, { status: 500 });
   }
 }

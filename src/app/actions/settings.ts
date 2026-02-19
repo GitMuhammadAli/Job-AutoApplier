@@ -86,57 +86,65 @@ export async function getSettings() {
 }
 
 export async function saveSettings(rawData: unknown) {
-  const userId = await getAuthUserId();
-  const data = settingsSchema.parse(rawData);
+  try {
+    const userId = await getAuthUserId();
+    const data = settingsSchema.parse(rawData);
 
-  let smtpPassValue = data.smtpPass || null;
-  if (smtpPassValue && !isEncrypted(smtpPassValue)) {
-    smtpPassValue = encrypt(smtpPassValue);
+    let smtpPassValue = data.smtpPass || null;
+    if (smtpPassValue && !isEncrypted(smtpPassValue)) {
+      smtpPassValue = encrypt(smtpPassValue);
+    }
+
+    const cleaned = {
+      ...data,
+      fullName: data.fullName || null,
+      phone: data.phone || null,
+      linkedinUrl: data.linkedinUrl || null,
+      portfolioUrl: data.portfolioUrl || null,
+      githubUrl: data.githubUrl || null,
+      city: data.city || null,
+      country: data.country || null,
+      salaryMin: data.salaryMin ?? null,
+      salaryMax: data.salaryMax ?? null,
+      experienceLevel: data.experienceLevel || null,
+      education: data.education || null,
+      notificationEmail: data.notificationEmail || null,
+      applicationEmail: data.applicationEmail || null,
+      defaultSignature: data.defaultSignature || null,
+      customSystemPrompt: data.customSystemPrompt || null,
+      customClosing: data.customClosing || null,
+      timezone: data.timezone || null,
+      smtpHost: data.smtpHost || null,
+      smtpPort: data.smtpPort ?? null,
+      smtpUser: data.smtpUser || null,
+      smtpPass: smtpPassValue,
+      emailProvider: data.emailProvider || "brevo",
+      resumeMatchMode: data.resumeMatchMode || "smart",
+      accountStatus: data.accountStatus || "active",
+      notificationFrequency: data.notificationFrequency || "hourly",
+      instantApplyDelay: data.instantApplyDelay ?? 5,
+      sendDelaySeconds: data.sendDelaySeconds ?? 120,
+      maxSendsPerHour: data.maxSendsPerHour ?? 8,
+      maxSendsPerDay: data.maxSendsPerDay ?? 20,
+      cooldownMinutes: data.cooldownMinutes ?? 30,
+      bouncePauseHours: data.bouncePauseHours ?? 24,
+    };
+
+    const result = await prisma.userSettings.upsert({
+      where: { userId },
+      update: cleaned,
+      create: { userId, ...cleaned },
+    });
+
+    revalidatePath("/settings");
+    return result;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const field = error.issues[0]?.path?.join(".") || "input";
+      throw new Error(`Invalid ${field}: ${error.issues[0]?.message}`);
+    }
+    throw error;
   }
-
-  const cleaned = {
-    ...data,
-    fullName: data.fullName || null,
-    phone: data.phone || null,
-    linkedinUrl: data.linkedinUrl || null,
-    portfolioUrl: data.portfolioUrl || null,
-    githubUrl: data.githubUrl || null,
-    city: data.city || null,
-    country: data.country || null,
-    salaryMin: data.salaryMin ?? null,
-    salaryMax: data.salaryMax ?? null,
-    experienceLevel: data.experienceLevel || null,
-    education: data.education || null,
-    notificationEmail: data.notificationEmail || null,
-    applicationEmail: data.applicationEmail || null,
-    defaultSignature: data.defaultSignature || null,
-    customSystemPrompt: data.customSystemPrompt || null,
-    customClosing: data.customClosing || null,
-    timezone: data.timezone || null,
-    smtpHost: data.smtpHost || null,
-    smtpPort: data.smtpPort ?? null,
-    smtpUser: data.smtpUser || null,
-    smtpPass: smtpPassValue,
-    emailProvider: data.emailProvider || "brevo",
-    resumeMatchMode: data.resumeMatchMode || "smart",
-    accountStatus: data.accountStatus || "active",
-    notificationFrequency: data.notificationFrequency || "hourly",
-    instantApplyDelay: data.instantApplyDelay ?? 5,
-    sendDelaySeconds: data.sendDelaySeconds ?? 120,
-    maxSendsPerHour: data.maxSendsPerHour ?? 8,
-    maxSendsPerDay: data.maxSendsPerDay ?? 20,
-    cooldownMinutes: data.cooldownMinutes ?? 30,
-    bouncePauseHours: data.bouncePauseHours ?? 24,
-  };
-
-  const result = await prisma.userSettings.upsert({
-    where: { userId },
-    update: cleaned,
-    create: { userId, ...cleaned },
-  });
-
-  revalidatePath("/settings");
-  return result;
 }
 
 export async function completeOnboarding() {

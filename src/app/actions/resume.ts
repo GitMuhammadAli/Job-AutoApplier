@@ -5,6 +5,11 @@ import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
 
+export async function getResumeCount(): Promise<number> {
+  const userId = await getAuthUserId();
+  return prisma.resume.count({ where: { userId, isDeleted: false } });
+}
+
 export async function getResumesWithStats() {
   const userId = await getAuthUserId();
 
