@@ -566,10 +566,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
       </Section>
 
       {/* ── Email Provider Education Cards ── */}
-      <Section icon={<Mail className="h-4 w-4" />} title="Email Provider">
-        <p className="text-xs text-slate-400 dark:text-zinc-500 mb-4">
-          How application emails are sent. Your choice affects deliverability and how HR sees your email.
-        </p>
+      <Section icon={<Mail className="h-4 w-4" />} title="Email Provider" description="Determines how application emails are sent. Your choice directly affects whether HR sees your email in their primary inbox or spam folder.">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {EMAIL_PROVIDERS.map((provider) => {
             const isActive = emailProvider === provider.value;
@@ -875,10 +872,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
       </Section>
 
       {/* ── Sending Safety ── */}
-      <Section icon={<Shield className="h-4 w-4" />} title="Sending Safety">
-        <p className="text-xs text-slate-400 dark:text-zinc-500 mb-4">
-          Protects your email reputation by limiting how fast and how many emails are sent.
-        </p>
+      <Section icon={<Shield className="h-4 w-4" />} title="Sending Safety" description="Prevents your email from being flagged as spam. These limits protect your sender reputation and keep your account safe with Gmail, Outlook, etc.">
         {s.sendingPausedUntil && new Date(s.sendingPausedUntil) > new Date() && (
           <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-950/30 p-3 ring-1 ring-red-200 dark:ring-red-800/40 text-xs text-red-700 dark:text-red-300 font-medium flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 flex-shrink-0" />
@@ -886,7 +880,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Delay between emails (seconds)">
+          <Field label="Delay between emails (seconds)" hint="Wait time between each sent email. Gmail recommends 60-120s to avoid throttling.">
             <Input
               type="number"
               min={30}
@@ -895,7 +889,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
               onChange={(e) => setSendDelaySeconds(parseInt(e.target.value) || 120)}
             />
           </Field>
-          <Field label="Max sends per hour">
+          <Field label="Max sends per hour" hint="Hard cap per hour. Gmail allows ~20/hour; keep this lower for safety.">
             <Input
               type="number"
               min={1}
@@ -904,7 +898,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
               onChange={(e) => setMaxSendsPerHour(parseInt(e.target.value) || 8)}
             />
           </Field>
-          <Field label="Max sends per day">
+          <Field label="Max sends per day" hint="Total emails per day. New Gmail accounts should stay under 20; established ones can go higher.">
             <Input
               type="number"
               min={1}
@@ -913,7 +907,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
               onChange={(e) => setMaxSendsPerDay(parseInt(e.target.value) || 20)}
             />
           </Field>
-          <Field label="Cooldown after burst (minutes)">
+          <Field label="Cooldown after burst (minutes)" hint="Pause after hitting the hourly limit. Gives your email time to cool down.">
             <Input
               type="number"
               min={5}
@@ -922,7 +916,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
               onChange={(e) => setCooldownMinutes(parseInt(e.target.value) || 30)}
             />
           </Field>
-          <Field label="Auto-pause on bounces (hours)">
+          <Field label="Auto-pause on bounces (hours)" hint="If 3+ emails bounce in a day, all sending stops for this many hours to protect your reputation.">
             <Input
               type="number"
               min={1}
@@ -941,7 +935,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
 
       {/* ── Speed & Instant Apply ── */}
       {(applicationMode === "full_auto" || applicationMode === "instant") && (
-        <Section icon={<Zap className="h-4 w-4" />} title="Speed & Instant Apply">
+        <Section icon={<Zap className="h-4 w-4" />} title="Speed & Instant Apply" description="Fine-tune how fast JobPilot applies on your behalf. Only visible in Full Auto and Instant modes.">
           <div className="space-y-4">
             <Field label="Priority Platforms (checked every 15 min — free sources only)">
               <div className="flex flex-wrap gap-2">
@@ -1065,7 +1059,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
       </Section>
 
       {/* ── Mode Comparison Table ── */}
-      <Section icon={<Grid3X3 className="h-4 w-4" />} title="Mode Comparison">
+      <Section icon={<Grid3X3 className="h-4 w-4" />} title="Mode Comparison" description="Side-by-side comparison of all application modes to help you pick the right one.">
         <div className="overflow-x-auto -mx-5 px-5">
           <table className="w-full text-[11px]">
             <thead>
@@ -1093,10 +1087,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
       </Section>
 
       {/* ── Data Export ── */}
-      <Section title="Data Export" icon={<Save className="h-4 w-4" />}>
-        <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
-          Download all your data as a ZIP file including jobs, applications, resumes, templates, and activity logs.
-        </p>
+      <Section title="Data Export" icon={<Save className="h-4 w-4" />} description="Download a complete backup of your JobPilot data. Includes saved jobs, applications, resumes, email templates, and activity logs — all in a portable ZIP file.">
         <Button
           variant="outline"
           onClick={async () => {
