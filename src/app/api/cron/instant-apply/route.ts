@@ -484,13 +484,13 @@ function buildNotificationHTML(
   drafted: number
 ): string {
   const appUrl =
-    process.env.NEXTAUTH_URL || "https://jobpilot.vercel.app";
+    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://jobpilot.vercel.app";
   return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
     <h1 style="font-size:22px;color:#1e293b;">Hi ${name}!</h1>
     ${applied > 0 ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;margin:12px 0;color:#166534;"><strong>${applied} applications sent instantly</strong></div>` : ""}
     ${drafted > 0 ? `<div style="background:#fef3c7;padding:12px 16px;border-radius:8px;margin:12px 0;color:#92400e;"><strong>${drafted} applications drafted</strong> — review and send when ready</div>` : ""}
     <div style="margin-top:20px;text-align:center;">
-      <a href="${appUrl}" style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Review Applications</a>
+      <a href="${appUrl}/applications" style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Review Applications</a>
     </div>
     <p style="color:#94a3b8;font-size:12px;margin-top:24px;">— JobPilot</p>
   </body></html>`;
