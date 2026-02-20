@@ -1,40 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/scrape-global?mode=free",
-      "schedule": "0 */4 * * *"
-    },
-    {
-      "path": "/api/cron/scrape-global?mode=paid",
+      "path": "/api/cron/scrape-global?mode=free&match=true&send=true",
       "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/match-all-users",
-      "schedule": "15 */4 * * *"
-    },
-    {
-      "path": "/api/cron/instant-apply",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/send-queued",
-      "schedule": "*/10 * * * *"
-    },
-    {
-      "path": "/api/cron/send-scheduled",
-      "schedule": "*/10 * * * *"
-    },
-    {
-      "path": "/api/cron/notify-matches",
-      "schedule": "30 */2 * * *"
-    },
-    {
-      "path": "/api/cron/check-follow-ups",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/cleanup-stale",
-      "schedule": "0 3 * * *"
     }
   ]
 }

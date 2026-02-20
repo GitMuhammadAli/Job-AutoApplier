@@ -224,12 +224,45 @@ export async function GET(req: NextRequest) {
       }).catch(() => {});
     }
 
+    // On Hobby plan, this single daily cron also triggers matching and sending
+    const shouldMatch = req.nextUrl.searchParams.get("match") === "true";
+    const shouldSend = req.nextUrl.searchParams.get("send") === "true";
+
+    let matchResult = null;
+    let sendResult = null;
+
+    if (shouldMatch) {
+      try {
+        const matchUrl = new URL("/api/cron/match-all-users", req.nextUrl.origin);
+        await fetch(matchUrl.toString(), {
+          headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+        });
+        matchResult = "triggered";
+      } catch (e) {
+        matchResult = `failed: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    }
+
+    if (shouldSend) {
+      try {
+        const sendUrl = new URL("/api/cron/send-queued", req.nextUrl.origin);
+        await fetch(sendUrl.toString(), {
+          headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+        });
+        sendResult = "triggered";
+      } catch (e) {
+        sendResult = `failed: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       mode,
       results,
       totalNew: results.reduce((s, r) => s + r.new, 0),
       totalUpdated: results.reduce((s, r) => s + r.updated, 0),
+      matchResult,
+      sendResult,
     });
   } catch (error) {
     console.error("Scrape global error:", error);
