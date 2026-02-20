@@ -3,8 +3,8 @@ import { ASMark } from "@/components/ui/as-mark";
 
 const CREATOR = {
   name: "Ali Shahid",
-  github: "https://github.com/alishahid",
-  linkedin: "https://linkedin.com/in/alishahid",
+  github: "https://github.com/GitMuhammadAli",
+  linkedin: "https://linkedin.com/in/alishahid-fswebdev",
   portfolio: "https://alishahid.dev",
 };
 
