@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
           { lastFollowUpAt: { lte: sevenDaysAgo } },
         ],
       },
+      take: 200,
       include: {
         globalJob: true,
         application: true,

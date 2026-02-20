@@ -213,6 +213,20 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
             </div>
           </div>
         )}
+
+        <a
+          href="https://alishahid.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 px-4 py-2 opacity-40 hover:opacity-100 transition-opacity group"
+        >
+          <span className="inline-flex items-center justify-center h-4 w-4 rounded bg-zinc-800 dark:bg-zinc-200 text-[7px] font-black text-white dark:text-zinc-900 tracking-tighter select-none group-hover:bg-emerald-600 dark:group-hover:bg-emerald-400 transition-colors">
+            AS
+          </span>
+          <span className="text-[9px] text-zinc-400 dark:text-zinc-600 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+            by Ali Shahid
+          </span>
+        </a>
       </aside>
     </>
   );

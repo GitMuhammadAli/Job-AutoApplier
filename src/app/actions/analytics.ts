@@ -3,10 +3,44 @@
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 
-export async function getAnalytics() {
-  const userId = await getAuthUserId();
+const EMPTY_ANALYTICS = {
+  totalJobs: 0,
+  applied: 0,
+  interviews: 0,
+  offers: 0,
+  rejected: 0,
+  ghosted: 0,
+  responseRate: 0,
+  applicationsOverTime: [] as { week: string; count: number }[],
+  stageFunnel: [
+    { stage: "Saved", count: 0 },
+    { stage: "Applied", count: 0 },
+    { stage: "Interview", count: 0 },
+    { stage: "Offer", count: 0 },
+  ],
+  sourceBreakdown: [] as { source: string; count: number }[],
+  activityOverTime: [] as { week: string; count: number }[],
+  speedMetrics: { avgApplyMinutes: 0, fastApplyCount: 0, totalSent: 0, instantCount: 0 },
+  applyMethodBreakdown: [] as { method: string; count: number }[],
+  speedOverTime: [] as { date: string; avgMinutes: number }[],
+  matchScoreDistribution: [
+    { range: "0-20%", count: 0 },
+    { range: "21-40%", count: 0 },
+    { range: "41-60%", count: 0 },
+    { range: "61-80%", count: 0 },
+    { range: "81-100%", count: 0 },
+  ],
+  responseRateBreakdown: [] as { name: string; value: number }[],
+  topCompanies: [] as { company: string; count: number }[],
+  weeklyComparison: { thisWeek: { applications: 0, matches: 0 }, lastWeek: { applications: 0, matches: 0 } },
+  summary: { totalJobs: 0, totalApplications: 0, totalSent: 0, avgMatchScore: 0, responseRatePercent: 0 },
+};
 
-  const userJobs = await prisma.userJob.findMany({
+export async function getAnalytics() {
+  try {
+    const userId = await getAuthUserId();
+
+    const userJobs = await prisma.userJob.findMany({
     where: { userId, isDismissed: false },
     include: {
       globalJob: { select: { source: true, postedDate: true, firstSeenAt: true } },
@@ -236,6 +270,10 @@ export async function getAnalytics() {
       responseRatePercent,
     },
   };
+  } catch (error) {
+    console.error("[getAnalytics] Error:", error);
+    return EMPTY_ANALYTICS;
+  }
 }
 
 

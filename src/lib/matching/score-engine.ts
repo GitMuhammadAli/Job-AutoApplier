@@ -1,6 +1,6 @@
 /**
  * Computes a 0-100 match score between a GlobalJob and a user's settings/resumes.
- * Uses HARD FILTERS first (keyword, category, platform) to reject irrelevant jobs,
+ * Uses HARD FILTERS first (keyword, platform, category, location) to reject irrelevant jobs,
  * then scores remaining jobs on 7 weighted factors.
  */
 
@@ -53,6 +53,35 @@ interface MatchResult {
 
 const REJECT: MatchResult = { score: 0, reasons: [], bestResumeId: null, bestResumeName: null };
 
+// Words too generic to use for fuzzy category matching
+const CATEGORY_STOP_WORDS = new Set([
+  "development", "engineering", "management", "design", "systems",
+  "science", "writing", "relations", "administration", "programming",
+  "testing", "automation", "advocacy", "mobile", "cloud", "data",
+  "network", "product", "technical", "cross", "platform", "web",
+  "general", "other", "misc", "specialist", "senior", "junior",
+  "lead", "head", "chief", "manager", "director", "officer",
+]);
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Checks if a keyword appears as a whole word/phrase in text.
+ * Prevents "css" from matching "accessing" or "vite" matching "invite".
+ */
+function keywordMatchesText(keyword: string, text: string): boolean {
+  if (keyword.length <= 1) return false;
+  const escaped = escapeRegex(keyword);
+  // For short keywords (2-3 chars like "go", "r", "css"), require strict word boundaries
+  // For longer keywords, use looser boundaries that work with dots/hyphens
+  const pattern = keyword.length <= 3
+    ? new RegExp(`(?:^|[\\s,;|/()\\[\\]:\\-])${escaped}(?:[\\s,;|/()\\[\\]:\\-.]|$)`, "i")
+    : new RegExp(`(?:^|\\b)${escaped}(?:\\b|$)`, "i");
+  return pattern.test(text);
+}
+
 export function computeMatchScore(
   job: GlobalJobLike,
   settings: UserSettingsLike,
@@ -65,7 +94,7 @@ export function computeMatchScore(
   const combined = `${titleLower} ${descLower}`;
 
   // ════════════════════════════════════════════
-  // HARD FILTER 1: Platform — must be in user's selected sources
+  // HARD FILTER 1: Platform
   // ════════════════════════════════════════════
   if (
     settings.preferredPlatforms.length > 0 &&
@@ -76,23 +105,20 @@ export function computeMatchScore(
   }
 
   // ════════════════════════════════════════════
-  // HARD FILTER 2: At least 1 keyword MUST match in title or description
-  // Without this, "Copywriter" would show for a React developer
+  // HARD FILTER 2: At least 1 keyword MUST match as a whole word
   // ════════════════════════════════════════════
   const userKeywords = settings.keywords.map((k) => k.toLowerCase().trim()).filter(Boolean);
   const matchedKeywords = userKeywords.filter(
-    (kw) => titleLower.includes(kw) || descLower.includes(kw)
+    (kw) => keywordMatchesText(kw, titleLower) || keywordMatchesText(kw, descLower)
   );
-  const titleKeywords = userKeywords.filter((kw) => titleLower.includes(kw));
+  const titleKeywords = userKeywords.filter((kw) => keywordMatchesText(kw, titleLower));
 
   if (userKeywords.length > 0 && matchedKeywords.length === 0) {
     return { ...REJECT, reasons: ["No keyword match"] };
   }
 
   // ════════════════════════════════════════════
-  // HARD FILTER 3: Category — if user selected categories AND job has a category,
-  // the job's category must overlap with at least one user category.
-  // We also do a fuzzy check against the job text if category is missing.
+  // HARD FILTER 3: Category
   // ════════════════════════════════════════════
   if (settings.preferredCategories.length > 0) {
     const userCats = settings.preferredCategories.map((c) => c.toLowerCase());
@@ -103,30 +129,65 @@ export function computeMatchScore(
     );
 
     if (!directCatMatch) {
-      const catKeywords = userCats.flatMap((c) =>
-        c.split(/[\s/]+/).filter((w) => w.length > 2)
-      );
-      const fuzzyCatMatch = catKeywords.some((ck) => combined.includes(ck));
-
-      if (!fuzzyCatMatch) {
-        return { ...REJECT, reasons: ["Category mismatch"] };
+      // Only do fuzzy match if user selected fewer than 15 categories
+      // (selecting everything means category filter adds no value)
+      if (settings.preferredCategories.length < 15) {
+        const catKeywords = userCats.flatMap((c) =>
+          c.split(/[\s/]+/).filter((w) => w.length > 3 && !CATEGORY_STOP_WORDS.has(w))
+        );
+        const fuzzyCatMatch = catKeywords.some((ck) => keywordMatchesText(ck, combined));
+        if (!fuzzyCatMatch) {
+          return { ...REJECT, reasons: ["Category mismatch"] };
+        }
       }
+      // When 15+ categories selected, skip fuzzy — rely on keyword filter
     }
   }
 
   // ════════════════════════════════════════════
-  // SCORING — Only jobs that passed hard filters get scored
+  // HARD FILTER 4: Location — reject non-remote jobs from different countries
+  // ════════════════════════════════════════════
+  if (settings.country && locationLower) {
+    const countryLower = settings.country.toLowerCase();
+    const isRemote =
+      locationLower.includes("remote") ||
+      locationLower.includes("anywhere") ||
+      locationLower.includes("worldwide") ||
+      locationLower.includes("global");
+    const isInCountry = locationLower.includes(countryLower);
+
+    // Known country names to check for foreign locations
+    const knownCountries = [
+      "india", "usa", "united states", "uk", "united kingdom", "germany",
+      "canada", "australia", "france", "spain", "brazil", "china",
+      "japan", "singapore", "netherlands", "ireland", "sweden", "switzerland",
+      "israel", "uae", "dubai", "saudi", "qatar", "nigeria", "kenya",
+      "south africa", "egypt", "turkey", "mexico", "argentina", "chile",
+      "colombia", "indonesia", "philippines", "vietnam", "thailand", "malaysia",
+    ];
+
+    const locationMentionsForeignCountry = knownCountries.some(
+      (c) => c !== countryLower && locationLower.includes(c)
+    );
+
+    if (!isRemote && !isInCountry && locationMentionsForeignCountry) {
+      return { ...REJECT, reasons: ["Wrong country"] };
+    }
+  }
+
+  // ════════════════════════════════════════════
+  // SCORING — Only jobs that passed all hard filters get scored
   // ════════════════════════════════════════════
   let score = 0;
 
-  // Factor 1: KEYWORD MATCH (0-30 points) — strongest signal
+  // Factor 1: KEYWORD MATCH (0-30 points)
   if (matchedKeywords.length > 0) {
     const keywordRatio = matchedKeywords.length / userKeywords.length;
     score += Math.round(keywordRatio * 30);
     reasons.push(`Keywords: ${matchedKeywords.slice(0, 5).join(", ")} (${matchedKeywords.length}/${userKeywords.length})`);
   }
 
-  // Factor 2: TITLE RELEVANCE (0-20 points) — keywords in title worth extra
+  // Factor 2: TITLE RELEVANCE (0-20 points)
   if (titleKeywords.length > 0) {
     score += Math.min(20, titleKeywords.length * 10);
     reasons.push(`Title match: ${titleKeywords.slice(0, 3).join(", ")}`);
@@ -185,8 +246,8 @@ export function computeMatchScore(
       score += 10;
       reasons.push(`Category: ${job.category}`);
     } else {
-      score += 5;
-      reasons.push("Category: fuzzy match");
+      score += 3;
+      reasons.push("Category: partial match");
     }
   }
 
@@ -204,14 +265,14 @@ export function computeMatchScore(
       score += 10;
       reasons.push(`Location: ${settings.city}`);
     } else if (remoteMatch) {
-      score += 7;
+      score += 5;
       reasons.push("Remote work match");
     } else if (countryMatch) {
       score += 7;
       reasons.push(`Country: ${settings.country}`);
     } else if (locationLower && locationLower !== "n/a" && locationLower !== "not specified") {
       score = Math.max(score - 15, 0);
-      reasons.push("Location mismatch (−15)");
+      reasons.push("Location mismatch (\u221215)");
     }
   }
 
@@ -231,21 +292,23 @@ export function computeMatchScore(
     }
   }
 
-  // Factor 7: FRESHNESS BONUS (0-5 points) — small, never enough alone
-  if (job.firstSeenAt) {
-    const daysSince = (Date.now() - new Date(job.firstSeenAt).getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSince < 1) {
+  // Factor 7: FRESHNESS BONUS (0-5 points) — only if job has title keyword match
+  if (titleKeywords.length > 0) {
+    if (job.firstSeenAt) {
+      const daysSince = (Date.now() - new Date(job.firstSeenAt).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSince < 1) {
+        score += 5;
+        reasons.push("Freshness: Posted today (+5)");
+      } else if (daysSince < 3) {
+        score += 3;
+        reasons.push("Freshness: Recent (+3)");
+      } else if (daysSince < 7) {
+        score += 1;
+      }
+    } else if (job.isFresh) {
       score += 5;
-      reasons.push("Fresh: today (+5)");
-    } else if (daysSince < 3) {
-      score += 3;
-      reasons.push("Fresh: recent (+3)");
-    } else if (daysSince < 7) {
-      score += 1;
+      reasons.push("Freshness: Posted today (+5)");
     }
-  } else if (job.isFresh) {
-    score += 5;
-    reasons.push("Fresh posting (+5)");
   }
 
   score = Math.min(score, 100);

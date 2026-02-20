@@ -53,6 +53,7 @@ async function buildEmailInput(
       salary: userJob.globalJob.salary,
       skills: userJob.globalJob.skills,
       description: userJob.globalJob.description,
+      source: userJob.globalJob.source,
     },
     profile: {
       fullName: settings.fullName,

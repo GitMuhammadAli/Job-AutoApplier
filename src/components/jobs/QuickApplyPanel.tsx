@@ -300,10 +300,10 @@ export function QuickApplyPanel({
             <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs font-semibold text-blue-800 dark:text-blue-200 truncate">
-                {matchInfo.name}
+                Resume: {matchInfo.name}
               </p>
               <p className="text-[10px] text-blue-600 dark:text-blue-400">
-                {matchInfo.tier}: {matchInfo.reason}
+                {matchInfo.reason}
               </p>
             </div>
           </div>
@@ -321,7 +321,7 @@ export function QuickApplyPanel({
                 setRecipientEmail(e.target.value);
                 debouncedSave("recipientEmail", e.target.value);
               }}
-              placeholder="hr@company.com"
+              placeholder="Enter recipient email..."
               className="h-9 text-sm"
             />
             {!recipientEmail && (

@@ -29,40 +29,45 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
 
   const jobs: ScrapedJob[] = [];
 
-  for (const q of queries.slice(0, 3)) {
+  for (const q of queries.slice(0, 5)) {
     try {
       const country = resolveCountryCode(q.cities || []);
       const keyword = encodeURIComponent(q.keyword);
-      const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&what=${keyword}&results_per_page=20&max_days_old=7&sort_by=date`;
 
-      const res = await fetchWithRetry(url);
-      if (!res.ok) continue;
+      // Fetch page 1 and page 2
+      for (const page of [1, 2]) {
+        const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?app_id=${appId}&app_key=${appKey}&what=${keyword}&results_per_page=20&max_days_old=7&sort_by=date`;
 
-      const data = await res.json();
-      const results = data?.results || [];
+        const res = await fetchWithRetry(url);
+        if (!res.ok) break;
 
-      for (const r of results) {
-        jobs.push({
-          title: r.title || "Untitled",
-          company: r.company?.display_name || "Unknown",
-          location: r.location?.display_name || null,
-          description: r.description || null,
-          salary: formatSalary(r.salary_min, r.salary_max),
-          jobType: r.contract_time || null,
-          experienceLevel: null,
-          category: r.category?.label || null,
-          skills: [],
-          postedDate: r.created ? new Date(r.created) : null,
-          source: "adzuna",
-          sourceId: `adzuna-${r.id}`,
-          sourceUrl: r.redirect_url || null,
-          applyUrl: r.redirect_url || null,
-          companyUrl: null,
-          companyEmail: null,
-        });
+        const data = await res.json();
+        const results = data?.results || [];
+        if (results.length === 0) break;
+
+        for (const r of results) {
+          jobs.push({
+            title: r.title || "Untitled",
+            company: r.company?.display_name || "Unknown",
+            location: r.location?.display_name || null,
+            description: r.description || null,
+            salary: formatSalary(r.salary_min, r.salary_max),
+            jobType: r.contract_time || null,
+            experienceLevel: null,
+            category: r.category?.label || null,
+            skills: [],
+            postedDate: r.created ? new Date(r.created) : null,
+            source: "adzuna",
+            sourceId: `adzuna-${r.id}`,
+            sourceUrl: r.redirect_url || null,
+            applyUrl: r.redirect_url || null,
+            companyUrl: null,
+            companyEmail: null,
+          });
+        }
       }
-    } catch {
-      // Skip failed queries
+    } catch (err) {
+      console.warn(`[Adzuna] Failed for "${q.keyword}":`, err);
     }
   }
 

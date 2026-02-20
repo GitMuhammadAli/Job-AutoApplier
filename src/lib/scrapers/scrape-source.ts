@@ -63,8 +63,8 @@ export async function scrapeAndUpsert(
         });
         newCount++;
       }
-    } catch {
-      // skip individual upsert failures
+    } catch (err) {
+      console.warn(`[${sourceName}] Upsert failed for "${job.title}":`, err);
     }
   }
 

@@ -23,9 +23,15 @@ export default function SystemHealthPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/system-health");
-      if (res.ok) setData(await res.json());
+      if (res.ok) {
+        setData(await res.json());
+      } else if (res.status === 401) {
+        toast.error("Please log in to view system health");
+      } else {
+        toast.error("Failed to load system health");
+      }
     } catch {
-      toast.error("Failed to load system health");
+      toast.error("Network error — check your connection");
     }
     setLoading(false);
   };
@@ -47,8 +53,14 @@ export default function SystemHealthPage() {
 
   if (!data) {
     return (
-      <div className="p-6 text-center text-slate-500 dark:text-zinc-400">
-        Failed to load system health. Make sure you are logged in.
+      <div className="p-6 text-center space-y-3">
+        <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto" />
+        <p className="text-sm text-slate-500 dark:text-zinc-400">
+          Could not load system health data.
+        </p>
+        <Button size="sm" variant="outline" onClick={fetchHealth}>
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Try Again
+        </Button>
       </div>
     );
   }
@@ -65,7 +77,7 @@ export default function SystemHealthPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Activity className="h-5 w-5 text-slate-600 dark:text-zinc-400" />
           <h1 className="text-lg font-bold text-slate-800 dark:text-zinc-200">System Health</h1>
@@ -80,7 +92,7 @@ export default function SystemHealthPage() {
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
           </Button>
           <Button size="sm" variant="outline" onClick={handleExport}>
-            <Download className="h-3.5 w-3.5 mr-1.5" /> Export Data
+            <Download className="h-3.5 w-3.5 mr-1.5" /> Export
           </Button>
         </div>
       </div>

@@ -10,10 +10,17 @@ export default async function JobDetailPage({
 }: {
   params: { id: string };
 }) {
+  let userId: string;
   try {
-    const userId = await getAuthUserId();
+    userId = await getAuthUserId();
+  } catch {
+    notFound();
+    return; // unreachable but keeps TS happy
+  }
 
-    const userJob = await prisma.userJob.findFirst({
+  let userJob;
+  try {
+    userJob = await prisma.userJob.findFirst({
       where: { id: params.id, userId },
       include: {
         globalJob: true,
@@ -25,11 +32,13 @@ export default async function JobDetailPage({
         activities: { orderBy: { createdAt: "desc" }, take: 50 },
       },
     });
-
-    if (!userJob) notFound();
-
-    return <JobDetailClient job={userJob as any} />;
-  } catch {
+  } catch (error) {
+    console.error("[JobDetail] DB error:", error);
     notFound();
+    return;
   }
+
+  if (!userJob) notFound();
+
+  return <JobDetailClient job={userJob as any} />;
 }

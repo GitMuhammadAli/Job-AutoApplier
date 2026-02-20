@@ -11,7 +11,7 @@ import { fetchRozee } from "@/lib/scrapers/rozee";
 import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
-export const maxDuration = 10;
+export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;

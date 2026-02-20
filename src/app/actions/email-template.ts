@@ -29,80 +29,100 @@ export async function getEmailTemplates() {
 }
 
 export async function createEmailTemplate(rawData: unknown) {
-  const userId = await getAuthUserId();
-  const data = createTemplateSchema.parse(rawData);
+  try {
+    const userId = await getAuthUserId();
+    const data = createTemplateSchema.parse(rawData);
 
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId },
-    select: { id: true },
-  });
-
-  if (!settings) throw new Error("Configure settings first");
-
-  if (data.isDefault) {
-    await prisma.emailTemplate.updateMany({
-      where: { userId, isDefault: true },
-      data: { isDefault: false },
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { id: true },
     });
+
+    if (!settings) throw new Error("Configure settings first");
+
+    if (data.isDefault) {
+      await prisma.emailTemplate.updateMany({
+        where: { userId, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    await prisma.emailTemplate.create({
+      data: {
+        userId,
+        settingsId: settings.id,
+        name: data.name,
+        subject: data.subject,
+        body: data.body,
+        isDefault: data.isDefault ?? false,
+      },
+    });
+
+    revalidatePath("/templates");
+    revalidatePath("/settings");
+  } catch (error) {
+    if (error instanceof Error && error.message === "Configure settings first") throw error;
+    if (error instanceof z.ZodError) throw new Error(error.errors[0].message);
+    console.error("[createEmailTemplate] Error:", error);
+    throw new Error("Failed to create email template.");
   }
-
-  await prisma.emailTemplate.create({
-    data: {
-      userId,
-      settingsId: settings.id,
-      name: data.name,
-      subject: data.subject,
-      body: data.body,
-      isDefault: data.isDefault ?? false,
-    },
-  });
-
-  revalidatePath("/templates");
-  revalidatePath("/settings");
 }
 
 export async function updateEmailTemplate(id: string, rawData: unknown) {
-  const userId = await getAuthUserId();
-  const data = updateTemplateSchema.parse(rawData);
+  try {
+    const userId = await getAuthUserId();
+    const data = updateTemplateSchema.parse(rawData);
 
-  const template = await prisma.emailTemplate.findFirst({
-    where: { id, userId },
-  });
-  if (!template) throw new Error("Template not found");
-
-  if (data.isDefault === true) {
-    await prisma.emailTemplate.updateMany({
-      where: { userId, isDefault: true },
-      data: { isDefault: false },
+    const template = await prisma.emailTemplate.findFirst({
+      where: { id, userId },
     });
+    if (!template) throw new Error("Template not found");
+
+    if (data.isDefault === true) {
+      await prisma.emailTemplate.updateMany({
+        where: { userId, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    const updateData: { name?: string; subject?: string; body?: string; isDefault?: boolean } = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.subject !== undefined) updateData.subject = data.subject;
+    if (data.body !== undefined) updateData.body = data.body;
+    if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
+
+    await prisma.emailTemplate.update({
+      where: { id },
+      data: updateData,
+    });
+
+    revalidatePath("/templates");
+    revalidatePath("/settings");
+  } catch (error) {
+    if (error instanceof Error && error.message === "Template not found") throw error;
+    if (error instanceof z.ZodError) throw new Error(error.errors[0].message);
+    console.error("[updateEmailTemplate] Error:", error);
+    throw new Error("Failed to update email template.");
   }
-
-  const updateData: { name?: string; subject?: string; body?: string; isDefault?: boolean } = {};
-  if (data.name !== undefined) updateData.name = data.name;
-  if (data.subject !== undefined) updateData.subject = data.subject;
-  if (data.body !== undefined) updateData.body = data.body;
-  if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
-
-  await prisma.emailTemplate.update({
-    where: { id },
-    data: updateData,
-  });
-
-  revalidatePath("/templates");
-  revalidatePath("/settings");
 }
 
 export async function deleteEmailTemplate(id: string) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const template = await prisma.emailTemplate.findFirst({
-    where: { id, userId },
-  });
-  if (!template) throw new Error("Template not found");
+    const template = await prisma.emailTemplate.findFirst({
+      where: { id, userId },
+    });
+    if (!template) throw new Error("Template not found");
 
-  await prisma.emailTemplate.delete({ where: { id } });
-  revalidatePath("/templates");
-  revalidatePath("/settings");
+    await prisma.emailTemplate.delete({ where: { id } });
+    revalidatePath("/templates");
+    revalidatePath("/settings");
+  } catch (error) {
+    if (error instanceof Error && error.message === "Template not found") throw error;
+    console.error("[deleteEmailTemplate] Error:", error);
+    throw new Error("Failed to delete email template.");
+  }
 }
 
 const STARTER_TEMPLATES = [
