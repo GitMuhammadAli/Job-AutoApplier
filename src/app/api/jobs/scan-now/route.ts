@@ -142,6 +142,7 @@ export async function POST() {
             experienceLevel: job.experienceLevel,
             category: job.category,
             skills: job.skills,
+            source: job.source,
             firstSeenAt: job.firstSeenAt,
           },
           settingsLike,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { computeMatchScore } from "@/lib/matching/score-engine";
+import { computeMatchScore, MATCH_THRESHOLDS } from "@/lib/matching/score-engine";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -87,8 +87,7 @@ export async function GET(req: NextRequest) {
 
         const match = computeMatchScore(job, user, resumes);
 
-        // Only create UserJob if score >= 20 (low threshold to show on board)
-        if (match.score < 20) continue;
+        if (match.score < MATCH_THRESHOLDS.SHOW_ON_KANBAN) continue;
 
         try {
           await prisma.userJob.create({
