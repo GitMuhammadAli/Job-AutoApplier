@@ -7,4 +7,6 @@ next-env.d.ts
 dist/
 .DS_Store
 test-results/
+test-screenshots/
+.auth/
 .vercel/
