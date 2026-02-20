@@ -16,13 +16,13 @@ interface StatsBarProps {
 }
 
 const STAT_CONFIGS = [
-  { key: "total", label: "Total Jobs", icon: Briefcase, iconBg: "bg-slate-100", iconColor: "text-slate-600", gradient: "from-slate-500 to-slate-700" },
-  { key: "applied", label: "Applied", icon: Send, iconBg: "bg-blue-100", iconColor: "text-blue-600", gradient: "from-blue-500 to-blue-700" },
-  { key: "interviews", label: "Interviews", icon: MessageSquare, iconBg: "bg-amber-100", iconColor: "text-amber-600", gradient: "from-amber-500 to-amber-700" },
-  { key: "offers", label: "Offers", icon: Trophy, iconBg: "bg-emerald-100", iconColor: "text-emerald-600", gradient: "from-emerald-500 to-emerald-700" },
-  { key: "rejected", label: "Rejected", icon: XCircle, iconBg: "bg-red-100", iconColor: "text-red-500", gradient: "from-red-400 to-red-600" },
-  { key: "ghosted", label: "Ghosted", icon: Ghost, iconBg: "bg-slate-100", iconColor: "text-slate-500", gradient: "from-slate-400 to-slate-600" },
-  { key: "response", label: "Response Rate", icon: TrendingUp, iconBg: "bg-violet-100", iconColor: "text-violet-600", gradient: "from-violet-500 to-violet-700" },
+  { key: "total", label: "Total Jobs", icon: Briefcase, iconBg: "bg-slate-100 dark:bg-slate-800", iconColor: "text-slate-600 dark:text-slate-400", gradient: "from-slate-500 to-slate-700" },
+  { key: "applied", label: "Applied", icon: Send, iconBg: "bg-blue-100 dark:bg-blue-900/40", iconColor: "text-blue-600 dark:text-blue-400", gradient: "from-blue-500 to-blue-700" },
+  { key: "interviews", label: "Interviews", icon: MessageSquare, iconBg: "bg-amber-100 dark:bg-amber-900/40", iconColor: "text-amber-600 dark:text-amber-400", gradient: "from-amber-500 to-amber-700" },
+  { key: "offers", label: "Offers", icon: Trophy, iconBg: "bg-emerald-100 dark:bg-emerald-900/40", iconColor: "text-emerald-600 dark:text-emerald-400", gradient: "from-emerald-500 to-emerald-700" },
+  { key: "rejected", label: "Rejected", icon: XCircle, iconBg: "bg-red-100 dark:bg-red-900/40", iconColor: "text-red-500 dark:text-red-400", gradient: "from-red-400 to-red-600" },
+  { key: "ghosted", label: "Ghosted", icon: Ghost, iconBg: "bg-slate-100 dark:bg-slate-800", iconColor: "text-slate-500 dark:text-slate-400", gradient: "from-slate-400 to-slate-600" },
+  { key: "response", label: "Response Rate", icon: TrendingUp, iconBg: "bg-violet-100 dark:bg-violet-900/40", iconColor: "text-violet-600 dark:text-violet-400", gradient: "from-violet-500 to-violet-700" },
 ] as const;
 
 export function StatsBar({ jobs }: StatsBarProps) {

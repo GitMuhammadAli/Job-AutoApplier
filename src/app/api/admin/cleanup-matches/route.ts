@@ -27,6 +27,7 @@ export async function POST() {
     });
 
     let cleaned = 0;
+    let rescored = 0;
     let checked = 0;
 
     for (const settings of users) {
@@ -39,7 +40,6 @@ export async function POST() {
         where: {
           userId: settings.userId,
           isDismissed: false,
-          stage: "SAVED",
         },
         include: { globalJob: true },
       });
@@ -56,13 +56,26 @@ export async function POST() {
             },
           });
 
-          if (!hasSentApp) {
+          if (!hasSentApp && uj.stage === "SAVED") {
             await prisma.userJob.update({
               where: { id: uj.id },
               data: { isDismissed: true },
             });
             cleaned++;
+            continue;
           }
+        }
+
+        // Re-score: update matchScore and matchReasons with new engine results
+        if (uj.matchScore !== match.score || JSON.stringify(uj.matchReasons) !== JSON.stringify(match.reasons)) {
+          await prisma.userJob.update({
+            where: { id: uj.id },
+            data: {
+              matchScore: match.score,
+              matchReasons: match.reasons,
+            },
+          });
+          rescored++;
         }
       }
     }
@@ -72,6 +85,7 @@ export async function POST() {
       usersProcessed: users.length,
       jobsChecked: checked,
       jobsCleaned: cleaned,
+      jobsRescored: rescored,
     });
   } catch (error) {
     console.error("[cleanup-matches]", error);

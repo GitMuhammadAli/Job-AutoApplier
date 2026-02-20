@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
   try {
     const freshJobs = await prisma.globalJob.findMany({
       where: { isFresh: true, isActive: true },
+      take: 500,
     });
 
     if (freshJobs.length === 0) {

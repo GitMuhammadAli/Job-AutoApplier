@@ -5,7 +5,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Zap, Mail, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Loader2, AlertCircle } from "lucide-react";
 
 const AUTH_ERRORS: Record<string, string> = {
   OAuthAccountNotLinked: "This email is already linked to a different sign-in method.",
@@ -48,24 +48,35 @@ export function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Background effects — matches landing page */}
+      <div
+        className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
+        style={{
+          backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
+          backgroundSize: "40px 40px",
+        }}
+      />
+      <div className="absolute top-1/4 right-1/3 w-[400px] h-[400px] bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/3 w-[300px] h-[300px] bg-emerald-400/10 dark:bg-emerald-400/5 rounded-full blur-[100px] pointer-events-none" />
+
+      <div className="relative w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-2.5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 shadow-lg shadow-blue-600/20">
-              <Zap className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">JobPilot</span>
-          </div>
-          <p className="text-sm text-slate-500 dark:text-zinc-400">
-            Automated job tracker with smart matching
+          <a href="/" className="inline-flex items-center justify-center gap-2.5 group">
+            <span className="text-2xl transition-transform group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] duration-300">
+              🚀
+            </span>
+            <span className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">JobPilot</span>
+          </a>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            AI-powered job matching &amp; applications
           </p>
         </div>
 
-        <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-zinc-800 p-6 shadow-xl ring-1 ring-slate-200/60 dark:ring-zinc-700/60">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-violet-500 to-emerald-500" />
+        <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-zinc-900 p-6 shadow-xl ring-1 ring-zinc-200/60 dark:ring-zinc-800/60">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
 
-          <h2 className="text-lg font-bold text-slate-800 dark:text-zinc-100 mb-4">Sign in to your account</h2>
+          <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">Sign in to your account</h2>
 
           {authError && (
             <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-950/30 p-3 ring-1 ring-red-200 dark:ring-red-800/50">
@@ -77,7 +88,7 @@ export function LoginForm() {
           <div className="space-y-2.5">
             <Button
               variant="outline"
-              className="w-full h-10 text-sm font-medium justify-center gap-2.5"
+              className="w-full h-10 text-sm font-medium justify-center gap-2.5 dark:border-zinc-700 dark:hover:bg-zinc-800"
               onClick={() => handleOAuth("google")}
               disabled={loading !== null}
             >
@@ -96,7 +107,7 @@ export function LoginForm() {
 
             <Button
               variant="outline"
-              className="w-full h-10 text-sm font-medium justify-center gap-2.5"
+              className="w-full h-10 text-sm font-medium justify-center gap-2.5 dark:border-zinc-700 dark:hover:bg-zinc-800"
               onClick={() => handleOAuth("github")}
               disabled={loading !== null}
             >
@@ -113,10 +124,10 @@ export function LoginForm() {
 
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200 dark:border-zinc-700" />
+              <div className="w-full border-t border-zinc-200 dark:border-zinc-700" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-white dark:bg-zinc-800 px-3 text-slate-400 dark:text-zinc-500 font-medium">or sign in with email</span>
+              <span className="bg-white dark:bg-zinc-900 px-3 text-zinc-400 dark:text-zinc-500 font-medium">or sign in with email</span>
             </div>
           </div>
 
@@ -147,11 +158,11 @@ export function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com..."
                 required
-                className="h-10"
+                className="h-10 dark:border-zinc-700"
               />
               <Button
                 type="submit"
-                className="w-full h-10 text-sm font-medium"
+                className="w-full h-10 text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all"
                 disabled={loading !== null || !email.trim()}
               >
                 {loading === "email" ? (
@@ -165,9 +176,31 @@ export function LoginForm() {
           )}
         </div>
 
-        <p className="text-center text-[11px] text-slate-400 dark:text-zinc-500">
-          By signing in, you agree to let JobPilot scrape jobs and send email notifications on your behalf.
-        </p>
+        <div className="text-center space-y-2">
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
+            By signing in, you agree to let JobPilot scrape jobs and send email notifications on your behalf.
+          </p>
+          <a href="/" className="inline-flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+            </svg>
+            Back to homepage
+          </a>
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 mt-6 opacity-60 hover:opacity-100 transition-opacity">
+          <span className="inline-flex items-center justify-center h-5 w-5 rounded bg-zinc-900 dark:bg-white text-[8px] font-black text-white dark:text-zinc-900 tracking-tighter select-none">
+            AS
+          </span>
+          <a
+            href="https://alishahid.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+          >
+            by Ali Shahid
+          </a>
+        </div>
       </div>
     </div>
   );

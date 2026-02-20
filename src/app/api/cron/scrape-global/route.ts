@@ -17,7 +17,7 @@ import { categorizeJob } from "@/lib/job-categorizer";
 import { sendNotificationEmail } from "@/lib/email";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;

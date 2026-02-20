@@ -4,15 +4,15 @@ import { fetchWithRetry } from "./fetch-with-retry";
 export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const jobs: ScrapedJob[] = [];
 
-  for (const q of queries.slice(0, 5)) {
-    for (const city of q.cities.slice(0, 2)) {
+  for (const q of queries.slice(0, 8)) {
+    for (const city of q.cities.slice(0, 3)) {
       try {
         const keyword = encodeURIComponent(q.keyword);
         const location = encodeURIComponent(city);
         const url = `https://www.indeed.com/rss?q=${keyword}&l=${location}&sort=date&limit=25`;
 
         const res = await fetchWithRetry(url, {
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; JobPilot/1.0)" },
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" },
         });
         if (!res.ok) continue;
 
@@ -49,8 +49,8 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
             companyEmail: null,
           });
         }
-      } catch {
-        // Skip failed queries
+      } catch (err) {
+        console.warn(`[Indeed] Failed for "${q.keyword}" in "${city}":`, err);
       }
     }
   }

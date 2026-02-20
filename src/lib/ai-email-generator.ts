@@ -14,6 +14,7 @@ export interface GenerateEmailInput {
     salary: string | null;
     skills: string[];
     description: string | null;
+    source?: string | null;
   };
   profile: {
     fullName: string;
@@ -65,7 +66,9 @@ RULES:
 - Keep it concise, confident, and specific to THIS job at THIS company
 - The email should read like a real human wrote it, not a template
 - Do NOT start with "Dear Hiring Manager" — use "Hi [actual company name] team" or similar
-- End with candidate's full name`);
+- End with candidate's full name
+- Do NOT say "as advertised on your website" — if a source platform is given, reference it naturally (e.g. "I came across this role on LinkedIn")
+- Do NOT fabricate where the job was found — only mention the source if provided`);
 
   const tone = input.settings.preferredTone || "professional";
   const toneInstructions: Record<string, string> = {
@@ -93,7 +96,7 @@ RULES:
 
   if (input.settings.customClosing) {
     systemParts.push(
-      `CLOSING: End the email with exactly this: "${input.settings.customClosing}"`
+      `CLOSING: End the email with exactly this: "${input.settings.customClosing}". Do NOT add any other sign-off, name, or signature after this — the system will append one automatically.`
     );
   }
 
@@ -111,10 +114,15 @@ Return ONLY valid JSON. No markdown, no backticks, no explanation.
 
   const userParts: string[] = [];
 
+  const sourceName = input.job.source
+    ? { indeed: "Indeed", linkedin: "LinkedIn", remotive: "Remotive", arbeitnow: "Arbeitnow", adzuna: "Adzuna", rozee: "Rozee.pk", "rozee.pk": "Rozee.pk", jsearch: "JSearch", google: "Google Jobs" }[input.job.source.toLowerCase()] || input.job.source
+    : null;
+
   userParts.push(`JOB DETAILS:
 Title: ${input.job.title}
 Company: ${input.job.company}
 Location: ${input.job.location || "Not specified"}
+${sourceName ? `Found on: ${sourceName}` : ""}
 ${input.job.salary ? `Salary: ${input.job.salary}` : ""}
 Skills Required: ${input.job.skills.length > 0 ? input.job.skills.join(", ") : "Not listed"}
 Description: ${(input.job.description || "No description available").slice(0, 2000)}`);
@@ -166,7 +174,23 @@ Body: ${input.template.body.slice(0, 500)}`);
   body = replacePlaceholders(body, input);
 
   if (input.settings.defaultSignature) {
-    body = body.trim() + "\n\n" + input.settings.defaultSignature;
+    // Avoid duplicating the signature if the AI already included the closing
+    const sigNorm = input.settings.defaultSignature.replace(/\s+/g, " ").trim().toLowerCase();
+    const bodyTail = body.slice(-200).replace(/\s+/g, " ").trim().toLowerCase();
+    const alreadyPresent = sigNorm.length > 5 && bodyTail.includes(sigNorm);
+
+    if (!alreadyPresent) {
+      // If customClosing was used, the AI already wrote a sign-off — only
+      // append the signature if it adds something the closing didn't cover
+      if (input.settings.customClosing) {
+        const closingNorm = input.settings.customClosing.replace(/\s+/g, " ").trim().toLowerCase();
+        if (closingNorm !== sigNorm) {
+          body = body.trim() + "\n\n" + input.settings.defaultSignature;
+        }
+      } else {
+        body = body.trim() + "\n\n" + input.settings.defaultSignature;
+      }
+    }
   }
 
   return { subject, body, coverLetter: null };

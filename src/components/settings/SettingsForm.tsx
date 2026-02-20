@@ -344,30 +344,30 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
       </div>
 
       {/* ── Personal Info ── */}
-      <Section icon={<User className="h-4 w-4" />} title="Personal Info">
+      <Section icon={<User className="h-4 w-4" />} title="Personal Info" description="Used in your application emails, cover letters, and email signatures. HR sees this info directly.">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Full Name">
+          <Field label="Full Name" hint="Appears in the 'From' field and email signature">
             <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Muhammad Ali" autoComplete="name" />
           </Field>
-          <Field label="Phone">
+          <Field label="Phone" hint="Included in signature if provided — not shared elsewhere">
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+92 300 1234567" autoComplete="tel" type="tel" />
           </Field>
-          <Field label="LinkedIn URL">
+          <Field label="LinkedIn URL" hint="Linked in applications when the toggle below is on">
             <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/&hellip;" autoComplete="url" spellCheck={false} />
           </Field>
-          <Field label="GitHub URL">
+          <Field label="GitHub URL" hint="Showcases your projects and contributions to employers">
             <Input value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/&hellip;" autoComplete="url" spellCheck={false} />
           </Field>
-          <Field label="Portfolio URL" className="sm:col-span-2">
+          <Field label="Portfolio URL" className="sm:col-span-2" hint="Your personal website or portfolio — great for standing out">
             <Input value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://yoursite.com" />
           </Field>
         </div>
       </Section>
 
       {/* ── Job Preferences ── */}
-      <Section icon={<Briefcase className="h-4 w-4" />} title="Job Preferences">
+      <Section icon={<Briefcase className="h-4 w-4" />} title="Job Preferences" description="These preferences control which jobs appear on your Kanban board. The matching engine scores every scraped job against these settings.">
         <div className="space-y-4">
-          <Field label="Keywords (type + Enter to add)">
+          <Field label="Keywords (type + Enter to add)" hint="Matched against job titles and descriptions. More keywords = more matches. Be specific (e.g. 'React' not 'frontend').">
             <div className="flex gap-2">
               <Input
                 value={keywordInput}
@@ -452,22 +452,22 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="City">
+            <Field label="City" hint="Jobs in other countries are filtered out unless they're remote">
               <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Lahore" />
             </Field>
-            <Field label="Country">
+            <Field label="Country" hint="Combined with city to prioritize local and regional jobs">
               <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Pakistan" />
             </Field>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <Field label="Min Salary">
+            <Field label="Min Salary" hint="Leave empty to see all salary ranges">
               <Input type="number" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} placeholder="30000" />
             </Field>
-            <Field label="Max Salary">
+            <Field label="Max Salary" hint="Used for salary range filtering">
               <Input type="number" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="80000" />
             </Field>
-            <Field label="Currency">
+            <Field label="Currency" hint="Must match your local currency">
               <Select value={salaryCurrency} onValueChange={setSalaryCurrency}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -480,7 +480,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Experience Level">
+            <Field label="Experience Level" hint="Helps filter out senior roles if you're junior, and vice versa">
               <Select value={experienceLevel || undefined} onValueChange={setExperienceLevel}>
                 <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
                 <SelectContent>
@@ -490,7 +490,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Education">
+            <Field label="Education" hint="Mentioned in AI-generated cover letters and emails">
               <Select value={education || undefined} onValueChange={setEducation}>
                 <SelectTrigger><SelectValue placeholder="Select education" /></SelectTrigger>
                 <SelectContent>
@@ -502,7 +502,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
             </Field>
           </div>
 
-          <Field label="Work Type">
+          <Field label="Work Type" hint="Select all that work for you. Remote jobs from anywhere always appear.">
             <div className="flex flex-wrap gap-2">
               {WORK_TYPES.map((w) => (
                 <ChipToggle key={w.value} label={w.label} active={workType.includes(w.value)} onClick={() => toggleArray(workType, w.value, setWorkType)} />
@@ -510,7 +510,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
             </div>
           </Field>
 
-          <Field label="Job Type">
+          <Field label="Job Type" hint="Choose what employment types you're open to. Select multiple to widen results.">
             <div className="flex flex-wrap gap-2">
               {JOB_TYPES.map((j) => (
                 <ChipToggle key={j.value} label={j.label} active={jobType.includes(j.value)} onClick={() => toggleArray(jobType, j.value, setJobType)} />
@@ -518,7 +518,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
             </div>
           </Field>
 
-          <Field label="Languages (type + Enter to add)">
+          <Field label="Languages (type + Enter to add)" hint="Languages you speak. Listed in cover letters and may improve matching for multilingual roles.">
             <div className="flex gap-2">
               <Input
                 value={langInput}
@@ -541,8 +541,8 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
       </Section>
 
       {/* ── Categories ── */}
-      <Section icon={<Grid3X3 className="h-4 w-4" />} title="Job Categories">
-        <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Select the categories you want. Jobs outside these categories get lower match scores.</p>
+      <Section icon={<Grid3X3 className="h-4 w-4" />} title="Job Categories" description="Pick the fields you work in. Jobs matching these categories score higher; unrelated ones (e.g. 'Game Development' when you selected 'Frontend') get penalized.">
+        <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Tip: Select 2-5 categories for best results. Too many dilutes matching accuracy.</p>
         <div className="flex flex-wrap gap-1.5">
           {JOB_CATEGORIES.map((cat) => (
             <ChipToggle key={cat} label={cat} active={categories.includes(cat)} onClick={() => toggleArray(categories, cat, setCategories)} />
@@ -551,8 +551,8 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
       </Section>
 
       {/* ── Platforms ── */}
-      <Section icon={<Radio className="h-4 w-4" />} title="Job Platforms">
-        <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Select which sources to scrape jobs from.</p>
+      <Section icon={<Radio className="h-4 w-4" />} title="Job Platforms" description="JobPilot scrapes these platforms automatically on a schedule. Deselect any you don't want. Paid APIs have monthly limits shown in parentheses.">
+        <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Free sources (Indeed, LinkedIn, etc.) run every 30 min. Paid APIs (JSearch, Google Jobs) run once daily to conserve quota.</p>
         <div className="flex flex-wrap gap-2">
           {JOB_SOURCES.map((src) => (
             <ChipToggle
@@ -690,42 +690,45 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
         )}
 
         <div className="mt-4">
-          <Field label="Resume Match Mode">
+          <Field label="Resume Match Mode" hint="Determines how JobPilot picks the best resume for each job application.">
             <Select value={resumeMatchMode} onValueChange={setResumeMatchMode}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="smart">Smart (AI-powered)</SelectItem>
-                <SelectItem value="keyword">Keyword-based</SelectItem>
-                <SelectItem value="exact">Exact match</SelectItem>
+                <SelectItem value="smart">Smart (AI-powered) — analyzes context, not just words</SelectItem>
+                <SelectItem value="keyword">Keyword-based — matches skills from resume text</SelectItem>
+                <SelectItem value="exact">Exact match — strict word-for-word matching</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+              {resumeMatchMode === "smart" ? "AI reads your resume and the job description to find the best semantic match. Recommended for most users." : resumeMatchMode === "keyword" ? "Counts matching keywords between your resume and the job. Fast but may miss related skills." : "Only matches if your resume contains the exact terms from the job posting. Most restrictive."}
+            </p>
           </Field>
         </div>
       </Section>
 
       {/* ── Notifications ── */}
-      <Section icon={<Bell className="h-4 w-4" />} title="Notifications">
+      <Section icon={<Bell className="h-4 w-4" />} title="Notifications" description="Get email alerts when JobPilot finds new jobs matching your preferences. You can control frequency to avoid inbox overload.">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-sm font-medium">Email Notifications</Label>
-              <p className="text-xs text-slate-400 dark:text-zinc-500">Get notified about new job matches</p>
+              <p className="text-xs text-slate-400 dark:text-zinc-500">Sends a summary of new job matches to your email</p>
             </div>
             <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
           </div>
           {emailNotifications && (
             <>
-              <Field label="Notification Email (optional, defaults to login email)">
+              <Field label="Notification Email" hint="Leave empty to use your login email. Use a different email if you want alerts separated from applications.">
                 <Input value={notificationEmail} onChange={(e) => setNotificationEmail(e.target.value)} placeholder="alerts@example.com" />
               </Field>
-              <Field label="Notification Frequency">
+              <Field label="Notification Frequency" hint="How often you receive match digest emails. Real-time can be noisy during active scraping.">
                 <Select value={notificationFrequency} onValueChange={setNotificationFrequency}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="realtime">Real-time</SelectItem>
-                    <SelectItem value="hourly">Hourly (max 1/hour)</SelectItem>
-                    <SelectItem value="daily">Daily digest (max 3/day)</SelectItem>
-                    <SelectItem value="off">Off</SelectItem>
+                    <SelectItem value="realtime">Real-time — instant alert per match</SelectItem>
+                    <SelectItem value="hourly">Hourly — bundled digest, max 1/hour</SelectItem>
+                    <SelectItem value="daily">Daily — one summary per day</SelectItem>
+                    <SelectItem value="off">Off — no email notifications</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
@@ -735,11 +738,8 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
       </Section>
 
       {/* ── Application Mode ── */}
-      <Section icon={<Send className="h-4 w-4" />} title="Application Mode">
-        <p className="text-xs text-slate-400 dark:text-zinc-500 mb-4">
-          How much control do you want over each application?
-        </p>
-        <Field label="Application Email (email to send applications FROM)">
+      <Section icon={<Send className="h-4 w-4" />} title="Application Mode" description="Choose how much control you want. From fully manual to instant auto-apply — each mode determines when and how emails get sent.">
+        <Field label="Application Email" hint="This is the 'From' address on your application emails. Must match your SMTP/email provider above.">
           <Input type="email" value={applicationEmail} onChange={(e) => setApplicationEmail(e.target.value)} placeholder="yourname@gmail.com" autoComplete="email" spellCheck={false} />
         </Field>
 
@@ -845,10 +845,10 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
               <Switch checked={autoApplyEnabled} onCheckedChange={setAutoApplyEnabled} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Max Auto-Apply Per Day">
+              <Field label="Max Auto-Apply Per Day" hint="Safety cap — stops auto-applying after this many per day to avoid over-sending">
                 <Input type="number" min={1} max={50} value={maxAutoApply} onChange={(e) => setMaxAutoApply(e.target.value)} />
               </Field>
-              <Field label={`Min Match Score (${minMatchScore}%)`}>
+              <Field label={`Min Match Score (${minMatchScore}%)`} hint="Only auto-applies to jobs scoring above this threshold. Higher = more relevant but fewer applications.">
                 <input
                   type="range"
                   min={0}
@@ -863,7 +863,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
         )}
 
         <div className="mt-4">
-          <Field label="Default Signature (appended to all application emails)">
+          <Field label="Default Signature" hint="Appended to the bottom of every application email. Include your name, title, and contact links.">
             <Textarea
               value={defaultSignature}
               onChange={(e) => setDefaultSignature(e.target.value)}
@@ -995,9 +995,9 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
       )}
 
       {/* ── AI Customization ── */}
-      <Section icon={<Sparkles className="h-4 w-4" />} title="AI Customization">
+      <Section icon={<Sparkles className="h-4 w-4" />} title="AI Customization" description="Control how the AI writes your application emails and cover letters. These settings shape the voice and content of every generated message.">
         <div className="space-y-4">
-          <Field label="Custom System Prompt (your own AI instructions, injected into every generation)">
+          <Field label="Custom System Prompt" hint="Extra instructions injected into every AI generation. Tell the AI what to emphasize, avoid, or always include.">
             <Textarea
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}
@@ -1009,7 +1009,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
           </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Preferred Tone">
+            <Field label="Preferred Tone" hint="Sets the writing style for all generated emails and cover letters">
               <Select value={tone} onValueChange={setTone}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1021,7 +1021,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Email Language">
+            <Field label="Email Language" hint="The language the AI writes emails in. Set to match the job posting's language.">
               <Select value={emailLang} onValueChange={setEmailLang}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1034,21 +1034,31 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
           </div>
 
           <div className="space-y-3">
+            <p className="text-[10px] text-slate-400 dark:text-zinc-500 -mb-1">Choose which links to include at the bottom of your application emails. Toggle off any you don&apos;t want shared.</p>
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Include LinkedIn URL in applications</Label>
+              <div>
+                <Label className="text-sm">Include LinkedIn URL</Label>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500">Adds your LinkedIn profile link to each application</p>
+              </div>
               <Switch checked={includeLinkedin} onCheckedChange={setIncludeLinkedin} />
             </div>
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Include GitHub URL in applications</Label>
+              <div>
+                <Label className="text-sm">Include GitHub URL</Label>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500">Shows employers your code and open-source work</p>
+              </div>
               <Switch checked={includeGithub} onCheckedChange={setIncludeGithub} />
             </div>
             <div className="flex items-center justify-between">
-              <Label className="text-sm">Include Portfolio URL in applications</Label>
+              <div>
+                <Label className="text-sm">Include Portfolio URL</Label>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500">Links to your personal website or portfolio</p>
+              </div>
               <Switch checked={includePortfolio} onCheckedChange={setIncludePortfolio} />
             </div>
           </div>
 
-          <Field label="Custom Closing">
+          <Field label="Custom Closing" hint="Replaces the AI's default sign-off (e.g. 'Best regards'). Leave empty to let the AI decide.">
             <Input value={customClosing} onChange={(e) => setCustomClosing(e.target.value)} placeholder="Looking forward to connecting" maxLength={100} />
           </Field>
         </div>
@@ -1125,22 +1135,29 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
 
 // ── Helper Components ──
 
-function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function Section({ icon, title, description, children }: { icon: React.ReactNode; title: string; description?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl bg-white dark:bg-zinc-800/80 p-5 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="rounded-lg bg-slate-100 dark:bg-zinc-700 p-1.5 text-slate-500 dark:text-zinc-400">{icon}</div>
-        <h2 className="text-sm font-bold text-slate-800 dark:text-zinc-100">{title}</h2>
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          <div className="rounded-lg bg-slate-100 dark:bg-zinc-700 p-1.5 text-slate-500 dark:text-zinc-400">{icon}</div>
+          <h2 className="text-sm font-bold text-slate-800 dark:text-zinc-100">{title}</h2>
+        </div>
+        {description && (
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1.5 ml-9">{description}</p>
+        )}
       </div>
       {children}
     </div>
   );
 }
 
-function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({ label, hint, children, className }: { label: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">{label}</Label>
+      <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-0.5 block">{label}</Label>
+      {hint && <p className="text-[10px] text-slate-400 dark:text-zinc-500 mb-1.5">{hint}</p>}
+      {!hint && <div className="mb-1" />}
       {children}
     </div>
   );

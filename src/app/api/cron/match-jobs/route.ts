@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
         isFresh: false,
         lastSeenAt: { gte: oneDayAgo },
       },
+      take: 500,
     });
 
     if (recentJobs.length === 0) {
@@ -76,6 +77,7 @@ export async function GET(req: NextRequest) {
           await prisma.userJob.findMany({
             where: { userId: user.userId },
             select: { globalJobId: true },
+            take: 10000,
           })
         ).map((uj) => uj.globalJobId),
       );

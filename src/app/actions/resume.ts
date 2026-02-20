@@ -135,67 +135,85 @@ export async function deleteResume(id: string) {
 }
 
 export async function updateResumeText(resumeId: string, content: string) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const resume = await prisma.resume.findFirst({
-    where: { id: resumeId, userId, isDeleted: false },
-  });
-  if (!resume) throw new Error("Resume not found");
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId, isDeleted: false },
+    });
+    if (!resume) throw new Error("Resume not found");
 
-  const detectedSkills = extractSkillsFromContent(content);
+    const detectedSkills = extractSkillsFromContent(content);
 
-  await prisma.resume.update({
-    where: { id: resumeId },
-    data: {
-      content: content || null,
-      detectedSkills,
-      textQuality: content.split(/\s+/).filter((w) => w.length > 0).length >= 50 ? "good" : "poor",
-    },
-  });
+    await prisma.resume.update({
+      where: { id: resumeId },
+      data: {
+        content: content || null,
+        detectedSkills,
+        textQuality: content.split(/\s+/).filter((w) => w.length > 0).length >= 50 ? "good" : "poor",
+      },
+    });
 
-  revalidatePath("/resumes");
-  return { success: true, detectedSkills };
+    revalidatePath("/resumes");
+    return { success: true, detectedSkills };
+  } catch (error) {
+    if (error instanceof Error && error.message === "Resume not found") throw error;
+    console.error("[updateResumeText] Error:", error);
+    throw new Error("Failed to update resume content.");
+  }
 }
 
 export async function updateResumeCategories(
   resumeId: string,
   targetCategories: string[]
 ) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const resume = await prisma.resume.findFirst({
-    where: { id: resumeId, userId, isDeleted: false },
-  });
-  if (!resume) throw new Error("Resume not found");
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId, isDeleted: false },
+    });
+    if (!resume) throw new Error("Resume not found");
 
-  await prisma.resume.update({
-    where: { id: resumeId },
-    data: { targetCategories },
-  });
+    await prisma.resume.update({
+      where: { id: resumeId },
+      data: { targetCategories },
+    });
 
-  revalidatePath("/resumes");
-  return { success: true };
+    revalidatePath("/resumes");
+    return { success: true };
+  } catch (error) {
+    if (error instanceof Error && error.message === "Resume not found") throw error;
+    console.error("[updateResumeCategories] Error:", error);
+    throw new Error("Failed to update resume categories.");
+  }
 }
 
 export async function setDefaultResume(resumeId: string) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const resume = await prisma.resume.findFirst({
-    where: { id: resumeId, userId, isDeleted: false },
-  });
-  if (!resume) throw new Error("Resume not found");
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId, isDeleted: false },
+    });
+    if (!resume) throw new Error("Resume not found");
 
-  await prisma.$transaction([
-    prisma.resume.updateMany({
-      where: { userId, isDeleted: false },
-      data: { isDefault: false },
-    }),
-    prisma.resume.update({
-      where: { id: resumeId },
-      data: { isDefault: true },
-    }),
-  ]);
+    await prisma.$transaction([
+      prisma.resume.updateMany({
+        where: { userId, isDeleted: false },
+        data: { isDefault: false },
+      }),
+      prisma.resume.update({
+        where: { id: resumeId },
+        data: { isDefault: true },
+      }),
+    ]);
 
-  revalidatePath("/resumes");
-  return { success: true };
+    revalidatePath("/resumes");
+    return { success: true };
+  } catch (error) {
+    if (error instanceof Error && error.message === "Resume not found") throw error;
+    console.error("[setDefaultResume] Error:", error);
+    throw new Error("Failed to set default resume.");
+  }
 }

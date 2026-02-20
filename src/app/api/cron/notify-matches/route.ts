@@ -5,6 +5,7 @@ import { checkNotificationLimit, recordNotification } from "@/lib/notification-l
 import { decryptField } from "@/lib/encryption";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function verifyCronSecret(req: NextRequest): boolean {
   const secret =

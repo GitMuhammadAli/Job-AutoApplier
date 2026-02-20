@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const session = await getAuthSession();
-    if (!session?.user?.email || !isAdmin(session.user.email)) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     const now = new Date();

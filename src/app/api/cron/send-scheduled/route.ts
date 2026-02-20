@@ -33,10 +33,7 @@ export async function GET(req: NextRequest) {
     const readyApps = await prisma.jobApplication.findMany({
       where: {
         status: "READY",
-        OR: [
-          { scheduledSendAt: { lte: new Date() } },
-          { scheduledSendAt: null },
-        ],
+        scheduledSendAt: { not: null, lte: new Date() },
       },
       orderBy: { createdAt: "asc" },
       take: 50,

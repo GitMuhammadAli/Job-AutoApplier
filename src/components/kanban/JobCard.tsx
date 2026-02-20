@@ -1,12 +1,13 @@
 "use client";
 
+import { useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Building2, Clock, ExternalLink, DollarSign, Mail, Zap, FileText } from "lucide-react";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { StageSelector } from "@/components/shared/StageSelector";
 import { daysAgo } from "@/lib/utils";
-import Link from "next/link";
 import type { UserJobWithGlobal } from "@/store/useJobStore";
 import type { JobStage } from "@prisma/client";
 
@@ -30,12 +31,15 @@ function getApplySpeed(job: UserJobWithGlobal): { label: string; fast: boolean }
   const firstSeen = new Date(job.globalJob.firstSeenAt).getTime();
   const diffMin = Math.max(0, Math.round((sentAt - firstSeen) / 60000));
 
-  if (diffMin <= 2) return { label: `⚡ ${diffMin}m`, fast: true };
+  if (diffMin <= 2) return { label: `\u26A1 ${diffMin}m`, fast: true };
   if (diffMin <= 20) return { label: `${diffMin}m`, fast: true };
   return { label: `${diffMin}m`, fast: false };
 }
 
 export function JobCard({ job, onStageChange }: JobCardProps) {
+  const router = useRouter();
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: job.id,
@@ -52,13 +56,42 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
   const speed = getApplySpeed(job);
   const freshness = getFreshness(days);
 
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      pointerStart.current = { x: e.clientX, y: e.clientY };
+      // Forward to dnd-kit's pointer handler
+      const dndHandler = (listeners as Record<string, Function> | undefined)?.onPointerDown;
+      if (dndHandler) dndHandler(e);
+    },
+    [listeners]
+  );
+
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("a, button, [role='button'], select, input")) return;
+      // Only navigate if pointer barely moved (not a drag gesture)
+      if (pointerStart.current) {
+        const dx = Math.abs(e.clientX - pointerStart.current.x);
+        const dy = Math.abs(e.clientY - pointerStart.current.y);
+        if (dx > 5 || dy > 5) return;
+      }
+      router.push(`/jobs/${job.id}`);
+    },
+    [router, job.id]
+  );
+
+  const dndKeyDown = (listeners as Record<string, Function> | undefined)?.onKeyDown;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
       {...attributes}
-      className={`group relative cursor-grab active:cursor-grabbing rounded-xl bg-white dark:bg-zinc-800 p-3 md:p-3.5 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-shadow transition-transform duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 dark:hover:ring-zinc-600/80 touch-manipulation ${
+      onPointerDown={handlePointerDown}
+      onKeyDown={dndKeyDown as React.KeyboardEventHandler<HTMLDivElement> | undefined}
+      onClick={handleClick}
+      className={`group relative cursor-pointer active:cursor-grabbing rounded-xl bg-white dark:bg-zinc-800 p-3 md:p-3.5 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-shadow transition-transform duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 dark:hover:ring-zinc-600/80 touch-manipulation ${
         isDragging ? "opacity-50 shadow-lg rotate-2 z-50 ring-blue-300" : ""
       }`}
     >
@@ -75,14 +108,9 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
             }
           />
         </div>
-        <Link
-          href={`/jobs/${job.id}`}
-          className="mt-1 text-sm font-bold text-slate-800 dark:text-zinc-100 leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors block"
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
+        <span className="mt-1 text-sm font-bold text-slate-800 dark:text-zinc-100 leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors block">
           {g.title}
-        </Link>
+        </span>
       </div>
 
       <div className="flex flex-wrap items-center gap-1 mb-2">
@@ -127,10 +155,10 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
             <span
               className={`font-bold ${
                 job.matchScore >= 70
-                  ? "text-emerald-600"
+                  ? "text-emerald-600 dark:text-emerald-400"
                   : job.matchScore >= 40
-                    ? "text-amber-600"
-                    : "text-slate-400"
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-slate-400 dark:text-zinc-500"
               }`}
             >
               {Math.round(job.matchScore)}%
@@ -143,14 +171,14 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
                   ? "bg-emerald-500"
                   : job.matchScore >= 40
                     ? "bg-amber-400"
-                    : "bg-slate-300"
+                    : "bg-slate-300 dark:bg-zinc-600"
               }`}
               style={{ width: `${Math.min(job.matchScore, 100)}%` }}
             />
           </div>
           {job.matchReasons && job.matchReasons.length > 0 && (
             <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5 truncate">
-              {job.matchReasons.slice(0, 3).join(" · ")}
+              {job.matchReasons.slice(0, 3).join(" \u00B7 ")}
             </p>
           )}
         </div>
@@ -174,8 +202,6 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
             href={g.applyUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors duration-200 shadow-sm hover:shadow bg-blue-500 text-white hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-none touch-manipulation"
           >
             <ExternalLink className="h-2.5 w-2.5" />

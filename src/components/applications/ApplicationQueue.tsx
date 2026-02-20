@@ -501,7 +501,7 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
         </TabsList>
 
         {selectedCount > 0 && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2">
             <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">
               {selectedCount} selected
             </span>

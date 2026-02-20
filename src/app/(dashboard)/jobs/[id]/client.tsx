@@ -246,41 +246,45 @@ export function JobDetailClient({ job }: JobDetailProps) {
       </div>
 
       {/* Stage selector */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {STAGES.map((stage) => {
-          const sc = STAGE_CONFIG[stage];
-          const isActive = job.stage === stage;
-          return (
-            <button
-              key={stage}
-              onClick={() => handleStageChange(stage as JobStage)}
-              disabled={isPending}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap ${
-                isActive
-                  ? `${sc.bg} ${sc.text} ring-1 ${sc.ring} shadow-sm dark:shadow-zinc-900/50`
-                  : "bg-slate-50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700"
-              }`}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
-              {sc.label}
-              {isPending && isActive && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
-            </button>
-          );
-        })}
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+          {STAGES.map((stage) => {
+            const sc = STAGE_CONFIG[stage];
+            const isActive = job.stage === stage;
+            return (
+              <button
+                key={stage}
+                onClick={() => handleStageChange(stage as JobStage)}
+                disabled={isPending}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap touch-manipulation ${
+                  isActive
+                    ? `${sc.bg} ${sc.text} ring-1 ${sc.ring} shadow-sm dark:shadow-zinc-900/50`
+                    : "bg-slate-50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700"
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
+                {sc.label}
+                {isPending && isActive && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Main Content: Split Layout */}
       <div className="flex flex-col lg:flex-row gap-5">
         {/* Left: Job Details */}
         <div className="flex-1 min-w-0">
-      {/* Tabs */}
-      <Tabs defaultValue="details" className="space-y-0">
-        <TabsList className="bg-slate-100/80 dark:bg-zinc-700/80 rounded-lg p-0.5">
-          <TabsTrigger value="details" className="text-xs rounded-md">Details</TabsTrigger>
-          <TabsTrigger value="cover-letter" className="text-xs rounded-md">Cover Letter</TabsTrigger>
-          <TabsTrigger value="notes" className="text-xs rounded-md">Notes</TabsTrigger>
-          <TabsTrigger value="activity" className="text-xs rounded-md">Activity</TabsTrigger>
-        </TabsList>
+          {/* Tabs */}
+          <Tabs defaultValue="details" className="space-y-0">
+            <div className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto">
+              <TabsList className="bg-slate-100/80 dark:bg-zinc-700/80 rounded-lg p-0.5 w-max sm:w-auto">
+                <TabsTrigger value="details" className="text-xs rounded-md">Details</TabsTrigger>
+                <TabsTrigger value="cover-letter" className="text-xs rounded-md">Cover Letter</TabsTrigger>
+                <TabsTrigger value="notes" className="text-xs rounded-md">Notes</TabsTrigger>
+                <TabsTrigger value="activity" className="text-xs rounded-md">Activity</TabsTrigger>
+              </TabsList>
+            </div>
 
         <TabsContent value="details" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -471,12 +475,12 @@ export function JobDetailClient({ job }: JobDetailProps) {
             <ActivityTimeline activities={job.activities} />
           </div>
         </TabsContent>
-      </Tabs>
+          </Tabs>
         </div>
 
         {/* Right: Quick Apply Panel */}
-        <div className="w-full lg:w-[380px] shrink-0">
-          <div className="sticky top-4 rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+        <div className="w-full lg:w-[360px] shrink-0">
+          <div className="sticky top-16 rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
             <QuickApplyPanel
               userJob={{
                 id: job.id,

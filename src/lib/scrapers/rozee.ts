@@ -10,7 +10,7 @@ const USER_AGENTS = [
 export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const jobs: ScrapedJob[] = [];
 
-  for (const q of queries.slice(0, 3)) {
+  for (const q of queries.slice(0, 6)) {
     try {
       const keyword = encodeURIComponent(q.keyword);
       const url = `https://www.rozee.pk/job/jsearch/q/${keyword}`;
@@ -61,8 +61,8 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
           companyEmail: null,
         });
       }
-    } catch {
-      // Skip
+    } catch (err) {
+      console.warn(`[Rozee] Failed for "${q.keyword}":`, err);
     }
   }
 

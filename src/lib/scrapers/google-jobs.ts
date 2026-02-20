@@ -11,43 +11,45 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
 
   const jobs: ScrapedJob[] = [];
 
-  for (const q of queries.slice(0, 2)) {
-    try {
-      const query = encodeURIComponent(`${q.keyword} jobs ${q.cities[0] || ""}`);
-      const url = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&api_key=${key}`;
+  for (const q of queries.slice(0, 4)) {
+    for (const city of q.cities.slice(0, 2)) {
+      try {
+        const query = encodeURIComponent(`${q.keyword} jobs ${city || ""}`);
+        const url = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&api_key=${key}`;
 
-      const res = await fetchWithRetry(url);
-      if (!res.ok) continue;
+        const res = await fetchWithRetry(url);
+        if (!res.ok) continue;
 
-      const data = await res.json();
-      const results = data?.jobs_results || [];
+        const data = await res.json();
+        const results = data?.jobs_results || [];
 
-      for (const r of results) {
-        const applyLink = r.apply_options?.[0]?.link || null;
+        for (const r of results) {
+          const applyLink = r.apply_options?.[0]?.link || null;
 
-        jobs.push({
-          title: r.title || "Untitled",
-          company: r.company_name || "Unknown",
-          location: r.location || null,
-          description: r.description || null,
-          salary: r.detected_extensions?.salary || null,
-          jobType: r.detected_extensions?.schedule_type?.toLowerCase() || null,
-          experienceLevel: null,
-          category: null,
-          skills: [],
-          postedDate: r.detected_extensions?.posted_at
-            ? parseRelativeDate(r.detected_extensions.posted_at)
-            : null,
-          source: "google",
-          sourceId: `google-${r.job_id || Date.now()}`,
-          sourceUrl: applyLink,
-          applyUrl: applyLink,
-          companyUrl: null,
-          companyEmail: null,
-        });
+          jobs.push({
+            title: r.title || "Untitled",
+            company: r.company_name || "Unknown",
+            location: r.location || null,
+            description: r.description || null,
+            salary: r.detected_extensions?.salary || null,
+            jobType: r.detected_extensions?.schedule_type?.toLowerCase() || null,
+            experienceLevel: null,
+            category: null,
+            skills: [],
+            postedDate: r.detected_extensions?.posted_at
+              ? parseRelativeDate(r.detected_extensions.posted_at)
+              : null,
+            source: "google",
+            sourceId: `google-${r.job_id || Date.now()}`,
+            sourceUrl: applyLink,
+            applyUrl: applyLink,
+            companyUrl: null,
+            companyEmail: null,
+          });
+        }
+      } catch (err) {
+        console.warn(`[GoogleJobs] Failed for "${q.keyword}" in "${city}":`, err);
       }
-    } catch {
-      // Skip
     }
   }
 

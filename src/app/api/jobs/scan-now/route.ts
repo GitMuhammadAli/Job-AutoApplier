@@ -5,19 +5,20 @@ import { scrapeAndUpsert } from "@/lib/scrapers/scrape-source";
 import { fetchIndeed } from "@/lib/scrapers/indeed";
 import { fetchRemotive } from "@/lib/scrapers/remotive";
 import { fetchArbeitnow } from "@/lib/scrapers/arbeitnow";
+import { fetchLinkedIn } from "@/lib/scrapers/linkedin";
+import { fetchRozee } from "@/lib/scrapers/rozee";
 import { computeMatchScore, MATCH_THRESHOLDS } from "@/lib/matching/score-engine";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 10;
+export const maxDuration = 120;
 
-const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const COOLDOWN_MS = 5 * 60 * 1000;
 
 export async function POST() {
   try {
     const userId = await getAuthUserId();
 
-    // Persistent cooldown via SystemLog
     const lastScanLog = await prisma.systemLog.findFirst({
       where: {
         type: "MANUAL_SCAN",
@@ -47,7 +48,6 @@ export async function POST() {
       );
     }
 
-    // Record the scan in SystemLog
     await prisma.systemLog.create({
       data: {
         type: "MANUAL_SCAN",
@@ -61,114 +61,139 @@ export async function POST() {
     if (settings.country) cities.add(settings.country);
 
     const queries: SearchQuery[] = settings.keywords
-      .slice(0, 5)
+      .slice(0, 8)
       .map((keyword) => ({
         keyword: keyword.toLowerCase().trim(),
         cities: Array.from(cities),
       }));
 
-    const sources = [
+    // All free sources — including LinkedIn and Rozee.pk
+    const sources: { name: string; fn: (q: SearchQuery[]) => Promise<ScrapedJob[]> }[] = [
       { name: "indeed", fn: fetchIndeed },
       { name: "remotive", fn: fetchRemotive },
       { name: "arbeitnow", fn: () => fetchArbeitnow() },
+      { name: "linkedin", fn: fetchLinkedIn },
+      { name: "rozee", fn: fetchRozee },
     ];
 
+    // Filter to user's selected platforms
+    const userPlatforms = settings.preferredPlatforms?.length
+      ? new Set(settings.preferredPlatforms.map((p: string) => p.toLowerCase().replace(/\./g, "")))
+      : null;
+
+    const activeSources = userPlatforms
+      ? sources.filter((s) => {
+          const normalized = s.name.toLowerCase().replace(/\./g, "");
+          return userPlatforms.has(normalized);
+        })
+      : sources;
+
+    // Run all scrapers in parallel for speed
+    const scrapeResults = await Promise.allSettled(
+      activeSources.map(async (source) => {
+        try {
+          const result = await scrapeAndUpsert(source.name, source.fn, queries);
+          return { name: source.name, newCount: result.newCount ?? 0 };
+        } catch (err) {
+          console.warn(`[scan-now] ${source.name} failed:`, err);
+          return { name: source.name, newCount: 0 };
+        }
+      })
+    );
+
     let totalNew = 0;
-    for (const source of sources) {
-      try {
-        const result = await scrapeAndUpsert(
-          source.name,
-          source.fn as (q: SearchQuery[]) => Promise<ScrapedJob[]>,
-          queries
-        );
-        totalNew += result.newCount ?? 0;
-      } catch {
-        // individual source failure ok
+    const sourceStats: Record<string, number> = {};
+    for (const r of scrapeResults) {
+      if (r.status === "fulfilled") {
+        totalNew += r.value.newCount;
+        sourceStats[r.value.name] = r.value.newCount;
       }
     }
 
     // Match new jobs against user profile
     let matched = 0;
-    if (totalNew > 0) {
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      const newGlobalJobs = await prisma.globalJob.findMany({
-        where: { createdAt: { gte: oneHourAgo } },
-        take: 200,
-      });
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const newGlobalJobs = await prisma.globalJob.findMany({
+      where: { createdAt: { gte: oneHourAgo } },
+      take: 500,
+    });
 
-      const existingLinks = await prisma.userJob.findMany({
-        where: { userId },
-        select: { globalJobId: true },
-      });
-      const linkedSet = new Set(existingLinks.map((l) => l.globalJobId));
+    const existingLinks = await prisma.userJob.findMany({
+      where: { userId },
+      select: { globalJobId: true },
+    });
+    const linkedSet = new Set(existingLinks.map((l) => l.globalJobId));
 
-      const settingsLike = {
-        keywords: settings.keywords,
-        city: settings.city,
-        country: settings.country,
-        experienceLevel: settings.experienceLevel,
-        workType: settings.workType,
-        jobType: settings.jobType,
-        preferredCategories: settings.preferredCategories,
-        preferredPlatforms: settings.preferredPlatforms,
-        salaryMin: settings.salaryMin,
-        salaryMax: settings.salaryMax,
-      };
+    const settingsLike = {
+      keywords: settings.keywords,
+      city: settings.city,
+      country: settings.country,
+      experienceLevel: settings.experienceLevel,
+      workType: settings.workType,
+      jobType: settings.jobType,
+      preferredCategories: settings.preferredCategories,
+      preferredPlatforms: settings.preferredPlatforms,
+      salaryMin: settings.salaryMin,
+      salaryMax: settings.salaryMax,
+    };
 
-      const userResumes = await prisma.resume.findMany({
-        where: { userId, isDeleted: false },
-        select: { id: true, name: true, content: true },
-      });
-      const resumes = userResumes;
+    const userResumes = await prisma.resume.findMany({
+      where: { userId, isDeleted: false },
+      select: { id: true, name: true, content: true },
+    });
 
-      const toCreate: Array<{
-        userId: string;
-        globalJobId: string;
-        matchScore: number;
-        matchReasons: string[];
-      }> = [];
+    const toCreate: Array<{
+      userId: string;
+      globalJobId: string;
+      matchScore: number;
+      matchReasons: string[];
+    }> = [];
 
-      for (const job of newGlobalJobs) {
-        if (linkedSet.has(job.id)) continue;
+    for (const job of newGlobalJobs) {
+      if (linkedSet.has(job.id)) continue;
 
-        const result = computeMatchScore(
-          {
-            title: job.title,
-            company: job.company,
-            location: job.location,
-            description: job.description,
-            salary: job.salary,
-            jobType: job.jobType,
-            experienceLevel: job.experienceLevel,
-            category: job.category,
-            skills: job.skills,
-            source: job.source,
-            firstSeenAt: job.firstSeenAt,
-          },
-          settingsLike,
-          resumes
-        );
+      const result = computeMatchScore(
+        {
+          title: job.title,
+          company: job.company,
+          location: job.location,
+          description: job.description,
+          salary: job.salary,
+          jobType: job.jobType,
+          experienceLevel: job.experienceLevel,
+          category: job.category,
+          skills: job.skills,
+          source: job.source,
+          firstSeenAt: job.firstSeenAt,
+        },
+        settingsLike,
+        userResumes
+      );
 
-        if (result.score >= MATCH_THRESHOLDS.SHOW_ON_KANBAN) {
-          toCreate.push({
-            userId,
-            globalJobId: job.id,
-            matchScore: result.score,
-            matchReasons: result.reasons,
-          });
-          matched++;
-        }
-      }
-
-      if (toCreate.length > 0) {
-        await prisma.userJob.createMany({
-          data: toCreate,
-          skipDuplicates: true,
+      if (result.score >= MATCH_THRESHOLDS.SHOW_ON_KANBAN) {
+        toCreate.push({
+          userId,
+          globalJobId: job.id,
+          matchScore: result.score,
+          matchReasons: result.reasons,
         });
+        matched++;
       }
     }
 
-    return NextResponse.json({ success: true, newJobs: totalNew, matched });
+    if (toCreate.length > 0) {
+      await prisma.userJob.createMany({
+        data: toCreate,
+        skipDuplicates: true,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      newJobs: totalNew,
+      matched,
+      sources: sourceStats,
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";
     if (message === "Not authenticated" || message.includes("Unauthorized")) {
