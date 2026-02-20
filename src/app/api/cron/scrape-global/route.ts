@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { aggregateSearchQueries } from "@/lib/scrapers/keyword-aggregator";
-import { getPaidSourcesToday, getPriorityPlatforms } from "@/lib/scrapers/source-rotation";
+import {
+  getPaidSourcesToday,
+  getPriorityPlatforms,
+} from "@/lib/scrapers/source-rotation";
 import { fetchJSearch } from "@/lib/scrapers/jsearch";
 import { fetchIndeed } from "@/lib/scrapers/indeed";
 import { fetchRemotive } from "@/lib/scrapers/remotive";
@@ -58,7 +61,11 @@ export async function GET(req: NextRequest) {
         break;
       default:
         sources = [
-          "indeed", "remotive", "arbeitnow", "linkedin", "rozee",
+          "indeed",
+          "remotive",
+          "arbeitnow",
+          "linkedin",
+          "rozee",
           ...getPaidSourcesToday(),
         ];
         sources = sources.filter((s, i) => sources.indexOf(s) === i);
@@ -68,12 +75,25 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: "No sources to scrape", mode });
     }
 
-    const queries = await aggregateSearchQueries(mode === "paid" ? "paid" : undefined);
+    const queries = await aggregateSearchQueries(
+      mode === "paid" ? "paid" : undefined,
+    );
     if (queries.length === 0) {
-      return NextResponse.json({ message: "No user keywords configured", mode, scraped: 0 });
+      return NextResponse.json({
+        message: "No user keywords configured",
+        mode,
+        scraped: 0,
+      });
     }
 
-    const results: { source: string; found: number; new: number; updated: number; status: string; error?: string }[] = [];
+    const results: {
+      source: string;
+      found: number;
+      new: number;
+      updated: number;
+      status: string;
+      error?: string;
+    }[] = [];
 
     // Scrape each source independently — one failure doesn't kill others
     for (const source of sources) {
@@ -88,11 +108,17 @@ export async function GET(req: NextRequest) {
         for (const job of jobs) {
           try {
             if (!job.category) {
-              job.category = categorizeJob(job.title, job.skills || [], job.description || "");
+              job.category = categorizeJob(
+                job.title,
+                job.skills || [],
+                job.description || "",
+              );
             }
 
             const existing = await prisma.globalJob.findUnique({
-              where: { sourceId_source: { sourceId: job.sourceId, source: job.source } },
+              where: {
+                sourceId_source: { sourceId: job.sourceId, source: job.source },
+              },
               select: { id: true },
             });
 
@@ -105,7 +131,9 @@ export async function GET(req: NextRequest) {
                   ...(job.description ? { description: job.description } : {}),
                   ...(job.salary ? { salary: job.salary } : {}),
                   ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
-                  ...(job.companyEmail ? { companyEmail: job.companyEmail } : {}),
+                  ...(job.companyEmail
+                    ? { companyEmail: job.companyEmail }
+                    : {}),
                 },
               });
               updatedCount++;
@@ -141,19 +169,36 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        results.push({ source, found: jobs.length, new: newCount, updated: updatedCount, status: "success" });
+        results.push({
+          source,
+          found: jobs.length,
+          new: newCount,
+          updated: updatedCount,
+          status: "success",
+        });
 
         await prisma.systemLog.create({
           data: {
             type: "scrape",
             source,
             message: `${source}: ${jobs.length} found, ${newCount} new, ${updatedCount} updated`,
-            metadata: { found: jobs.length, new: newCount, updated: updatedCount },
+            metadata: {
+              found: jobs.length,
+              new: newCount,
+              updated: updatedCount,
+            },
           },
         });
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
-        results.push({ source, found: 0, new: 0, updated: 0, status: "failed", error: errMsg });
+        results.push({
+          source,
+          found: 0,
+          new: 0,
+          updated: 0,
+          status: "failed",
+          error: errMsg,
+        });
         console.error(`[Scrape] ${source} failed:`, error);
 
         await prisma.systemLog.create({
@@ -172,7 +217,10 @@ export async function GET(req: NextRequest) {
         from: `JobPilot <${process.env.NOTIFICATION_EMAIL}>`,
         to: process.env.NOTIFICATION_EMAIL,
         subject: `JobPilot Alert: ${failedCount}/${sources.length} scrapers failed`,
-        html: `<p>Failed sources: ${results.filter((r) => r.status === "failed").map((r) => `${r.source}: ${r.error}`).join("<br>")}</p>`,
+        html: `<p>Failed sources: ${results
+          .filter((r) => r.status === "failed")
+          .map((r) => `${r.source}: ${r.error}`)
+          .join("<br>")}</p>`,
       }).catch(() => {});
     }
 
@@ -187,7 +235,7 @@ export async function GET(req: NextRequest) {
     console.error("Scrape global error:", error);
     return NextResponse.json(
       { error: "Scrape failed", details: String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

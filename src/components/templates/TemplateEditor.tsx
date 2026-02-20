@@ -41,7 +41,9 @@ interface TemplateEditorProps {
   templates: EmailTemplate[];
 }
 
-export function TemplateEditor({ templates: initialTemplates }: TemplateEditorProps) {
+export function TemplateEditor({
+  templates: initialTemplates,
+}: TemplateEditorProps) {
   const router = useRouter();
   const [templates, setTemplates] = useState(initialTemplates);
   useEffect(() => {
@@ -51,7 +53,9 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [focusedField, setFocusedField] = useState<"name" | "subject" | "body" | null>(null);
+  const [focusedField, setFocusedField] = useState<
+    "name" | "subject" | "body" | null
+  >(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -73,12 +77,16 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
         const end = el.selectionEnd ?? el.value.length;
         const val = el.value;
         const newVal = val.slice(0, start) + placeholder + val.slice(end);
-        if ("value" in el) (el as HTMLInputElement | HTMLTextAreaElement).value = newVal;
-        el.setSelectionRange(start + placeholder.length, start + placeholder.length);
+        if ("value" in el)
+          (el as HTMLInputElement | HTMLTextAreaElement).value = newVal;
+        el.setSelectionRange(
+          start + placeholder.length,
+          start + placeholder.length,
+        );
         el.focus();
       }
     },
-    [focusedField]
+    [focusedField],
   );
 
   const handleSave = async () => {
@@ -95,8 +103,8 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
       await updateEmailTemplate(editing.id, { name, subject, body });
       setTemplates((prev) =>
         prev.map((t) =>
-          t.id === editing.id ? { ...t, name, subject, body } : t
-        )
+          t.id === editing.id ? { ...t, name, subject, body } : t,
+        ),
       );
       setEditingId(null);
       router.refresh();
@@ -117,7 +125,7 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
         prev.map((x) => ({
           ...x,
           isDefault: x.id === id,
-        }))
+        })),
       );
       router.refresh();
       toast.success("Default template updated");
@@ -141,7 +149,11 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
     setDeleting(null);
   };
 
-  const handleCreate = async (data: { name: string; subject: string; body: string }) => {
+  const handleCreate = async (data: {
+    name: string;
+    subject: string;
+    body: string;
+  }) => {
     setSaving(true);
     try {
       await createEmailTemplate(data);
@@ -172,7 +184,9 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
             {editingId === t.id ? (
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">Name</label>
+                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">
+                    Name
+                  </label>
                   <Input
                     ref={nameRef}
                     data-field="name"
@@ -182,7 +196,9 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">Subject</label>
+                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">
+                    Subject
+                  </label>
                   <Input
                     ref={subjectRef}
                     data-field="subject"
@@ -192,7 +208,9 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">Body</label>
+                  <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">
+                    Body
+                  </label>
                   <Textarea
                     ref={bodyRef}
                     data-field="body"
@@ -204,7 +222,9 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <span className="text-xs text-slate-500 dark:text-zinc-400 mr-1">Insert:</span>
+                  <span className="text-xs text-slate-500 dark:text-zinc-400 mr-1">
+                    Insert:
+                  </span>
                   {PLACEHOLDER_CHIPS.map((p) => (
                     <button
                       key={p}
@@ -241,7 +261,11 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
                     <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                     Delete
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setEditingId(null)}
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -254,7 +278,9 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <h3 className="font-semibold text-slate-900 dark:text-zinc-100 truncate">{t.name}</h3>
+                    <h3 className="font-semibold text-slate-900 dark:text-zinc-100 truncate">
+                      {t.name}
+                    </h3>
                     {t.isDefault && (
                       <Badge variant="secondary" className="shrink-0">
                         <Star className="h-3 w-3 mr-0.5 fill-amber-400 text-amber-600" />
@@ -264,7 +290,9 @@ export function TemplateEditor({ templates: initialTemplates }: TemplateEditorPr
                   </div>
                   <Pencil className="h-4 w-4 text-slate-400 dark:text-zinc-500 shrink-0" />
                 </div>
-                <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400 truncate">{t.subject}</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400 truncate">
+                  {t.subject}
+                </p>
               </button>
             )}
           </div>
@@ -299,7 +327,9 @@ function CreateTemplateDialog({
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [focusedField, setFocusedField] = useState<"name" | "subject" | "body" | null>(null);
+  const [focusedField, setFocusedField] = useState<
+    "name" | "subject" | "body" | null
+  >(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -317,11 +347,27 @@ function CreateTemplateDialog({
       const start = el.selectionStart ?? el.value.length;
       const end = el.selectionEnd ?? el.value.length;
       const setter =
-        focusedField === "name" ? setName : focusedField === "subject" ? setSubject : setBody;
-      const val = focusedField === "name" ? name : focusedField === "subject" ? subject : body;
+        focusedField === "name"
+          ? setName
+          : focusedField === "subject"
+            ? setSubject
+            : setBody;
+      const val =
+        focusedField === "name"
+          ? name
+          : focusedField === "subject"
+            ? subject
+            : body;
       const newVal = val.slice(0, start) + placeholder + val.slice(end);
       setter(newVal);
-      setTimeout(() => el.setSelectionRange(start + placeholder.length, start + placeholder.length), 0);
+      setTimeout(
+        () =>
+          el.setSelectionRange(
+            start + placeholder.length,
+            start + placeholder.length,
+          ),
+        0,
+      );
     }
   };
 
@@ -353,7 +399,9 @@ function CreateTemplateDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">Name</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">
+              Name
+            </label>
             <Input
               ref={nameRef}
               value={name}
@@ -363,7 +411,9 @@ function CreateTemplateDialog({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1.5 block">Subject</label>
+            <label className="text-xs font-medium text-slate-600 mb-1.5 block">
+              Subject
+            </label>
             <Input
               ref={subjectRef}
               value={subject}
@@ -373,7 +423,9 @@ function CreateTemplateDialog({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">Body</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">
+              Body
+            </label>
             <Textarea
               ref={bodyRef}
               value={body}
@@ -385,7 +437,9 @@ function CreateTemplateDialog({
             />
           </div>
           <div className="flex flex-wrap gap-2">
-                    <span className="text-xs text-slate-500 dark:text-zinc-400 mr-1">Insert:</span>
+            <span className="text-xs text-slate-500 dark:text-zinc-400 mr-1">
+              Insert:
+            </span>
             {placeholderChips.map((p) => (
               <button
                 key={p}
