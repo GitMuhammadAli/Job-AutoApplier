@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, Loader2, AlertCircle } from "lucide-react";
+import { ASMark } from "@/components/ui/as-mark";
 
 const AUTH_ERRORS: Record<string, string> = {
   OAuthAccountNotLinked: "This email is already linked to a different sign-in method.",
@@ -188,19 +189,17 @@ export function LoginForm() {
           </a>
         </div>
 
-        <div className="flex items-center justify-center gap-1.5 mt-6 opacity-60 hover:opacity-100 transition-opacity">
-          <span className="inline-flex items-center justify-center h-5 w-5 rounded bg-zinc-900 dark:bg-white text-[8px] font-black text-white dark:text-zinc-900 tracking-tighter select-none">
-            AS
-          </span>
-          <a
-            href="https://alishahid.dev"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-          >
+        <a
+          href="https://alishahid.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 mt-6 opacity-50 hover:opacity-100 transition-all hover:scale-105 active:scale-95"
+        >
+          <ASMark size={20} />
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
             by Ali Shahid
-          </a>
-        </div>
+          </span>
+        </a>
       </div>
     </div>
   );

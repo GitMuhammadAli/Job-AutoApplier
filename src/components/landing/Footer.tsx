@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ASMark } from "@/components/ui/as-mark";
 
 const CREATOR = {
   name: "Ali Shahid",
@@ -62,10 +63,10 @@ export function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-zinc-100 dark:border-zinc-800/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-zinc-900 dark:bg-white text-[10px] font-black text-white dark:text-zinc-900 tracking-tighter select-none">
-              AS
-            </span>
+          <div className="flex items-center gap-2.5">
+            <a href={CREATOR.portfolio} target="_blank" rel="noopener noreferrer" className="transition-transform hover:scale-110 active:scale-95">
+              <ASMark size={28} />
+            </a>
             <span className="text-sm text-zinc-400 dark:text-zinc-500">
               Crafted by{" "}
               <a
@@ -76,7 +77,6 @@ export function Footer() {
               >
                 {CREATOR.name}
               </a>
-              {" "}in Lahore, Pakistan
             </span>
             <div className="flex items-center gap-1.5 ml-1">
               <a
