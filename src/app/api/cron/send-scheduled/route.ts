@@ -9,8 +9,7 @@ export const dynamic = "force-dynamic";
 function verifyCronSecret(req: NextRequest): boolean {
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
+    req.headers.get("x-cron-secret");
   return secret === process.env.CRON_SECRET;
 }
 
@@ -20,6 +19,17 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const lock = await prisma.systemLock.findUnique({ where: { name: "send-applications" } });
+    if (lock?.isRunning) {
+      return NextResponse.json({ skipped: true, reason: "Another send cron is running" });
+    }
+
+    await prisma.systemLock.upsert({
+      where: { name: "send-applications" },
+      update: { isRunning: true, startedAt: new Date() },
+      create: { name: "send-applications", isRunning: true, startedAt: new Date() },
+    });
+
     const readyApps = await prisma.jobApplication.findMany({
       where: {
         status: "READY",
@@ -50,9 +60,13 @@ export async function GET(req: NextRequest) {
         failed++;
       }
 
-      // 2-second minimum gap between sends in this cron
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
+
+    await prisma.systemLock.update({
+      where: { name: "send-applications" },
+      data: { isRunning: false, completedAt: new Date() },
+    });
 
     await prisma.systemLog.create({
       data: {
@@ -69,6 +83,11 @@ export async function GET(req: NextRequest) {
       skipped,
     });
   } catch (error) {
+    await prisma.systemLock.update({
+      where: { name: "send-applications" },
+      data: { isRunning: false, completedAt: new Date() },
+    }).catch(() => {});
+
     console.error("[SendScheduled] Error:", error);
     return NextResponse.json(
       { error: "Send scheduled failed", details: String(error) },

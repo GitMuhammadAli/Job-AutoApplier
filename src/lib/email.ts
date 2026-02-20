@@ -99,24 +99,42 @@ export interface SendApplicationEmailResult {
   error?: string;
 }
 
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : "";
+      const isTransient = /ECONNRESET|ETIMEDOUT|ECONNREFUSED|421|451|temporary/i.test(msg);
+      if (!isTransient || attempt === maxRetries - 1) throw err;
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+    }
+  }
+  throw lastError;
+}
+
 export async function sendApplicationEmail(
   options: SendApplicationEmailOptions,
   transporter: Transporter
 ): Promise<SendApplicationEmailResult> {
   try {
-    const info = await transporter.sendMail({
-      from: options.from,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      text: options.text,
-      replyTo: options.replyTo,
-      attachments: options.attachments?.map((a) => ({
-        filename: a.filename,
-        content: a.content,
-        contentType: a.contentType,
-      })),
-    });
+    const info = await withRetry(() =>
+      transporter.sendMail({
+        from: options.from,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+        replyTo: options.replyTo,
+        attachments: options.attachments?.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType,
+        })),
+      })
+    );
     return { success: true, messageId: info.messageId };
   } catch (err) {
     return {
@@ -146,14 +164,16 @@ export async function sendNotificationEmail(
 ): Promise<SendNotificationEmailResult> {
   const transporter = getBrevoTransporter();
   try {
-    const info = await transporter.sendMail({
-      from: options.from,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      text: options.text,
-      replyTo: options.replyTo,
-    });
+    const info = await withRetry(() =>
+      transporter.sendMail({
+        from: options.from,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+        replyTo: options.replyTo,
+      })
+    );
     return { success: true, messageId: info.messageId };
   } catch (err) {
     return {

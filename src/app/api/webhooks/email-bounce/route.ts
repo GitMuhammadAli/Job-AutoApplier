@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSystemTransporter } from "@/lib/email";
 import { bounceAlertTemplate } from "@/lib/email-templates";
+import { decryptSettingsFields } from "@/lib/encryption";
+import { createHmac } from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +22,26 @@ const BOUNCE_EVENTS = new Set([
   "spam",
 ]);
 
+function verifyBrevoSignature(req: NextRequest, rawBody: string): boolean {
+  const webhookSecret = process.env.BREVO_WEBHOOK_SECRET;
+  if (!webhookSecret) return true; // skip verification if secret not configured
+
+  const signature = req.headers.get("x-brevo-signature") || req.headers.get("x-sib-signature");
+  if (!signature) return false;
+
+  const expected = createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
+  return signature.toLowerCase() === expected.toLowerCase();
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as BrevoBounceEvent;
+    const rawBody = await req.text();
+
+    if (!verifyBrevoSignature(req, rawBody)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
+    const body = JSON.parse(rawBody) as BrevoBounceEvent;
     const eventType = body.event;
     const email = body.email;
     const messageId = body["message-id"];
@@ -68,9 +87,9 @@ export async function POST(req: NextRequest) {
       });
 
       // Send bounce notification to user
-      const settings = await prisma.userSettings.findUnique({
-        where: { userId: application.userId },
-      });
+      const settings = decryptSettingsFields(
+        await prisma.userSettings.findUnique({ where: { userId: application.userId } })
+      );
       if (settings?.emailNotifications) {
         try {
           const template = bounceAlertTemplate(
@@ -91,7 +110,7 @@ export async function POST(req: NextRequest) {
 
           if (notifEmail) {
             await transporter.sendMail({
-              from: `JobPilot <${process.env.NOTIFICATION_EMAIL || "noreply@jobpilot.app"}>`,
+              from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
               to: notifEmail,
               subject: template.subject,
               html: template.html,

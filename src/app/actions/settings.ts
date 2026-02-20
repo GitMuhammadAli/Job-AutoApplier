@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
-import { encrypt, isEncrypted } from "@/lib/encryption";
+import { encryptSettingsFields, decryptSettingsFields } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -82,7 +82,7 @@ export async function getSettings() {
     });
   }
 
-  return settings;
+  return decryptSettingsFields(settings);
 }
 
 export async function saveSettings(rawData: unknown) {
@@ -90,12 +90,7 @@ export async function saveSettings(rawData: unknown) {
     const userId = await getAuthUserId();
     const data = settingsSchema.parse(rawData);
 
-    let smtpPassValue = data.smtpPass || null;
-    if (smtpPassValue && !isEncrypted(smtpPassValue)) {
-      smtpPassValue = encrypt(smtpPassValue);
-    }
-
-    const cleaned = {
+    const nulled = {
       ...data,
       fullName: data.fullName || null,
       phone: data.phone || null,
@@ -117,7 +112,7 @@ export async function saveSettings(rawData: unknown) {
       smtpHost: data.smtpHost || null,
       smtpPort: data.smtpPort ?? null,
       smtpUser: data.smtpUser || null,
-      smtpPass: smtpPassValue,
+      smtpPass: data.smtpPass || null,
       emailProvider: data.emailProvider || "brevo",
       resumeMatchMode: data.resumeMatchMode || "smart",
       accountStatus: data.accountStatus || "active",
@@ -129,6 +124,8 @@ export async function saveSettings(rawData: unknown) {
       cooldownMinutes: data.cooldownMinutes ?? 30,
       bouncePauseHours: data.bouncePauseHours ?? 24,
     };
+
+    const cleaned = encryptSettingsFields(nulled);
 
     const result = await prisma.userSettings.upsert({
       where: { userId },

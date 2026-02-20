@@ -1,4 +1,26 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
+import { fetchWithRetry } from "./fetch-with-retry";
+
+const ADZUNA_COUNTRY_MAP: Record<string, string> = {
+  pakistan: "pk", india: "in", "united states": "us", usa: "us",
+  "united kingdom": "gb", uk: "gb", canada: "ca", australia: "au",
+  germany: "de", france: "fr", netherlands: "nl", spain: "es",
+  italy: "it", brazil: "br", singapore: "sg", poland: "pl",
+  austria: "at", "new zealand": "nz", switzerland: "ch",
+  south africa: "za", russia: "ru", belgium: "be", mexico: "mx",
+};
+
+function resolveCountryCode(cities: string[]): string {
+  for (const city of cities) {
+    const lower = city.toLowerCase().trim();
+    for (const [name, code] of Object.entries(ADZUNA_COUNTRY_MAP)) {
+      if (lower === name || lower.includes(name) || lower.endsWith(code)) {
+        return code;
+      }
+    }
+  }
+  return process.env.ADZUNA_COUNTRY || "us";
+}
 
 export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const appId = process.env.ADZUNA_APP_ID;
@@ -9,11 +31,11 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
 
   for (const q of queries.slice(0, 3)) {
     try {
-      const country = "us";
+      const country = resolveCountryCode(q.cities || []);
       const keyword = encodeURIComponent(q.keyword);
       const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&what=${keyword}&results_per_page=20&max_days_old=7&sort_by=date`;
 
-      const res = await fetch(url);
+      const res = await fetchWithRetry(url);
       if (!res.ok) continue;
 
       const data = await res.json();

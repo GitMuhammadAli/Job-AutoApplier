@@ -26,7 +26,7 @@ export const authOptions: NextAuthOptions = {
           pass: process.env.SMTP_PASS,
         },
       },
-      from: `"JobPilot" <${process.env.NOTIFICATION_EMAIL || "noreply@jobpilot.app"}>`,
+      from: `"JobPilot" <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
     }),
   ],
   session: { strategy: "database" },

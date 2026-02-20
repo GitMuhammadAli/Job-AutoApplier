@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendJobMatchNotification } from "@/lib/email/notifications";
 import { checkNotificationLimit, recordNotification } from "@/lib/notification-limiter";
+import { decryptField } from "@/lib/encryption";
 
 export const dynamic = "force-dynamic";
 
 function verifyCronSecret(req: NextRequest): boolean {
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.nextUrl.searchParams.get("secret");
+    req.headers.get("x-cron-secret");
   return secret === process.env.CRON_SECRET;
 }
 
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
     for (const user of users) {
-      const email = user.notificationEmail || user.user.email;
+      const email = decryptField(user.notificationEmail) || user.user.email;
       if (!email) continue;
 
       // Find new matched jobs from last 24h
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
         await sendJobMatchNotification(
           email,
           jobNotifications,
-          user.fullName || user.user.name || "there"
+          decryptField(user.fullName) || user.user.name || "there"
         );
         await recordNotification(user.userId, `Sent ${newJobs.length} job match notification to ${email}`);
         notified++;

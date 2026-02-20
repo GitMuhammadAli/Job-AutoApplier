@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { computeMatchScore } from "@/lib/matching/score-engine";
 import { sendEmail } from "@/lib/email/sender";
 import { newJobsNotificationTemplate } from "@/lib/email-templates";
+import { decryptSettingsFields } from "@/lib/encryption";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 function verifyCronSecret(req: NextRequest): boolean {
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.nextUrl.searchParams.get("secret");
+    req.headers.get("x-cron-secret");
   return secret === process.env.CRON_SECRET;
 }
 
@@ -49,7 +50,8 @@ export async function GET(req: NextRequest) {
 
     const results: { userId: string; matched: number }[] = [];
 
-    for (const settings of users) {
+    for (const rawSettings of users) {
+      const settings = decryptSettingsFields(rawSettings);
       const userId = settings.userId;
       const resumes = await prisma.resume.findMany({
         where: { userId },
@@ -107,7 +109,7 @@ export async function GET(req: NextRequest) {
               matchedJobDetails.slice(0, 20),
             );
             await sendEmail({
-              from: `JobPilot <${process.env.NOTIFICATION_EMAIL || "noreply@jobpilot.app"}>`,
+              from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
               to: notifEmail,
               subject,
               html,

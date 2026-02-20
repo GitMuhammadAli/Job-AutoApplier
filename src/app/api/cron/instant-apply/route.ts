@@ -6,6 +6,7 @@ import { findCompanyEmail } from "@/lib/email-extractor";
 import { isDuplicateApplication } from "@/lib/duplicate-checker";
 import { sendApplication } from "@/lib/send-application";
 import { sendNotificationEmail } from "@/lib/email";
+import { decryptSettingsFields } from "@/lib/encryption";
 import { generateWithGroq } from "@/lib/groq";
 import { acquireLock, releaseLock, isLockHeld } from "@/lib/system-lock";
 import { canSendNow } from "@/lib/send-limiter";
@@ -16,8 +17,7 @@ export const dynamic = "force-dynamic";
 function verifyCronSecret(req: NextRequest): boolean {
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
+    req.headers.get("x-cron-secret");
   return secret === process.env.CRON_SECRET;
 }
 
@@ -66,7 +66,8 @@ export async function GET(req: NextRequest) {
       skipped: 0,
     };
 
-    for (const settings of allSettings) {
+    for (const rawSettings of allSettings) {
+      const settings = decryptSettingsFields(rawSettings);
       const userId = settings.userId;
       const resumes = await prisma.resume.findMany({
         where: { userId, isDeleted: false },
@@ -260,7 +261,7 @@ export async function GET(req: NextRequest) {
           if (notifEmail) {
             try {
               await sendNotificationEmail({
-                from: `JobPilot <${process.env.NOTIFICATION_EMAIL || "noreply@jobpilot.app"}>`,
+                from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
                 to: notifEmail,
                 subject: `JobPilot: ${appliedCount > 0 ? `${appliedCount} instant-applied` : ""}${appliedCount > 0 && draftedCount > 0 ? " | " : ""}${draftedCount > 0 ? `${draftedCount} drafts ready` : ""}`,
                 html: buildNotificationHTML(

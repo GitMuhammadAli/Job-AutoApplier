@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useCallback, useState } from "react";
+import React, { useEffect, useMemo, useCallback, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -27,6 +27,7 @@ interface KanbanBoardProps {
 export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
   const { jobs, setJobs, filter, search, updateJobStage } = useJobStore();
   const [activeJob, setActiveJob] = useState<UserJobWithGlobal | null>(null);
+  const pendingMoves = React.useRef(new Set<string>());
 
   useEffect(() => {
     setJobs(initialJobs);
@@ -77,7 +78,9 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
   const handleStageChange = useCallback(
     async (jobId: string, newStage: JobStage, oldStage: JobStage) => {
       if (newStage === oldStage) return;
+      if (pendingMoves.current.has(jobId)) return;
 
+      pendingMoves.current.add(jobId);
       updateJobStage(jobId, newStage);
       toast.success(`Moved to ${newStage.toLowerCase().replace("_", " ")}`);
 
@@ -86,6 +89,8 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
       } catch {
         updateJobStage(jobId, oldStage);
         toast.error("Failed to update stage. Reverted.");
+      } finally {
+        pendingMoves.current.delete(jobId);
       }
     },
     [updateJobStage]

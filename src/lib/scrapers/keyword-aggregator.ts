@@ -24,8 +24,12 @@ export async function aggregateSearchQueries(mode?: string): Promise<SearchQuery
     if (settings.country) cities.add(settings.country);
 
     for (const keyword of settings.keywords) {
-      const normalized = keyword.toLowerCase().trim();
-      if (!normalized) continue;
+      const normalized = keyword
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s.#+\-/]/g, "")
+        .replace(/\s+/g, " ");
+      if (!normalized || normalized.length < 2) continue;
 
       keywordPopularity.set(normalized, (keywordPopularity.get(normalized) || 0) + 1);
 

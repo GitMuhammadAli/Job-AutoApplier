@@ -1,4 +1,5 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
+import { fetchWithRetry } from "./fetch-with-retry";
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -17,7 +18,7 @@ export async function fetchLinkedIn(queries: SearchQuery[]): Promise<ScrapedJob[
         const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${keyword}&location=${location}&start=0&f_TPR=r604800`;
 
         const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-        const res = await fetch(url, {
+        const res = await fetchWithRetry(url, {
           headers: { "User-Agent": ua },
         });
         if (!res.ok) continue;
@@ -26,6 +27,11 @@ export async function fetchLinkedIn(queries: SearchQuery[]): Promise<ScrapedJob[
 
         if (html.includes("captcha") || html.includes("authwall") || html.length < 200) {
           console.warn("[LinkedIn] Likely blocked — captcha or authwall detected");
+          continue;
+        }
+
+        if (!html.includes("base-search-card") && !html.includes("job-search-card")) {
+          console.warn("[LinkedIn] HTML structure may have changed — no recognized card classes found");
           continue;
         }
 

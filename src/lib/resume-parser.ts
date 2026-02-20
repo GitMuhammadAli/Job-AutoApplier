@@ -20,13 +20,26 @@ export async function extractText(
   }
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 export async function extractTextFromPDF(
   buffer: Buffer
 ): Promise<{ text: string; quality: PdfQuality }> {
   try {
     const pdfParseModule = await import("pdf-parse");
     const pdfParse = (pdfParseModule as Record<string, unknown>).default || pdfParseModule;
-    const data = await (pdfParse as (b: Buffer) => Promise<{ text: string }>)(buffer);
+    const data = await withTimeout(
+      (pdfParse as (b: Buffer) => Promise<{ text: string }>)(buffer),
+      30000,
+      "PDF parsing"
+    );
     const text = data.text || "";
     return { text, quality: assessQuality(text) };
   } catch (error) {

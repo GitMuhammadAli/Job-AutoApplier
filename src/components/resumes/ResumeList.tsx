@@ -349,7 +349,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
               Assign Job Categories
             </DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-zinc-400">
             Select which job categories this resume targets. The matcher will prefer this resume for jobs in these categories.
           </p>
           <div className="grid grid-cols-1 gap-1.5 pt-2">
@@ -358,8 +358,8 @@ export function ResumeList({ resumes }: ResumeListProps) {
                 key={cat}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 cursor-pointer text-xs transition-colors ${
                   selectedCategories.includes(cat)
-                    ? "bg-indigo-50 ring-1 ring-indigo-200 text-indigo-700 font-medium"
-                    : "hover:bg-slate-50 text-slate-600"
+                    ? "bg-indigo-50 dark:bg-indigo-900/30 ring-1 ring-indigo-200 dark:ring-indigo-700 text-indigo-700 dark:text-indigo-300 font-medium"
+                    : "hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-400"
                 }`}
               >
                 <input

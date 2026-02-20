@@ -1,10 +1,11 @@
 import type { ScrapedJob } from "@/types";
+import { fetchWithRetry } from "./fetch-with-retry";
 
 export async function fetchArbeitnow(): Promise<ScrapedJob[]> {
   const jobs: ScrapedJob[] = [];
 
   try {
-    const res = await fetch("https://www.arbeitnow.com/api/job-board-api", {
+    const res = await fetchWithRetry("https://www.arbeitnow.com/api/job-board-api", {
       headers: { "User-Agent": "JobPilot/1.0" },
     });
     if (!res.ok) return [];

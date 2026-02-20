@@ -17,11 +17,11 @@ interface JobCardProps {
 
 function getFreshness(days: number | null): { label: string; color: string } {
   if (days === null) return { label: "", color: "" };
-  if (days <= 1) return { label: "Fresh", color: "bg-emerald-100 text-emerald-700" };
-  if (days <= 3) return { label: "Recent", color: "bg-blue-100 text-blue-700" };
-  if (days <= 7) return { label: "This week", color: "bg-amber-100 text-amber-700" };
-  if (days <= 14) return { label: "Aging", color: "bg-orange-100 text-orange-700" };
-  return { label: "Old", color: "bg-red-100 text-red-700" };
+  if (days <= 1) return { label: "Fresh", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" };
+  if (days <= 3) return { label: "Recent", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" };
+  if (days <= 7) return { label: "This week", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" };
+  if (days <= 14) return { label: "Aging", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" };
+  return { label: "Old", color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" };
 }
 
 function getApplySpeed(job: UserJobWithGlobal): { label: string; fast: boolean } | null {
@@ -95,26 +95,26 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
         {hasApp && speed && (
           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
             speed.fast
-              ? "bg-amber-50 text-amber-700"
-              : "bg-emerald-50 text-emerald-700"
+              ? "bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+              : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
           }`}>
             <Zap className="h-2.5 w-2.5" /> {speed.label}
           </span>
         )}
         {hasApp && !speed && (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700">
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
             <Mail className="h-2.5 w-2.5" /> Applied
           </span>
         )}
         {job.application?.status === "DRAFT" && (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-700">
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
             <FileText className="h-2.5 w-2.5" /> Draft
           </span>
         )}
       </div>
 
       {g.salary && (
-        <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold mb-1.5">
+        <div className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-semibold mb-1.5">
           <DollarSign className="h-3 w-3" />
           <span>{g.salary}</span>
         </div>

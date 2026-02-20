@@ -18,15 +18,42 @@ interface SendEmailOptions {
   replyTo?: string;
 }
 
+async function retrySendMail(
+  fn: () => Promise<{ messageId: string }>,
+  maxRetries = 3,
+): Promise<{ messageId: string }> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : "";
+      const isTransient =
+        msg.includes("ECONNRESET") ||
+        msg.includes("ETIMEDOUT") ||
+        msg.includes("ECONNREFUSED") ||
+        msg.includes("421") ||
+        msg.includes("451") ||
+        msg.includes("temporary");
+      if (!isTransient || attempt === maxRetries - 1) throw err;
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+    }
+  }
+  throw lastError;
+}
+
 export async function sendEmail(options: SendEmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    const info = await transporter.sendMail({
-      from: options.from,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      replyTo: options.replyTo || options.from,
-    });
+    const info = await retrySendMail(() =>
+      transporter.sendMail({
+        from: options.from,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        replyTo: options.replyTo || options.from,
+      })
+    );
 
     return { success: true, messageId: info.messageId };
   } catch (error) {

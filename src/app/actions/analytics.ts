@@ -12,11 +12,13 @@ export async function getAnalytics() {
       globalJob: { select: { source: true, postedDate: true, firstSeenAt: true } },
       application: { select: { status: true, sentAt: true, appliedVia: true } },
     },
+    take: 2000,
   });
 
   const activities = await prisma.activity.findMany({
     where: { userId },
     orderBy: { createdAt: "asc" },
+    take: 5000,
   });
 
   const totalJobs = userJobs.length;
@@ -151,6 +153,7 @@ export async function getAnalytics() {
   const sentAppsAll = await prisma.jobApplication.findMany({
     where: { userId, status: "SENT" },
     include: { userJob: { include: { globalJob: { select: { company: true } } } } },
+    take: 2000,
   });
   const companyCounts: Record<string, number> = {};
   for (const app of sentAppsAll) {

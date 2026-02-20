@@ -2,20 +2,22 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { getTransporterForUser } from "@/lib/email";
+import { decryptSettingsFields } from "@/lib/encryption";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
     const userId = await getAuthUserId();
-    const settings = await prisma.userSettings.findUnique({ where: { userId } });
+    const rawSettings = await prisma.userSettings.findUnique({ where: { userId } });
 
-    if (!settings) {
+    if (!rawSettings) {
       return NextResponse.json(
         { success: false, error: "Settings not found" },
         { status: 404 }
       );
     }
+    const settings = decryptSettingsFields(rawSettings);
 
     if (!settings.smtpUser && settings.emailProvider !== "brevo") {
       return NextResponse.json(

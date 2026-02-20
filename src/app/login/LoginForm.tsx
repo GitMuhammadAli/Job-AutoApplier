@@ -121,15 +121,15 @@ export function LoginForm() {
           </div>
 
           {emailSent ? (
-            <div className="rounded-xl bg-emerald-50 p-4 text-center ring-1 ring-emerald-100">
-              <Mail className="h-6 w-6 text-emerald-600 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-emerald-700">Check your inbox</p>
-              <p className="text-xs text-emerald-600 mt-1">
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 p-4 text-center ring-1 ring-emerald-100 dark:ring-emerald-800/50">
+              <Mail className="h-6 w-6 text-emerald-600 dark:text-emerald-400 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Check your inbox</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
                 We sent a sign-in link to <strong>{email}</strong>
               </p>
               <button
                 onClick={() => { setEmailSent(false); setEmail(""); }}
-                className="mt-3 text-xs text-emerald-600 underline hover:text-emerald-700"
+                className="mt-3 text-xs text-emerald-600 dark:text-emerald-400 underline hover:text-emerald-700 dark:hover:text-emerald-300"
               >
                 Use a different email
               </button>

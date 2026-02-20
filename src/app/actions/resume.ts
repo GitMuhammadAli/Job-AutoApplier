@@ -4,100 +4,134 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
+import { z } from "zod";
+
+const resumeNameSchema = z.string().min(1, "Name is required").max(200, "Name too long");
 
 export async function getResumeCount(): Promise<number> {
-  const userId = await getAuthUserId();
-  return prisma.resume.count({ where: { userId, isDeleted: false } });
+  try {
+    const userId = await getAuthUserId();
+    return prisma.resume.count({ where: { userId, isDeleted: false } });
+  } catch (error) {
+    console.error("[getResumeCount]", error);
+    return 0;
+  }
 }
 
 export async function getResumesWithStats() {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const resumes = await prisma.resume.findMany({
-    where: { userId, isDeleted: false },
-    include: {
-      _count: { select: { applications: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+    const resumes = await prisma.resume.findMany({
+      where: { userId, isDeleted: false },
+      include: {
+        _count: { select: { applications: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-  return resumes.map((r) => ({
-    id: r.id,
-    name: r.name,
-    fileName: r.fileName,
-    fileUrl: r.fileUrl,
-    fileType: r.fileType,
-    content: r.content,
-    isDefault: r.isDefault,
-    userId: r.userId,
-    createdAt: r.createdAt.toISOString(),
-    applicationCount: r._count.applications,
-    targetCategories: r.targetCategories,
-  }));
+    return resumes.map((r) => ({
+      id: r.id,
+      name: r.name,
+      fileName: r.fileName,
+      fileUrl: r.fileUrl,
+      fileType: r.fileType,
+      content: r.content,
+      isDefault: r.isDefault,
+      userId: r.userId,
+      createdAt: r.createdAt.toISOString(),
+      applicationCount: r._count.applications,
+      targetCategories: r.targetCategories,
+    }));
+  } catch (error) {
+    console.error("[getResumesWithStats]", error);
+    throw new Error("Failed to load resumes");
+  }
 }
 
 export async function createResume(name: string, fileUrl?: string, content?: string) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
+    const cleanName = resumeNameSchema.parse(name.trim());
 
-  if (!name.trim()) throw new Error("Name is required");
+    if (fileUrl && fileUrl.length > 2000) throw new Error("File URL too long");
 
-  await prisma.resume.create({
-    data: {
-      name: name.trim(),
-      fileUrl: fileUrl || null,
-      content: content || null,
-      userId,
-    },
-  });
+    await prisma.resume.create({
+      data: {
+        name: cleanName,
+        fileUrl: fileUrl || null,
+        content: content || null,
+        userId,
+      },
+    });
 
-  revalidatePath("/resumes");
-  return { success: true };
+    revalidatePath("/resumes");
+    return { success: true };
+  } catch (error) {
+    if (error instanceof z.ZodError) throw new Error(error.errors[0].message);
+    if (error instanceof Error && error.message.includes("too")) throw error;
+    console.error("[createResume]", error);
+    throw new Error("Failed to create resume");
+  }
 }
 
 export async function updateResume(
   id: string,
   data: { name?: string; fileUrl?: string; content?: string; isDefault?: boolean },
 ) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  // Verify ownership
-  const resume = await prisma.resume.findFirst({ where: { id, userId } });
-  if (!resume) throw new Error("Resume not found");
+    if (data.name !== undefined) resumeNameSchema.parse(data.name.trim());
 
-  if (data.isDefault) {
-    // Unset other defaults first
-    await prisma.resume.updateMany({
-      where: { userId, isDefault: true },
-      data: { isDefault: false },
+    const resume = await prisma.resume.findFirst({ where: { id, userId } });
+    if (!resume) throw new Error("Resume not found");
+
+    if (data.isDefault) {
+      await prisma.resume.updateMany({
+        where: { userId, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    await prisma.resume.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined && { name: data.name.trim() }),
+        ...(data.fileUrl !== undefined && { fileUrl: data.fileUrl || null }),
+        ...(data.content !== undefined && { content: data.content || null }),
+        ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
+      },
     });
+
+    revalidatePath("/resumes");
+    return { success: true };
+  } catch (error) {
+    if (error instanceof z.ZodError) throw new Error(error.errors[0].message);
+    if (error instanceof Error && error.message === "Resume not found") throw error;
+    console.error("[updateResume]", error);
+    throw new Error("Failed to update resume");
   }
-
-  await prisma.resume.update({
-    where: { id },
-    data: {
-      ...(data.name !== undefined && { name: data.name.trim() }),
-      ...(data.fileUrl !== undefined && { fileUrl: data.fileUrl || null }),
-      ...(data.content !== undefined && { content: data.content || null }),
-      ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
-    },
-  });
-
-  revalidatePath("/resumes");
-  return { success: true };
 }
 
 export async function deleteResume(id: string) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const resume = await prisma.resume.findFirst({ where: { id, userId } });
-  if (!resume) throw new Error("Resume not found");
+    const resume = await prisma.resume.findFirst({ where: { id, userId } });
+    if (!resume) throw new Error("Resume not found");
 
-  await prisma.resume.update({
-    where: { id },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
-  revalidatePath("/resumes");
-  return { success: true };
+    await prisma.resume.update({
+      where: { id },
+      data: { isDeleted: true, deletedAt: new Date() },
+    });
+    revalidatePath("/resumes");
+    return { success: true };
+  } catch (error) {
+    if (error instanceof Error && error.message === "Resume not found") throw error;
+    console.error("[deleteResume]", error);
+    throw new Error("Failed to delete resume");
+  }
 }
 
 export async function updateResumeText(resumeId: string, content: string) {
