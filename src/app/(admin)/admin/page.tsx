@@ -130,12 +130,12 @@ export default function AdminDashboard() {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard icon={<Users className="h-4 w-4 text-blue-600" />} label="Total Users" value={stats.users.total} bg="bg-blue-50" />
-        <StatCard icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} label="Active" value={stats.users.active} bg="bg-emerald-50" />
-        <StatCard icon={<Briefcase className="h-4 w-4 text-violet-600" />} label="Active Jobs" value={stats.jobs.active} bg="bg-violet-50" />
-        <StatCard icon={<Clock className="h-4 w-4 text-cyan-600" />} label="Fresh Jobs" value={stats.jobs.fresh} bg="bg-cyan-50" />
-        <StatCard icon={<Send className="h-4 w-4 text-emerald-600" />} label="Sent Today" value={stats.applicationsToday.sent} bg="bg-emerald-50" />
-        <StatCard icon={<Ban className="h-4 w-4 text-red-600" />} label="Bounced Today" value={stats.applicationsToday.bounced} bg="bg-red-50" />
+        <StatCard icon={<Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />} label="Total Users" value={stats.users.total} bg="bg-blue-50 dark:bg-blue-950/40" />
+        <StatCard icon={<CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />} label="Active" value={stats.users.active} bg="bg-emerald-50 dark:bg-emerald-950/40" />
+        <StatCard icon={<Briefcase className="h-4 w-4 text-violet-600 dark:text-violet-400" />} label="Active Jobs" value={stats.jobs.active} bg="bg-violet-50 dark:bg-violet-950/40" />
+        <StatCard icon={<Clock className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />} label="Fresh Jobs" value={stats.jobs.fresh} bg="bg-cyan-50 dark:bg-cyan-950/40" />
+        <StatCard icon={<Send className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />} label="Sent Today" value={stats.applicationsToday.sent} bg="bg-emerald-50 dark:bg-emerald-950/40" />
+        <StatCard icon={<Ban className="h-4 w-4 text-red-600 dark:text-red-400" />} label="Bounced Today" value={stats.applicationsToday.bounced} bg="bg-red-50 dark:bg-red-950/40" />
       </div>
 
       {/* Scraper Health */}
