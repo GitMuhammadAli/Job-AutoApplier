@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     console.error("Cleanup stale error:", error);
     return NextResponse.json(
       { error: "Cleanup failed", details: String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

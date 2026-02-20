@@ -45,12 +45,7 @@ ${coverLetter ?? "(none)"}
 
   if (variant === "compact") {
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={copyAll}
-        className="gap-1.5"
-      >
+      <Button variant="outline" size="sm" onClick={copyAll} className="gap-1.5">
         <Copy className="h-3.5 w-3.5" />
         Copy All
       </Button>
@@ -59,12 +54,7 @@ ${coverLetter ?? "(none)"}
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={copyAll}
-        className="gap-1.5"
-      >
+      <Button variant="outline" size="sm" onClick={copyAll} className="gap-1.5">
         <Copy className="h-3.5 w-3.5" />
         Copy All
       </Button>

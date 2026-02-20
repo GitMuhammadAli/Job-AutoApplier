@@ -54,7 +54,10 @@ export async function GET(req: NextRequest) {
     });
 
     if (recentJobs.length === 0) {
-      return NextResponse.json({ message: "No recent jobs to match", matched: 0 });
+      return NextResponse.json({
+        message: "No recent jobs to match",
+        matched: 0,
+      });
     }
 
     let totalMatched = 0;
@@ -69,10 +72,12 @@ export async function GET(req: NextRequest) {
 
       // Get existing UserJob globalJobIds to avoid duplicates
       const existingIds = new Set(
-        (await prisma.userJob.findMany({
-          where: { userId: user.userId },
-          select: { globalJobId: true },
-        })).map((uj) => uj.globalJobId)
+        (
+          await prisma.userJob.findMany({
+            where: { userId: user.userId },
+            select: { globalJobId: true },
+          })
+        ).map((uj) => uj.globalJobId),
       );
 
       let userMatched = 0;
@@ -116,7 +121,7 @@ export async function GET(req: NextRequest) {
     console.error("Match jobs error:", error);
     return NextResponse.json(
       { error: "Match failed", details: String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
