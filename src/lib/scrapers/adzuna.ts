@@ -7,7 +7,7 @@ const ADZUNA_COUNTRY_MAP: Record<string, string> = {
   germany: "de", france: "fr", netherlands: "nl", spain: "es",
   italy: "it", brazil: "br", singapore: "sg", poland: "pl",
   austria: "at", "new zealand": "nz", switzerland: "ch",
-  south africa: "za", russia: "ru", belgium: "be", mexico: "mx",
+  "south africa": "za", russia: "ru", belgium: "be", mexico: "mx",
 };
 
 function resolveCountryCode(cities: string[]): string {

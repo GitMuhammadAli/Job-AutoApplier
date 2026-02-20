@@ -70,13 +70,14 @@ type PIIField = (typeof PII_FIELDS)[number];
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function encryptSettingsFields<T extends Record<string, any>>(data: T): T {
-  const result = { ...data };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = { ...data };
   for (const field of PII_FIELDS) {
     if (field in result && typeof result[field] === "string") {
       result[field] = encryptField(result[field] as string);
     }
   }
-  return result;
+  return result as T;
 }
 
 /**
@@ -86,12 +87,13 @@ export function encryptSettingsFields<T extends Record<string, any>>(data: T): T
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function decryptSettingsFields<T extends Record<string, any>>(data: T | null | undefined): T {
-  if (!data) return data as T;
-  const result = { ...data };
+  if (!data) return data as unknown as T;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = { ...data };
   for (const field of PII_FIELDS) {
     if (field in result && typeof result[field] === "string") {
       result[field] = decryptField(result[field] as string);
     }
   }
-  return result;
+  return result as T;
 }
