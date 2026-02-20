@@ -127,7 +127,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
       try {
         await dismissJob(job.id, dismissReason || undefined);
         toast.success("Job dismissed");
-        router.push("/");
+        router.push("/dashboard");
       } catch {
         toast.error("Failed to dismiss job");
       }
@@ -149,7 +149,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
   return (
     <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5 animate-slide-up">
       {/* Back */}
-      <Link href="/" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors">
+      <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors">
         <ChevronLeft className="h-4 w-4" />
         Back to Pipeline
       </Link>

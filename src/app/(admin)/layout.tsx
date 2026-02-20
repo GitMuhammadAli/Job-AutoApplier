@@ -53,7 +53,7 @@ export default async function AdminLayout({
       <aside className="hidden md:flex w-56 flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
         <div className="mb-6">
           <Link
-            href="/"
+            href="/dashboard"
             className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
@@ -83,7 +83,7 @@ export default async function AdminLayout({
 
       {/* Mobile nav */}
       <div className="md:hidden fixed top-0 inset-x-0 z-50 flex items-center gap-3 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-2.5">
-        <Link href="/" className="text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300">
+        <Link href="/dashboard" className="text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <span className="text-sm font-bold text-slate-800 dark:text-zinc-100">Admin</span>

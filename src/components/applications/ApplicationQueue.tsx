@@ -595,7 +595,7 @@ function ApplicationList({
         <p className="text-sm text-slate-500 dark:text-zinc-400">No applications in this tab</p>
         <div className="flex items-center justify-center gap-3">
           <a
-            href="/"
+            href="/dashboard"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
           >
             Browse Jobs on Dashboard
