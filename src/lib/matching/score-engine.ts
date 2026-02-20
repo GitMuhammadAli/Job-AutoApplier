@@ -1,11 +1,14 @@
 /**
  * Computes a 0-100 match score between a GlobalJob and a user's settings/resumes.
- * Returns the score + an array of human-readable match reasons.
+ * Uses HARD FILTERS first (keyword, category, platform) to reject irrelevant jobs,
+ * then scores remaining jobs on 7 weighted factors.
  */
 
 export const MATCH_THRESHOLDS = {
-  SHOW_ON_KANBAN: 30,
-  AUTO_DRAFT: 50,
+  SHOW_ON_KANBAN: 40,
+  NOTIFY: 50,
+  AUTO_DRAFT: 55,
+  AUTO_SEND: 65,
 } as const;
 
 interface GlobalJobLike {
@@ -48,40 +51,146 @@ interface MatchResult {
   bestResumeName: string | null;
 }
 
+const REJECT: MatchResult = { score: 0, reasons: [], bestResumeId: null, bestResumeName: null };
+
 export function computeMatchScore(
   job: GlobalJobLike,
   settings: UserSettingsLike,
   resumes: Array<ResumeLike & { id: string }>
 ): MatchResult {
   const reasons: string[] = [];
-  let totalWeight = 0;
-  let earnedWeight = 0;
-
   const titleLower = job.title.toLowerCase();
   const descLower = (job.description || "").toLowerCase();
   const locationLower = (job.location || "").toLowerCase();
   const combined = `${titleLower} ${descLower}`;
 
-  // ── Keyword matching (weight: 35) ──
-  const keywordWeight = 35;
-  totalWeight += keywordWeight;
-  if (settings.keywords.length > 0) {
-    const matched = settings.keywords.filter((kw) => {
-      const kwLower = kw.toLowerCase();
-      return titleLower.includes(kwLower) || descLower.includes(kwLower);
-    });
-    const ratio = matched.length / settings.keywords.length;
-    const earned = Math.round(keywordWeight * ratio);
-    earnedWeight += earned;
-    if (matched.length > 0) {
-      reasons.push(`Keywords: ${matched.slice(0, 5).join(", ")}`);
+  // ════════════════════════════════════════════
+  // HARD FILTER 1: Platform — must be in user's selected sources
+  // ════════════════════════════════════════════
+  if (
+    settings.preferredPlatforms.length > 0 &&
+    job.source &&
+    !settings.preferredPlatforms.includes(job.source)
+  ) {
+    return { ...REJECT, reasons: ["Platform not selected"] };
+  }
+
+  // ════════════════════════════════════════════
+  // HARD FILTER 2: At least 1 keyword MUST match in title or description
+  // Without this, "Copywriter" would show for a React developer
+  // ════════════════════════════════════════════
+  const userKeywords = settings.keywords.map((k) => k.toLowerCase().trim()).filter(Boolean);
+  const matchedKeywords = userKeywords.filter(
+    (kw) => titleLower.includes(kw) || descLower.includes(kw)
+  );
+  const titleKeywords = userKeywords.filter((kw) => titleLower.includes(kw));
+
+  if (userKeywords.length > 0 && matchedKeywords.length === 0) {
+    return { ...REJECT, reasons: ["No keyword match"] };
+  }
+
+  // ════════════════════════════════════════════
+  // HARD FILTER 3: Category — if user selected categories AND job has a category,
+  // the job's category must overlap with at least one user category.
+  // We also do a fuzzy check against the job text if category is missing.
+  // ════════════════════════════════════════════
+  if (settings.preferredCategories.length > 0) {
+    const userCats = settings.preferredCategories.map((c) => c.toLowerCase());
+    const jobCat = (job.category || "").toLowerCase();
+
+    const directCatMatch = jobCat && userCats.some(
+      (c) => c === jobCat || jobCat.includes(c) || c.includes(jobCat)
+    );
+
+    if (!directCatMatch) {
+      const catKeywords = userCats.flatMap((c) =>
+        c.split(/[\s/]+/).filter((w) => w.length > 2)
+      );
+      const fuzzyCatMatch = catKeywords.some((ck) => combined.includes(ck));
+
+      if (!fuzzyCatMatch) {
+        return { ...REJECT, reasons: ["Category mismatch"] };
+      }
     }
   }
 
-  // ── Location matching (weight: 25) ──
-  const locationWeight = 25;
-  totalWeight += locationWeight;
-  let locationMismatch = false;
+  // ════════════════════════════════════════════
+  // SCORING — Only jobs that passed hard filters get scored
+  // ════════════════════════════════════════════
+  let score = 0;
+
+  // Factor 1: KEYWORD MATCH (0-30 points) — strongest signal
+  if (matchedKeywords.length > 0) {
+    const keywordRatio = matchedKeywords.length / userKeywords.length;
+    score += Math.round(keywordRatio * 30);
+    reasons.push(`Keywords: ${matchedKeywords.slice(0, 5).join(", ")} (${matchedKeywords.length}/${userKeywords.length})`);
+  }
+
+  // Factor 2: TITLE RELEVANCE (0-20 points) — keywords in title worth extra
+  if (titleKeywords.length > 0) {
+    score += Math.min(20, titleKeywords.length * 10);
+    reasons.push(`Title match: ${titleKeywords.slice(0, 3).join(", ")}`);
+  }
+
+  // Factor 3: SKILL MATCH from resume (0-20 points)
+  let bestResumeId: string | null = null;
+  let bestResumeName: string | null = null;
+  let bestResumeScore = 0;
+
+  for (const resume of resumes) {
+    if (!resume.content) continue;
+    const resumeLower = resume.content.toLowerCase();
+
+    const jobSkills = job.skills.length > 0
+      ? job.skills
+      : extractKeywordsFromText(combined);
+
+    let matchCount = 0;
+    for (const skill of jobSkills) {
+      if (resumeLower.includes(skill.toLowerCase())) matchCount++;
+    }
+
+    const resumeKeywords = new Set(
+      resumeLower.split(/[\s,;|]+/).filter((w) => w.length > 3)
+    );
+    let resumeHits = 0;
+    for (const rk of Array.from(resumeKeywords).slice(0, 50)) {
+      if (combined.includes(rk)) resumeHits++;
+    }
+
+    const rScore = jobSkills.length > 0
+      ? (matchCount / jobSkills.length) * 0.7 + Math.min(resumeHits / 20, 1) * 0.3
+      : Math.min(resumeHits / 15, 1);
+
+    if (rScore > bestResumeScore) {
+      bestResumeScore = rScore;
+      bestResumeId = resume.id;
+      bestResumeName = resume.name;
+    }
+  }
+
+  if (bestResumeScore > 0) {
+    const skillPoints = Math.round(bestResumeScore * 20);
+    score += skillPoints;
+    if (bestResumeName) {
+      reasons.push(`Skills via ${bestResumeName} (+${skillPoints})`);
+    }
+  }
+
+  // Factor 4: CATEGORY MATCH (0-10 points)
+  if (settings.preferredCategories.length > 0 && job.category) {
+    const userCats = settings.preferredCategories.map((c) => c.toLowerCase());
+    const jobCat = job.category.toLowerCase();
+    if (userCats.some((c) => c === jobCat || jobCat.includes(c) || c.includes(jobCat))) {
+      score += 10;
+      reasons.push(`Category: ${job.category}`);
+    } else {
+      score += 5;
+      reasons.push("Category: fuzzy match");
+    }
+  }
+
+  // Factor 5: LOCATION MATCH (0-10 points) / PENALTY
   if (settings.city || settings.country) {
     const cityLower = settings.city?.toLowerCase() ?? "";
     const countryLower = settings.country?.toLowerCase() ?? "";
@@ -92,155 +201,56 @@ export function computeMatchScore(
       settings.workType.includes("remote");
 
     if (cityMatch) {
-      earnedWeight += locationWeight;
+      score += 10;
       reasons.push(`Location: ${settings.city}`);
     } else if (remoteMatch) {
-      earnedWeight += locationWeight;
+      score += 7;
       reasons.push("Remote work match");
     } else if (countryMatch) {
-      earnedWeight += Math.round(locationWeight * 0.7);
+      score += 7;
       reasons.push(`Country: ${settings.country}`);
     } else if (locationLower && locationLower !== "n/a" && locationLower !== "not specified") {
-      locationMismatch = true;
-    }
-  } else {
-    earnedWeight += Math.round(locationWeight * 0.5);
-  }
-
-  // ── Category matching (weight: 15) ──
-  const categoryWeight = 15;
-  totalWeight += categoryWeight;
-  if (settings.preferredCategories.length > 0) {
-    if (job.category && settings.preferredCategories.some(
-      (c) => c.toLowerCase() === job.category!.toLowerCase()
-    )) {
-      earnedWeight += categoryWeight;
-      reasons.push(`Category: ${job.category}`);
-    } else {
-      const catKeywords = settings.preferredCategories.flatMap((c) =>
-        c.toLowerCase().split(/[\s/]+/)
-      );
-      const catMatch = catKeywords.some((ck) => combined.includes(ck));
-      if (catMatch) {
-        earnedWeight += Math.round(categoryWeight * 0.6);
-        reasons.push("Category keywords found in description");
-      }
-    }
-  } else {
-    earnedWeight += Math.round(categoryWeight * 0.5);
-  }
-
-  // ── Skills matching from resume (weight: 15) ──
-  const skillsWeight = 15;
-  totalWeight += skillsWeight;
-  let bestResumeId: string | null = null;
-  let bestResumeName: string | null = null;
-  let bestResumeScore = 0;
-
-  for (const resume of resumes) {
-    if (!resume.content) continue;
-    const resumeLower = resume.content.toLowerCase();
-    const resumeWords = new Set(resumeLower.split(/[\s,;|]+/).filter((w) => w.length > 2));
-
-    let matchCount = 0;
-    const jobSkills = job.skills.length > 0
-      ? job.skills
-      : extractKeywordsFromText(combined);
-
-    for (const skill of jobSkills) {
-      if (resumeLower.includes(skill.toLowerCase())) matchCount++;
-    }
-
-    // Also check if resume words appear in job
-    const resumeKeywords = Array.from(resumeWords).filter((w) => w.length > 3);
-    let resumeHits = 0;
-    for (const rk of resumeKeywords.slice(0, 50)) {
-      if (combined.includes(rk)) resumeHits++;
-    }
-
-    const score = jobSkills.length > 0
-      ? (matchCount / jobSkills.length) * 0.7 + Math.min(resumeHits / 20, 1) * 0.3
-      : Math.min(resumeHits / 15, 1);
-
-    if (score > bestResumeScore) {
-      bestResumeScore = score;
-      bestResumeId = resume.id;
-      bestResumeName = resume.name;
+      score = Math.max(score - 15, 0);
+      reasons.push("Location mismatch (−15)");
     }
   }
 
-  if (bestResumeScore > 0) {
-    earnedWeight += Math.round(skillsWeight * bestResumeScore);
-    if (bestResumeName) {
-      reasons.push(`Best resume: ${bestResumeName}`);
+  // Factor 6: EXPERIENCE LEVEL MATCH (0-5 points)
+  if (settings.experienceLevel) {
+    const expLower = settings.experienceLevel.toLowerCase();
+    const expKeywords: Record<string, string[]> = {
+      entry: ["junior", "entry", "intern", "graduate", "fresh", "0-2"],
+      mid: ["mid", "intermediate", "2-4", "3-5", "2+"],
+      senior: ["senior", "lead", "principal", "staff", "5+", "7+", "8+"],
+      lead: ["lead", "principal", "staff", "director", "head", "architect", "8+"],
+    };
+    const matchers = expKeywords[expLower] || [expLower];
+    if (matchers.some((kw) => combined.includes(kw))) {
+      score += 5;
+      reasons.push(`Experience: ${settings.experienceLevel}`);
     }
   }
 
-  // ── Experience level match (weight: 10) ──
-  const expWeight = 10;
-  totalWeight += expWeight;
-  if (settings.experienceLevel && job.experienceLevel) {
-    if (job.experienceLevel.toLowerCase().includes(settings.experienceLevel.toLowerCase())) {
-      earnedWeight += expWeight;
-      reasons.push(`Experience: ${job.experienceLevel}`);
-    }
-  } else if (!settings.experienceLevel) {
-    earnedWeight += Math.round(expWeight * 0.5);
-  }
-
-  // ── Job type match (weight: 5) ──
-  const typeWeight = 5;
-  totalWeight += typeWeight;
-  if (settings.jobType.length > 0 && job.jobType) {
-    if (settings.jobType.some((t) => job.jobType!.toLowerCase().includes(t.toLowerCase()))) {
-      earnedWeight += typeWeight;
-      reasons.push(`Job type: ${job.jobType}`);
-    }
-  } else {
-    earnedWeight += Math.round(typeWeight * 0.5);
-  }
-
-  let score = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 50;
-
-  // Platform filter: if user selected specific preferred platforms,
-  // reject jobs from platforms they didn't choose.
-  if (
-    settings.preferredPlatforms.length > 0 &&
-    job.source &&
-    !settings.preferredPlatforms.includes(job.source)
-  ) {
-    return { score: 0, reasons: ["Platform not selected"], bestResumeId: null, bestResumeName: null };
-  }
-
-  // Location mismatch penalty: if user set a location and job is clearly elsewhere,
-  // apply a hard penalty so irrelevant regions don't clutter the Kanban.
-  // -35 ensures even a perfect keyword match can't overcome a wrong location.
-  if (locationMismatch) {
-    score = Math.max(score - 35, 0);
-    reasons.push("Location mismatch (−35)");
-  }
-
-  // Freshness bonus based on when the job was first seen
+  // Factor 7: FRESHNESS BONUS (0-5 points) — small, never enough alone
   if (job.firstSeenAt) {
-    const daysSinceFound = (Date.now() - new Date(job.firstSeenAt).getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSinceFound < 1) {
-      score = Math.min(score + 5, 100);
-      reasons.push("Freshness: Posted today (+5)");
-    } else if (daysSinceFound < 3) {
-      score = Math.min(score + 3, 100);
-      reasons.push("Freshness: Posted recently (+3)");
+    const daysSince = (Date.now() - new Date(job.firstSeenAt).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSince < 1) {
+      score += 5;
+      reasons.push("Fresh: today (+5)");
+    } else if (daysSince < 3) {
+      score += 3;
+      reasons.push("Fresh: recent (+3)");
+    } else if (daysSince < 7) {
+      score += 1;
     }
   } else if (job.isFresh) {
-    score = Math.min(score + 5, 100);
-    reasons.push("Fresh posting bonus");
+    score += 5;
+    reasons.push("Fresh posting (+5)");
   }
 
-  return {
-    score: Math.min(score, 100),
-    reasons,
-    bestResumeId,
-    bestResumeName,
-  };
+  score = Math.min(score, 100);
+
+  return { score, reasons, bestResumeId, bestResumeName };
 }
 
 function extractKeywordsFromText(text: string): string[] {

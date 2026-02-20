@@ -39,11 +39,12 @@ export async function GET(req: NextRequest) {
       const email = decryptField(user.notificationEmail) || user.user.email;
       if (!email) continue;
 
-      // Find new matched jobs from last 24h
+      // Find new high-quality matched jobs from last 24h (score >= 50 only)
       const newJobs = await prisma.userJob.findMany({
         where: {
           userId: user.userId,
           isDismissed: false,
+          matchScore: { gte: 50 },
           createdAt: { gte: oneDayAgo },
         },
         include: {

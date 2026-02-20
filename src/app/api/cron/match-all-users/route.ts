@@ -100,13 +100,14 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      if (matched > 0 && settings.emailNotifications) {
+      const goodMatches = matchedJobDetails.filter((j) => j.matchScore >= 50);
+      if (goodMatches.length > 0 && settings.emailNotifications) {
         const notifEmail = settings.notificationEmail || settings.user.email;
         if (notifEmail) {
           try {
             const { subject, html } = newJobsNotificationTemplate(
               settings.user.name || "there",
-              matchedJobDetails.slice(0, 20),
+              goodMatches.slice(0, 20),
             );
             await sendEmail({
               from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,

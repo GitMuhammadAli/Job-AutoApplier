@@ -391,18 +391,18 @@ export function OnboardingWizard() {
           {step === 3 && (
             <div className="space-y-4">
               {uploadedResume ? (
-                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-4 ring-1 ring-emerald-200">
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-4 ring-1 ring-emerald-200 dark:ring-emerald-800/50">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                    <p className="text-sm font-semibold text-emerald-800">{uploadedResume.name}</p>
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">{uploadedResume.name}</p>
                   </div>
                   {uploadedResume.skills.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {uploadedResume.skills.slice(0, 12).map((s) => (
-                        <span key={s} className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">{s}</span>
+                        <span key={s} className="rounded bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{s}</span>
                       ))}
                       {uploadedResume.skills.length > 12 && (
-                        <span className="text-[10px] text-emerald-600">+{uploadedResume.skills.length - 12} more</span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400">+{uploadedResume.skills.length - 12} more</span>
                       )}
                     </div>
                   )}
@@ -510,8 +510,8 @@ export function OnboardingWizard() {
                         <span className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{p.label}</span>
                         {p.badge && (
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                            p.badgeColor === "green" ? "bg-emerald-100 text-emerald-700" :
-                            p.badgeColor === "yellow" ? "bg-amber-100 text-amber-700" :
+                            p.badgeColor === "green" ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" :
+                            p.badgeColor === "yellow" ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300" :
                             "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300"
                           }`}>
                             {p.badge}

@@ -15,9 +15,22 @@ export async function getJobs() {
     const userId = await getAuthUserId();
 
     const userJobs = await prisma.userJob.findMany({
-      where: { userId, isDismissed: false },
+      where: {
+        userId,
+        isDismissed: false,
+        matchScore: { gte: 40 },
+      },
       include: {
-        globalJob: true,
+        globalJob: {
+          select: {
+            id: true, title: true, company: true, location: true,
+            salary: true, jobType: true, experienceLevel: true,
+            category: true, skills: true, source: true, applyUrl: true,
+            sourceUrl: true, companyUrl: true, companyEmail: true,
+            description: true, isFresh: true, isActive: true,
+            createdAt: true, lastSeenAt: true, firstSeenAt: true,
+          },
+        },
         application: {
           select: { id: true, status: true, sentAt: true },
         },

@@ -23,12 +23,13 @@ export async function sendNewJobsNotification(
   userName: string,
   matchedJobs: MatchedJobNotification[]
 ): Promise<boolean> {
-  if (matchedJobs.length === 0) return false;
+  const goodMatches = matchedJobs.filter((j) => j.matchScore >= 50);
+  if (goodMatches.length === 0) return false;
 
   const canNotify = await checkNotificationLimit(userId);
   if (!canNotify) return false;
 
-  const { subject, html } = newJobsNotificationTemplate(userName, matchedJobs);
+  const { subject, html } = newJobsNotificationTemplate(userName, goodMatches);
 
   const result = await sendEmail({
     from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
@@ -40,7 +41,7 @@ export async function sendNewJobsNotification(
   if (result.success) {
     await recordNotification(
       userId,
-      `Sent ${matchedJobs.length} job match notification to ${email}`
+      `Sent ${goodMatches.length} job match notification to ${email}`
     );
     return true;
   }
