@@ -18,6 +18,7 @@ interface GlobalJobLike {
   experienceLevel: string | null;
   category: string | null;
   skills: string[];
+  source?: string;
   isFresh?: boolean;
   firstSeenAt?: Date | null;
 }
@@ -201,11 +202,22 @@ export function computeMatchScore(
 
   let score = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 50;
 
+  // Platform filter: if user selected specific preferred platforms,
+  // reject jobs from platforms they didn't choose.
+  if (
+    settings.preferredPlatforms.length > 0 &&
+    job.source &&
+    !settings.preferredPlatforms.includes(job.source)
+  ) {
+    return { score: 0, reasons: ["Platform not selected"], bestResumeId: null, bestResumeName: null };
+  }
+
   // Location mismatch penalty: if user set a location and job is clearly elsewhere,
-  // subtract 20 points so irrelevant regions don't clutter the Kanban
+  // apply a hard penalty so irrelevant regions don't clutter the Kanban.
+  // -35 ensures even a perfect keyword match can't overcome a wrong location.
   if (locationMismatch) {
-    score = Math.max(score - 20, 0);
-    reasons.push("Location mismatch (−20)");
+    score = Math.max(score - 35, 0);
+    reasons.push("Location mismatch (−35)");
   }
 
   // Freshness bonus based on when the job was first seen

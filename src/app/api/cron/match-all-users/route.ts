@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { computeMatchScore } from "@/lib/matching/score-engine";
+import { computeMatchScore, MATCH_THRESHOLDS } from "@/lib/matching/score-engine";
 import { sendEmail } from "@/lib/email/sender";
 import { newJobsNotificationTemplate } from "@/lib/email-templates";
 import { decryptSettingsFields } from "@/lib/encryption";
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
         if (existingJobIds.has(job.id)) continue;
 
         const match = computeMatchScore(job, settings, resumes);
-        if (match.score < 20) continue;
+        if (match.score < MATCH_THRESHOLDS.SHOW_ON_KANBAN) continue;
 
         try {
           await prisma.userJob.create({
