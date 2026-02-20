@@ -141,7 +141,7 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
   const [country, setCountry] = useState(s.country || "");
   const [salaryMin, setSalaryMin] = useState(s.salaryMin?.toString() || "");
   const [salaryMax, setSalaryMax] = useState(s.salaryMax?.toString() || "");
-  const [salaryCurrency, setSalaryCurrency] = useState(s.salaryCurrency || "USD");
+  const [salaryCurrency, setSalaryCurrency] = useState(s.salaryCurrency || "PKR");
   const [experienceLevel, setExperienceLevel] = useState(s.experienceLevel || "");
   const [education, setEducation] = useState(s.education || "");
   const [workType, setWorkType] = useState<string[]>(s.workType || []);
@@ -151,7 +151,11 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
 
   // Categories & Platforms
   const [categories, setCategories] = useState<string[]>(s.preferredCategories || []);
-  const [platforms, setPlatforms] = useState<string[]>(s.preferredPlatforms || []);
+  const [platforms, setPlatforms] = useState<string[]>(
+    s.preferredPlatforms && s.preferredPlatforms.length > 0
+      ? s.preferredPlatforms
+      : JOB_SOURCES.map((src) => src.value)
+  );
 
   // Notifications
   const [emailNotifications, setEmailNotifications] = useState(s.emailNotifications ?? true);
@@ -191,7 +195,11 @@ export function SettingsForm({ initialSettings, resumeCount = 0 }: SettingsFormP
 
   // Speed & Instant Apply
   const [instantApplyEnabled, setInstantApplyEnabled] = useState(s.instantApplyEnabled ?? false);
-  const [priorityPlatforms, setPriorityPlatforms] = useState<string[]>(s.priorityPlatforms || ["rozee"]);
+  const [priorityPlatforms, setPriorityPlatforms] = useState<string[]>(
+    s.priorityPlatforms && s.priorityPlatforms.length > 0
+      ? s.priorityPlatforms
+      : FREE_PLATFORM_OPTIONS.map((p) => p.value)
+  );
   const [peakHoursOnly, setPeakHoursOnly] = useState(s.peakHoursOnly ?? false);
   const [timezone, setTimezone] = useState(s.timezone || "Asia/Karachi");
   const [instantApplyDelay, setInstantApplyDelay] = useState((s.instantApplyDelay ?? 5).toString());

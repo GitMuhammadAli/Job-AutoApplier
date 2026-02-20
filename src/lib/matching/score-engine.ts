@@ -77,13 +77,18 @@ export function computeMatchScore(
     }
   }
 
-  // ── Location matching (weight: 20) ──
-  const locationWeight = 20;
+  // ── Location matching (weight: 25) ──
+  const locationWeight = 25;
   totalWeight += locationWeight;
+  let locationMismatch = false;
   if (settings.city || settings.country) {
-    const cityMatch = settings.city && locationLower.includes(settings.city.toLowerCase());
-    const countryMatch = settings.country && locationLower.includes(settings.country.toLowerCase());
-    const remoteMatch = locationLower.includes("remote") && settings.workType.includes("remote");
+    const cityLower = settings.city?.toLowerCase() ?? "";
+    const countryLower = settings.country?.toLowerCase() ?? "";
+    const cityMatch = cityLower && locationLower.includes(cityLower);
+    const countryMatch = countryLower && locationLower.includes(countryLower);
+    const remoteMatch =
+      (locationLower.includes("remote") || locationLower.includes("anywhere") || locationLower.includes("worldwide")) &&
+      settings.workType.includes("remote");
 
     if (cityMatch) {
       earnedWeight += locationWeight;
@@ -92,8 +97,10 @@ export function computeMatchScore(
       earnedWeight += locationWeight;
       reasons.push("Remote work match");
     } else if (countryMatch) {
-      earnedWeight += Math.round(locationWeight * 0.6);
+      earnedWeight += Math.round(locationWeight * 0.7);
       reasons.push(`Country: ${settings.country}`);
+    } else if (locationLower && locationLower !== "n/a" && locationLower !== "not specified") {
+      locationMismatch = true;
     }
   } else {
     earnedWeight += Math.round(locationWeight * 0.5);
@@ -193,6 +200,13 @@ export function computeMatchScore(
   }
 
   let score = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 50;
+
+  // Location mismatch penalty: if user set a location and job is clearly elsewhere,
+  // subtract 20 points so irrelevant regions don't clutter the Kanban
+  if (locationMismatch) {
+    score = Math.max(score - 20, 0);
+    reasons.push("Location mismatch (−20)");
+  }
 
   // Freshness bonus based on when the job was first seen
   if (job.firstSeenAt) {

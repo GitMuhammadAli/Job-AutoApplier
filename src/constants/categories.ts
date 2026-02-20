@@ -1,73 +1,107 @@
 export const KEYWORD_PRESETS: { group: string; keywords: string[] }[] = [
   {
-    group: "Architecture & Design",
+    group: "Python Stack",
     keywords: [
-      "Code structure", "Modular routing", "Data flow design",
-      "ERD modelling", "Folder conventions", "Request/response pipelines",
+      "Python", "Django", "Flask", "FastAPI",
+      "Celery", "SQLAlchemy", "Pydantic", "Poetry",
+      "Pytest", "Gunicorn", "Uvicorn",
     ],
   },
   {
-    group: "Backend Stack",
+    group: "JavaScript Stack",
     keywords: [
-      "Node.js", "Express.js", "MongoDB", "React.js",
-      "Mongoose", "CRUD pipelines",
+      "JavaScript", "Node.js", "Express.js", "React",
+      "Vue.js", "Angular", "jQuery", "Webpack",
+      "Vite", "Babel", "ESLint", "Jest",
     ],
   },
   {
-    group: "JavaScript (ES6+)",
+    group: "TypeScript Stack",
     keywords: [
-      "JavaScript", "ES6+", "Async/await",
-      "Closures", "Promises", "Event-driven patterns",
+      "TypeScript", "Next.js", "NestJS", "Prisma",
+      "tRPC", "Zod", "SWR", "React Query",
+      "Drizzle", "Type-safe APIs",
     ],
   },
   {
-    group: "TypeScript",
+    group: "Java Stack",
     keywords: [
-      "TypeScript", "Typed interfaces", "DTOs",
-      "NestJS modules", "Class-based services",
+      "Java", "Spring Boot", "Spring", "Hibernate",
+      "Maven", "Gradle", "JPA", "Microservices",
+      "Kafka", "JUnit", "Tomcat",
     ],
   },
   {
-    group: "Frontend",
+    group: "C# / .NET Stack",
     keywords: [
-      "React", "React hooks", "Responsive layouts",
-      "Tailwind CSS", "Next.js", "HTML/CSS",
+      "C#", ".NET", "ASP.NET", "Entity Framework",
+      "Blazor", "Azure Functions", "LINQ",
+      "NuGet", "xUnit", "SignalR",
     ],
   },
   {
-    group: "Backend",
+    group: "PHP Stack",
     keywords: [
-      "Node.js", "Express.js", "NestJS",
-      "JWT auth", "Middleware", "Validation",
-      "REST APIs", "GraphQL",
+      "PHP", "Laravel", "Symfony", "WordPress",
+      "Composer", "Livewire", "Blade",
+      "PHPUnit", "Eloquent",
+    ],
+  },
+  {
+    group: "Go Stack",
+    keywords: [
+      "Go", "Golang", "Gin", "Echo",
+      "gRPC", "Protocol Buffers", "Goroutines",
+      "Go modules",
+    ],
+  },
+  {
+    group: "Ruby Stack",
+    keywords: [
+      "Ruby", "Ruby on Rails", "Rails",
+      "Sidekiq", "RSpec", "ActiveRecord",
+      "Sinatra", "Hotwire",
+    ],
+  },
+  {
+    group: "Frontend & UI",
+    keywords: [
+      "React", "Vue.js", "Angular", "Svelte",
+      "Tailwind CSS", "CSS", "HTML", "Sass",
+      "Figma", "Storybook", "Responsive Design",
+    ],
+  },
+  {
+    group: "Mobile Development",
+    keywords: [
+      "React Native", "Flutter", "Swift", "SwiftUI",
+      "Kotlin", "iOS", "Android", "Expo",
+      "Dart", "Xcode", "Android Studio",
     ],
   },
   {
     group: "DevOps & Cloud",
     keywords: [
-      "Docker", "Kubernetes", "CI/CD",
-      "AWS", "Azure", "GCP", "Terraform",
+      "Docker", "Kubernetes", "AWS", "Azure",
+      "GCP", "Terraform", "CI/CD", "GitHub Actions",
+      "Jenkins", "Ansible", "Linux", "Nginx",
     ],
   },
   {
-    group: "Data & AI",
+    group: "Data & AI / ML",
     keywords: [
-      "Python", "Machine Learning", "Data Science",
-      "Pandas", "TensorFlow", "PyTorch", "SQL",
+      "Python", "Machine Learning", "Deep Learning",
+      "TensorFlow", "PyTorch", "Pandas", "NumPy",
+      "Scikit-learn", "NLP", "LLM", "Data Science",
+      "Jupyter", "Spark", "Airflow",
     ],
   },
   {
-    group: "Mobile",
+    group: "Databases",
     keywords: [
-      "React Native", "Flutter", "Swift",
-      "Kotlin", "iOS", "Android",
-    ],
-  },
-  {
-    group: "Database",
-    keywords: [
-      "PostgreSQL", "MySQL", "MongoDB",
-      "Redis", "Prisma", "Sequelize",
+      "PostgreSQL", "MySQL", "MongoDB", "Redis",
+      "Elasticsearch", "DynamoDB", "Supabase",
+      "Prisma", "Sequelize", "SQL", "NoSQL",
     ],
   },
 ];

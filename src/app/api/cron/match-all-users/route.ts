@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeMatchScore } from "@/lib/matching/score-engine";
 import { sendEmail } from "@/lib/email/sender";
+import { newJobsNotificationTemplate } from "@/lib/email-templates";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -63,6 +64,11 @@ export async function GET(req: NextRequest) {
       );
 
       let matched = 0;
+      const matchedJobDetails: Array<{
+        title: string; company: string; location: string | null;
+        salary: string | null; matchScore: number; applyUrl: string | null;
+        source: string; matchReasons: string[];
+      }> = [];
 
       for (const job of unmatchedJobs) {
         if (existingJobIds.has(job.id)) continue;
@@ -81,6 +87,12 @@ export async function GET(req: NextRequest) {
             },
           });
           matched++;
+          matchedJobDetails.push({
+            title: job.title, company: job.company,
+            location: job.location, salary: job.salary,
+            matchScore: match.score, applyUrl: job.applyUrl,
+            source: job.source, matchReasons: match.reasons,
+          });
         } catch {
           // Duplicate constraint
         }
@@ -90,15 +102,15 @@ export async function GET(req: NextRequest) {
         const notifEmail = settings.notificationEmail || settings.user.email;
         if (notifEmail) {
           try {
+            const { subject, html } = newJobsNotificationTemplate(
+              settings.user.name || "there",
+              matchedJobDetails.slice(0, 20),
+            );
             await sendEmail({
               from: `JobPilot <${process.env.NOTIFICATION_EMAIL || "noreply@jobpilot.app"}>`,
               to: notifEmail,
-              subject: `JobPilot: ${matched} new job matches`,
-              html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-                <h2 style="color:#1e293b;">📋 ${matched} new job matches found</h2>
-                <p style="color:#64748b;">Review them on your dashboard to start applying.</p>
-                <a href="${process.env.NEXTAUTH_URL || "https://jobpilot.vercel.app"}" style="display:inline-block;margin-top:12px;background:#2563eb;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;">View Jobs →</a>
-              </div>`,
+              subject,
+              html,
             });
           } catch {}
         }
