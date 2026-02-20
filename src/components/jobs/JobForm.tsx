@@ -40,7 +40,7 @@ export function JobForm() {
           notes: notes.trim() || undefined,
         });
         toast.success("Job added successfully");
-        router.push("/");
+        router.push("/dashboard");
       } catch {
         toast.error("Failed to add job");
       }
@@ -103,7 +103,7 @@ export function JobForm() {
           {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           Add Job
         </Button>
-        <Button variant="outline" onClick={() => router.push("/")}>
+        <Button variant="outline" onClick={() => router.push("/dashboard")}>
           Cancel
         </Button>
       </div>

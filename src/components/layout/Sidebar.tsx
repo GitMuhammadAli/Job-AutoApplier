@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { useSidebarStore } from "@/store/useSidebarStore";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, desc: "Kanban board" },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, desc: "Kanban board" },
   { href: "/applications", label: "Application Queue", icon: Inbox, desc: "Manage applications" },
   { href: "/jobs/new", label: "Add Job", icon: Plus, desc: "Track manually" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, desc: "Performance" },
@@ -136,8 +136,8 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
         <nav className="flex-1 space-y-0.5 px-3 py-3 overflow-y-auto scrollbar-thin">
           {navItems.map((item) => {
             const isActive =
-              item.href === "/"
-                ? pathname === "/"
+              item.href === "/dashboard"
+                ? pathname === "/dashboard"
                 : pathname.startsWith(item.href);
             return (
               <Link

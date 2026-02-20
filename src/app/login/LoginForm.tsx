@@ -29,13 +29,13 @@ export function LoginForm() {
 
   useEffect(() => {
     if (status === "authenticated" && session) {
-      router.replace("/");
+      router.replace("/dashboard");
     }
   }, [status, session, router]);
 
   const handleOAuth = (provider: string) => {
     setLoading(provider);
-    signIn(provider, { callbackUrl: "/" });
+    signIn(provider, { callbackUrl: "/dashboard" });
   };
 
   const handleEmail = async (e: React.FormEvent) => {

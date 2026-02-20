@@ -169,7 +169,7 @@ export function OnboardingWizard() {
       setMatching(false);
 
       toast.success("Profile configured! Jobs will start appearing soon.");
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     } catch {
       toast.error("Failed to save. Try again.");
