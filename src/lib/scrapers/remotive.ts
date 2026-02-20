@@ -1,10 +1,11 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
+import { fetchWithRetry } from "./fetch-with-retry";
 
 export async function fetchRemotive(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const jobs: ScrapedJob[] = [];
 
   try {
-    const res = await fetch("https://remotive.com/api/remote-jobs?limit=50", {
+    const res = await fetchWithRetry("https://remotive.com/api/remote-jobs?limit=50", {
       headers: { "User-Agent": "JobPilot/1.0" },
     });
     if (!res.ok) return [];

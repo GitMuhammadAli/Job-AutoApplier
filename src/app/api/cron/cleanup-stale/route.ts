@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 function verifyCronSecret(req: NextRequest): boolean {
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.nextUrl.searchParams.get("secret");
+    req.headers.get("x-cron-secret");
   return secret === process.env.CRON_SECRET;
 }
 

@@ -8,42 +8,56 @@ import type { JobStage } from "@prisma/client";
 
 // ── Get all user jobs (for Kanban board) ──
 
+const MAX_JOBS_PER_PAGE = 500;
+
 export async function getJobs() {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const userJobs = await prisma.userJob.findMany({
-    where: { userId, isDismissed: false },
-    include: {
-      globalJob: true,
-      application: {
-        select: { id: true, status: true, sentAt: true },
+    const userJobs = await prisma.userJob.findMany({
+      where: { userId, isDismissed: false },
+      include: {
+        globalJob: true,
+        application: {
+          select: { id: true, status: true, sentAt: true },
+        },
       },
-    },
-    orderBy: { matchScore: "desc" },
-  });
+      orderBy: { matchScore: "desc" },
+      take: MAX_JOBS_PER_PAGE,
+    });
 
-  return userJobs;
+    return userJobs;
+  } catch (error) {
+    console.error("[getJobs]", error);
+    throw new Error("Failed to load jobs");
+  }
 }
 
 // ── Get single job by ID (for detail page) ──
 
 export async function getJobById(id: string) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const userJob = await prisma.userJob.findFirst({
-    where: { id, userId },
-    include: {
-      globalJob: true,
-      application: true,
-      activities: {
-        orderBy: { createdAt: "desc" },
-        take: 50,
+    const userJob = await prisma.userJob.findFirst({
+      where: { id, userId },
+      include: {
+        globalJob: true,
+        application: true,
+        activities: {
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        },
       },
-    },
-  });
+    });
 
-  if (!userJob) throw new Error("Job not found");
-  return userJob;
+    if (!userJob) throw new Error("Job not found");
+    return userJob;
+  } catch (error) {
+    if (error instanceof Error && error.message === "Job not found") throw error;
+    console.error("[getJobById]", error);
+    throw new Error("Failed to load job details");
+  }
 }
 
 // ── Update stage (drag-drop or manual) ──
@@ -53,93 +67,129 @@ export async function updateStage(
   newStage: JobStage,
   oldStage: JobStage
 ) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const userJob = await prisma.userJob.findFirst({
-    where: { id: userJobId, userId },
-  });
-  if (!userJob) throw new Error("Job not found");
+    const userJob = await prisma.userJob.findFirst({
+      where: { id: userJobId, userId },
+    });
+    if (!userJob) throw new Error("Job not found");
 
-  await prisma.$transaction([
-    prisma.userJob.update({
-      where: { id: userJobId },
-      data: { stage: newStage },
-    }),
-    prisma.activity.create({
-      data: {
-        userJobId,
-        userId,
-        type: "STAGE_CHANGE",
-        description: `Moved from ${oldStage} to ${newStage}`,
-      },
-    }),
-  ]);
+    await prisma.$transaction([
+      prisma.userJob.update({
+        where: { id: userJobId },
+        data: { stage: newStage },
+      }),
+      prisma.activity.create({
+        data: {
+          userJobId,
+          userId,
+          type: "STAGE_CHANGE",
+          description: `Moved from ${oldStage} to ${newStage}`,
+        },
+      }),
+    ]);
 
-  revalidatePath("/");
+    revalidatePath("/");
+  } catch (error) {
+    if (error instanceof Error && error.message === "Job not found") throw error;
+    console.error("[updateStage]", error);
+    throw new Error("Failed to update job stage");
+  }
 }
 
 // ── Dismiss job ──
 
 export async function dismissJob(userJobId: string, reason?: string) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  await prisma.$transaction([
-    prisma.userJob.update({
-      where: { id: userJobId },
-      data: { isDismissed: true, dismissReason: reason || null },
-    }),
-    prisma.activity.create({
-      data: {
-        userJobId,
-        userId,
-        type: "DISMISSED",
-        description: reason ? `Dismissed: ${reason}` : "Dismissed",
-      },
-    }),
-  ]);
+    const userJob = await prisma.userJob.findFirst({
+      where: { id: userJobId, userId },
+    });
+    if (!userJob) throw new Error("Job not found");
 
-  revalidatePath("/");
+    await prisma.$transaction([
+      prisma.userJob.update({
+        where: { id: userJobId },
+        data: { isDismissed: true, dismissReason: reason || null },
+      }),
+      prisma.activity.create({
+        data: {
+          userJobId,
+          userId,
+          type: "DISMISSED",
+          description: reason ? `Dismissed: ${reason}` : "Dismissed",
+        },
+      }),
+    ]);
+
+    revalidatePath("/");
+  } catch (error) {
+    if (error instanceof Error && error.message === "Job not found") throw error;
+    console.error("[dismissJob]", error);
+    throw new Error("Failed to dismiss job");
+  }
 }
 
 // ── Add note ──
 
 export async function addNote(userJobId: string, note: string) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  await prisma.$transaction([
-    prisma.userJob.update({
-      where: { id: userJobId },
-      data: { notes: note },
-    }),
-    prisma.activity.create({
-      data: {
-        userJobId,
-        userId,
-        type: "NOTE_ADDED",
-        description: "Note updated",
-      },
-    }),
-  ]);
+    if (!note || note.length > 10000) throw new Error("Note must be 1-10,000 characters");
 
-  revalidatePath(`/jobs/${userJobId}`);
+    const userJob = await prisma.userJob.findFirst({
+      where: { id: userJobId, userId },
+    });
+    if (!userJob) throw new Error("Job not found");
+
+    await prisma.$transaction([
+      prisma.userJob.update({
+        where: { id: userJobId },
+        data: { notes: note },
+      }),
+      prisma.activity.create({
+        data: {
+          userJobId,
+          userId,
+          type: "NOTE_ADDED",
+          description: "Note updated",
+        },
+      }),
+    ]);
+
+    revalidatePath(`/jobs/${userJobId}`);
+  } catch (error) {
+    if (error instanceof Error && (error.message === "Job not found" || error.message.includes("Note must be"))) throw error;
+    console.error("[addNote]", error);
+    throw new Error("Failed to save note");
+  }
 }
 
 // ── Toggle bookmark ──
 
 export async function toggleBookmark(userJobId: string) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const userJob = await prisma.userJob.findFirst({
-    where: { id: userJobId, userId },
-  });
-  if (!userJob) throw new Error("Job not found");
+    const userJob = await prisma.userJob.findFirst({
+      where: { id: userJobId, userId },
+    });
+    if (!userJob) throw new Error("Job not found");
 
-  await prisma.userJob.update({
-    where: { id: userJobId },
-    data: { isBookmarked: !userJob.isBookmarked },
-  });
+    await prisma.userJob.update({
+      where: { id: userJobId },
+      data: { isBookmarked: !userJob.isBookmarked },
+    });
 
-  revalidatePath("/");
+    revalidatePath("/");
+  } catch (error) {
+    if (error instanceof Error && error.message === "Job not found") throw error;
+    console.error("[toggleBookmark]", error);
+    throw new Error("Failed to toggle bookmark");
+  }
 }
 
 // ── Create manual job ──
@@ -246,9 +296,14 @@ export async function createManualJob(rawData: unknown) {
 // ── Get resumes (for dropdowns) ──
 
 export async function getResumes() {
-  const userId = await getAuthUserId();
-  return prisma.resume.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
+  try {
+    const userId = await getAuthUserId();
+    return prisma.resume.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    console.error("[getResumes]", error);
+    throw new Error("Failed to load resumes");
+  }
 }

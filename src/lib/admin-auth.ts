@@ -5,7 +5,11 @@ const COOKIE_NAME = "jobpilot-admin-session";
 const SESSION_TTL = 60 * 60 * 8; // 8 hours
 
 function getSecret(): string {
-  return process.env.NEXTAUTH_SECRET || "fallback-secret-change-me";
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error("NEXTAUTH_SECRET environment variable is required");
+  }
+  return secret;
 }
 
 function sign(payload: string): string {

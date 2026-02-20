@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { decryptSettingsFields } from "@/lib/encryption";
 
 export async function generateCoverLetter(userJobId: string) {
   const userId = await getAuthUserId();
@@ -13,9 +14,9 @@ export async function generateCoverLetter(userJobId: string) {
   });
   if (!userJob) throw new Error("Job not found");
 
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId },
-  });
+  const settings = decryptSettingsFields(
+    await prisma.userSettings.findUnique({ where: { userId } })
+  );
 
   const resumes = await prisma.resume.findMany({
     where: { userId },

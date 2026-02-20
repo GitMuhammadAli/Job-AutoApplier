@@ -591,8 +591,16 @@ function ApplicationList({
 }) {
   if (applications.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/50 py-12 text-center">
+      <div className="rounded-xl border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/50 py-12 text-center space-y-3">
         <p className="text-sm text-slate-500 dark:text-zinc-400">No applications in this tab</p>
+        <div className="flex items-center justify-center gap-3">
+          <a
+            href="/"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+          >
+            Browse Jobs on Dashboard
+          </a>
+        </div>
       </div>
     );
   }

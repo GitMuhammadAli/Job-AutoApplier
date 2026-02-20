@@ -1,4 +1,5 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
+import { fetchWithRetry } from "./fetch-with-retry";
 
 export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const jobs: ScrapedJob[] = [];
@@ -10,7 +11,7 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
         const location = encodeURIComponent(city);
         const url = `https://www.indeed.com/rss?q=${keyword}&l=${location}&sort=date&limit=25`;
 
-        const res = await fetch(url, {
+        const res = await fetchWithRetry(url, {
           headers: { "User-Agent": "Mozilla/5.0 (compatible; JobPilot/1.0)" },
         });
         if (!res.ok) continue;

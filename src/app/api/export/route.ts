@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { decryptSettingsFields } from "@/lib/encryption";
 import JSZip from "jszip";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export async function GET() {
   try {
     const userId = await getAuthUserId();
 
-    const [settings, jobs, applications, resumes, activities, templates] =
+    const [rawSettings, jobs, applications, resumes, activities, templates] =
       await Promise.all([
         prisma.userSettings.findUnique({ where: { userId } }),
         prisma.userJob.findMany({
@@ -33,6 +34,7 @@ export async function GET() {
         }),
         prisma.emailTemplate.findMany({ where: { userId } }),
       ]);
+    const settings = rawSettings ? decryptSettingsFields(rawSettings) : null;
 
     const zip = new JSZip();
 

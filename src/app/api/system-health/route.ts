@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUserId } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await getAuthUserId();
+    const session = await getAuthSession();
+    if (!session?.user?.email || !isAdmin(session.user.email)) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
 
     const now = new Date();
     const dayStart = new Date(now);

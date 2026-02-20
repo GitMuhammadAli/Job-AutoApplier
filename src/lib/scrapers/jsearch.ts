@@ -1,4 +1,5 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
+import { fetchWithRetry } from "./fetch-with-retry";
 
 export async function fetchJSearch(
   queries: SearchQuery[],
@@ -14,7 +15,7 @@ export async function fetchJSearch(
     for (const city of q.cities.slice(0, 2)) {
       try {
         const query = `${q.keyword} jobs in ${city}`;
-        const res = await fetch(
+        const res = await fetchWithRetry(
           `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=1&date_posted=week`,
           {
             headers: {

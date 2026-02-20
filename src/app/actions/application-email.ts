@@ -3,6 +3,7 @@
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { decryptSettingsFields } from "@/lib/encryption";
 import { generateApplicationEmail } from "@/lib/ai-email-generator";
 import { generateCoverLetterFromInput } from "@/lib/ai-cover-letter-generator";
 import { pickBestResumeWithTier } from "@/lib/matching/resume-matcher";
@@ -23,7 +24,9 @@ async function buildEmailInput(
   });
   if (!userJob) throw new Error("Job not found");
 
-  const settings = await prisma.userSettings.findUnique({ where: { userId } });
+  const settings = decryptSettingsFields(
+    await prisma.userSettings.findUnique({ where: { userId } })
+  );
   if (!settings?.fullName)
     throw new Error("Complete your profile in Settings first");
 

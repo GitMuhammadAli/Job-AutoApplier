@@ -22,7 +22,7 @@ export async function sendJobMatchNotification(
   const { subject, html } = newJobsNotificationTemplate(userName, jobs);
 
   await sendEmail({
-    from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "noreply@jobpilot.app"}>`,
+    from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
     to: recipientEmail,
     subject,
     html,

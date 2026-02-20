@@ -2,6 +2,7 @@ import { getTransporterForUser } from "./email";
 import { prisma } from "./prisma";
 import { canSendNow } from "./send-limiter";
 import { checkDuplicate } from "./duplicate-checker";
+import { decryptSettingsFields } from "./encryption";
 
 interface SendResult {
   success: boolean;
@@ -28,10 +29,11 @@ export async function sendApplication(
 
   const userId = application.userId;
 
-  const settings = await prisma.userSettings.findUnique({
+  const rawSettings = await prisma.userSettings.findUnique({
     where: { userId },
   });
-  if (!settings) return { success: false, error: "Settings not found" };
+  if (!rawSettings) return { success: false, error: "Settings not found" };
+  const settings = decryptSettingsFields(rawSettings);
 
   // Rate limiting
   const limitCheck = await canSendNow(userId);

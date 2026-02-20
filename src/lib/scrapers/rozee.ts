@@ -1,4 +1,5 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
+import { fetchWithRetry } from "./fetch-with-retry";
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -15,7 +16,7 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
       const url = `https://www.rozee.pk/job/jsearch/q/${keyword}`;
 
       const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-      const res = await fetch(url, {
+      const res = await fetchWithRetry(url, {
         headers: { "User-Agent": ua },
       });
       if (!res.ok) continue;
