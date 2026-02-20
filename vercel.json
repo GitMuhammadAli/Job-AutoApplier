@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/scrape-global?mode=free&match=true&send=true",
-      "schedule": "0 8 * * *"
-    }
-  ]
-}
+{}
