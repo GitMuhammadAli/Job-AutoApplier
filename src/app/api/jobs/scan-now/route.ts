@@ -7,6 +7,9 @@ import { fetchRemotive } from "@/lib/scrapers/remotive";
 import { fetchArbeitnow } from "@/lib/scrapers/arbeitnow";
 import { fetchLinkedIn } from "@/lib/scrapers/linkedin";
 import { fetchRozee } from "@/lib/scrapers/rozee";
+import { fetchJSearch } from "@/lib/scrapers/jsearch";
+import { fetchAdzuna } from "@/lib/scrapers/adzuna";
+import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
 import {
   computeMatchScore,
   MATCH_THRESHOLDS,
@@ -82,17 +85,20 @@ export async function POST() {
         cities: Array.from(cities),
       }));
 
-    // All free sources — including LinkedIn and Rozee.pk
     const sources: {
       name: string;
       fn: (q: SearchQuery[]) => Promise<ScrapedJob[]>;
+      needsKey?: string;
     }[] = [
       { name: "indeed", fn: fetchIndeed },
       { name: "remotive", fn: fetchRemotive },
       { name: "arbeitnow", fn: () => fetchArbeitnow() },
       { name: "linkedin", fn: fetchLinkedIn },
       { name: "rozee", fn: fetchRozee },
-    ];
+      { name: "jsearch", fn: fetchJSearch, needsKey: "RAPIDAPI_KEY" },
+      { name: "adzuna", fn: fetchAdzuna, needsKey: "ADZUNA_APP_ID" },
+      { name: "google", fn: fetchGoogleJobs, needsKey: "SERPAPI_KEY" },
+    ].filter((s) => !s.needsKey || process.env[s.needsKey]);
 
     // Filter to user's selected platforms
     const userPlatforms = (settings.preferredPlatforms ?? []).length

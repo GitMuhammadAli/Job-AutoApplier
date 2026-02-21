@@ -70,12 +70,18 @@ export async function GET(req: NextRequest) {
       data: { status: "FAILED", errorMessage: "Stuck in SENDING state — recovered by cleanup cron" },
     });
 
+    // Prune old SystemLog entries (keep last 30 days)
+    const logCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const prunedLogs = await prisma.systemLog.deleteMany({
+      where: { createdAt: { lt: logCutoff } },
+    });
+
     await prisma.systemLog.create({
       data: {
         type: "cron",
         source: "cleanup-stale",
-        message: `Marked ${totalMarkedInactive} stale jobs inactive, recovered ${stuckRecovered.count} stuck sends`,
-        metadata: { markedInactive: totalMarkedInactive, perSource, stuckRecovered: stuckRecovered.count },
+        message: `Marked ${totalMarkedInactive} stale jobs inactive, recovered ${stuckRecovered.count} stuck sends, pruned ${prunedLogs.count} old logs`,
+        metadata: { markedInactive: totalMarkedInactive, perSource, stuckRecovered: stuckRecovered.count, prunedLogs: prunedLogs.count },
       },
     });
 

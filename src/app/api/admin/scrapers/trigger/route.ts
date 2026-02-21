@@ -11,8 +11,15 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const source = (body.source as string) || "all";
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
   const secret = process.env.CRON_SECRET;
+
+  if (!baseUrl) {
+    return NextResponse.json(
+      { error: "NEXT_PUBLIC_APP_URL not configured" },
+      { status: 500 },
+    );
+  }
 
   if (!secret) {
     return NextResponse.json(

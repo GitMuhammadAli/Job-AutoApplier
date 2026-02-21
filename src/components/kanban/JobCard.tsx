@@ -71,7 +71,8 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
       pointerStart.current = null;
       if (dx > 5 || dy > 5) return;
       const target = e.target as HTMLElement;
-      if (target.closest("a, button, [role='button'], select, input")) return;
+      const interactive = target.closest("a, button, select, input");
+      if (interactive && interactive !== e.currentTarget) return;
       router.push(`/jobs/${job.id}`);
     },
     [router, job.id]

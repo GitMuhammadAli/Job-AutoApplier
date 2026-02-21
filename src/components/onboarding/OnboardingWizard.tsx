@@ -60,7 +60,7 @@ export function OnboardingWizard() {
   const [customPrompt, setCustomPrompt] = useState("");
 
   // Step 5: Email Provider
-  const [emailProvider, setEmailProvider] = useState("brevo");
+  const [emailProvider, setEmailProvider] = useState("gmail");
 
   // Validation
   const [stepError, setStepError] = useState<string | null>(null);
@@ -321,7 +321,9 @@ export function OnboardingWizard() {
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">{keywords.length} keyword{keywords.length !== 1 ? "s" : ""} selected</p>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+                  {keywords.length} keyword{keywords.length !== 1 ? "s" : ""} selected — add as many as you need
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

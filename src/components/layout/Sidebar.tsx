@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { useSidebarStore } from "@/store/useSidebarStore";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, desc: "Kanban board" },
+  { href: "/recommended", label: "Recommended", icon: Sparkles, desc: "Browse all matches" },
   { href: "/applications", label: "Application Queue", icon: Inbox, desc: "Manage applications" },
   { href: "/jobs/new", label: "Add Job", icon: Plus, desc: "Track manually" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, desc: "Performance" },
