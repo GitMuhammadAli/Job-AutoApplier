@@ -30,6 +30,19 @@ import {
   ChevronDown,
 } from "lucide-react";
 
+function cleanJsonField(value: string, field: "subject" | "body"): string {
+  if (!value || !value.trimStart().startsWith("{")) return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed === "object" && parsed !== null) {
+      return (parsed[field] as string) || value;
+    }
+  } catch {
+    /* not JSON — use as-is */
+  }
+  return value;
+}
+
 interface ApplicationData {
   id: string;
   status: string;
@@ -77,8 +90,12 @@ export function QuickApplyPanel({
 
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const [subject, setSubject] = useState(initialApp?.subject || "");
-  const [emailBody, setEmailBody] = useState(initialApp?.emailBody || "");
+  const [subject, setSubject] = useState(() => {
+    return cleanJsonField(initialApp?.subject || "", "subject");
+  });
+  const [emailBody, setEmailBody] = useState(() => {
+    return cleanJsonField(initialApp?.emailBody || "", "body");
+  });
   const [coverLetter, setCoverLetter] = useState(
     initialApp?.coverLetter || ""
   );
@@ -111,8 +128,8 @@ export function QuickApplyPanel({
       try {
         const result = await generateApplication(userJob.id);
         setApplication(result.application);
-        setSubject(result.application.subject);
-        setEmailBody(result.application.emailBody);
+        setSubject(cleanJsonField(result.application.subject, "subject"));
+        setEmailBody(cleanJsonField(result.application.emailBody, "body"));
         setCoverLetter(result.application.coverLetter || "");
         setRecipientEmail(result.application.recipientEmail);
         setMatchInfo(result.matchedResume);
@@ -135,8 +152,8 @@ export function QuickApplyPanel({
       try {
         const result = await regenerateApplication(userJob.id);
         setApplication(result.application);
-        setSubject(result.application.subject);
-        setEmailBody(result.application.emailBody);
+        setSubject(cleanJsonField(result.application.subject, "subject"));
+        setEmailBody(cleanJsonField(result.application.emailBody, "body"));
         setCoverLetter(result.application.coverLetter || "");
         setRecipientEmail(result.application.recipientEmail);
         setMatchInfo(result.matchedResume);

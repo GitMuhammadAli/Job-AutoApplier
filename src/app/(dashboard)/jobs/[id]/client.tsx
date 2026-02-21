@@ -288,7 +288,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
         <div className="flex-1 min-w-0">
           {/* Tabs */}
           <Tabs defaultValue="details" className="space-y-0">
-            <div className="-mx-1 px-1 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-thin">
+            <div className="-mx-1 px-1 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-thin mb-3 sm:mb-4">
               <TabsList className="bg-slate-100/80 dark:bg-zinc-700/80 rounded-lg p-0.5 w-max sm:w-auto">
                 <TabsTrigger value="details" className="text-[11px] sm:text-xs rounded-md px-2.5 sm:px-3">Details</TabsTrigger>
                 <TabsTrigger value="cover-letter" className="text-[11px] sm:text-xs rounded-md px-2.5 sm:px-3">Cover Letter</TabsTrigger>

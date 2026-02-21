@@ -214,14 +214,25 @@ async function generateAndParseEmail(
       .replace(/```\n?/g, "")
       .trim();
 
+    let result: { subject: string; body: string };
     try {
-      return JSON.parse(cleaned);
+      result = JSON.parse(cleaned);
     } catch {
       cleaned = cleaned.replace(/(?<=:\s*")([\s\S]*?)(?="(?:\s*[,}]))/g, (match) =>
         match.replace(/\r?\n/g, "\\n")
       );
-      return JSON.parse(cleaned);
+      result = JSON.parse(cleaned);
     }
+
+    if (typeof result.body === "string" && result.body.trimStart().startsWith("{")) {
+      try {
+        const nested = JSON.parse(result.body);
+        if (nested.body) result.body = nested.body;
+        if (nested.subject && !result.subject) result.subject = nested.subject;
+      } catch { /* not nested JSON */ }
+    }
+
+    return result;
   } catch {
     const subjectMatch = rawResponse.match(/"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/);
     const bodyMatch = rawResponse.match(/"body"\s*:\s*"([\s\S]*)"?\s*\}?\s*$/);
