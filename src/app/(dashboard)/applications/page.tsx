@@ -31,11 +31,19 @@ export default async function ApplicationsPage() {
 
   try {
     const userId = await getAuthUserId();
-    [applications, counts, sendingStats] = await Promise.all([
+    [applications, , sendingStats] = await Promise.all([
       getApplications(),
       getApplicationCounts(),
       getSendingStats(userId),
     ]);
+    counts = {
+      draft: applications.filter((a) => a.status === "DRAFT").length,
+      ready: applications.filter((a) => a.status === "READY").length,
+      sent: applications.filter((a) => a.status === "SENT").length,
+      failed: applications.filter((a) => a.status === "FAILED").length,
+      bounced: applications.filter((a) => a.status === "BOUNCED").length,
+      total: applications.length,
+    };
   } catch (error) {
     console.error("[ApplicationsPage] Failed to load data:", error);
     loadError = true;
