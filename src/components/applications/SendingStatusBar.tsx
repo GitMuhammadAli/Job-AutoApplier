@@ -70,52 +70,82 @@ export function SendingStatusBar(props: SendingStatusBarProps) {
     );
   }
 
+  const hourPercent = Math.round((hourCount / maxPerHour) * 100);
+  const hourWarning = hourPercent >= 80;
+
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-2.5 ring-1 ${
+      className={`rounded-xl px-4 py-3 ring-1 space-y-3 ${
         isWarning
           ? "bg-amber-50 dark:bg-amber-950/30 ring-amber-200/60 dark:ring-amber-800/40"
           : "bg-slate-50 dark:bg-zinc-800/60 ring-slate-200/60 dark:ring-zinc-700/60"
       }`}
     >
-      <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-zinc-400">
-        <span className="flex items-center gap-1.5">
-          <Send className="h-3 w-3" />
-          Today:{" "}
-          <strong className="text-slate-700 dark:text-zinc-200 tabular-nums">
-            {todayCount}/{maxPerDay}
-          </strong>{" "}
-          sent
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Clock className="h-3 w-3" />
-          This hour:{" "}
-          <strong className="text-slate-700 dark:text-zinc-200 tabular-nums">
-            {hourCount}/{maxPerHour}
-          </strong>
-        </span>
-        {countdown > 0 && (
-          <span className="text-slate-400 dark:text-zinc-500">
-            Next send in: {formatTime(countdown)}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-zinc-400">
+          <span className="flex items-center gap-1.5">
+            <Send className="h-3 w-3" />
+            Today:{" "}
+            <strong className="text-slate-700 dark:text-zinc-200 tabular-nums">
+              {todayCount}/{maxPerDay}
+            </strong>{" "}
+            sent
           </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-3 w-3" />
+            This hour:{" "}
+            <strong className="text-slate-700 dark:text-zinc-200 tabular-nums">
+              {hourCount}/{maxPerHour}
+            </strong>
+          </span>
+          {countdown > 0 && (
+            <span className="text-slate-400 dark:text-zinc-500">
+              Next send in: {formatTime(countdown)}
+            </span>
+          )}
+        </div>
+        {isWarning && (
+          <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Approaching daily limit
+          </div>
         )}
       </div>
 
-      <div className="flex items-center gap-2">
-        {isWarning && (
-          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-        )}
-        <div className="h-1.5 w-24 rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${
-              isWarning ? "bg-amber-500" : "bg-blue-500"
-            }`}
-            style={{ width: `${Math.min(dayPercent, 100)}%` }}
-          />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-slate-500 dark:text-zinc-400 font-medium">Daily</span>
+            <span className="text-slate-400 dark:text-zinc-500 tabular-nums">{dayPercent}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                isWarning
+                  ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                  : "bg-gradient-to-r from-blue-400 to-blue-600"
+              }`}
+              style={{ width: `${Math.min(dayPercent, 100)}%` }}
+            />
+          </div>
         </div>
-        <span className="text-[10px] text-slate-400 dark:text-zinc-500 tabular-nums">
-          {dayPercent}%
-        </span>
+
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-slate-500 dark:text-zinc-400 font-medium">Hourly</span>
+            <span className="text-slate-400 dark:text-zinc-500 tabular-nums">{hourPercent}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                hourWarning
+                  ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                  : "bg-gradient-to-r from-violet-400 to-violet-600"
+              }`}
+              style={{ width: `${Math.min(hourPercent, 100)}%` }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

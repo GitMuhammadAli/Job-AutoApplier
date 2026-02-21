@@ -250,17 +250,29 @@ export async function reExtractResume(resumeId: string): Promise<{
     if (!resume) return { success: false, error: "Resume not found" };
     if (!resume.fileUrl) return { success: false, error: "No file URL — please re-upload or paste content manually" };
 
-    const response = await fetch(resume.fileUrl);
+    let response: Response;
+    try {
+      response = await fetch(resume.fileUrl);
+    } catch (fetchErr) {
+      console.error("[reExtractResume] fetch error:", fetchErr);
+      return { success: false, error: "Could not download file from storage. Please re-upload your resume." };
+    }
     if (!response.ok) return { success: false, error: `Could not download file (HTTP ${response.status}). Please re-upload your resume.` };
 
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const arrayBuf = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuf);
+
+    if (buffer.length < 100) {
+      return { success: false, error: `Downloaded file is too small (${buffer.length} bytes). The file may be corrupted. Please re-upload.` };
+    }
+
     const ext = resume.fileName?.split(".").pop()?.toLowerCase() || "pdf";
     const { text, quality } = await extractText(buffer, ext);
 
     if (!text || text.length < 10) {
       return {
         success: false,
-        error: "Could not extract text from this file. It may be a scanned/image PDF. Please paste your resume text manually instead.",
+        error: `Could not extract text (got ${text?.length ?? 0} chars from ${buffer.length} byte file). It may be a scanned/image PDF. Please re-upload or paste your resume text manually.`,
       };
     }
 

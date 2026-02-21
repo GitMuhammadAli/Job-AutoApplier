@@ -34,7 +34,33 @@ export async function getApplications() {
       take: LIMITS.APPLICATIONS_PER_PAGE,
     });
 
-    return applications;
+    const seen = new Map<string, typeof applications[number]>();
+    const deduped: typeof applications = [];
+
+    for (const app of applications) {
+      const job = app.userJob.globalJob;
+      const key = `${job.title.toLowerCase().trim()}::${job.company.toLowerCase().trim()}`;
+
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, app);
+        deduped.push(app);
+      } else {
+        const dominated =
+          app.status === "DRAFT" && existing.status !== "DRAFT";
+        if (dominated) continue;
+
+        const better =
+          app.status === "SENT" && existing.status !== "SENT";
+        if (better) {
+          const idx = deduped.indexOf(existing);
+          if (idx !== -1) deduped[idx] = app;
+          seen.set(key, app);
+        }
+      }
+    }
+
+    return deduped;
   } catch (error) {
     console.error("[getApplications]", error);
     throw new Error("Failed to load applications");
