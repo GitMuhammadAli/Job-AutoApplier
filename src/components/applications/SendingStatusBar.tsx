@@ -48,8 +48,8 @@ export function SendingStatusBar(props: SendingStatusBarProps) {
 
   const todayCount = stats.todayCount ?? stats.sentToday ?? 0;
   const hourCount = stats.hourCount ?? stats.sentThisHour ?? 0;
-  const maxPerDay = stats.maxPerDay ?? stats.maxPerDay ?? 20;
-  const maxPerHour = stats.maxPerHour ?? stats.maxPerHour ?? 8;
+  const maxPerDay = stats.maxPerDay ?? 20;
+  const maxPerHour = stats.maxPerHour ?? 8;
   const isPaused = stats.isPaused ?? false;
 
   const dayPercent = Math.round((todayCount / maxPerDay) * 100);

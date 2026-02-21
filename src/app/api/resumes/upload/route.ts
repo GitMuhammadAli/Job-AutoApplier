@@ -92,27 +92,32 @@ export async function POST(req: NextRequest) {
       access: "public",
     });
 
-    if (isDefault) {
-      await prisma.resume.updateMany({
-        where: { userId, isDeleted: false },
-        data: { isDefault: false },
-      });
-    }
+    const resumeData = {
+      userId,
+      name: name.trim(),
+      fileName,
+      fileUrl: blob.url,
+      fileType,
+      content: textContent || null,
+      textQuality,
+      targetCategories,
+      detectedSkills,
+      isDefault,
+    };
 
-    const resume = await prisma.resume.create({
-      data: {
-        userId,
-        name: name.trim(),
-        fileName,
-        fileUrl: blob.url,
-        fileType,
-        content: textContent || null,
-        textQuality,
-        targetCategories,
-        detectedSkills,
-        isDefault,
-      },
-    });
+    let resume;
+    if (isDefault) {
+      const [, created] = await prisma.$transaction([
+        prisma.resume.updateMany({
+          where: { userId, isDeleted: false },
+          data: { isDefault: false },
+        }),
+        prisma.resume.create({ data: resumeData }),
+      ]);
+      resume = created;
+    } else {
+      resume = await prisma.resume.create({ data: resumeData });
+    }
 
     const needsManualText = textQuality === "poor" || textQuality === "empty";
 

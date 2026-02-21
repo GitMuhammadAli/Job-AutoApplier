@@ -100,22 +100,24 @@ export async function updateResume(
     const resume = await prisma.resume.findFirst({ where: { id, userId } });
     if (!resume) return { success: false, error: "Resume not found" };
 
-    if (data.isDefault) {
-      await prisma.resume.updateMany({
-        where: { userId, isDefault: true },
-        data: { isDefault: false },
-      });
-    }
+    const updateData = {
+      ...(data.name !== undefined && { name: data.name.trim() }),
+      ...(data.fileUrl !== undefined && { fileUrl: data.fileUrl || null }),
+      ...(data.content !== undefined && { content: data.content || null }),
+      ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
+    };
 
-    await prisma.resume.update({
-      where: { id },
-      data: {
-        ...(data.name !== undefined && { name: data.name.trim() }),
-        ...(data.fileUrl !== undefined && { fileUrl: data.fileUrl || null }),
-        ...(data.content !== undefined && { content: data.content || null }),
-        ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
-      },
-    });
+    if (data.isDefault) {
+      await prisma.$transaction([
+        prisma.resume.updateMany({
+          where: { userId, isDefault: true },
+          data: { isDefault: false },
+        }),
+        prisma.resume.update({ where: { id }, data: updateData }),
+      ]);
+    } else {
+      await prisma.resume.update({ where: { id }, data: updateData });
+    }
 
     revalidatePath("/resumes");
     return { success: true };
@@ -133,10 +135,30 @@ export async function deleteResume(id: string): Promise<{ success: boolean; erro
     const resume = await prisma.resume.findFirst({ where: { id, userId } });
     if (!resume) return { success: false, error: "Resume not found" };
 
-    await prisma.resume.update({
-      where: { id },
-      data: { isDeleted: true, deletedAt: new Date() },
-    });
+    if (resume.isDefault) {
+      const otherResumes = await prisma.resume.count({
+        where: { userId, isDeleted: false, id: { not: id } },
+      });
+      if (otherResumes === 0) {
+        return { success: false, error: "Cannot delete your only resume. Upload another first." };
+      }
+      await prisma.$transaction([
+        prisma.resume.update({
+          where: { id },
+          data: { isDeleted: true, deletedAt: new Date(), isDefault: false },
+        }),
+        prisma.resume.updateMany({
+          where: { userId, isDeleted: false, id: { not: id } },
+          data: { isDefault: true },
+        }),
+      ]);
+    } else {
+      await prisma.resume.update({
+        where: { id },
+        data: { isDeleted: true, deletedAt: new Date() },
+      });
+    }
+
     revalidatePath("/resumes");
     return { success: true };
   } catch (error) {

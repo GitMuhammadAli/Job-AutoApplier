@@ -28,7 +28,7 @@ export async function GET() {
           take: LIMITS.EXPORT_JOBS,
         }),
         prisma.jobApplication.findMany({ where: { userId }, take: LIMITS.EXPORT_APPLICATIONS }),
-        prisma.resume.findMany({ where: { userId }, take: LIMITS.EXPORT_RESUMES }),
+        prisma.resume.findMany({ where: { userId, isDeleted: false }, take: LIMITS.EXPORT_RESUMES }),
         prisma.activity.findMany({
           where: { userId },
           orderBy: { createdAt: "desc" },
@@ -138,6 +138,9 @@ export async function GET() {
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "Not authenticated") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("[Export] Error:", error);
     return NextResponse.json({ error: "Export failed" }, { status: 500 });
   }

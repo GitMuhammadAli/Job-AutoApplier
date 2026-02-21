@@ -532,6 +532,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
                       size="icon"
                       className="h-7 w-7 rounded-lg"
                       onClick={() => openEdit(r)}
+                      aria-label="Edit resume categories"
                     >
                       <Pencil className="h-3 w-3 text-slate-400 dark:text-zinc-500" />
                     </Button>
@@ -541,6 +542,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 rounded-lg text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                          aria-label="Delete resume"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>

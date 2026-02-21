@@ -75,12 +75,12 @@ export async function checkReadiness(userId: string): Promise<ReadinessResult> {
   // FULL_AUTO
   checks.push({
     name: "Keywords set",
-    passed: settings.keywords.length > 0,
+    passed: (settings.keywords ?? []).length > 0,
     hint: "Add job search keywords in Settings → Job Preferences",
   });
   checks.push({
     name: "Categories selected",
-    passed: settings.preferredCategories.length > 0,
+    passed: (settings.preferredCategories ?? []).length > 0,
     hint: "Select job categories in Settings → Categories",
   });
   checks.push({

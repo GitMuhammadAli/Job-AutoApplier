@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     if (acquired.length === 0) {
       return NextResponse.json({
         skipped: true,
-        reason: "send-scheduled already running",
+        reason: "Another send cron is running",
       });
     }
 

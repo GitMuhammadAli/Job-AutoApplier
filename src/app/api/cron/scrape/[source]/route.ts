@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { aggregateSearchQueries } from "@/lib/scrapers/keyword-aggregator";
 import { scrapeAndUpsert } from "@/lib/scrapers/scrape-source";
 import { fetchJSearch } from "@/lib/scrapers/jsearch";
@@ -68,6 +69,15 @@ export async function GET(
     }
 
     const result = await scrapeAndUpsert(source, scraperFn, queries);
+
+    await prisma.systemLog.create({
+      data: {
+        type: "scrape",
+        source,
+        message: `Scraped ${result.newCount} new, ${result.updatedCount} updated from ${source}`,
+        metadata: { newCount: result.newCount, updatedCount: result.updatedCount },
+      },
+    });
 
     return NextResponse.json({
       success: true,

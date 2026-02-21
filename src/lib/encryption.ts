@@ -68,10 +68,8 @@ type PIIField = (typeof PII_FIELDS)[number];
  * Encrypts all PII string fields on a settings-like object before DB write.
  * Returns a new object with encrypted values.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function encryptSettingsFields<T extends Record<string, any>>(data: T): T {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result: any = { ...data };
+  const result = { ...data } as Record<string, unknown>;
   for (const field of PII_FIELDS) {
     if (field in result && typeof result[field] === "string") {
       result[field] = encryptField(result[field] as string);
@@ -85,11 +83,9 @@ export function encryptSettingsFields<T extends Record<string, any>>(data: T): T
  * Safe to call on already-decrypted data (no-ops on plaintext).
  * Accepts null/undefined and returns them as-is.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function decryptSettingsFields<T extends Record<string, any>>(data: T | null | undefined): T {
   if (!data) return data as unknown as T;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result: any = { ...data };
+  const result = { ...data } as Record<string, unknown>;
   for (const field of PII_FIELDS) {
     if (field in result && typeof result[field] === "string") {
       result[field] = decryptField(result[field] as string);

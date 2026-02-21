@@ -14,7 +14,7 @@ const SOURCE_STYLES: Record<string, { bg: string; text: string; label: string }>
 };
 
 export function PlatformBadge({ source }: { source: string }) {
-  const style = SOURCE_STYLES[source] || SOURCE_STYLES.manual;
+  const style = SOURCE_STYLES[source?.toLowerCase()] || SOURCE_STYLES.manual;
   return (
     <Badge
       variant="outline"

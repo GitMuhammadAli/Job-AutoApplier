@@ -70,6 +70,15 @@ export async function GET(req: NextRequest) {
       data: { status: "FAILED", errorMessage: "Stuck in SENDING state — recovered by cleanup cron" },
     });
 
+    await prisma.systemLog.create({
+      data: {
+        type: "cron",
+        source: "cleanup-stale",
+        message: `Marked ${totalMarkedInactive} stale jobs inactive, recovered ${stuckRecovered.count} stuck sends`,
+        metadata: { markedInactive: totalMarkedInactive, perSource, stuckRecovered: stuckRecovered.count },
+      },
+    });
+
     return NextResponse.json({
       success: true,
       markedInactive: totalMarkedInactive,

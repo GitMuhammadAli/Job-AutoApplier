@@ -85,6 +85,11 @@ const TYPE_CONFIG: Record<
     color: "text-slate-500",
   },
   DISMISSED: { icon: Trash2, label: "Dismissed", color: "text-slate-400" },
+  APPLICATION_CANCELLED: {
+    icon: XCircle,
+    label: "Cancelled",
+    color: "text-slate-400",
+  },
   NOTIFICATION_SENT: {
     icon: Bell,
     label: "Notification Sent",

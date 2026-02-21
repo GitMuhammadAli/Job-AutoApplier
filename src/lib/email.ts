@@ -38,6 +38,9 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
           user: settings.smtpUser ?? undefined,
           pass: smtpPassword,
         },
+        connectionTimeout: 10000,
+        greetingTimeout: 5000,
+        socketTimeout: 30000,
       });
     case "outlook":
       return nodemailer.createTransport({
@@ -48,17 +51,25 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
           user: settings.smtpUser ?? undefined,
           pass: smtpPassword,
         },
+        connectionTimeout: 10000,
+        greetingTimeout: 5000,
+        socketTimeout: 30000,
       });
-    case "custom":
+    case "custom": {
+      const port = settings.smtpPort ?? 587;
       return nodemailer.createTransport({
         host: settings.smtpHost ?? undefined,
-        port: settings.smtpPort ?? 587,
-        secure: false,
+        port,
+        secure: port === 465,
         auth: {
           user: settings.smtpUser ?? undefined,
           pass: smtpPassword,
         },
+        connectionTimeout: 10000,
+        greetingTimeout: 5000,
+        socketTimeout: 30000,
       });
+    }
     default:
       return getBrevoTransporter();
   }

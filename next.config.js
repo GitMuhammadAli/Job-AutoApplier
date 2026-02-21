@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
+  serverExternalPackages: ["pdf-parse", "mammoth"],
+
   experimental: {
     serverActions: {
       allowedOrigins: [

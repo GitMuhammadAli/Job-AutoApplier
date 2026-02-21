@@ -51,7 +51,7 @@ const settingsSchema = z.object({
   // Application Automation
   applicationEmail: z.string().email().optional().or(z.literal("")),
   applicationMode: z
-    .enum(["MANUAL", "SEMI_AUTO", "FULL_AUTO"])
+    .enum(["MANUAL", "SEMI_AUTO", "FULL_AUTO", "INSTANT"])
     .default("SEMI_AUTO"),
   autoApplyEnabled: z.boolean().default(false),
   maxAutoApplyPerDay: z.number().min(1).max(50).default(10),
@@ -146,6 +146,7 @@ export async function saveSettings(rawData: unknown): Promise<{ success: boolean
     });
 
     revalidatePath("/settings");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -182,18 +183,17 @@ export async function deleteAccount(): Promise<{
   try {
     const userId = await getAuthUserId();
 
-    await prisma.$transaction([
-      prisma.activity.deleteMany({ where: { userId } }),
-      prisma.jobApplication.deleteMany({ where: { userId } }),
-      prisma.userJob.deleteMany({ where: { userId } }),
-      prisma.resume.deleteMany({ where: { userId } }),
-      prisma.emailTemplate.deleteMany({ where: { userId } }),
-    ]);
-
-    await prisma.userSettings.delete({ where: { userId } }).catch(() => {});
-    await prisma.session.deleteMany({ where: { userId } });
-    await prisma.account.deleteMany({ where: { userId } });
-    await prisma.user.delete({ where: { id: userId } });
+    await prisma.$transaction(async (tx) => {
+      await tx.activity.deleteMany({ where: { userId } });
+      await tx.jobApplication.deleteMany({ where: { userId } });
+      await tx.userJob.deleteMany({ where: { userId } });
+      await tx.resume.deleteMany({ where: { userId } });
+      await tx.emailTemplate.deleteMany({ where: { userId } });
+      await tx.userSettings.deleteMany({ where: { userId } });
+      await tx.session.deleteMany({ where: { userId } });
+      await tx.account.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
 
     return { success: true };
   } catch (error) {

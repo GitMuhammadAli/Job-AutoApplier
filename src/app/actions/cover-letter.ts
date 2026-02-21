@@ -21,7 +21,7 @@ export async function generateCoverLetter(userJobId: string) {
     );
 
     const resumes = await prisma.resume.findMany({
-      where: { userId },
+      where: { userId, isDeleted: false },
       select: { name: true, content: true },
       take: 50,
     });
@@ -71,7 +71,7 @@ ${job.description ? `Job Description (first 1500 chars): ${sanitize(job.descript
 ${(job.skills ?? []).length > 0 ? `Required Skills: ${(job.skills ?? []).join(", ")}` : ""}
 
 Applicant: ${name}
-${bestResume?.content ? `Resume Summary: ${bestResume.content.slice(0, 1000)}` : ""}
+${bestResume?.content ? `Resume Summary: ${sanitize(bestResume.content.slice(0, 1000))}` : ""}
 ${links.length > 0 ? `Links: ${links.join(" | ")}` : ""}
 
 Sign off with: ${closing}

@@ -41,23 +41,26 @@ export async function createEmailTemplate(rawData: unknown) {
 
     if (!settings) throw new Error("Configure settings first");
 
-    if (data.isDefault) {
-      await prisma.emailTemplate.updateMany({
-        where: { userId, isDefault: true },
-        data: { isDefault: false },
-      });
-    }
+    const templateData = {
+      userId,
+      settingsId: settings.id,
+      name: data.name,
+      subject: data.subject,
+      body: data.body,
+      isDefault: data.isDefault ?? false,
+    };
 
-    await prisma.emailTemplate.create({
-      data: {
-        userId,
-        settingsId: settings.id,
-        name: data.name,
-        subject: data.subject,
-        body: data.body,
-        isDefault: data.isDefault ?? false,
-      },
-    });
+    if (data.isDefault) {
+      await prisma.$transaction([
+        prisma.emailTemplate.updateMany({
+          where: { userId, isDefault: true },
+          data: { isDefault: false },
+        }),
+        prisma.emailTemplate.create({ data: templateData }),
+      ]);
+    } else {
+      await prisma.emailTemplate.create({ data: templateData });
+    }
 
     revalidatePath("/templates");
     revalidatePath("/settings");
@@ -79,23 +82,23 @@ export async function updateEmailTemplate(id: string, rawData: unknown) {
     });
     if (!template) throw new Error("Template not found");
 
-    if (data.isDefault === true) {
-      await prisma.emailTemplate.updateMany({
-        where: { userId, isDefault: true },
-        data: { isDefault: false },
-      });
-    }
-
     const updateData: { name?: string; subject?: string; body?: string; isDefault?: boolean } = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.subject !== undefined) updateData.subject = data.subject;
     if (data.body !== undefined) updateData.body = data.body;
     if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
 
-    await prisma.emailTemplate.update({
-      where: { id },
-      data: updateData,
-    });
+    if (data.isDefault === true) {
+      await prisma.$transaction([
+        prisma.emailTemplate.updateMany({
+          where: { userId, isDefault: true },
+          data: { isDefault: false },
+        }),
+        prisma.emailTemplate.update({ where: { id }, data: updateData }),
+      ]);
+    } else {
+      await prisma.emailTemplate.update({ where: { id }, data: updateData });
+    }
 
     revalidatePath("/templates");
     revalidatePath("/settings");

@@ -83,7 +83,7 @@ export async function pickBestResumeWithTier(
   let candidates = resumes;
   if (job.category) {
     const categoryFiltered = resumes.filter((r) =>
-      r.targetCategories.some(
+      (r.targetCategories ?? []).some(
         (c) => c.toLowerCase() === job.category!.toLowerCase()
       )
     );
@@ -97,13 +97,14 @@ export async function pickBestResumeWithTier(
 
   // ── Tier 2: Skill scoring ──
   const jobText = `${job.title} ${job.description || ""}`.toLowerCase();
-  const jobSkills = job.skills.length > 0
-    ? job.skills.map((s) => s.toLowerCase())
+  const jobSkillsArr = job.skills ?? [];
+  const jobSkills = jobSkillsArr.length > 0
+    ? jobSkillsArr.map((s) => s.toLowerCase())
     : extractSkillsFromContent(jobText).map((s) => s.toLowerCase());
 
   const scored = candidates.map((resume) => {
     const resumeSkillSet = new Set(
-      resume.detectedSkills.map((s) => s.toLowerCase())
+      (resume.detectedSkills ?? []).map((s) => s.toLowerCase())
     );
     const contentSkills = extractSkillsFromContent(resume.content || "");
     for (const cs of contentSkills) resumeSkillSet.add(cs.toLowerCase());
@@ -182,11 +183,11 @@ async function aiTiebreaker(
   const resumeSummaries = candidates
     .map(
       (r, i) =>
-        `Resume ${i + 1}: "${r.name}" — Skills: ${r.detectedSkills.slice(0, 15).join(", ") || "unknown"}. Categories: ${r.targetCategories.join(", ") || "general"}.`
+        `Resume ${i + 1}: "${r.name}" — Skills: ${(r.detectedSkills ?? []).slice(0, 15).join(", ") || "unknown"}. Categories: ${(r.targetCategories ?? []).join(", ") || "general"}.`
     )
     .join("\n");
 
-  const userPrompt = `Job: "${job.title}" at category "${job.category || "general"}".\nRequired skills: ${job.skills.slice(0, 15).join(", ") || "not specified"}.\n\n${resumeSummaries}\n\nBest resume number:`;
+  const userPrompt = `Job: "${job.title}" at category "${job.category || "general"}".\nRequired skills: ${(job.skills ?? []).slice(0, 15).join(", ") || "not specified"}.\n\n${resumeSummaries}\n\nBest resume number:`;
 
   const response = await generateWithGroq(systemPrompt, userPrompt, {
     temperature: 0.1,

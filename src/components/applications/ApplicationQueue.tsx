@@ -89,6 +89,12 @@ const STATUS_CONFIG: Record<
     className:
       "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800",
   },
+  CANCELLED: {
+    label: "Cancelled",
+    variant: "outline",
+    className:
+      "bg-slate-50 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700",
+  },
 };
 
 function StatusBadge({ status }: { status: ApplicationStatus }) {
@@ -670,12 +676,12 @@ function ApplicationList({
           No applications in this tab
         </p>
         <div className="flex items-center justify-center gap-3">
-          <a
+          <Link
             href="/dashboard"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
           >
             Browse Jobs on Dashboard
-          </a>
+          </Link>
         </div>
       </div>
     );

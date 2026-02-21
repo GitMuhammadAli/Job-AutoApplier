@@ -32,13 +32,13 @@ Return ONLY the cover letter text. No JSON. No markdown fences. Just the letter.
 
   const userPrompt = `Job: ${input.job.title} at ${input.job.company}
 Location: ${input.job.location || "Not specified"}
-Skills: ${input.job.skills.join(", ") || "Not listed"}
+Skills: ${(input.job.skills ?? []).join(", ") || "Not listed"}
 Description: ${sanitizeForPrompt(input.job.description || "")}
 
 Candidate: ${input.profile.fullName}
 ${input.profile.experienceLevel ? `Experience: ${input.profile.experienceLevel}` : ""}
-Resume "${input.resume.name}": ${(input.resume.content || "").slice(0, 1500)}
-Skills: ${input.resume.detectedSkills.join(", ") || "Not specified"}
+Resume "${input.resume.name}": ${sanitizeForPrompt((input.resume.content || "").slice(0, 1500))}
+Skills: ${(input.resume.detectedSkills ?? []).join(", ") || "Not specified"}
 
 ${input.settings.customClosing ? `Sign off with: ${input.settings.customClosing}` : ""}
 

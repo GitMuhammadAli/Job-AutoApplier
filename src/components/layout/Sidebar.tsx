@@ -194,7 +194,7 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
           <div className="border-t border-slate-100 dark:border-zinc-800 px-4 py-3">
             <div className="flex items-center gap-2.5">
               {user.image ? (
-                <img src={user.image} alt="" className="h-8 w-8 rounded-full ring-1 ring-slate-200 dark:ring-zinc-700" />
+                <img src={user.image} alt={user.name || "User avatar"} className="h-8 w-8 rounded-full ring-1 ring-slate-200 dark:ring-zinc-700" />
               ) : (
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-violet-500 text-white text-xs font-bold">
                   {(user.name || user.email || "?")[0].toUpperCase()}
@@ -202,7 +202,7 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-slate-700 dark:text-zinc-200 truncate">{user.name || "User"}</p>
-                <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">{user.email}</p>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">{user.email || ""}</p>
               </div>
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}

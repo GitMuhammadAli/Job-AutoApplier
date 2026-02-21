@@ -75,9 +75,9 @@ export async function POST() {
     if (settings.city) cities.add(settings.city);
     if (settings.country) cities.add(settings.country);
 
-    const queries: SearchQuery[] = settings.keywords
+    const queries: SearchQuery[] = (settings.keywords ?? [])
       .slice(0, 8)
-      .map((keyword) => ({
+      .map((keyword: string) => ({
         keyword: keyword.toLowerCase().trim(),
         cities: Array.from(cities),
       }));
@@ -95,9 +95,9 @@ export async function POST() {
     ];
 
     // Filter to user's selected platforms
-    const userPlatforms = settings.preferredPlatforms?.length
+    const userPlatforms = (settings.preferredPlatforms ?? []).length
       ? new Set(
-          settings.preferredPlatforms.map((p: string) =>
+          (settings.preferredPlatforms ?? []).map((p: string) =>
             p.toLowerCase().replace(/\./g, ""),
           ),
         )

@@ -54,6 +54,9 @@ export async function POST(
       );
     }
   } catch (error) {
+    if (error instanceof Error && error.message === "Not authenticated") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("[SendRoute] Error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

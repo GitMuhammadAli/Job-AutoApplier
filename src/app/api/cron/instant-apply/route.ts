@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
       const userId = settings.userId;
       const resumes = await prisma.resume.findMany({
         where: { userId, isDeleted: false },
+        take: 50,
       });
 
       if (resumes.length === 0) continue;

@@ -117,6 +117,15 @@ export async function GET(req: NextRequest) {
       totalMatched += userMatched;
     }
 
+    await prisma.systemLog.create({
+      data: {
+        type: "cron",
+        source: "match-jobs",
+        message: `Matched ${totalMatched} jobs for ${users.length} users from ${recentJobs.length} recent jobs`,
+        metadata: { users: users.length, recentJobs: recentJobs.length, totalMatched },
+      },
+    });
+
     return NextResponse.json({
       success: true,
       users: users.length,

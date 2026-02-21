@@ -37,11 +37,13 @@ export async function GET(req: NextRequest) {
     });
 
     let notified = 0;
+    const startTime = Date.now();
 
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
     for (const user of users) {
+      if (Date.now() - startTime > 50000) break;
       const email = decryptField(user.notificationEmail) || user.user.email;
       if (!email) continue;
 
@@ -101,6 +103,15 @@ export async function GET(req: NextRequest) {
         console.error(`Failed to notify ${email}:`, err);
       }
     }
+
+    await prisma.systemLog.create({
+      data: {
+        type: "cron",
+        source: "notify-matches",
+        message: `Notified ${notified} users about new job matches`,
+        metadata: { usersNotified: notified },
+      },
+    });
 
     return NextResponse.json({ success: true, usersNotified: notified });
   } catch (error) {
