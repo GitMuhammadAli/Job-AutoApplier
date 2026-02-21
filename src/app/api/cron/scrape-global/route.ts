@@ -17,7 +17,7 @@ import { categorizeJob } from "@/lib/job-categorizer";
 import { sendNotificationEmail } from "@/lib/email";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;
@@ -34,6 +34,7 @@ const SCRAPERS: Record<string, ScraperFn> = {
 };
 
 function verifyCronSecret(req: NextRequest): boolean {
+  if (!process.env.CRON_SECRET) return false;
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
     req.headers.get("x-cron-secret") ||
@@ -234,11 +235,14 @@ export async function GET(req: NextRequest) {
 
     if (shouldMatch) {
       try {
-        const matchUrl = new URL("/api/cron/match-all-users", req.nextUrl.origin);
-        await fetch(matchUrl.toString(), {
+        const matchUrl = new URL(
+          "/api/cron/match-all-users",
+          req.nextUrl.origin,
+        );
+        const response = await fetch(matchUrl.toString(), {
           headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
         });
-        matchResult = "triggered";
+        matchResult = response.ok ? "triggered" : `failed: ${response.status}`;
       } catch (e) {
         matchResult = `failed: ${e instanceof Error ? e.message : String(e)}`;
       }
@@ -247,10 +251,10 @@ export async function GET(req: NextRequest) {
     if (shouldSend) {
       try {
         const sendUrl = new URL("/api/cron/send-queued", req.nextUrl.origin);
-        await fetch(sendUrl.toString(), {
+        const response = await fetch(sendUrl.toString(), {
           headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
         });
-        sendResult = "triggered";
+        sendResult = response.ok ? "triggered" : `failed: ${response.status}`;
       } catch (e) {
         sendResult = `failed: ${e instanceof Error ? e.message : String(e)}`;
       }

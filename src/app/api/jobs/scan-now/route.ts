@@ -7,17 +7,29 @@ import { fetchRemotive } from "@/lib/scrapers/remotive";
 import { fetchArbeitnow } from "@/lib/scrapers/arbeitnow";
 import { fetchLinkedIn } from "@/lib/scrapers/linkedin";
 import { fetchRozee } from "@/lib/scrapers/rozee";
-import { computeMatchScore, MATCH_THRESHOLDS } from "@/lib/matching/score-engine";
+import {
+  computeMatchScore,
+  MATCH_THRESHOLDS,
+} from "@/lib/matching/score-engine";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { LIMITS } from "@/lib/constants";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
-
-const COOLDOWN_MS = 5 * 60 * 1000;
+export const maxDuration = 60;
 
 export async function POST() {
   try {
     const userId = await getAuthUserId();
+
+    const rateCheck = checkRateLimit(userId, "scan-now");
+    if (!rateCheck.allowed) {
+      const wait = Math.ceil((rateCheck.retryAfterMs || 60000) / 1000);
+      return NextResponse.json(
+        { error: `Please wait ${wait}s before scanning again.` },
+        { status: 429 },
+      );
+    }
 
     const lastScanLog = await prisma.systemLog.findFirst({
       where: {
@@ -27,13 +39,16 @@ export async function POST() {
       orderBy: { createdAt: "desc" },
     });
 
-    if (lastScanLog && Date.now() - lastScanLog.createdAt.getTime() < COOLDOWN_MS) {
+    if (
+      lastScanLog &&
+      Date.now() - lastScanLog.createdAt.getTime() < LIMITS.SCAN_COOLDOWN_MS
+    ) {
       const wait = Math.ceil(
-        (COOLDOWN_MS - (Date.now() - lastScanLog.createdAt.getTime())) / 1000
+        (LIMITS.SCAN_COOLDOWN_MS - (Date.now() - lastScanLog.createdAt.getTime())) / 1000,
       );
       return NextResponse.json(
         { error: `Please wait ${wait}s before scanning again.` },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -44,7 +59,7 @@ export async function POST() {
     if (!settings?.keywords?.length) {
       return NextResponse.json(
         { error: "Add keywords in settings first." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,7 +83,10 @@ export async function POST() {
       }));
 
     // All free sources — including LinkedIn and Rozee.pk
-    const sources: { name: string; fn: (q: SearchQuery[]) => Promise<ScrapedJob[]> }[] = [
+    const sources: {
+      name: string;
+      fn: (q: SearchQuery[]) => Promise<ScrapedJob[]>;
+    }[] = [
       { name: "indeed", fn: fetchIndeed },
       { name: "remotive", fn: fetchRemotive },
       { name: "arbeitnow", fn: () => fetchArbeitnow() },
@@ -78,7 +96,11 @@ export async function POST() {
 
     // Filter to user's selected platforms
     const userPlatforms = settings.preferredPlatforms?.length
-      ? new Set(settings.preferredPlatforms.map((p: string) => p.toLowerCase().replace(/\./g, "")))
+      ? new Set(
+          settings.preferredPlatforms.map((p: string) =>
+            p.toLowerCase().replace(/\./g, ""),
+          ),
+        )
       : null;
 
     const activeSources = userPlatforms
@@ -98,7 +120,7 @@ export async function POST() {
           console.warn(`[scan-now] ${source.name} failed:`, err);
           return { name: source.name, newCount: 0 };
         }
-      })
+      }),
     );
 
     let totalNew = 0;
@@ -115,12 +137,13 @@ export async function POST() {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const newGlobalJobs = await prisma.globalJob.findMany({
       where: { createdAt: { gte: oneHourAgo } },
-      take: 500,
+      take: LIMITS.MATCH_BATCH,
     });
 
     const existingLinks = await prisma.userJob.findMany({
       where: { userId },
       select: { globalJobId: true },
+      take: LIMITS.EXISTING_JOB_IDS,
     });
     const linkedSet = new Set(existingLinks.map((l) => l.globalJobId));
 
@@ -140,6 +163,7 @@ export async function POST() {
     const userResumes = await prisma.resume.findMany({
       where: { userId, isDeleted: false },
       select: { id: true, name: true, content: true },
+      take: 50,
     });
 
     const toCreate: Array<{
@@ -167,7 +191,7 @@ export async function POST() {
           firstSeenAt: job.firstSeenAt,
         },
         settingsLike,
-        userResumes
+        userResumes,
       );
 
       if (result.score >= MATCH_THRESHOLDS.SHOW_ON_KANBAN) {
@@ -200,6 +224,9 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("[scan-now] Error:", error);
-    return NextResponse.json({ error: "Scan failed. Please try again." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Scan failed. Please try again." },
+      { status: 500 },
+    );
   }
 }

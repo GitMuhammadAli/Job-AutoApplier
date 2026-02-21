@@ -5,10 +5,9 @@ import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { JobStage } from "@prisma/client";
+import { LIMITS } from "@/lib/constants";
 
 // ── Get all user jobs (for Kanban board) ──
-
-const MAX_JOBS_PER_PAGE = 500;
 
 export async function getJobs() {
   try {
@@ -23,12 +22,26 @@ export async function getJobs() {
       include: {
         globalJob: {
           select: {
-            id: true, title: true, company: true, location: true,
-            salary: true, jobType: true, experienceLevel: true,
-            category: true, skills: true, source: true, applyUrl: true,
-            sourceUrl: true, companyUrl: true, companyEmail: true,
-            description: true, isFresh: true, isActive: true,
-            createdAt: true, lastSeenAt: true, firstSeenAt: true,
+            id: true,
+            title: true,
+            company: true,
+            location: true,
+            salary: true,
+            jobType: true,
+            experienceLevel: true,
+            category: true,
+            skills: true,
+            source: true,
+            applyUrl: true,
+            sourceUrl: true,
+            companyUrl: true,
+            companyEmail: true,
+            description: true,
+            isFresh: true,
+            isActive: true,
+            createdAt: true,
+            lastSeenAt: true,
+            firstSeenAt: true,
           },
         },
         application: {
@@ -36,7 +49,7 @@ export async function getJobs() {
         },
       },
       orderBy: { matchScore: "desc" },
-      take: MAX_JOBS_PER_PAGE,
+      take: LIMITS.JOBS_PER_PAGE,
     });
 
     return userJobs;
@@ -67,7 +80,8 @@ export async function getJobById(id: string) {
     if (!userJob) throw new Error("Job not found");
     return userJob;
   } catch (error) {
-    if (error instanceof Error && error.message === "Job not found") throw error;
+    if (error instanceof Error && error.message === "Job not found")
+      throw error;
     console.error("[getJobById]", error);
     throw new Error("Failed to load job details");
   }
@@ -78,15 +92,15 @@ export async function getJobById(id: string) {
 export async function updateStage(
   userJobId: string,
   newStage: JobStage,
-  oldStage: JobStage
-) {
+  oldStage: JobStage,
+): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
 
     const userJob = await prisma.userJob.findFirst({
       where: { id: userJobId, userId },
     });
-    if (!userJob) throw new Error("Job not found");
+    if (!userJob) return { success: false, error: "Job not found" };
 
     await prisma.$transaction([
       prisma.userJob.update({
@@ -104,23 +118,23 @@ export async function updateStage(
     ]);
 
     revalidatePath("/");
+    return { success: true };
   } catch (error) {
-    if (error instanceof Error && error.message === "Job not found") throw error;
-    console.error("[updateStage]", error);
-    throw new Error("Failed to update job stage");
+    console.error("[updateStage] Error:", error);
+    return { success: false, error: "Failed to update job stage" };
   }
 }
 
 // ── Dismiss job ──
 
-export async function dismissJob(userJobId: string, reason?: string) {
+export async function dismissJob(userJobId: string, reason?: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
 
     const userJob = await prisma.userJob.findFirst({
       where: { id: userJobId, userId },
     });
-    if (!userJob) throw new Error("Job not found");
+    if (!userJob) return { success: false, error: "Job not found" };
 
     await prisma.$transaction([
       prisma.userJob.update({
@@ -138,25 +152,26 @@ export async function dismissJob(userJobId: string, reason?: string) {
     ]);
 
     revalidatePath("/");
+    return { success: true };
   } catch (error) {
-    if (error instanceof Error && error.message === "Job not found") throw error;
-    console.error("[dismissJob]", error);
-    throw new Error("Failed to dismiss job");
+    console.error("[dismissJob] Error:", error);
+    return { success: false, error: "Failed to dismiss job" };
   }
 }
 
 // ── Add note ──
 
-export async function addNote(userJobId: string, note: string) {
+export async function addNote(userJobId: string, note: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
 
-    if (!note || note.length > 10000) throw new Error("Note must be 1-10,000 characters");
+    if (!note || note.length > 10000)
+      return { success: false, error: "Note must be 1-10,000 characters" };
 
     const userJob = await prisma.userJob.findFirst({
       where: { id: userJobId, userId },
     });
-    if (!userJob) throw new Error("Job not found");
+    if (!userJob) return { success: false, error: "Job not found" };
 
     await prisma.$transaction([
       prisma.userJob.update({
@@ -174,23 +189,23 @@ export async function addNote(userJobId: string, note: string) {
     ]);
 
     revalidatePath(`/jobs/${userJobId}`);
+    return { success: true };
   } catch (error) {
-    if (error instanceof Error && (error.message === "Job not found" || error.message.includes("Note must be"))) throw error;
-    console.error("[addNote]", error);
-    throw new Error("Failed to save note");
+    console.error("[addNote] Error:", error);
+    return { success: false, error: "Failed to save note" };
   }
 }
 
 // ── Toggle bookmark ──
 
-export async function toggleBookmark(userJobId: string) {
+export async function toggleBookmark(userJobId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
 
     const userJob = await prisma.userJob.findFirst({
       where: { id: userJobId, userId },
     });
-    if (!userJob) throw new Error("Job not found");
+    if (!userJob) return { success: false, error: "Job not found" };
 
     await prisma.userJob.update({
       where: { id: userJobId },
@@ -198,10 +213,10 @@ export async function toggleBookmark(userJobId: string) {
     });
 
     revalidatePath("/");
+    return { success: true };
   } catch (error) {
-    if (error instanceof Error && error.message === "Job not found") throw error;
-    console.error("[toggleBookmark]", error);
-    throw new Error("Failed to toggle bookmark");
+    console.error("[toggleBookmark] Error:", error);
+    return { success: false, error: "Failed to toggle bookmark" };
   }
 }
 
@@ -219,10 +234,13 @@ const createJobSchema = z.object({
 });
 
 function normalizeForMatch(str: string): string {
-  return str.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
 }
 
-export async function createManualJob(rawData: unknown) {
+export async function createManualJob(rawData: unknown): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
     const data = createJobSchema.parse(rawData);
@@ -230,7 +248,6 @@ export async function createManualJob(rawData: unknown) {
     const normTitle = normalizeForMatch(data.title);
     const normCompany = normalizeForMatch(data.company);
 
-    // Fuzzy duplicate check: look for existing GlobalJob with same normalized title+company
     const candidates = await prisma.globalJob.findMany({
       where: {
         company: { contains: data.company.split(" ")[0], mode: "insensitive" },
@@ -245,13 +262,12 @@ export async function createManualJob(rawData: unknown) {
       return ct === normTitle && cc === normCompany;
     });
 
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       let globalJobId: string;
 
       if (existingMatch) {
         globalJobId = existingMatch.id;
 
-        // Check if user already has this job linked
         const existingLink = await tx.userJob.findFirst({
           where: { userId, globalJobId },
         });
@@ -299,17 +315,16 @@ export async function createManualJob(rawData: unknown) {
             : "Job manually added",
         },
       });
-
-      return userJob;
     });
 
     revalidatePath("/");
-    return result;
+    return { success: true };
   } catch (error) {
-    if (error instanceof Error && error.message === "You already have this job in your board.") throw error;
-    if (error instanceof z.ZodError) throw new Error(error.errors[0].message);
+    if (error instanceof Error && error.message === "You already have this job in your board.")
+      return { success: false, error: error.message };
+    if (error instanceof z.ZodError) return { success: false, error: error.errors[0].message };
     console.error("[createManualJob] Error:", error);
-    throw new Error("Failed to add job. Please try again.");
+    return { success: false, error: "Failed to add job. Please try again." };
   }
 }
 
@@ -321,9 +336,10 @@ export async function getResumes() {
     return prisma.resume.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
+      take: LIMITS.RESUMES_PER_PAGE,
     });
   } catch (error) {
-    console.error("[getResumes]", error);
+    console.error("[getResumes] Error:", error);
     throw new Error("Failed to load resumes");
   }
 }

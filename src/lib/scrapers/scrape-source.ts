@@ -2,6 +2,21 @@ import { prisma } from "@/lib/prisma";
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { categorizeJob } from "@/lib/job-categorizer";
 
+function sanitizeScrapedText(text: string | null): string | null {
+  if (!text) return text;
+  return text
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function scrapeAndUpsert(
   sourceName: string,
   scraperFn: (queries: SearchQuery[]) => Promise<ScrapedJob[]>,
@@ -14,6 +29,10 @@ export async function scrapeAndUpsert(
 
   for (const job of jobs) {
     try {
+      job.description = sanitizeScrapedText(job.description);
+      job.title = sanitizeScrapedText(job.title) || job.title;
+      job.company = sanitizeScrapedText(job.company) || job.company;
+
       if (!job.category) {
         job.category = categorizeJob(job.title, job.skills || [], job.description || "");
       }

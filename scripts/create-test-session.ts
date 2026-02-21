@@ -31,4 +31,6 @@ async function main() {
   console.log("Cookie: next-auth.session-token =", SESSION_TOKEN);
 }
 
-main().catch(console.error).finally(() => process.exit(0));
+main()
+  .catch(console.error)
+  .finally(() => process.exit(0));

@@ -24,12 +24,15 @@ const BOUNCE_EVENTS = new Set([
 
 function verifyBrevoSignature(req: NextRequest, rawBody: string): boolean {
   const webhookSecret = process.env.BREVO_WEBHOOK_SECRET;
-  if (!webhookSecret) return true; // skip verification if secret not configured
+  if (!webhookSecret) return false; // reject when secret not configured
 
-  const signature = req.headers.get("x-brevo-signature") || req.headers.get("x-sib-signature");
+  const signature =
+    req.headers.get("x-brevo-signature") || req.headers.get("x-sib-signature");
   if (!signature) return false;
 
-  const expected = createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
+  const expected = createHmac("sha256", webhookSecret)
+    .update(rawBody)
+    .digest("hex");
   return signature.toLowerCase() === expected.toLowerCase();
 }
 
@@ -88,14 +91,16 @@ export async function POST(req: NextRequest) {
 
       // Send bounce notification to user
       const settings = decryptSettingsFields(
-        await prisma.userSettings.findUnique({ where: { userId: application.userId } })
+        await prisma.userSettings.findUnique({
+          where: { userId: application.userId },
+        }),
       );
       if (settings?.emailNotifications) {
         try {
           const template = bounceAlertTemplate(
             settings.fullName || "there",
             email,
-            reason
+            reason,
           );
 
           const transporter = getSystemTransporter();

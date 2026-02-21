@@ -23,7 +23,9 @@ const TIME_FILTERS = [
   { param: "r604800", label: "7d" },
 ];
 
-export async function fetchLinkedIn(queries: SearchQuery[]): Promise<ScrapedJob[]> {
+export async function fetchLinkedIn(
+  queries: SearchQuery[],
+): Promise<ScrapedJob[]> {
   const jobs: ScrapedJob[] = [];
   const seenIds = new Set<string>();
 
@@ -37,17 +39,30 @@ export async function fetchLinkedIn(queries: SearchQuery[]): Promise<ScrapedJob[
         try {
           const keyword = encodeURIComponent(q.keyword);
           const location = encodeURIComponent(city);
-          const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+          const ua =
+            USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 
           // Fetch first page
-          const page1 = await fetchLinkedInPage(keyword, location, 0, timeFilter.param, ua);
+          const page1 = await fetchLinkedInPage(
+            keyword,
+            location,
+            0,
+            timeFilter.param,
+            ua,
+          );
           const parsed1 = parseLinkedInHtml(page1, city, seenIds);
           jobs.push(...parsed1);
 
           // If first page returned results, try page 2
           if (parsed1.length >= 10) {
             await sleep(500 + Math.random() * 1000);
-            const page2 = await fetchLinkedInPage(keyword, location, 25, timeFilter.param, ua);
+            const page2 = await fetchLinkedInPage(
+              keyword,
+              location,
+              25,
+              timeFilter.param,
+              ua,
+            );
             const parsed2 = parseLinkedInHtml(page2, city, seenIds);
             jobs.push(...parsed2);
           }
@@ -55,7 +70,10 @@ export async function fetchLinkedIn(queries: SearchQuery[]): Promise<ScrapedJob[
           // Only use 24h filter if it returned results; skip 7d for this keyword+city
           if (parsed1.length > 0 && timeFilter.label === "24h") break;
         } catch (err) {
-          console.warn(`[LinkedIn] Failed for "${q.keyword}" in "${city}" (${timeFilter.label}):`, err);
+          console.warn(
+            `[LinkedIn] Failed for "${q.keyword}" in "${city}" (${timeFilter.label}):`,
+            err,
+          );
         }
       }
       // Small delay between cities to avoid rate limiting
@@ -63,7 +81,7 @@ export async function fetchLinkedIn(queries: SearchQuery[]): Promise<ScrapedJob[
     }
   }
 
-  console.log(`[LinkedIn] Total scraped: ${jobs.length} jobs`);
+  console.error(`[LinkedIn] Total scraped: ${jobs.length} jobs`);
   return jobs;
 }
 
@@ -134,14 +152,18 @@ function parseLinkedInHtml(
     if (!title || !company) continue;
 
     const jobIdMatch = link?.match(/\/view\/(\d+)/);
-    const jobId = jobIdMatch ? jobIdMatch[1] : `li-${Date.now()}-${Math.random()}`;
+    const jobId = jobIdMatch
+      ? jobIdMatch[1]
+      : `li-${Date.now()}-${Math.random()}`;
 
     if (seenIds.has(jobId)) continue;
     seenIds.add(jobId);
 
     // Try to extract any snippet text that might serve as a description
-    const snippet = extractAttr(card, "job-search-card__snippet") ||
-      extractAttr(card, "base-search-card__snippet") || null;
+    const snippet =
+      extractAttr(card, "job-search-card__snippet") ||
+      extractAttr(card, "base-search-card__snippet") ||
+      null;
 
     jobs.push({
       title: cleanText(title),
@@ -167,7 +189,10 @@ function parseLinkedInHtml(
 }
 
 function extractAttr(html: string, className: string): string | null {
-  const regex = new RegExp(`class="[^"]*${className}[^"]*"[^>]*>([\\s\\S]*?)<\\/`, "i");
+  const regex = new RegExp(
+    `class="[^"]*${className}[^"]*"[^>]*>([\\s\\S]*?)<\\/`,
+    "i",
+  );
   const match = html.match(regex);
   return match ? match[1].replace(/<[^>]*>/g, "").trim() : null;
 }
@@ -179,13 +204,17 @@ function extractTagContent(html: string, tag: string): string | null {
 }
 
 function extractHiddenSubtitle(html: string): string | null {
-  const match = html.match(/class="[^"]*hidden-nested-link[^"]*"[^>]*>[\s\S]*?<\/a>/i);
+  const match = html.match(
+    /class="[^"]*hidden-nested-link[^"]*"[^>]*>[\s\S]*?<\/a>/i,
+  );
   if (!match) return null;
   return match[0].replace(/<[^>]*>/g, "").trim() || null;
 }
 
 function extractHref(html: string): string | null {
-  const match = html.match(/href="(https:\/\/[^"]*linkedin\.com\/jobs\/view\/[^"]*)"/);
+  const match = html.match(
+    /href="(https:\/\/[^"]*linkedin\.com\/jobs\/view\/[^"]*)"/,
+  );
   if (!match) return null;
   try {
     const url = new URL(match[1]);
@@ -206,7 +235,10 @@ function extractSalary(html: string): string | null {
 }
 
 function cleanText(text: string): string {
-  return text.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+  return text
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function sleep(ms: number): Promise<void> {

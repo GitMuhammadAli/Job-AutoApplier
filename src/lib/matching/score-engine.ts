@@ -181,9 +181,15 @@ export function computeMatchScore(
   let score = 0;
 
   // Factor 1: KEYWORD MATCH (0-30 points)
+  // Specificity penalty: too many keywords dilute match quality
   if (matchedKeywords.length > 0) {
     const keywordRatio = matchedKeywords.length / userKeywords.length;
-    score += Math.round(keywordRatio * 30);
+    let keywordScore = Math.round(keywordRatio * 30);
+    if (userKeywords.length > 10) {
+      const penaltyFactor = Math.max(0.7, 1 - (userKeywords.length - 10) * 0.03);
+      keywordScore = Math.round(keywordScore * penaltyFactor);
+    }
+    score += keywordScore;
     reasons.push(`Keywords: ${matchedKeywords.slice(0, 5).join(", ")} (${matchedKeywords.length}/${userKeywords.length})`);
   }
 

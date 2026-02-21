@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendJobMatchNotification } from "@/lib/email/notifications";
-import { checkNotificationLimit, recordNotification } from "@/lib/notification-limiter";
+import {
+  checkNotificationLimit,
+  recordNotification,
+} from "@/lib/notification-limiter";
 import { decryptField } from "@/lib/encryption";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 function verifyCronSecret(req: NextRequest): boolean {
+  if (!process.env.CRON_SECRET) return false;
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
     req.headers.get("x-cron-secret") ||
@@ -86,9 +90,12 @@ export async function GET(req: NextRequest) {
         await sendJobMatchNotification(
           email,
           jobNotifications,
-          decryptField(user.fullName) || user.user.name || "there"
+          decryptField(user.fullName) || user.user.name || "there",
         );
-        await recordNotification(user.userId, `Sent ${newJobs.length} job match notification to ${email}`);
+        await recordNotification(
+          user.userId,
+          `Sent ${newJobs.length} job match notification to ${email}`,
+        );
         notified++;
       } catch (err) {
         console.error(`Failed to notify ${email}:`, err);
@@ -98,6 +105,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, usersNotified: notified });
   } catch (error) {
     console.error("Notify matches error:", error);
-    return NextResponse.json({ error: "Notification failed", details: String(error) }, { status: 500 });
+    return NextResponse.json(
+      { error: "Notification failed", details: String(error) },
+      { status: 500 },
+    );
   }
 }

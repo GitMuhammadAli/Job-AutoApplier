@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { computeMatchScore, MATCH_THRESHOLDS } from "@/lib/matching/score-engine";
+import {
+  computeMatchScore,
+  MATCH_THRESHOLDS,
+} from "@/lib/matching/score-engine";
 import { sendEmail } from "@/lib/email/sender";
 import { newJobsNotificationTemplate } from "@/lib/email-templates";
 import { decryptSettingsFields } from "@/lib/encryption";
+import { LIMITS, TIMEOUTS } from "@/lib/constants";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 function verifyCronSecret(req: NextRequest): boolean {
+  if (!process.env.CRON_SECRET) return false;
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
     req.headers.get("x-cron-secret") ||
@@ -16,14 +21,12 @@ function verifyCronSecret(req: NextRequest): boolean {
   return secret === process.env.CRON_SECRET;
 }
 
-/**
- * Runs 3x daily for all users.
- * Matches non-fresh GlobalJobs (fresh ones are handled by instant-apply) to users.
- */
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const startTime = Date.now();
 
   try {
     const users = await prisma.userSettings.findMany({
@@ -43,16 +46,21 @@ export async function GET(req: NextRequest) {
         isFresh: false,
         createdAt: { gte: threeDaysAgo },
       },
-      take: 500,
+      take: LIMITS.MATCH_BATCH,
     });
 
     if (unmatchedJobs.length === 0) {
-      return NextResponse.json({ message: "No recent jobs to match", matched: 0 });
+      return NextResponse.json({
+        message: "No recent jobs to match",
+        matched: 0,
+      });
     }
 
     const results: { userId: string; matched: number }[] = [];
 
     for (const rawSettings of users) {
+      if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
+
       const settings = decryptSettingsFields(rawSettings);
       const userId = settings.userId;
       const resumes = await prisma.resume.findMany({
@@ -61,18 +69,25 @@ export async function GET(req: NextRequest) {
       });
 
       const existingJobIds = new Set(
-        (await prisma.userJob.findMany({
-          where: { userId },
-          select: { globalJobId: true },
-          take: 10000,
-        })).map((j) => j.globalJobId)
+        (
+          await prisma.userJob.findMany({
+            where: { userId },
+            select: { globalJobId: true },
+            take: LIMITS.EXISTING_JOB_IDS,
+          })
+        ).map((j) => j.globalJobId),
       );
 
       let matched = 0;
       const matchedJobDetails: Array<{
-        title: string; company: string; location: string | null;
-        salary: string | null; matchScore: number; applyUrl: string | null;
-        source: string; matchReasons: string[];
+        title: string;
+        company: string;
+        location: string | null;
+        salary: string | null;
+        matchScore: number;
+        applyUrl: string | null;
+        source: string;
+        matchReasons: string[];
       }> = [];
 
       for (const job of unmatchedJobs) {
@@ -93,10 +108,14 @@ export async function GET(req: NextRequest) {
           });
           matched++;
           matchedJobDetails.push({
-            title: job.title, company: job.company,
-            location: job.location, salary: job.salary,
-            matchScore: match.score, applyUrl: job.applyUrl,
-            source: job.source, matchReasons: match.reasons,
+            title: job.title,
+            company: job.company,
+            location: job.location,
+            salary: job.salary,
+            matchScore: match.score,
+            applyUrl: job.applyUrl,
+            source: job.source,
+            matchReasons: match.reasons,
           });
         } catch {
           // Duplicate constraint
@@ -110,7 +129,7 @@ export async function GET(req: NextRequest) {
           try {
             const { subject, html } = newJobsNotificationTemplate(
               settings.user.name || "there",
-              goodMatches.slice(0, 20),
+              goodMatches.slice(0, LIMITS.NOTIFICATION_JOBS),
             );
             await sendEmail({
               from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
@@ -135,10 +154,10 @@ export async function GET(req: NextRequest) {
       perUser: results,
     });
   } catch (error) {
-    console.error("Match all users error:", error);
+    console.error("[MatchAllUsers] Error:", error);
     return NextResponse.json(
       { error: "Match failed", details: String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

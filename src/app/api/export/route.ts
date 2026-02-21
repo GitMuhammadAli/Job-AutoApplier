@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decryptSettingsFields } from "@/lib/encryption";
+import { LIMITS } from "@/lib/constants";
 import JSZip from "jszip";
 
 export const dynamic = "force-dynamic";
@@ -24,13 +25,14 @@ export async function GET() {
         prisma.userJob.findMany({
           where: { userId },
           include: { globalJob: true },
+          take: LIMITS.EXPORT_JOBS,
         }),
-        prisma.jobApplication.findMany({ where: { userId } }),
-        prisma.resume.findMany({ where: { userId } }),
+        prisma.jobApplication.findMany({ where: { userId }, take: LIMITS.EXPORT_APPLICATIONS }),
+        prisma.resume.findMany({ where: { userId }, take: LIMITS.EXPORT_RESUMES }),
         prisma.activity.findMany({
           where: { userId },
           orderBy: { createdAt: "desc" },
-          take: 1000,
+          take: LIMITS.ANALYTICS_MAX_ROWS,
         }),
         prisma.emailTemplate.findMany({ where: { userId } }),
       ]);
@@ -56,9 +58,9 @@ export async function GET() {
           String(j.matchScore || 0),
           escapeCsv(j.stage),
           escapeCsv(j.globalJob.category || ""),
-          escapeCsv(j.globalJob.skills.join("; ")),
+          escapeCsv((j.globalJob.skills ?? []).join("; ")),
           j.createdAt.toISOString(),
-        ].join(",")
+        ].join(","),
       ),
     ].join("\n");
     zip.file("jobs.csv", jobsCsv);
@@ -74,7 +76,7 @@ export async function GET() {
           escapeCsv(a.appliedVia || ""),
           a.sentAt?.toISOString() || "",
           a.createdAt.toISOString(),
-        ].join(",")
+        ].join(","),
       ),
     ].join("\n");
     zip.file("applications.csv", appsCsv);
@@ -86,12 +88,12 @@ export async function GET() {
         [
           escapeCsv(r.name),
           escapeCsv(r.fileName || ""),
-          escapeCsv(r.targetCategories.join("; ")),
-          escapeCsv(r.detectedSkills.join("; ")),
+          escapeCsv((r.targetCategories ?? []).join("; ")),
+          escapeCsv((r.detectedSkills ?? []).join("; ")),
           escapeCsv(r.textQuality || ""),
           String(r.isDefault),
           r.createdAt.toISOString(),
-        ].join(",")
+        ].join(","),
       ),
     ].join("\n");
     zip.file("resumes.csv", resumesCsv);
@@ -104,7 +106,7 @@ export async function GET() {
           escapeCsv(a.type),
           escapeCsv(a.description || ""),
           a.createdAt.toISOString(),
-        ].join(",")
+        ].join(","),
       ),
     ].join("\n");
     zip.file("activity_log.csv", activityCsv);
@@ -114,17 +116,12 @@ export async function GET() {
 
     // Download resume files from Blob
     const resumeFolder = zip.folder("resume_files");
-    for (const resume of resumes.filter(
-      (r) => !r.isDeleted && r.fileUrl
-    )) {
+    for (const resume of resumes.filter((r) => !r.isDeleted && r.fileUrl)) {
       try {
         const response = await fetch(resume.fileUrl!);
         if (response.ok) {
           const buffer = await response.arrayBuffer();
-          resumeFolder!.file(
-            resume.fileName || `${resume.name}.pdf`,
-            buffer
-          );
+          resumeFolder!.file(resume.fileName || `${resume.name}.pdf`, buffer);
         }
       } catch {
         // Skip failed downloads
@@ -142,9 +139,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[Export] Error:", error);
-    return NextResponse.json(
-      { error: "Export failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Export failed" }, { status: 500 });
   }
 }

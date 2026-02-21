@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateWithGroq } from "@/lib/groq";
+import { LIMITS, TIMEOUTS } from "@/lib/constants";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 function verifyCronSecret(req: NextRequest): boolean {
+  if (!process.env.CRON_SECRET) return false;
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
     req.headers.get("x-cron-secret") ||
@@ -17,6 +19,8 @@ export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const startTime = Date.now();
 
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -31,7 +35,7 @@ export async function GET(req: NextRequest) {
           { lastFollowUpAt: { lte: sevenDaysAgo } },
         ],
       },
-      take: 200,
+      take: LIMITS.FOLLOW_UP_BATCH,
       include: {
         globalJob: true,
         application: true,
@@ -42,6 +46,8 @@ export async function GET(req: NextRequest) {
     let generated = 0;
 
     for (const userJob of candidates) {
+      if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
+
       if (
         !userJob.user.settings ||
         userJob.user.settings.accountStatus !== "active"
@@ -66,17 +72,22 @@ Applied: ${userJob.application.sentAt?.toISOString() || "recently"}
 Original subject: ${userJob.application.subject}
 
 Write a brief, warm follow-up checking on the status.`,
-          { temperature: 0.6, max_tokens: 300 }
+          { temperature: 0.6, max_tokens: 300 },
         );
 
         const cleaned = followUp
           .replace(/```json\n?/g, "")
           .replace(/```/g, "")
           .trim();
-        const parsed = JSON.parse(cleaned) as {
-          subject: string;
-          body: string;
-        };
+        let parsed: { subject: string; body: string };
+        try {
+          parsed = JSON.parse(cleaned) as { subject: string; body: string };
+        } catch {
+          console.warn(
+            `[FollowUp] JSON parse failed for job ${userJob.id}, skipping`,
+          );
+          continue;
+        }
 
         await prisma.jobApplication.update({
           where: { id: userJob.application.id },
@@ -107,10 +118,7 @@ Write a brief, warm follow-up checking on the status.`,
 
         generated++;
       } catch (err) {
-        console.error(
-          `[FollowUp] Error for job ${userJob.id}:`,
-          err
-        );
+        console.error(`[FollowUp] Error for job ${userJob.id}:`, err);
       }
     }
 
@@ -127,10 +135,10 @@ Write a brief, warm follow-up checking on the status.`,
       generated,
     });
   } catch (error) {
-    console.error("Check follow-ups cron error:", error);
+    console.error("[CheckFollowUps] Cron error:", error);
     return NextResponse.json(
       { error: "Check follow-ups failed", details: String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

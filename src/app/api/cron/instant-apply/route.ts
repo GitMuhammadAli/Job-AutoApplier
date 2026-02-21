@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { computeMatchScore, MATCH_THRESHOLDS } from "@/lib/matching/score-engine";
+import {
+  computeMatchScore,
+  MATCH_THRESHOLDS,
+} from "@/lib/matching/score-engine";
 import { pickBestResume } from "@/lib/matching/resume-matcher";
 import { findCompanyEmail } from "@/lib/email-extractor";
 import { isDuplicateApplication } from "@/lib/duplicate-checker";
@@ -10,11 +13,13 @@ import { decryptSettingsFields } from "@/lib/encryption";
 import { generateWithGroq } from "@/lib/groq";
 import { acquireLock, releaseLock, isLockHeld } from "@/lib/system-lock";
 import { canSendNow } from "@/lib/send-limiter";
+import { LIMITS, TIMEOUTS } from "@/lib/constants";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 function verifyCronSecret(req: NextRequest): boolean {
+  if (!process.env.CRON_SECRET) return false;
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
     req.headers.get("x-cron-secret") ||
@@ -40,9 +45,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const startTime = Date.now();
+
     const freshJobs = await prisma.globalJob.findMany({
       where: { isFresh: true, isActive: true },
-      take: 500,
+      take: LIMITS.MATCH_BATCH,
     });
 
     if (freshJobs.length === 0) {
@@ -57,6 +64,7 @@ export async function GET(req: NextRequest) {
         keywords: { isEmpty: false },
       },
       include: { user: { select: { id: true, name: true, email: true } } },
+      take: LIMITS.USERS_BATCH,
     });
 
     const stats = {
@@ -77,13 +85,16 @@ export async function GET(req: NextRequest) {
 
       if (resumes.length === 0) continue;
 
+      if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
+
       const existingJobIds = new Set(
         (
           await prisma.userJob.findMany({
             where: { userId },
             select: { globalJobId: true },
+            take: LIMITS.EXISTING_JOB_IDS,
           })
-        ).map((j) => j.globalJobId)
+        ).map((j) => j.globalJobId),
       );
 
       const isFullAuto =
@@ -156,7 +167,7 @@ export async function GET(req: NextRequest) {
           const emailContent = await generateInstantEmail(
             freshJob,
             settings,
-            bestResume
+            bestResume,
           );
           const senderEmail =
             settings.applicationEmail || settings.user.email || "";
@@ -169,8 +180,7 @@ export async function GET(req: NextRequest) {
             appStatus = "DRAFT";
           } else if (isFullAuto && !isOutsidePeakHours) {
             if (
-              match.score >=
-                (settings.minMatchScoreForAutoApply || 75) &&
+              match.score >= (settings.minMatchScoreForAutoApply || 75) &&
               (emailResult.confidence === "HIGH" ||
                 emailResult.confidence === "MEDIUM")
             ) {
@@ -183,8 +193,7 @@ export async function GET(req: NextRequest) {
               } else if ((settings.instantApplyDelay || 0) > 0) {
                 appStatus = "READY";
                 scheduledSendAt = new Date(
-                  Date.now() +
-                    (settings.instantApplyDelay || 5) * 60 * 1000
+                  Date.now() + (settings.instantApplyDelay || 5) * 60 * 1000,
                 );
               } else {
                 appStatus = "READY";
@@ -213,18 +222,14 @@ export async function GET(req: NextRequest) {
           stats.drafted++;
 
           // Attempt immediate send for FULL_AUTO + instant + no delay
-          if (
-            appStatus === "READY" &&
-            !scheduledSendAt &&
-            isFullAuto
-          ) {
+          if (appStatus === "READY" && !scheduledSendAt && isFullAuto) {
             const limitCheck = await canSendNow(userId);
             if (limitCheck.allowed) {
               const sendResult = await sendApplication(application.id);
               if (sendResult.success) {
                 appliedCount++;
                 stats.sent++;
-                await new Promise((r) => setTimeout(r, 1500));
+                await new Promise((r) => setTimeout(r, TIMEOUTS.INSTANT_APPLY_DELAY_MS));
               }
             }
           }
@@ -243,7 +248,7 @@ export async function GET(req: NextRequest) {
         } catch (err) {
           console.error(
             `[InstantApply] Error processing job ${freshJob.id} for user ${userId}:`,
-            err
+            err,
           );
         }
       }
@@ -255,11 +260,10 @@ export async function GET(req: NextRequest) {
       ) {
         const shouldNotify = await checkNotificationLimit(
           userId,
-          settings.notificationFrequency
+          settings.notificationFrequency,
         );
         if (shouldNotify) {
-          const notifEmail =
-            settings.notificationEmail || settings.user.email;
+          const notifEmail = settings.notificationEmail || settings.user.email;
           if (notifEmail) {
             try {
               await sendNotificationEmail({
@@ -269,7 +273,7 @@ export async function GET(req: NextRequest) {
                 html: buildNotificationHTML(
                   settings.user.name || "there",
                   appliedCount,
-                  draftedCount
+                  draftedCount,
                 ),
               });
             } catch {}
@@ -301,14 +305,14 @@ export async function GET(req: NextRequest) {
     console.error("Instant apply error:", error);
     return NextResponse.json(
       { error: "Instant apply failed", details: String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 async function checkNotificationLimit(
   userId: string,
-  frequency: string | null
+  frequency: string | null,
 ): Promise<boolean> {
   const freq = frequency || "hourly";
   if (freq === "off") return false;
@@ -387,7 +391,7 @@ async function generateInstantEmail(
     portfolioUrl: string | null;
     user: { name: string | null };
   },
-  bestResume: { content: string | null } | null
+  bestResume: { content: string | null } | null,
 ): Promise<{ subject: string; body: string; coverLetter: string | null }> {
   const tone = settings.preferredTone || "professional";
   const lang = settings.emailLanguage || "English";
@@ -444,9 +448,7 @@ Resume: ${bestResume?.content?.substring(0, 1000) || "Not available"}`;
 
   let parsed: { subject: string; body: string };
   try {
-    parsed = JSON.parse(
-      response.replace(/```json\n?|\n?```/g, "").trim()
-    );
+    parsed = JSON.parse(response.replace(/```json\n?|\n?```/g, "").trim());
   } catch {
     parsed = {
       subject: `Application for ${job.title} at ${job.company}`,
@@ -462,11 +464,11 @@ Resume: ${bestResume?.content?.substring(0, 1000) || "Not available"}`;
   };
   parsed.subject = parsed.subject.replace(
     /\{\{(\w+)\}\}/g,
-    (_, k: string) => replacements[k] || `{{${k}}}`
+    (_, k: string) => replacements[k] || `{{${k}}}`,
   );
   parsed.body = parsed.body.replace(
     /\{\{(\w+)\}\}/g,
-    (_, k: string) => replacements[k] || `{{${k}}}`
+    (_, k: string) => replacements[k] || `{{${k}}}`,
   );
 
   let coverLetter: string | null = null;
@@ -474,7 +476,7 @@ Resume: ${bestResume?.content?.substring(0, 1000) || "Not available"}`;
     coverLetter = await generateWithGroq(
       "Write a concise cover letter (200 words max). Return ONLY the cover letter text, no JSON.",
       `Job: ${job.title} at ${job.company}. Skills: ${job.skills?.join(", ")}.\nCandidate: ${settings.fullName}, ${settings.keywords?.join(", ")}.\nResume: ${bestResume?.content?.substring(0, 500) || "N/A"}`,
-      { temperature: 0.7, max_tokens: 400 }
+      { temperature: 0.7, max_tokens: 400 },
     );
   } catch {}
 
@@ -484,10 +486,12 @@ Resume: ${bestResume?.content?.substring(0, 1000) || "Not available"}`;
 function buildNotificationHTML(
   name: string,
   applied: number,
-  drafted: number
+  drafted: number,
 ): string {
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://jobpilot.vercel.app";
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXTAUTH_URL ||
+    "https://jobpilot.vercel.app";
   return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
     <h1 style="font-size:22px;color:#1e293b;">Hi ${name}!</h1>
     ${applied > 0 ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;margin:12px 0;color:#166534;"><strong>${applied} applications sent instantly</strong></div>` : ""}

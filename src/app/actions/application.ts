@@ -5,8 +5,7 @@ import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { decryptSettingsFields } from "@/lib/encryption";
 import { z } from "zod";
-
-const MAX_APPLICATIONS_PER_PAGE = 500;
+import { LIMITS } from "@/lib/constants";
 
 const emailSchema = z.string().email("Invalid email address");
 
@@ -20,14 +19,19 @@ export async function getApplications() {
         userJob: {
           include: {
             globalJob: {
-              select: { title: true, company: true, source: true, applyUrl: true },
+              select: {
+                title: true,
+                company: true,
+                source: true,
+                applyUrl: true,
+              },
             },
           },
         },
         resume: { select: { name: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: MAX_APPLICATIONS_PER_PAGE,
+      take: LIMITS.APPLICATIONS_PER_PAGE,
     });
 
     return applications;
@@ -66,7 +70,7 @@ export async function prepareApplication(
     coverLetter?: string;
     resumeId?: string;
     templateId?: string;
-  }
+  },
 ) {
   try {
     const userId = await getAuthUserId();
@@ -74,6 +78,12 @@ export async function prepareApplication(
     emailSchema.parse(data.recipientEmail);
     if (!data.subject?.trim()) throw new Error("Subject is required");
     if (!data.emailBody?.trim()) throw new Error("Email body is required");
+    if (data.subject.length > 500)
+      throw new Error("Subject must be 500 characters or less");
+    if (data.emailBody.length > 100_000)
+      throw new Error("Email body must be 100,000 characters or less");
+    if (data.coverLetter !== undefined && data.coverLetter.length > 100_000)
+      throw new Error("Cover letter must be 100,000 characters or less");
 
     const userJob = await prisma.userJob.findFirst({
       where: { id: userJobId, userId },
@@ -81,7 +91,7 @@ export async function prepareApplication(
     if (!userJob) throw new Error("Job not found");
 
     const settings = decryptSettingsFields(
-      await prisma.userSettings.findUnique({ where: { userId } })
+      await prisma.userSettings.findUnique({ where: { userId } }),
     );
 
     const application = await prisma.jobApplication.upsert({
@@ -114,20 +124,28 @@ export async function prepareApplication(
     return application;
   } catch (error) {
     if (error instanceof z.ZodError) throw new Error(error.errors[0].message);
-    if (error instanceof Error && ["Job not found", "Subject is required", "Email body is required"].includes(error.message)) throw error;
+    if (
+      error instanceof Error &&
+      [
+        "Job not found",
+        "Subject is required",
+        "Email body is required",
+      ].includes(error.message)
+    )
+      throw error;
     console.error("[prepareApplication]", error);
     throw new Error("Failed to prepare application");
   }
 }
 
-export async function markApplicationReady(applicationId: string) {
+export async function markApplicationReady(applicationId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
 
     const app = await prisma.jobApplication.findFirst({
       where: { id: applicationId, userId },
     });
-    if (!app) throw new Error("Application not found");
+    if (!app) return { success: false, error: "Application not found" };
 
     await prisma.jobApplication.update({
       where: { id: applicationId },
@@ -136,14 +154,14 @@ export async function markApplicationReady(applicationId: string) {
 
     revalidatePath("/applications");
     revalidatePath(`/jobs/${app.userJobId}`);
+    return { success: true };
   } catch (error) {
-    if (error instanceof Error && error.message === "Application not found") throw error;
-    console.error("[markApplicationReady]", error);
-    throw new Error("Failed to mark application as ready");
+    console.error("[markApplicationReady] Error:", error);
+    return { success: false, error: "Failed to mark application as ready" };
   }
 }
 
-export async function markApplicationManual(applicationId: string) {
+export async function markApplicationManual(applicationId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
 
@@ -151,7 +169,7 @@ export async function markApplicationManual(applicationId: string) {
       where: { id: applicationId, userId },
       include: { userJob: { include: { globalJob: true } } },
     });
-    if (!app) throw new Error("Application not found");
+    if (!app) return { success: false, error: "Application not found" };
 
     await prisma.$transaction([
       prisma.jobApplication.update({
@@ -179,10 +197,10 @@ export async function markApplicationManual(applicationId: string) {
     revalidatePath("/applications");
     revalidatePath("/");
     revalidatePath(`/jobs/${app.userJobId}`);
+    return { success: true };
   } catch (error) {
-    if (error instanceof Error && error.message === "Application not found") throw error;
-    console.error("[markApplicationManual]", error);
-    throw new Error("Failed to mark application as manually applied");
+    console.error("[markApplicationManual] Error:", error);
+    return { success: false, error: "Failed to mark application as manually applied" };
   }
 }
 
@@ -208,14 +226,14 @@ export async function bulkMarkReady(applicationIds: string[]) {
   }
 }
 
-export async function deleteApplication(applicationId: string) {
+export async function deleteApplication(applicationId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
 
     const app = await prisma.jobApplication.findFirst({
       where: { id: applicationId, userId },
     });
-    if (!app) throw new Error("Application not found");
+    if (!app) return { success: false, error: "Application not found" };
 
     await prisma.jobApplication.delete({
       where: { id: applicationId },
@@ -223,10 +241,10 @@ export async function deleteApplication(applicationId: string) {
 
     revalidatePath("/applications");
     revalidatePath(`/jobs/${app.userJobId}`);
+    return { success: true };
   } catch (error) {
-    if (error instanceof Error && error.message === "Application not found") throw error;
-    console.error("[deleteApplication]", error);
-    throw new Error("Failed to delete application");
+    console.error("[deleteApplication] Error:", error);
+    return { success: false, error: "Failed to delete application" };
   }
 }
 
@@ -249,7 +267,8 @@ export async function getApplicationById(applicationId: string) {
     if (!application) throw new Error("Application not found");
     return application;
   } catch (error) {
-    if (error instanceof Error && error.message === "Application not found") throw error;
+    if (error instanceof Error && error.message === "Application not found")
+      throw error;
     console.error("[getApplicationById]", error);
     throw new Error("Failed to load application");
   }

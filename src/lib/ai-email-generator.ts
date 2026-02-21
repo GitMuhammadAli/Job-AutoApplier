@@ -1,6 +1,16 @@
 import { generateWithGroq } from "./groq";
 import { z } from "zod";
 
+function sanitizeForPrompt(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/\b(ignore|disregard|forget)\s+(all\s+)?(previous|above|prior)\s+(instructions?|rules?|prompts?)/gi, "[filtered]")
+    .replace(/\b(system|assistant|user)\s*:/gi, "[filtered]:")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .slice(0, 3000);
+}
+
 const EmailOutputSchema = z.object({
   subject: z.string().min(5).max(200),
   body: z.string().min(50).max(3000),
@@ -125,7 +135,7 @@ Location: ${input.job.location || "Not specified"}
 ${sourceName ? `Found on: ${sourceName}` : ""}
 ${input.job.salary ? `Salary: ${input.job.salary}` : ""}
 Skills Required: ${input.job.skills.length > 0 ? input.job.skills.join(", ") : "Not listed"}
-Description: ${(input.job.description || "No description available").slice(0, 2000)}`);
+Description: ${sanitizeForPrompt(input.job.description || "No description available")}`);
 
   const profileParts = [`Name: ${input.profile.fullName}`];
   if (input.profile.experienceLevel)

@@ -1,4 +1,7 @@
-import { getApplications, getApplicationCounts } from "@/app/actions/application";
+import {
+  getApplications,
+  getApplicationCounts,
+} from "@/app/actions/application";
 import { ApplicationQueue } from "@/components/applications/ApplicationQueue";
 import { SendingStatusBar } from "@/components/applications/SendingStatusBar";
 import { getSendingStats } from "@/lib/send-limiter";
@@ -8,8 +11,22 @@ export const dynamic = "force-dynamic";
 
 export default async function ApplicationsPage() {
   let applications: Awaited<ReturnType<typeof getApplications>> = [];
-  let counts: Awaited<ReturnType<typeof getApplicationCounts>> = { draft: 0, ready: 0, sent: 0, failed: 0, bounced: 0, total: 0 };
-  let sendingStats: Awaited<ReturnType<typeof getSendingStats>> = { todaySent: 0, todayMax: 20, hourSent: 0, hourMax: 8, isPaused: false, pausedUntil: null };
+  let counts: Awaited<ReturnType<typeof getApplicationCounts>> = {
+    draft: 0,
+    ready: 0,
+    sent: 0,
+    failed: 0,
+    bounced: 0,
+    total: 0,
+  };
+  let sendingStats: Awaited<ReturnType<typeof getSendingStats>> = {
+    todaySent: 0,
+    todayMax: 20,
+    hourSent: 0,
+    hourMax: 8,
+    isPaused: false,
+    pausedUntil: null,
+  };
 
   try {
     const userId = await getAuthUserId();
@@ -39,10 +56,7 @@ export default async function ApplicationsPage() {
         maxPerHour={sendingStats.hourMax}
         isPaused={sendingStats.isPaused}
       />
-      <ApplicationQueue
-        applications={applications}
-        counts={counts}
-      />
+      <ApplicationQueue applications={applications} counts={counts} />
     </div>
   );
 }

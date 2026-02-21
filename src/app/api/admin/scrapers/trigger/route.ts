@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   if (!(await requireAdmin())) {
@@ -17,14 +17,14 @@ export async function POST(req: NextRequest) {
   if (!secret) {
     return NextResponse.json(
       { error: "CRON_SECRET not configured" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
   if (source === "instant-apply") {
     try {
       const res = await fetch(
-        `${baseUrl}/api/cron/instant-apply?secret=${secret}`
+        `${baseUrl}/api/cron/instant-apply?secret=${secret}`,
       );
       const data = await res.json();
       return NextResponse.json(data);
@@ -34,19 +34,13 @@ export async function POST(req: NextRequest) {
           error: "Instant apply trigger failed",
           details: String(err),
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
   }
 
   if (source === "all") {
-    const sources = [
-      "indeed",
-      "remotive",
-      "arbeitnow",
-      "rozee",
-      "linkedin",
-    ];
+    const sources = ["indeed", "remotive", "arbeitnow", "rozee", "linkedin"];
     const results: {
       source: string;
       status: number | string;
@@ -56,7 +50,7 @@ export async function POST(req: NextRequest) {
     for (const s of sources) {
       try {
         const res = await fetch(
-          `${baseUrl}/api/cron/scrape/${s}?secret=${secret}`
+          `${baseUrl}/api/cron/scrape/${s}?secret=${secret}`,
         );
         results.push({ source: s, status: res.status });
       } catch (err: unknown) {
@@ -72,7 +66,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const res = await fetch(
-      `${baseUrl}/api/cron/scrape/${source}?secret=${secret}`
+      `${baseUrl}/api/cron/scrape/${source}?secret=${secret}`,
     );
     const data = await res.json();
     return NextResponse.json(data);
@@ -82,7 +76,7 @@ export async function POST(req: NextRequest) {
         error: `Trigger failed for ${source}`,
         details: String(err),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

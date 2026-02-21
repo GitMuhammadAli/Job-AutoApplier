@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { computeMatchScore, MATCH_THRESHOLDS } from "@/lib/matching/score-engine";
+import {
+  computeMatchScore,
+  MATCH_THRESHOLDS,
+} from "@/lib/matching/score-engine";
+import { LIMITS, TIMEOUTS } from "@/lib/constants";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 function verifyCronSecret(req: NextRequest): boolean {
+  if (!process.env.CRON_SECRET) return false;
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
     req.headers.get("x-cron-secret") ||
@@ -18,8 +23,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const startTime = Date.now();
+
   try {
-    // Get all users with settings
     const users = await prisma.userSettings.findMany({
       where: { keywords: { isEmpty: false } },
       select: {
@@ -42,7 +48,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: "No configured users", matched: 0 });
     }
 
-    // Get active GlobalJobs from last 24h (newly scraped or refreshed)
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
@@ -52,7 +57,7 @@ export async function GET(req: NextRequest) {
         isFresh: false,
         lastSeenAt: { gte: oneDayAgo },
       },
-      take: 500,
+      take: LIMITS.MATCH_BATCH,
     });
 
     if (recentJobs.length === 0) {
@@ -66,19 +71,19 @@ export async function GET(req: NextRequest) {
     const userStats: Record<string, number> = {};
 
     for (const user of users) {
-      // Get user's resumes for skill matching
+      if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
+
       const resumes = await prisma.resume.findMany({
         where: { userId: user.userId },
         select: { id: true, name: true, content: true },
       });
 
-      // Get existing UserJob globalJobIds to avoid duplicates
       const existingIds = new Set(
         (
           await prisma.userJob.findMany({
             where: { userId: user.userId },
             select: { globalJobId: true },
-            take: 10000,
+            take: LIMITS.EXISTING_JOB_IDS,
           })
         ).map((uj) => uj.globalJobId),
       );
@@ -120,7 +125,7 @@ export async function GET(req: NextRequest) {
       perUser: userStats,
     });
   } catch (error) {
-    console.error("Match jobs error:", error);
+    console.error("[MatchJobs] Error:", error);
     return NextResponse.json(
       { error: "Match failed", details: String(error) },
       { status: 500 },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
+import { LIMITS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export async function GET() {
 
     const userJobs = await prisma.userJob.findMany({
       where: { userId, isDismissed: false },
+      take: LIMITS.ANALYTICS_MAX_ROWS,
     });
 
     const totalJobs = userJobs.length;
@@ -18,9 +20,8 @@ export async function GET() {
     const offers = userJobs.filter((j) => j.stage === "OFFER").length;
     const rejected = userJobs.filter((j) => j.stage === "REJECTED").length;
     const ghosted = userJobs.filter((j) => j.stage === "GHOSTED").length;
-    const responseRate = applied > 0
-      ? Math.round(((interviews + offers) / applied) * 100)
-      : 0;
+    const responseRate =
+      applied > 0 ? Math.round(((interviews + offers) / applied) * 100) : 0;
 
     return NextResponse.json({
       totalJobs,

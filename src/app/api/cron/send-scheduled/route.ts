@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendApplication } from "@/lib/send-application";
 import { canSendNow } from "@/lib/send-limiter";
+import { LIMITS, TIMEOUTS } from "@/lib/constants";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 function verifyCronSecret(req: NextRequest): boolean {
+  if (!process.env.CRON_SECRET) return false;
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
     req.headers.get("x-cron-secret") ||
@@ -19,17 +21,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const lock = await prisma.systemLock.findUnique({ where: { name: "send-applications" } });
-    if (lock?.isRunning) {
-      return NextResponse.json({ skipped: true, reason: "Another send cron is running" });
-    }
+  const startTime = Date.now();
 
-    await prisma.systemLock.upsert({
-      where: { name: "send-applications" },
-      update: { isRunning: true, startedAt: new Date() },
-      create: { name: "send-applications", isRunning: true, startedAt: new Date() },
-    });
+  try {
+    const acquired = await prisma.$queryRaw<{ name: string }[]>`
+      INSERT INTO "SystemLock" ("name", "isRunning", "startedAt")
+      VALUES ('send-applications', true, now())
+      ON CONFLICT ("name") DO UPDATE SET "isRunning" = true, "startedAt" = now()
+      WHERE "SystemLock"."isRunning" = false
+      RETURNING "name"
+    `;
+    if (acquired.length === 0) {
+      return NextResponse.json({
+        skipped: true,
+        reason: "Another send cron is running",
+      });
+    }
 
     const readyApps = await prisma.jobApplication.findMany({
       where: {
@@ -37,7 +44,7 @@ export async function GET(req: NextRequest) {
         scheduledSendAt: { not: null, lte: new Date() },
       },
       orderBy: { createdAt: "asc" },
-      take: 50,
+      take: LIMITS.SEND_SCHEDULED_BATCH,
     });
 
     let sent = 0;
@@ -45,20 +52,27 @@ export async function GET(req: NextRequest) {
     let skipped = 0;
 
     for (const app of readyApps) {
-      const limitCheck = await canSendNow(app.userId);
-      if (!limitCheck.allowed) {
-        skipped++;
-        continue;
-      }
+      if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
 
-      const result = await sendApplication(app.id);
-      if (result.success) {
-        sent++;
-      } else {
+      try {
+        const limitCheck = await canSendNow(app.userId);
+        if (!limitCheck.allowed) {
+          skipped++;
+          continue;
+        }
+
+        const result = await sendApplication(app.id);
+        if (result.success) {
+          sent++;
+        } else {
+          failed++;
+        }
+      } catch (err) {
         failed++;
+        console.error(`[SendScheduled] Error sending app ${app.id}:`, err);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, TIMEOUTS.INTER_SEND_DELAY_MS));
     }
 
     await prisma.systemLock.update({
@@ -75,21 +89,24 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({
+      success: true,
       total: readyApps.length,
       sent,
       failed,
       skipped,
     });
   } catch (error) {
-    await prisma.systemLock.update({
-      where: { name: "send-applications" },
-      data: { isRunning: false, completedAt: new Date() },
-    }).catch(() => {});
+    await prisma.systemLock
+      .update({
+        where: { name: "send-applications" },
+        data: { isRunning: false, completedAt: new Date() },
+      })
+      .catch(() => {});
 
     console.error("[SendScheduled] Error:", error);
     return NextResponse.json(
       { error: "Send scheduled failed", details: String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

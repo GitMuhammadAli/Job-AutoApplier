@@ -5,8 +5,12 @@ import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
 import { z } from "zod";
+import { LIMITS } from "@/lib/constants";
 
-const resumeNameSchema = z.string().min(1, "Name is required").max(200, "Name too long");
+const resumeNameSchema = z
+  .string()
+  .min(1, "Name is required")
+  .max(200, "Name too long");
 
 export async function getResumeCount(): Promise<number> {
   try {
@@ -28,6 +32,7 @@ export async function getResumesWithStats() {
         _count: { select: { applications: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: LIMITS.RESUMES_PER_PAGE,
     });
 
     return resumes.map((r) => ({
@@ -49,12 +54,16 @@ export async function getResumesWithStats() {
   }
 }
 
-export async function createResume(name: string, fileUrl?: string, content?: string) {
+export async function createResume(
+  name: string,
+  fileUrl?: string,
+  content?: string,
+): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
     const cleanName = resumeNameSchema.parse(name.trim());
 
-    if (fileUrl && fileUrl.length > 2000) throw new Error("File URL too long");
+    if (fileUrl && fileUrl.length > 2000) return { success: false, error: "File URL too long" };
 
     await prisma.resume.create({
       data: {
@@ -68,24 +77,28 @@ export async function createResume(name: string, fileUrl?: string, content?: str
     revalidatePath("/resumes");
     return { success: true };
   } catch (error) {
-    if (error instanceof z.ZodError) throw new Error(error.errors[0].message);
-    if (error instanceof Error && error.message.includes("too")) throw error;
-    console.error("[createResume]", error);
-    throw new Error("Failed to create resume");
+    if (error instanceof z.ZodError) return { success: false, error: error.errors[0].message };
+    console.error("[createResume] Error:", error);
+    return { success: false, error: "Failed to create resume" };
   }
 }
 
 export async function updateResume(
   id: string,
-  data: { name?: string; fileUrl?: string; content?: string; isDefault?: boolean },
-) {
+  data: {
+    name?: string;
+    fileUrl?: string;
+    content?: string;
+    isDefault?: boolean;
+  },
+): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
 
     if (data.name !== undefined) resumeNameSchema.parse(data.name.trim());
 
     const resume = await prisma.resume.findFirst({ where: { id, userId } });
-    if (!resume) throw new Error("Resume not found");
+    if (!resume) return { success: false, error: "Resume not found" };
 
     if (data.isDefault) {
       await prisma.resume.updateMany({
@@ -107,19 +120,18 @@ export async function updateResume(
     revalidatePath("/resumes");
     return { success: true };
   } catch (error) {
-    if (error instanceof z.ZodError) throw new Error(error.errors[0].message);
-    if (error instanceof Error && error.message === "Resume not found") throw error;
-    console.error("[updateResume]", error);
-    throw new Error("Failed to update resume");
+    if (error instanceof z.ZodError) return { success: false, error: error.errors[0].message };
+    console.error("[updateResume] Error:", error);
+    return { success: false, error: "Failed to update resume" };
   }
 }
 
-export async function deleteResume(id: string) {
+export async function deleteResume(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
 
     const resume = await prisma.resume.findFirst({ where: { id, userId } });
-    if (!resume) throw new Error("Resume not found");
+    if (!resume) return { success: false, error: "Resume not found" };
 
     await prisma.resume.update({
       where: { id },
@@ -128,20 +140,23 @@ export async function deleteResume(id: string) {
     revalidatePath("/resumes");
     return { success: true };
   } catch (error) {
-    if (error instanceof Error && error.message === "Resume not found") throw error;
-    console.error("[deleteResume]", error);
-    throw new Error("Failed to delete resume");
+    console.error("[deleteResume] Error:", error);
+    return { success: false, error: "Failed to delete resume" };
   }
 }
 
-export async function updateResumeText(resumeId: string, content: string) {
+export async function updateResumeText(resumeId: string, content: string): Promise<{ success: boolean; detectedSkills?: string[]; error?: string }> {
   try {
     const userId = await getAuthUserId();
+
+    if (content.length > LIMITS.MAX_RESUME_CONTENT) {
+      return { success: false, error: `Resume content must be ${LIMITS.MAX_RESUME_CONTENT.toLocaleString()} characters or less` };
+    }
 
     const resume = await prisma.resume.findFirst({
       where: { id: resumeId, userId, isDeleted: false },
     });
-    if (!resume) throw new Error("Resume not found");
+    if (!resume) return { success: false, error: "Resume not found" };
 
     const detectedSkills = extractSkillsFromContent(content);
 
@@ -150,30 +165,39 @@ export async function updateResumeText(resumeId: string, content: string) {
       data: {
         content: content || null,
         detectedSkills,
-        textQuality: content.split(/\s+/).filter((w) => w.length > 0).length >= 50 ? "good" : "poor",
+        textQuality:
+          content.split(/\s+/).filter((w) => w.length > 0).length >= 50
+            ? "good"
+            : "poor",
       },
     });
 
     revalidatePath("/resumes");
     return { success: true, detectedSkills };
   } catch (error) {
-    if (error instanceof Error && error.message === "Resume not found") throw error;
     console.error("[updateResumeText] Error:", error);
-    throw new Error("Failed to update resume content.");
+    return { success: false, error: "Failed to update resume content." };
   }
 }
 
 export async function updateResumeCategories(
   resumeId: string,
-  targetCategories: string[]
-) {
+  targetCategories: string[],
+): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
+
+    if (!Array.isArray(targetCategories) || targetCategories.length > 30) {
+      return { success: false, error: "Target categories must be an array with at most 30 items" };
+    }
+    if (targetCategories.some((c) => typeof c !== "string" || c.length > 100)) {
+      return { success: false, error: "Each category must be a string of at most 100 characters" };
+    }
 
     const resume = await prisma.resume.findFirst({
       where: { id: resumeId, userId, isDeleted: false },
     });
-    if (!resume) throw new Error("Resume not found");
+    if (!resume) return { success: false, error: "Resume not found" };
 
     await prisma.resume.update({
       where: { id: resumeId },
@@ -183,20 +207,19 @@ export async function updateResumeCategories(
     revalidatePath("/resumes");
     return { success: true };
   } catch (error) {
-    if (error instanceof Error && error.message === "Resume not found") throw error;
     console.error("[updateResumeCategories] Error:", error);
-    throw new Error("Failed to update resume categories.");
+    return { success: false, error: "Failed to update resume categories." };
   }
 }
 
-export async function setDefaultResume(resumeId: string) {
+export async function setDefaultResume(resumeId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
 
     const resume = await prisma.resume.findFirst({
       where: { id: resumeId, userId, isDeleted: false },
     });
-    if (!resume) throw new Error("Resume not found");
+    if (!resume) return { success: false, error: "Resume not found" };
 
     await prisma.$transaction([
       prisma.resume.updateMany({
@@ -212,8 +235,7 @@ export async function setDefaultResume(resumeId: string) {
     revalidatePath("/resumes");
     return { success: true };
   } catch (error) {
-    if (error instanceof Error && error.message === "Resume not found") throw error;
     console.error("[setDefaultResume] Error:", error);
-    throw new Error("Failed to set default resume.");
+    return { success: false, error: "Failed to set default resume." };
   }
 }

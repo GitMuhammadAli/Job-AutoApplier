@@ -9,8 +9,14 @@ export interface FindCompanyEmailResult {
 }
 
 const EMAIL_REGEX = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
-const NOREPLY_FILTER = /noreply|no-reply|donotreply|example\.com|test\.com/i;
+const NOREPLY_FILTER = /noreply|no-reply|donotreply|example\.com|test\.com|mailinator|tempmail|guerrillamail|throwaway|spam|abuse|postmaster|mailer-daemon|bounce/i;
 const HR_PREFIX = /^(hr|careers|hiring|jobs|recruit|talent|apply|people)/i;
+
+const GENERIC_EMAIL_BLACKLIST = [
+  "support@", "info@", "admin@", "webmaster@", "postmaster@",
+  "sales@", "marketing@", "billing@", "noreply@", "no-reply@",
+  "feedback@", "newsletter@", "unsubscribe@", "help@",
+];
 
 const JOB_BOARD_DOMAINS = [
   "indeed.com",
@@ -34,7 +40,9 @@ export async function findCompanyEmail(job: {
   // Strategy 1: Regex from job description
   if (job.description) {
     const emails = job.description.match(EMAIL_REGEX) || [];
-    const goodEmails = emails.filter((e) => !NOREPLY_FILTER.test(e));
+    const goodEmails = emails.filter(
+      (e) => !NOREPLY_FILTER.test(e) && !GENERIC_EMAIL_BLACKLIST.some((bl) => e.toLowerCase().startsWith(bl))
+    );
 
     if (goodEmails.length > 0) {
       const preferred = goodEmails.find((e) => HR_PREFIX.test(e));
@@ -46,7 +54,7 @@ export async function findCompanyEmail(job: {
     }
   }
 
-  // Strategy 2: Domain patterns + MX verification
+  // Strategy 2: Domain patterns + MX verification with multiple prefixes
   const domain = extractDomain(
     job.company,
     job.companyUrl || job.sourceUrl
@@ -54,8 +62,10 @@ export async function findCompanyEmail(job: {
   if (domain) {
     const hasMx = await verifyMxRecord(domain);
     if (hasMx) {
+      const prefixes = ["careers", "hr", "hiring", "jobs", "recruitment"];
+      const bestPrefix = prefixes[0];
       return {
-        email: `careers@${domain}`,
+        email: `${bestPrefix}@${domain}`,
         confidence: "MEDIUM",
         method: `pattern_guess_mx_verified (${domain})`,
       };

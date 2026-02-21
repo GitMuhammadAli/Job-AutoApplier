@@ -136,7 +136,7 @@ export function OnboardingWizard() {
   const handleFinish = async () => {
     setSaving(true);
     try {
-      await saveSettings({
+      const settingsResult = await saveSettings({
         fullName,
         linkedinUrl,
         githubUrl,
@@ -153,6 +153,11 @@ export function OnboardingWizard() {
         customSystemPrompt: customPrompt || undefined,
         emailProvider,
       });
+      if (!settingsResult.success) {
+        toast.error(settingsResult.error || "Failed to save settings");
+        setSaving(false);
+        return;
+      }
       await completeOnboarding();
 
       // Trigger instant match

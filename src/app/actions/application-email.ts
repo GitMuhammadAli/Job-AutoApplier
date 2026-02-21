@@ -11,7 +11,7 @@ import type { GenerateEmailInput } from "@/lib/ai-email-generator";
 
 async function buildEmailInput(
   userId: string,
-  userJobId: string
+  userJobId: string,
 ): Promise<{
   input: GenerateEmailInput;
   matchedResume: { id: string; name: string; tier: string; reason: string };
@@ -25,7 +25,7 @@ async function buildEmailInput(
   if (!userJob) throw new Error("Job not found");
 
   const settings = decryptSettingsFields(
-    await prisma.userSettings.findUnique({ where: { userId } })
+    await prisma.userSettings.findUnique({ where: { userId } }),
   );
   if (!settings?.fullName)
     throw new Error("Complete your profile in Settings first");
@@ -38,8 +38,7 @@ async function buildEmailInput(
     location: userJob.globalJob.location,
   });
 
-  if (!resumeResult)
-    throw new Error("Upload at least one resume first");
+  if (!resumeResult) throw new Error("Upload at least one resume first");
 
   const defaultTemplate = await prisma.emailTemplate.findFirst({
     where: { userId, isDefault: true },
@@ -95,54 +94,67 @@ async function buildEmailInput(
   };
 }
 
+function isValidEmail(email: string): boolean {
+  return (
+    typeof email === "string" && email.includes("@") && email.includes(".")
+  );
+}
+
 export async function generateApplication(userJobId: string) {
-  const userId = await getAuthUserId();
-  const { input, matchedResume, recipientEmail, senderEmail } =
-    await buildEmailInput(userId, userJobId);
+  try {
+    const userId = await getAuthUserId();
+    const { input, matchedResume, recipientEmail, senderEmail } =
+      await buildEmailInput(userId, userJobId);
 
-  const generated = await generateApplicationEmail(input);
+    const generated = await generateApplicationEmail(input);
 
-  const application = await prisma.jobApplication.upsert({
-    where: { userJobId },
-    update: {
-      subject: generated.subject,
-      emailBody: generated.body,
-      coverLetter: generated.coverLetter,
-      resumeId: matchedResume.id,
-      status: "DRAFT",
-      senderEmail,
-      recipientEmail,
-    },
-    create: {
-      userJobId,
-      userId,
-      subject: generated.subject,
-      emailBody: generated.body,
-      coverLetter: generated.coverLetter,
-      resumeId: matchedResume.id,
-      status: "DRAFT",
-      senderEmail,
-      recipientEmail,
-      appliedVia: recipientEmail ? "EMAIL" : "MANUAL",
-    },
-  });
+    const application = await prisma.jobApplication.upsert({
+      where: { userJobId },
+      update: {
+        subject: generated.subject,
+        emailBody: generated.body,
+        coverLetter: generated.coverLetter,
+        resumeId: matchedResume.id,
+        status: "DRAFT",
+        senderEmail,
+        recipientEmail,
+      },
+      create: {
+        userJobId,
+        userId,
+        subject: generated.subject,
+        emailBody: generated.body,
+        coverLetter: generated.coverLetter,
+        resumeId: matchedResume.id,
+        status: "DRAFT",
+        senderEmail,
+        recipientEmail,
+        appliedVia: recipientEmail ? "EMAIL" : "MANUAL",
+      },
+    });
 
-  await prisma.activity.create({
-    data: {
-      userId,
-      userJobId,
-      type: "APPLICATION_PREPARED",
-      description: `Email draft generated. Resume: ${matchedResume.name} (${matchedResume.tier}: ${matchedResume.reason})`,
-    },
-  });
+    await prisma.activity.create({
+      data: {
+        userId,
+        userJobId,
+        type: "APPLICATION_PREPARED",
+        description: `Email draft generated. Resume: ${matchedResume.name} (${matchedResume.tier}: ${matchedResume.reason})`,
+      },
+    });
 
-  revalidatePath(`/jobs/${userJobId}`);
-  revalidatePath("/applications");
+    revalidatePath(`/jobs/${userJobId}`);
+    revalidatePath("/applications");
 
-  return {
-    application,
-    matchedResume,
-  };
+    return {
+      application,
+      matchedResume,
+    };
+  } catch (error) {
+    console.error("[generateApplication]", error);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to generate application",
+    );
+  }
 }
 
 export async function regenerateApplication(userJobId: string) {
@@ -156,114 +168,154 @@ export async function updateApplicationDraft(
     emailBody?: string;
     coverLetter?: string;
     recipientEmail?: string;
-  }
+  },
 ) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const app = await prisma.jobApplication.findFirst({
-    where: { id: applicationId, userId },
-  });
-  if (!app) throw new Error("Application not found");
+    if (
+      data.recipientEmail !== undefined &&
+      !isValidEmail(data.recipientEmail)
+    ) {
+      throw new Error("Invalid email address");
+    }
 
-  return prisma.jobApplication.update({
-    where: { id: applicationId },
-    data: {
-      ...(data.subject !== undefined && { subject: data.subject }),
-      ...(data.emailBody !== undefined && { emailBody: data.emailBody }),
-      ...(data.coverLetter !== undefined && { coverLetter: data.coverLetter }),
-      ...(data.recipientEmail !== undefined && {
-        recipientEmail: data.recipientEmail,
-      }),
-      updatedAt: new Date(),
-    },
-  });
+    const app = await prisma.jobApplication.findFirst({
+      where: { id: applicationId, userId },
+    });
+    if (!app) throw new Error("Application not found");
+
+    const updated = await prisma.jobApplication.update({
+      where: { id: applicationId },
+      data: {
+        ...(data.subject !== undefined && { subject: data.subject }),
+        ...(data.emailBody !== undefined && { emailBody: data.emailBody }),
+        ...(data.coverLetter !== undefined && {
+          coverLetter: data.coverLetter,
+        }),
+        ...(data.recipientEmail !== undefined && {
+          recipientEmail: data.recipientEmail,
+        }),
+        updatedAt: new Date(),
+      },
+    });
+
+    revalidatePath(`/jobs/${app.userJobId}`);
+    revalidatePath("/applications");
+    return updated;
+  } catch (error) {
+    console.error("[updateApplicationDraft]", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Failed to update application draft",
+    );
+  }
 }
 
 export async function generateCoverLetterAction(userJobId: string) {
-  const userId = await getAuthUserId();
-  const { input, matchedResume } = await buildEmailInput(userId, userJobId);
+  try {
+    const userId = await getAuthUserId();
+    const { input, matchedResume } = await buildEmailInput(userId, userJobId);
 
-  const coverLetter = await generateCoverLetterFromInput(input);
+    const coverLetter = await generateCoverLetterFromInput(input);
 
-  await prisma.userJob.update({
-    where: { id: userJobId },
-    data: { coverLetter },
-  });
-
-  const application = await prisma.jobApplication.findUnique({
-    where: { userJobId },
-  });
-  if (application) {
-    await prisma.jobApplication.update({
-      where: { id: application.id },
+    await prisma.userJob.update({
+      where: { id: userJobId },
       data: { coverLetter },
     });
+
+    const application = await prisma.jobApplication.findUnique({
+      where: { userJobId },
+    });
+    if (application) {
+      await prisma.jobApplication.update({
+        where: { id: application.id },
+        data: { coverLetter },
+      });
+    }
+
+    await prisma.activity.create({
+      data: {
+        userId,
+        userJobId,
+        type: "COVER_LETTER_GENERATED",
+        description: `Cover letter generated. Resume: ${matchedResume.name}`,
+      },
+    });
+
+    revalidatePath(`/jobs/${userJobId}`);
+    return coverLetter;
+  } catch (error) {
+    console.error("[generateCoverLetterAction]", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Failed to generate cover letter",
+    );
   }
-
-  await prisma.activity.create({
-    data: {
-      userId,
-      userJobId,
-      type: "COVER_LETTER_GENERATED",
-      description: `Cover letter generated. Resume: ${matchedResume.name}`,
-    },
-  });
-
-  revalidatePath(`/jobs/${userJobId}`);
-  return coverLetter;
 }
 
 export async function markAsManuallyApplied(
   userJobId: string,
-  data?: { platform?: string; notes?: string }
+  data?: { platform?: string; notes?: string },
 ) {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  const userJob = await prisma.userJob.findFirst({
-    where: { id: userJobId, userId },
-    include: { globalJob: true },
-  });
-  if (!userJob) throw new Error("Job not found");
-
-  await prisma.userJob.update({
-    where: { id: userJobId },
-    data: { stage: "APPLIED" },
-  });
-
-  const existing = await prisma.jobApplication.findUnique({
-    where: { userJobId },
-  });
-  if (existing) {
-    await prisma.jobApplication.update({
-      where: { id: existing.id },
-      data: { status: "SENT", appliedVia: "MANUAL", sentAt: new Date() },
+    const userJob = await prisma.userJob.findFirst({
+      where: { id: userJobId, userId },
+      include: { globalJob: true },
     });
-  } else {
-    await prisma.jobApplication.create({
+    if (!userJob) throw new Error("Job not found");
+
+    await prisma.userJob.update({
+      where: { id: userJobId },
+      data: { stage: "APPLIED" },
+    });
+
+    const existing = await prisma.jobApplication.findUnique({
+      where: { userJobId },
+    });
+    if (existing) {
+      await prisma.jobApplication.update({
+        where: { id: existing.id },
+        data: { status: "SENT", appliedVia: "MANUAL", sentAt: new Date() },
+      });
+    } else {
+      await prisma.jobApplication.create({
+        data: {
+          userJobId,
+          userId,
+          senderEmail: "",
+          recipientEmail: "",
+          subject: `Applied to ${userJob.globalJob.title || "Unknown"}`,
+          emailBody: data?.notes || "Applied manually",
+          status: "SENT",
+          appliedVia: "MANUAL",
+          sentAt: new Date(),
+        },
+      });
+    }
+
+    await prisma.activity.create({
       data: {
-        userJobId,
         userId,
-        senderEmail: "",
-        recipientEmail: "",
-        subject: `Applied to ${userJob.globalJob.title || "Unknown"}`,
-        emailBody: data?.notes || "Applied manually",
-        status: "SENT",
-        appliedVia: "MANUAL",
-        sentAt: new Date(),
+        userJobId,
+        type: "APPLICATION_SENT",
+        description: `Manually applied${data?.platform ? ` via ${data.platform}` : ""}`,
       },
     });
+
+    revalidatePath("/applications");
+    revalidatePath("/");
+    revalidatePath(`/jobs/${userJobId}`);
+  } catch (error) {
+    console.error("[markAsManuallyApplied]", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Failed to mark as manually applied",
+    );
   }
-
-  await prisma.activity.create({
-    data: {
-      userId,
-      userJobId,
-      type: "APPLICATION_SENT",
-      description: `Manually applied${data?.platform ? ` via ${data.platform}` : ""}`,
-    },
-  });
-
-  revalidatePath("/applications");
-  revalidatePath("/");
-  revalidatePath(`/jobs/${userJobId}`);
 }

@@ -85,7 +85,11 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
       toast.success(`Moved to ${newStage.toLowerCase().replace("_", " ")}`);
 
       try {
-        await updateStage(jobId, newStage, oldStage);
+        const result = await updateStage(jobId, newStage, oldStage);
+        if (!result.success) {
+          updateJobStage(jobId, oldStage);
+          toast.error(result.error || "Failed to update stage. Reverted.");
+        }
       } catch {
         updateJobStage(jobId, oldStage);
         toast.error("Failed to update stage. Reverted.");

@@ -11,7 +11,7 @@ import { fetchRozee } from "@/lib/scrapers/rozee";
 import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
-export const maxDuration = 120;
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;
@@ -28,15 +28,17 @@ const SCRAPERS: Record<string, ScraperFn> = {
 };
 
 function verifyCronSecret(req: NextRequest): boolean {
+  if (!process.env.CRON_SECRET) return false;
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
+    req.headers.get("x-cron-secret") ||
     req.nextUrl.searchParams.get("secret");
   return secret === process.env.CRON_SECRET;
 }
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { source: string } }
+  { params }: { params: { source: string } },
 ) {
   if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -47,15 +49,22 @@ export async function GET(
 
   if (!scraperFn) {
     return NextResponse.json(
-      { error: `Unknown source: ${source}`, validSources: Object.keys(SCRAPERS) },
-      { status: 400 }
+      {
+        error: `Unknown source: ${source}`,
+        validSources: Object.keys(SCRAPERS),
+      },
+      { status: 400 },
     );
   }
 
   try {
     const queries = await aggregateSearchQueries();
     if (queries.length === 0) {
-      return NextResponse.json({ message: "No user keywords configured", source, scraped: 0 });
+      return NextResponse.json({
+        message: "No user keywords configured",
+        source,
+        scraped: 0,
+      });
     }
 
     const result = await scrapeAndUpsert(source, scraperFn, queries);
@@ -69,7 +78,7 @@ export async function GET(
     console.error(`[Scrape/${source}] error:`, error);
     return NextResponse.json(
       { error: `Scrape ${source} failed`, details: String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
