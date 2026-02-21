@@ -2,6 +2,7 @@
 
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { cn } from "@/lib/utils";
+import { UpdateBanner } from "@/components/layout/UpdateBanner";
 
 interface DashboardShellProps {
   sidebar: React.ReactNode;
@@ -21,6 +22,7 @@ export function DashboardShell({ sidebar, header, children }: DashboardShellProp
           collapsed ? "pl-0" : "md:pl-64"
         )}
       >
+        <UpdateBanner />
         {header}
         <main id="main-content" className="px-4 py-5 md:px-6 md:py-6 max-w-[1400px] mx-auto">
           {children}
