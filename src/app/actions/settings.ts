@@ -79,6 +79,8 @@ const settingsSchema = z.object({
   maxSendsPerDay: z.number().min(1).max(100).default(20),
   cooldownMinutes: z.number().min(5).max(120).default(30),
   bouncePauseHours: z.number().min(1).max(72).default(24),
+  // Company Blacklist
+  blacklistedCompanies: z.array(z.string().max(100)).max(200).default([]),
 });
 
 export async function getSettings() {

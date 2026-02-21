@@ -37,6 +37,7 @@ interface UserSettingsLike {
   preferredPlatforms: string[];
   salaryMin: number | null;
   salaryMax: number | null;
+  blacklistedCompanies?: string[];
 }
 
 interface ResumeLike {
@@ -502,6 +503,17 @@ export function computeMatchScore(
   const jobSourceLower = (job.source || "").toLowerCase().trim();
   if (platforms.length > 0 && jobSourceLower && !platforms.includes(jobSourceLower)) {
     return { ...REJECT, reasons: ["Platform not selected"] };
+  }
+
+  // ════════════════════════════════════════════
+  // HARD FILTER: Company Blacklist
+  // ════════════════════════════════════════════
+  const blacklist = (settings.blacklistedCompanies ?? []).map((c) => c.toLowerCase().trim()).filter(Boolean);
+  if (blacklist.length > 0) {
+    const companyLower = normalizeText(job.company);
+    if (blacklist.some((bl) => companyLower.includes(bl) || bl.includes(companyLower))) {
+      return { ...REJECT, reasons: ["Blacklisted company"] };
+    }
   }
 
   // ════════════════════════════════════════════

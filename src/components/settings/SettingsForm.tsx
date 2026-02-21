@@ -109,6 +109,7 @@ interface SettingsFormProps {
     cooldownMinutes?: number | null;
     bouncePauseHours?: number | null;
     sendingPausedUntil?: string | Date | null;
+    blacklistedCompanies?: string[];
   };
 }
 
@@ -256,6 +257,20 @@ export function SettingsForm({
   );
   const [customClosing, setCustomClosing] = useState(s.customClosing || "");
 
+  // Company Blacklist
+  const [blacklistedCompanies, setBlacklistedCompanies] = useState<string[]>(
+    s.blacklistedCompanies || [],
+  );
+  const [blacklistInput, setBlacklistInput] = useState("");
+
+  const addBlacklistCompany = useCallback(() => {
+    const val = blacklistInput.trim();
+    if (val && !blacklistedCompanies.some((c) => c.toLowerCase() === val.toLowerCase())) {
+      setBlacklistedCompanies([...blacklistedCompanies, val]);
+    }
+    setBlacklistInput("");
+  }, [blacklistInput, blacklistedCompanies]);
+
   // Other
   const [resumeMatchMode, setResumeMatchMode] = useState(
     s.resumeMatchMode || "smart",
@@ -382,6 +397,7 @@ export function SettingsForm({
         maxSendsPerDay,
         cooldownMinutes,
         bouncePauseHours,
+        blacklistedCompanies,
       });
       if (result && !result.success) {
         toast.error(result.error || "Failed to save settings");
@@ -853,6 +869,66 @@ export function SettingsForm({
             />
           ))}
         </div>
+      </Section>
+
+      {/* ── Company Blacklist ── */}
+      <Section
+        icon={<Shield className="h-4 w-4" />}
+        title="Company Blacklist"
+        description="Jobs from these companies will be hidden from your dashboard and never auto-applied to. Useful for excluding your current employer."
+      >
+        <div className="flex gap-2">
+          <Input
+            value={blacklistInput}
+            onChange={(e) => setBlacklistInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addBlacklistCompany();
+              }
+            }}
+            placeholder="e.g. Acme Corp"
+            className="h-9 flex-1"
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={addBlacklistCompany}
+            disabled={!blacklistInput.trim()}
+            className="h-9 px-3"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Block
+          </Button>
+        </div>
+        {blacklistedCompanies.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {blacklistedCompanies.map((company, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 rounded-lg bg-red-50 dark:bg-red-900/30 px-2.5 py-1 text-xs font-medium text-red-700 dark:text-red-300 ring-1 ring-red-200/60 dark:ring-red-800/40"
+              >
+                {company}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setBlacklistedCompanies(
+                      blacklistedCompanies.filter((_, idx) => idx !== i),
+                    )
+                  }
+                  className="ml-0.5 rounded-full p-0.5 hover:bg-red-200/60 dark:hover:bg-red-800/40 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+            No companies blocked. Jobs from all companies will be shown.
+          </p>
+        )}
       </Section>
 
       {/* ── Email Provider Education Cards ── */}
