@@ -32,6 +32,7 @@ import {
   deleteResume,
   updateResumeCategories,
   setDefaultResume,
+  reExtractResume,
 } from "@/app/actions/resume";
 import { JOB_CATEGORIES } from "@/constants/categories";
 import {
@@ -47,6 +48,8 @@ import {
   Brain,
   Tags,
   Star,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 interface ResumeWithStats {
@@ -79,6 +82,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
   const [uploading, setUploading] = useState(false);
   const [categoryDialogId, setCategoryDialogId] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [reExtracting, setReExtracting] = useState<string | null>(null);
 
   const handlePdfUpload = async (file: File) => {
     if (!file) return;
@@ -225,6 +229,28 @@ export function ResumeList({ resumes }: ResumeListProps) {
     setContent(r.content ?? "");
   };
 
+  const handleReExtract = async (id: string) => {
+    setReExtracting(id);
+    try {
+      const result = await reExtractResume(id);
+      if (result.success) {
+        toast.success(
+          `Resume re-parsed! Extracted ${result.contentLength?.toLocaleString()} chars and ${result.detectedSkills?.length || 0} skills.`,
+        );
+        router.refresh();
+      } else {
+        toast.error(result.error || "Re-extraction failed");
+      }
+    } catch {
+      toast.error("Re-extraction failed");
+    }
+    setReExtracting(null);
+  };
+
+  const resumesNeedingReExtract = resumes.filter(
+    (r) => r.fileUrl && !r.content,
+  );
+
   return (
     <div className="space-y-4">
       {/* Info banner */}
@@ -243,6 +269,28 @@ export function ResumeList({ resumes }: ResumeListProps) {
           </div>
         </div>
       </div>
+
+      {/* Re-extract banner — shown when resumes have a file but no parsed content */}
+      {resumesNeedingReExtract.length > 0 && (
+        <div className="rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 p-3 ring-1 ring-amber-200/60 dark:ring-amber-700/30">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                {resumesNeedingReExtract.length === 1
+                  ? "1 resume needs text re-extraction"
+                  : `${resumesNeedingReExtract.length} resumes need text re-extraction`}
+              </p>
+              <p className="text-[10px] text-amber-600/80 dark:text-amber-400/80 mt-0.5 leading-relaxed">
+                We&apos;ve improved resume parsing. Your uploaded file is still
+                saved, but the text was not extracted properly before. Click
+                &quot;Re-extract&quot; on each resume below, or re-upload your PDF
+                for the best results.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add button */}
       <div className="flex justify-end">
@@ -588,6 +636,11 @@ export function ResumeList({ resumes }: ResumeListProps) {
                       <CheckCircle2 className="h-2.5 w-2.5" />
                       Content added
                     </span>
+                  ) : r.fileUrl ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
+                      <AlertTriangle className="h-2.5 w-2.5" />
+                      Needs re-extraction
+                    </span>
                   ) : (
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
                       No content
@@ -611,6 +664,33 @@ export function ResumeList({ resumes }: ResumeListProps) {
                         +{(r.targetCategories ?? []).length - 3} more
                       </span>
                     )}
+                  </div>
+                )}
+
+                {!r.content && r.fileUrl && (
+                  <div className="rounded-lg bg-amber-50/80 dark:bg-amber-900/20 px-3 py-2 ring-1 ring-amber-200/50 dark:ring-amber-700/30">
+                    <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                      File uploaded but text not extracted. Re-extract now or re-upload your PDF.
+                    </p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 hover:bg-amber-50 dark:hover:bg-amber-900/30"
+                        onClick={() => handleReExtract(r.id)}
+                        disabled={reExtracting === r.id}
+                      >
+                        {reExtracting === r.id ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                        )}
+                        {reExtracting === r.id ? "Extracting..." : "Re-extract Text"}
+                      </Button>
+                      <span className="text-[9px] text-amber-500 dark:text-amber-500">
+                        or re-upload below
+                      </span>
+                    </div>
                   </div>
                 )}
 

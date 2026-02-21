@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
+import { extractText } from "@/lib/resume-parser";
 import { z } from "zod";
 import { LIMITS } from "@/lib/constants";
 
@@ -231,6 +232,50 @@ export async function updateResumeCategories(
   } catch (error) {
     console.error("[updateResumeCategories] Error:", error);
     return { success: false, error: "Failed to update resume categories." };
+  }
+}
+
+export async function reExtractResume(resumeId: string): Promise<{
+  success: boolean;
+  detectedSkills?: string[];
+  contentLength?: number;
+  error?: string;
+}> {
+  try {
+    const userId = await getAuthUserId();
+
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId, isDeleted: false },
+    });
+    if (!resume) return { success: false, error: "Resume not found" };
+    if (!resume.fileUrl) return { success: false, error: "No file URL — please re-upload or paste content manually" };
+
+    const response = await fetch(resume.fileUrl);
+    if (!response.ok) return { success: false, error: `Could not download file (HTTP ${response.status}). Please re-upload your resume.` };
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const ext = resume.fileName?.split(".").pop()?.toLowerCase() || "pdf";
+    const { text, quality } = await extractText(buffer, ext);
+
+    if (!text || text.length < 10) {
+      return {
+        success: false,
+        error: "Could not extract text from this file. It may be a scanned/image PDF. Please paste your resume text manually instead.",
+      };
+    }
+
+    const detectedSkills = extractSkillsFromContent(text);
+
+    await prisma.resume.update({
+      where: { id: resumeId },
+      data: { content: text, textQuality: quality, detectedSkills },
+    });
+
+    revalidatePath("/resumes");
+    return { success: true, detectedSkills, contentLength: text.length };
+  } catch (error) {
+    console.error("[reExtractResume] Error:", error);
+    return { success: false, error: "Failed to re-extract resume content. Please try re-uploading or pasting text manually." };
   }
 }
 
