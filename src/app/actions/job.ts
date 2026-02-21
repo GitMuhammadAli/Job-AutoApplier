@@ -61,8 +61,13 @@ export async function getJobs() {
     ]);
 
     const preferredPlatforms = settings?.preferredPlatforms ?? [];
+    const blacklist = (settings?.blacklistedCompanies ?? []).map((c: string) => c.toLowerCase().trim()).filter(Boolean);
     const filtered = userJobs.filter((j) => {
       if (!jobMatchesPlatformPreferences(j.globalJob.source, preferredPlatforms)) return false;
+      if (blacklist.length > 0) {
+        const co = j.globalJob.company.toLowerCase().trim();
+        if (blacklist.some((bl: string) => co.includes(bl) || bl.includes(co))) return false;
+      }
       return true;
     });
     const deduped = deduplicateUserJobsByLogicalJob(filtered);

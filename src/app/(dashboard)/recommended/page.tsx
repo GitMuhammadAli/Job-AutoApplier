@@ -53,9 +53,14 @@ export default async function RecommendedPage() {
   const settings =
     settingsResult.status === "fulfilled" ? settingsResult.value : null;
 
-  // Only filter by platform — location was already handled by the matching engine
+  const blacklist = (settings?.blacklistedCompanies ?? []).map((c: string) => c.toLowerCase().trim()).filter(Boolean);
+
   const filteredBySettings = userJobs.filter((j) => {
     if (!jobMatchesPlatformPreferences(j.globalJob.source, settings?.preferredPlatforms)) return false;
+    if (blacklist.length > 0) {
+      const co = j.globalJob.company.toLowerCase().trim();
+      if (blacklist.some((bl: string) => co.includes(bl) || bl.includes(co))) return false;
+    }
     return true;
   });
   const deduped = deduplicateUserJobsByLogicalJob(filteredBySettings);

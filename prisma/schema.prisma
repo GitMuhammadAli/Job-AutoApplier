@@ -234,6 +234,8 @@ model UserSettings {
   bouncePauseHours         Int             @default(24)
   sendingPausedUntil       DateTime?
   smtpVerifiedAt           DateTime?
+  // Company Blacklist
+  blacklistedCompanies     String[]
   // User Tracking
   lastVisitedAt            DateTime?
   // Relations & State
