@@ -34,6 +34,7 @@ import { findCompanyEmail } from "@/lib/email-extractor";
 import { decryptSettingsFields } from "@/lib/encryption";
 import { canSendNow } from "@/lib/send-limiter";
 import { fetchRemotive } from "@/lib/scrapers/remotive";
+import { fetchArbeitnow } from "@/lib/scrapers/arbeitnow";
 import { pickBestResume } from "@/lib/matching/resume-matcher";
 import { categorizeJob } from "@/lib/job-categorizer";
 
@@ -74,15 +75,30 @@ async function main() {
       keyword: kw,
       cities: ["Remote", "Worldwide"],
     }));
-    const scrapedJobs = await fetchRemotive(queries);
+
+    let scrapedJobs = await fetchRemotive(queries);
+    let scrapeSource = "remotive";
+
+    if (scrapedJobs.length === 0) {
+      info("Remotive returned 0 keyword-filtered jobs, trying unfiltered...");
+      scrapedJobs = await fetchRemotive([]);
+      scrapeSource = "remotive (unfiltered)";
+    }
+
+    if (scrapedJobs.length === 0) {
+      info("Remotive empty, falling back to Arbeitnow...");
+      scrapedJobs = await fetchArbeitnow();
+      scrapeSource = "arbeitnow";
+    }
+
     const t1Elapsed = t1();
 
-    info(`Scraped ${scrapedJobs.length} jobs in ${t1Elapsed}`);
+    info(`Scraped ${scrapedJobs.length} jobs from ${scrapeSource} in ${t1Elapsed}ms`);
     if (scrapedJobs.length > 0) {
-      pass(`Step 1: ${scrapedJobs.length} jobs scraped in ${t1Elapsed}`);
-      stepResults.push({ step: "1. Scrape", status: "pass", message: `${scrapedJobs.length} jobs` });
+      pass(`Step 1: ${scrapedJobs.length} jobs scraped from ${scrapeSource} in ${t1Elapsed}ms`);
+      stepResults.push({ step: "1. Scrape", status: "pass", message: `${scrapedJobs.length} jobs (${scrapeSource})` });
     } else {
-      warn("Step 1: No jobs returned from Remotive (API may be empty or filtered)");
+      warn("Step 1: No jobs returned from any free source");
       stepResults.push({ step: "1. Scrape", status: "warn", message: "0 jobs" });
     }
     console.log("");
@@ -175,7 +191,7 @@ async function main() {
     const bestMatch = sortedMatches[0];
     const t2Elapsed = t2();
 
-    info(`Match: ${matchedJobs.length}/${scrapedJobs.length} passed threshold (${MATCH_THRESHOLDS.SHOW_ON_KANBAN}) in ${t2Elapsed}`);
+    info(`Match: ${matchedJobs.length}/${scrapedJobs.length} passed threshold (${MATCH_THRESHOLDS.SHOW_ON_KANBAN}) in ${t2Elapsed}ms`);
     if (bestMatch) {
       pass(`Best match: "${bestMatch.job.title}" @ ${bestMatch.job.company} (score: ${bestMatch.score})`);
       stepResults.push({
@@ -280,7 +296,7 @@ async function main() {
 
         pass(`Created UserJob: ${userJob.id}`);
         stepResults.push({ step: "3. UserJob", status: "pass", message: userJob.id });
-        info(`Step 3: ${t3()}`);
+        info(`Step 3: ${t3()}ms`);
       }
     }
     console.log("");
@@ -400,7 +416,7 @@ async function main() {
             message: `${application.id}`,
           });
         }
-        info(`Step 4: ${t4()}`);
+        info(`Step 4: ${t4()}ms`);
       }
     }
     console.log("");

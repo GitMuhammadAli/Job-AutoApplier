@@ -136,7 +136,7 @@ async function main() {
   console.log(`  Would skip:     ${wouldSkip} (paused/limit)`);
   console.log(`  Would draft:    ${wouldDraft} (no recipient email)`);
   console.log(`  Stuck count:    ${stuckApps.length}`);
-  info(`Elapsed: ${t()}`);
+  info(`Elapsed: ${t()}ms`);
 
   // ─── 4. Verdict ──────────────────────────────────────────────────────────
   verdict("Verdict");

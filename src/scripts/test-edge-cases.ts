@@ -537,7 +537,7 @@ async function main() {
   // ─── Verdict ──────────────────────────────────────────────────────────────
   const totalTime = elapsed();
   verdict("Verdict");
-  info(`Total time: ${totalTime}`);
+  info(`Total time: ${totalTime}ms`);
 
   if (bugs.length === 0) {
     pass(`No bugs found. All edge cases passed.`);
