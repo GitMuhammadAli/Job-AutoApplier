@@ -485,7 +485,7 @@ async function main() {
     "Cast settings.keywords from Json to string[]",
     async () => {
       const jsonKeywords = keywords as unknown as Record<string, unknown>;
-      const cast = jsonKeywords as string[];
+      const cast = jsonKeywords as unknown as string[];
       const job = { ...baseJob, description: "React", skills: ["React"] };
       const settingsCast = { ...settingsForMatch, keywords: cast };
       const result = computeMatchScore(job, settingsCast, resumePayload);
@@ -503,7 +503,7 @@ async function main() {
         select: { detectedSkills: true },
       });
       const skillsJson = (dbResume?.detectedSkills ?? []) as unknown as Record<string, unknown>;
-      const cast = skillsJson as string[];
+      const cast = skillsJson as unknown as string[];
       if (!Array.isArray(cast) && dbResume) {
         throw new Error(`Cast failed: expected array`);
       }
@@ -524,7 +524,7 @@ async function main() {
       const skillsJson = ["React", "Node.js"] as unknown as Record<string, unknown>;
       const job = {
         ...baseJob,
-        skills: skillsJson as string[],
+        skills: skillsJson as unknown as string[],
         description: "React developer",
       };
       const result = computeMatchScore(job, settingsForMatch, resumePayload);
