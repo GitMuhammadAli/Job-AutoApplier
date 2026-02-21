@@ -158,7 +158,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-3 sm:space-y-4 md:space-y-5 animate-slide-up">
+    <div className="max-w-6xl mx-auto space-y-3 sm:space-y-4 md:space-y-5 animate-slide-up">
       {/* Back */}
       <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors">
         <ChevronLeft className="h-4 w-4" />

@@ -22,7 +22,7 @@ export function DashboardShell({ sidebar, header, children }: DashboardShellProp
         )}
       >
         {header}
-        <main id="main-content" className="px-4 py-5 md:px-6 md:py-6">
+        <main id="main-content" className="px-4 py-5 md:px-6 md:py-6 max-w-[1400px] mx-auto">
           {children}
         </main>
       </div>

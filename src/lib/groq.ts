@@ -10,7 +10,7 @@ interface GroqOptions {
   model?: string;
 }
 
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 2;
 
 export async function generateWithGroq(
   systemPrompt: string,
@@ -22,8 +22,11 @@ export async function generateWithGroq(
 
   let lastError: unknown;
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), TIMEOUTS.AI_TIMEOUT_MS);
+
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -39,37 +42,50 @@ export async function generateWithGroq(
           temperature: options.temperature ?? 0.7,
           max_tokens: options.max_tokens ?? 800,
         }),
-        signal: AbortSignal.timeout(TIMEOUTS.AI_TIMEOUT_MS),
+        signal: controller.signal,
       });
 
-      if (response.status === 429 || response.status >= 500) {
+      clearTimeout(timeout);
+
+      if (response.status === 429) {
         const retryAfter = response.headers.get("retry-after");
         const waitMs = retryAfter
-          ? parseInt(retryAfter, 10) * 1000 || 3000
-          : 2000 * Math.pow(2, attempt);
-        if (attempt < MAX_RETRIES - 1) {
+          ? Math.min(parseInt(retryAfter, 10) * 1000, 10000) || 3000
+          : 3000 * (attempt + 1);
+        if (attempt < MAX_RETRIES) {
           await new Promise((r) => setTimeout(r, waitMs));
+          continue;
+        }
+        throw new Error("AI rate limited. Please wait a moment and try again.");
+      }
+
+      if (response.status >= 500) {
+        if (attempt < MAX_RETRIES) {
+          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
           continue;
         }
       }
 
       if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Groq API error: ${err}`);
+        const errText = await response.text().catch(() => "Unknown error");
+        throw new Error(`AI service error (${response.status}). Try again.`);
       }
 
       const data = await response.json();
       const text = data.choices?.[0]?.message?.content?.trim();
-      if (!text) throw new Error("Empty response from Groq");
+      if (!text) throw new Error("AI returned an empty response. Please try again.");
 
       return text;
     } catch (err) {
       lastError = err;
-      if (attempt < MAX_RETRIES - 1) {
-        await new Promise((r) => setTimeout(r, 2000 * Math.pow(2, attempt)));
+      if (err instanceof Error && err.name === "AbortError") {
+        lastError = new Error("AI request timed out. Please try again.");
+      }
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
       }
     }
   }
 
-  throw lastError || new Error("Groq API failed after retries");
+  throw lastError || new Error("AI generation failed. Please try again.");
 }

@@ -86,12 +86,8 @@ export function QuickApplyPanel({
     initialApp?.recipientEmail || userJob.globalJob.companyEmail || ""
   );
 
-  useEffect(() => {
-    if (!application && !isGenerating) {
-      handleGenerate();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Don't auto-generate on mount — let users click "Generate Email" when ready.
+  // Auto-triggering was causing Groq API rate limits and 500 errors.
 
   // Fetch application mode for send button gating
   useEffect(() => {
@@ -122,9 +118,14 @@ export function QuickApplyPanel({
         setMatchInfo(result.matchedResume);
         toast.success(`Draft ready! Resume: ${result.matchedResume.name}`);
       } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : "Generation failed"
-        );
+        const msg = error instanceof Error ? error.message : "Generation failed";
+        if (msg.includes("rate") || msg.includes("429") || msg.includes("Too Many")) {
+          toast.error("AI is busy. Please wait a moment and try again.");
+        } else if (msg.includes("GROQ_API_KEY")) {
+          toast.error("AI not configured. Contact the admin.");
+        } else {
+          toast.error(msg);
+        }
       }
     });
   }
@@ -253,16 +254,20 @@ export function QuickApplyPanel({
             </Badge>
           )}
         </div>
-        <div className="space-y-3 animate-pulse">
-          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-2/3" />
-          <div className="h-10 bg-slate-100 dark:bg-zinc-700 rounded" />
-          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
-          <div className="h-32 bg-slate-100 dark:bg-zinc-700 rounded" />
-        </div>
-        <p className="text-xs text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Generating email draft...
+        <p className="text-xs text-slate-500 dark:text-zinc-400">
+          {userJob.globalJob.title} at {userJob.globalJob.company}
         </p>
+        <div className="text-center py-4 space-y-3">
+          <div className="mx-auto h-12 w-12 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+          </div>
+          <p className="text-sm font-medium text-slate-600 dark:text-zinc-300">
+            Generating email draft...
+          </p>
+          <p className="text-xs text-slate-400 dark:text-zinc-500">
+            AI is writing a personalized email using your resume.
+          </p>
+        </div>
       </div>
     );
   }
