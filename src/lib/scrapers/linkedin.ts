@@ -1,5 +1,6 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
+import { categorizeJob } from "@/lib/job-categorizer";
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -165,15 +166,17 @@ function parseLinkedInHtml(
       extractAttr(card, "base-search-card__snippet") ||
       null;
 
+    const cleanTitle = cleanText(title);
+    const cleanSnippet = snippet ? cleanText(snippet) : "";
     jobs.push({
-      title: cleanText(title),
+      title: cleanTitle,
       company: cleanText(company),
       location: location ? cleanText(location) : fallbackCity,
-      description: snippet ? cleanText(snippet) : null,
+      description: cleanSnippet || null,
       salary: extractSalary(card),
       jobType: null,
       experienceLevel: null,
-      category: null,
+      category: categorizeJob(cleanTitle, [], cleanSnippet),
       skills: [],
       postedDate: dateStr ? new Date(dateStr) : null,
       source: "linkedin",

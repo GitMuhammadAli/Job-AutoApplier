@@ -7,7 +7,11 @@ import { z } from "zod";
 import type { JobStage } from "@prisma/client";
 import { LIMITS } from "@/lib/constants";
 import { getSettings } from "@/app/actions/settings";
-import { jobMatchesLocationPreferences, deduplicateUserJobsByLogicalJob } from "@/lib/matching/location-filter";
+import {
+  jobMatchesLocationPreferences,
+  jobMatchesPlatformPreferences,
+  deduplicateUserJobsByLogicalJob,
+} from "@/lib/matching/location-filter";
 
 // ── Get all user jobs (for Kanban board) — only jobs matching user's city/country from settings ──
 
@@ -59,9 +63,12 @@ export async function getJobs() {
 
     const city = settings?.city ?? null;
     const country = settings?.country ?? null;
-    const filtered = userJobs.filter((j) =>
-      jobMatchesLocationPreferences(j.globalJob.location, city, country)
-    );
+    const preferredPlatforms = settings?.preferredPlatforms ?? [];
+    const filtered = userJobs.filter((j) => {
+      if (!jobMatchesLocationPreferences(j.globalJob.location, city, country)) return false;
+      if (!jobMatchesPlatformPreferences(j.globalJob.source, preferredPlatforms)) return false;
+      return true;
+    });
     const deduped = deduplicateUserJobsByLogicalJob(filtered);
 
     return deduped;

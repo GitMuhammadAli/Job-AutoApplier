@@ -218,7 +218,7 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
         )}
 
         <a
-          href="https://alishahid.dev"
+          href="https://alishahid-dev.vercel.app"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-1.5 px-4 py-2 opacity-40 hover:opacity-100 transition-all group hover:scale-105 active:scale-95"
