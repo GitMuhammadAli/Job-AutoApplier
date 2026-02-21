@@ -34,7 +34,7 @@ export async function GET() {
           orderBy: { createdAt: "desc" },
           take: LIMITS.ANALYTICS_MAX_ROWS,
         }),
-        prisma.emailTemplate.findMany({ where: { userId } }),
+        prisma.emailTemplate.findMany({ where: { userId }, take: 100 }),
       ]);
     const settings = rawSettings ? decryptSettingsFields(rawSettings) : null;
 

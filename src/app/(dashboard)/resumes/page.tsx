@@ -6,11 +6,13 @@ export const dynamic = "force-dynamic";
 
 export default async function ResumesPage() {
   let resumes: Awaited<ReturnType<typeof getResumesWithStats>> = [];
+  let loadError = false;
 
   try {
     resumes = await getResumesWithStats();
   } catch (error) {
     console.error("[ResumesPage] Failed to load resumes:", error);
+    loadError = true;
   }
 
   return (
@@ -27,12 +29,21 @@ export default async function ResumesPage() {
             Manage CV variants. The automation auto-recommends the best resume for each job match.
           </p>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 ring-1 ring-indigo-100 dark:ring-indigo-800/50">
-          <Sparkles className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-300" />
-          <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">{resumes.length} variants</span>
-        </div>
+        {!loadError && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 ring-1 ring-indigo-100 dark:ring-indigo-800/50">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-300" />
+            <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">{resumes.length} variants</span>
+          </div>
+        )}
       </div>
-      <ResumeList resumes={resumes} />
+      {loadError ? (
+        <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30 p-6 text-center">
+          <p className="text-sm font-medium text-red-700 dark:text-red-300">Failed to load resumes</p>
+          <p className="mt-1 text-xs text-red-600/70 dark:text-red-400/60">Please refresh the page to try again.</p>
+        </div>
+      ) : (
+        <ResumeList resumes={resumes} />
+      )}
     </div>
   );
 }

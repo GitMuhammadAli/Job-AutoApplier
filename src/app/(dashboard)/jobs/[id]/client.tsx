@@ -32,7 +32,6 @@ import {
   Clock,
   Building2,
   MapPin,
-  DollarSign,
   ChevronLeft,
   Loader2,
   ArrowRight,
@@ -159,7 +158,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5 animate-slide-up">
+    <div className="max-w-5xl mx-auto space-y-3 sm:space-y-4 md:space-y-5 animate-slide-up">
       {/* Back */}
       <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors">
         <ChevronLeft className="h-4 w-4" />
@@ -167,39 +166,39 @@ export function JobDetailClient({ job }: JobDetailProps) {
       </Link>
 
       {/* Header Card */}
-      <div className="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-4 sm:p-5 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+      <div className="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
         <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${config.gradient}`} />
 
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="flex flex-col gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-zinc-400">
-              <Building2 className="h-4 w-4 flex-shrink-0" />
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 dark:text-zinc-400">
+              <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="truncate">{g.company}</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 mt-1">{g.title}</h1>
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 mt-1 break-words">{g.title}</h1>
 
-            <div className="flex flex-wrap items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2">
               <PlatformBadge source={g.source} />
-              <Badge variant="outline" className={`${config.bg} ${config.text} border-0 text-xs`}>
+              <Badge variant="outline" className={`${config.bg} ${config.text} border-0 text-[10px] sm:text-xs`}>
                 {config.label}
               </Badge>
               {job.matchScore != null && (
-                <Badge variant="outline" className={`border-0 text-xs font-bold ${
+                <Badge variant="outline" className={`border-0 text-[10px] sm:text-xs font-bold ${
                   job.matchScore >= 70 ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" :
                   job.matchScore >= 40 ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" :
                   "bg-slate-50 dark:bg-zinc-800/50 text-slate-600 dark:text-zinc-400"
                 }`}>
-                  <Star className="h-3 w-3 mr-1" />
+                  <Star className="h-3 w-3 mr-0.5 sm:mr-1" />
                   {Math.round(job.matchScore)}% Match
                 </Badge>
               )}
               {job.application && (
-                <Badge variant="outline" className={`border-0 text-xs ${
+                <Badge variant="outline" className={`border-0 text-[10px] sm:text-xs ${
                   job.application.status === "SENT" ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" :
                   job.application.status === "DRAFT" ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" :
                   "bg-slate-50 dark:bg-zinc-800/50 text-slate-600 dark:text-zinc-400"
                 }`}>
-                  <Send className="h-3 w-3 mr-1" />
+                  <Send className="h-3 w-3 mr-0.5 sm:mr-1" />
                   {job.application.status}
                 </Badge>
               )}
@@ -208,7 +207,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
 
           <div className="flex flex-wrap gap-2">
             {g.applyUrl && (
-              <Button variant="outline" size="sm" asChild className="shadow-sm">
+              <Button variant="outline" size="sm" asChild className="shadow-sm text-xs">
                 <a href={g.applyUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
                   Apply
@@ -217,12 +216,12 @@ export function JobDetailClient({ job }: JobDetailProps) {
             )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30">
+                <Button variant="outline" size="sm" className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30">
                   <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                   Dismiss
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Dismiss this job?</AlertDialogTitle>
                   <AlertDialogDescription>
@@ -258,8 +257,8 @@ export function JobDetailClient({ job }: JobDetailProps) {
       </div>
 
       {/* Stage selector */}
-      <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+      <div className="-mx-2 px-2 sm:mx-0 sm:px-0">
+        <div className="flex gap-1 sm:gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
           {STAGES.map((stage) => {
             const sc = STAGE_CONFIG[stage];
             const isActive = job.stage === stage;
@@ -268,7 +267,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
                 key={stage}
                 onClick={() => handleStageChange(stage as JobStage)}
                 disabled={isPending}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap touch-manipulation ${
+                className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-medium transition-all whitespace-nowrap touch-manipulation ${
                   isActive
                     ? `${sc.bg} ${sc.text} ring-1 ${sc.ring} shadow-sm dark:shadow-zinc-900/50`
                     : "bg-slate-50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700"
@@ -284,27 +283,27 @@ export function JobDetailClient({ job }: JobDetailProps) {
       </div>
 
       {/* Main Content: Split Layout */}
-      <div className="flex flex-col lg:flex-row gap-5">
+      <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 lg:gap-5">
         {/* Left: Job Details */}
         <div className="flex-1 min-w-0">
           {/* Tabs */}
           <Tabs defaultValue="details" className="space-y-0">
-            <div className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto">
+            <div className="-mx-1 px-1 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-thin">
               <TabsList className="bg-slate-100/80 dark:bg-zinc-700/80 rounded-lg p-0.5 w-max sm:w-auto">
-                <TabsTrigger value="details" className="text-xs rounded-md">Details</TabsTrigger>
-                <TabsTrigger value="cover-letter" className="text-xs rounded-md">Cover Letter</TabsTrigger>
-                <TabsTrigger value="notes" className="text-xs rounded-md">Notes</TabsTrigger>
-                <TabsTrigger value="activity" className="text-xs rounded-md">Activity</TabsTrigger>
+                <TabsTrigger value="details" className="text-[11px] sm:text-xs rounded-md px-2.5 sm:px-3">Details</TabsTrigger>
+                <TabsTrigger value="cover-letter" className="text-[11px] sm:text-xs rounded-md px-2.5 sm:px-3">Cover Letter</TabsTrigger>
+                <TabsTrigger value="notes" className="text-[11px] sm:text-xs rounded-md px-2.5 sm:px-3">Notes</TabsTrigger>
+                <TabsTrigger value="activity" className="text-[11px] sm:text-xs rounded-md px-2.5 sm:px-3">Activity</TabsTrigger>
               </TabsList>
             </div>
 
-        <TabsContent value="details" className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <TabsContent value="details" className="mt-3 sm:mt-4 space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {/* Info card */}
-            <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-3">
+            <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-2.5 sm:space-y-3">
               <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Job Info</h3>
               {g.location && <InfoRow icon={<MapPin className="h-3.5 w-3.5" />} label="Location" value={g.location} />}
-              {g.salary && <InfoRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Salary" value={g.salary} />}
+              {g.salary && <InfoRow icon={<Tag className="h-3.5 w-3.5" />} label="Salary" value={g.salary} />}
               {g.jobType && <InfoRow icon={<Tag className="h-3.5 w-3.5" />} label="Type" value={g.jobType} />}
               {g.experienceLevel && <InfoRow icon={<Tag className="h-3.5 w-3.5" />} label="Level" value={g.experienceLevel} />}
               {g.category && <InfoRow icon={<Tag className="h-3.5 w-3.5" />} label="Category" value={g.category} />}
@@ -313,9 +312,9 @@ export function JobDetailClient({ job }: JobDetailProps) {
             </div>
 
             {/* Skills & Match */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {g.skills.length > 0 && (
-                <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+                <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
                   <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Skills</h3>
                   <div className="flex flex-wrap gap-1.5">
                     {g.skills.map((skill) => (
@@ -328,7 +327,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
               )}
 
               {job.matchReasons.length > 0 && (
-                <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+                <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
                   <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Match Reasons</h3>
                   <ul className="space-y-1">
                     {job.matchReasons.map((reason, i) => (
@@ -345,9 +344,9 @@ export function JobDetailClient({ job }: JobDetailProps) {
 
           {/* Description */}
           {g.description && (
-            <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+            <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
               <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Job Description</h3>
-              <div className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
+              <div className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap max-h-72 sm:max-h-96 overflow-y-auto break-words">
                 {g.description}
               </div>
             </div>
@@ -355,27 +354,27 @@ export function JobDetailClient({ job }: JobDetailProps) {
 
           {/* Apply links */}
           {(g.applyUrl || g.companyUrl || g.companyEmail || g.sourceUrl) && (
-            <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+            <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
               <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Apply Links</h3>
               <div className="space-y-2">
                 {g.applyUrl && (
-                  <a href={g.applyUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline">
-                    <ExternalLink className="h-3.5 w-3.5" /> Apply Link
+                  <a href={g.applyUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline break-all">
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" /> Apply Link
                   </a>
                 )}
                 {g.sourceUrl && g.sourceUrl !== g.applyUrl && (
-                  <a href={g.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline">
-                    <ExternalLink className="h-3.5 w-3.5" /> Source Link
+                  <a href={g.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline break-all">
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" /> Source Link
                   </a>
                 )}
                 {g.companyUrl && (
-                  <a href={g.companyUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-600 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:underline">
-                    <Building2 className="h-3.5 w-3.5" /> Company Website
+                  <a href={g.companyUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:underline break-all">
+                    <Building2 className="h-3.5 w-3.5 shrink-0" /> Company Website
                   </a>
                 )}
                 {g.companyEmail && (
-                  <a href={`mailto:${g.companyEmail}`} className="flex items-center gap-2 text-sm text-slate-600 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:underline">
-                    <Send className="h-3.5 w-3.5" /> {g.companyEmail}
+                  <a href={`mailto:${g.companyEmail}`} className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 hover:underline break-all">
+                    <Send className="h-3.5 w-3.5 shrink-0" /> {g.companyEmail}
                   </a>
                 )}
               </div>
@@ -383,9 +382,9 @@ export function JobDetailClient({ job }: JobDetailProps) {
           )}
         </TabsContent>
 
-        <TabsContent value="cover-letter" className="mt-4">
-          <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-4">
-            <div className="flex items-center justify-between">
+        <TabsContent value="cover-letter" className="mt-3 sm:mt-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-violet-500" />
                 AI Cover Letter
@@ -396,8 +395,10 @@ export function JobDetailClient({ job }: JobDetailProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      navigator.clipboard.writeText(coverLetterText);
-                      toast.success("Copied to clipboard");
+                      navigator.clipboard.writeText(coverLetterText).then(
+                        () => toast.success("Copied to clipboard"),
+                        () => toast.error("Failed to copy — try selecting and copying manually")
+                      );
                     }}
                   >
                     <Copy className="h-3.5 w-3.5 mr-1.5" />
@@ -465,8 +466,8 @@ export function JobDetailClient({ job }: JobDetailProps) {
           </div>
         </TabsContent>
 
-        <TabsContent value="notes" className="mt-4">
-          <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-3">
+        <TabsContent value="notes" className="mt-3 sm:mt-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-3">
             <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Notes</h3>
             <Textarea
               value={noteText}
@@ -481,8 +482,8 @@ export function JobDetailClient({ job }: JobDetailProps) {
           </div>
         </TabsContent>
 
-        <TabsContent value="activity" className="mt-4">
-          <div className="rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+        <TabsContent value="activity" className="mt-3 sm:mt-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
             <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">Activity Timeline</h3>
             <ActivityTimeline activities={job.activities} />
           </div>
@@ -491,8 +492,8 @@ export function JobDetailClient({ job }: JobDetailProps) {
         </div>
 
         {/* Right: Quick Apply Panel */}
-        <div className="w-full lg:w-[360px] shrink-0">
-          <div className="sticky top-16 rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+        <div className="w-full lg:w-[380px] shrink-0">
+          <div className="lg:sticky lg:top-16 rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
             <QuickApplyPanel
               userJob={{
                 id: job.id,
@@ -516,10 +517,10 @@ export function JobDetailClient({ job }: JobDetailProps) {
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <span className="text-slate-400 dark:text-zinc-500">{icon}</span>
-      <span className="text-slate-500 dark:text-zinc-400 min-w-[60px]">{label}:</span>
-      <span className="text-slate-700 dark:text-zinc-300 font-medium">{value}</span>
+    <div className="flex items-start gap-2 text-xs sm:text-sm">
+      <span className="text-slate-400 dark:text-zinc-500 mt-0.5 shrink-0">{icon}</span>
+      <span className="text-slate-500 dark:text-zinc-400 min-w-[50px] sm:min-w-[60px] shrink-0">{label}:</span>
+      <span className="text-slate-700 dark:text-zinc-300 font-medium break-words min-w-0">{value}</span>
     </div>
   );
 }

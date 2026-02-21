@@ -4,7 +4,7 @@ import { useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Building2, Clock, ExternalLink, DollarSign, Mail, Zap, FileText } from "lucide-react";
+import { Building2, Clock, ExternalLink, Mail, Zap, FileText } from "lucide-react";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { StageSelector } from "@/components/shared/StageSelector";
 import { daysAgo } from "@/lib/utils";
@@ -59,39 +59,37 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       pointerStart.current = { x: e.clientX, y: e.clientY };
-      // Forward to dnd-kit's pointer handler
-      const dndHandler = (listeners as Record<string, Function> | undefined)?.onPointerDown;
-      if (dndHandler) dndHandler(e);
     },
-    [listeners]
+    []
   );
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (!pointerStart.current) return;
+      const dx = Math.abs(e.clientX - pointerStart.current.x);
+      const dy = Math.abs(e.clientY - pointerStart.current.y);
+      pointerStart.current = null;
+      if (dx > 5 || dy > 5) return;
       const target = e.target as HTMLElement;
       if (target.closest("a, button, [role='button'], select, input")) return;
-      // Only navigate if pointer barely moved (not a drag gesture)
-      if (pointerStart.current) {
-        const dx = Math.abs(e.clientX - pointerStart.current.x);
-        const dy = Math.abs(e.clientY - pointerStart.current.y);
-        if (dx > 5 || dy > 5) return;
-      }
       router.push(`/jobs/${job.id}`);
     },
     [router, job.id]
   );
-
-  const dndKeyDown = (listeners as Record<string, Function> | undefined)?.onKeyDown;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
-      onPointerDown={handlePointerDown}
-      onKeyDown={dndKeyDown as React.KeyboardEventHandler<HTMLDivElement> | undefined}
-      onClick={handleClick}
-      className={`group relative cursor-pointer active:cursor-grabbing rounded-xl bg-white dark:bg-zinc-800 p-3 md:p-3.5 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-shadow transition-transform duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 dark:hover:ring-zinc-600/80 touch-manipulation ${
+      {...listeners}
+      onPointerDown={(e) => {
+        handlePointerDown(e);
+        const dndHandler = (listeners as Record<string, Function> | undefined)?.onPointerDown;
+        if (dndHandler) dndHandler(e);
+      }}
+      onPointerUp={handlePointerUp}
+      className={`group relative cursor-pointer active:cursor-grabbing rounded-xl bg-white dark:bg-zinc-800 p-3.5 md:p-4 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-shadow transition-transform duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 dark:hover:ring-zinc-600/80 touch-manipulation ${
         isDragging ? "opacity-50 shadow-lg rotate-2 z-50 ring-blue-300" : ""
       }`}
     >
@@ -142,9 +140,8 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
       </div>
 
       {g.salary && (
-        <div className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-semibold mb-1.5">
-          <DollarSign className="h-3 w-3" />
-          <span>{g.salary}</span>
+        <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mb-1.5 truncate">
+          {g.salary}
         </div>
       )}
 
@@ -168,9 +165,9 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
             <div
               className={`h-1 rounded-full transition-all duration-500 ${
                 job.matchScore >= 70
-                  ? "bg-emerald-500"
+                  ? "bg-emerald-500 dark:bg-emerald-400"
                   : job.matchScore >= 40
-                    ? "bg-amber-400"
+                    ? "bg-amber-400 dark:bg-amber-500"
                     : "bg-slate-300 dark:bg-zinc-600"
               }`}
               style={{ width: `${Math.min(job.matchScore, 100)}%` }}

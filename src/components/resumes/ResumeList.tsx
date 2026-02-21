@@ -301,7 +301,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
                 </div>
                 {uploading && (
                   <p
-                    className="text-xs text-blue-600 flex items-center gap-1"
+                    className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1"
                     aria-live="polite"
                   >
                     <Loader2 className="h-3 w-3 animate-spin" /> Parsing

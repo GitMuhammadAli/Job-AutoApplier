@@ -33,8 +33,12 @@ ${coverLetter ?? "(none)"}
 --- RESUME: ${resumeName ?? "none"} ---`;
 
   const copyToClipboard = async (text: string) => {
-    await navigator.clipboard.writeText(text);
-    toast("Copied to clipboard");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Copied to clipboard");
+    } catch {
+      toast.error("Failed to copy — try selecting and copying manually");
+    }
   };
 
   const copyAll = () => copyToClipboard(fullBundle);

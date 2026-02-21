@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TemplatesPage() {
   let templates: Awaited<ReturnType<typeof getEmailTemplates>> = [];
+  let loadError = false;
 
   try {
     templates = await getEmailTemplates();
@@ -16,6 +17,7 @@ export default async function TemplatesPage() {
     }
   } catch (error) {
     console.error("[TemplatesPage] Failed to load templates:", error);
+    loadError = true;
   }
 
   return (
@@ -31,7 +33,14 @@ export default async function TemplatesPage() {
           Manage your application email templates. Use placeholders like {"{{company}}"}, {"{{position}}"}, {"{{name}}"} for personalization.
         </p>
       </div>
-      <TemplateEditor templates={templates} />
+      {loadError ? (
+        <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30 p-6 text-center">
+          <p className="text-sm font-medium text-red-700 dark:text-red-300">Failed to load templates</p>
+          <p className="mt-1 text-xs text-red-600/70 dark:text-red-400/60">Please refresh the page to try again.</p>
+        </div>
+      ) : (
+        <TemplateEditor templates={templates} />
+      )}
     </div>
   );
 }
