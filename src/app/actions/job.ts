@@ -6,53 +6,64 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { JobStage } from "@prisma/client";
 import { LIMITS } from "@/lib/constants";
+import { getSettings } from "@/app/actions/settings";
+import { jobMatchesLocationPreferences } from "@/lib/matching/location-filter";
 
-// ── Get all user jobs (for Kanban board) ──
+// ── Get all user jobs (for Kanban board) — only jobs matching user's city/country from settings ──
 
 export async function getJobs() {
   try {
     const userId = await getAuthUserId();
 
-    const userJobs = await prisma.userJob.findMany({
-      where: {
-        userId,
-        isDismissed: false,
-        matchScore: { gte: 40 },
-      },
-      include: {
-        globalJob: {
-          select: {
-            id: true,
-            title: true,
-            company: true,
-            location: true,
-            salary: true,
-            jobType: true,
-            experienceLevel: true,
-            category: true,
-            skills: true,
-            source: true,
-            applyUrl: true,
-            sourceUrl: true,
-            companyUrl: true,
-            companyEmail: true,
-            isFresh: true,
-            isActive: true,
-            postedDate: true,
-            createdAt: true,
-            lastSeenAt: true,
-            firstSeenAt: true,
+    const [userJobs, settings] = await Promise.all([
+      prisma.userJob.findMany({
+        where: {
+          userId,
+          isDismissed: false,
+          matchScore: { gte: 40 },
+        },
+        include: {
+          globalJob: {
+            select: {
+              id: true,
+              title: true,
+              company: true,
+              location: true,
+              salary: true,
+              jobType: true,
+              experienceLevel: true,
+              category: true,
+              skills: true,
+              source: true,
+              applyUrl: true,
+              sourceUrl: true,
+              companyUrl: true,
+              companyEmail: true,
+              isFresh: true,
+              isActive: true,
+              postedDate: true,
+              createdAt: true,
+              lastSeenAt: true,
+              firstSeenAt: true,
+            },
+          },
+          application: {
+            select: { id: true, status: true, sentAt: true },
           },
         },
-        application: {
-          select: { id: true, status: true, sentAt: true },
-        },
-      },
-      orderBy: { matchScore: "desc" },
-      take: LIMITS.JOBS_PER_PAGE,
-    });
+        orderBy: { matchScore: "desc" },
+        take: LIMITS.JOBS_PER_PAGE,
+      }),
+      getSettings(),
+    ]);
 
-    return userJobs;
+    const city = settings?.city ?? null;
+    const country = settings?.country ?? null;
+    const filtered = userJobs.filter((j) =>
+      jobMatchesLocationPreferences(j.globalJob.location, city, country)
+    );
+
+    return filtered;
   } catch (error) {
     console.error("[getJobs]", error);
     throw new Error("Failed to load jobs");

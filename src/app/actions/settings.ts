@@ -147,6 +147,7 @@ export async function saveSettings(rawData: unknown): Promise<{ success: boolean
 
     revalidatePath("/settings");
     revalidatePath("/dashboard");
+    revalidatePath("/dashboard/recommended");
     return { success: true };
   } catch (error) {
     if (error instanceof z.ZodError) {

@@ -178,6 +178,25 @@ export function computeMatchScore(
   }
 
   // ════════════════════════════════════════════
+  // HARD FILTER 5: City — when user set a city, only allow that city or remote
+  // ════════════════════════════════════════════
+  const userCityRaw = (settings.city ?? "").trim().toLowerCase();
+  const userCity = userCityRaw.split(",")[0]?.trim() ?? ""; // "lahore, pakistan" -> "lahore"
+  if (userCity && locationLower) {
+    const isRemote =
+      locationLower.includes("remote") ||
+      locationLower.includes("anywhere") ||
+      locationLower.includes("worldwide") ||
+      locationLower.includes("global");
+    const isUserCity = locationLower.includes(userCity);
+    const unspecified = !locationLower || locationLower === "n/a" || locationLower === "not specified";
+
+    if (!isRemote && !isUserCity && !unspecified) {
+      return { ...REJECT, reasons: ["Wrong location"] };
+    }
+  }
+
+  // ════════════════════════════════════════════
   // SCORING — Only jobs that passed all hard filters get scored
   // ════════════════════════════════════════════
   let score = 0;

@@ -1,5 +1,7 @@
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getSettings } from "@/app/actions/settings";
+import { jobMatchesLocationPreferences } from "@/lib/matching/location-filter";
 import { RecommendedClient } from "./client";
 
 export const dynamic = "force-dynamic";
@@ -7,40 +9,53 @@ export const dynamic = "force-dynamic";
 export default async function RecommendedPage() {
   const userId = await getAuthUserId();
 
-  const userJobs = await prisma.userJob.findMany({
-    where: { userId, isDismissed: false },
-    include: {
-      globalJob: {
-        select: {
-          id: true,
-          title: true,
-          company: true,
-          location: true,
-          salary: true,
-          jobType: true,
-          experienceLevel: true,
-          category: true,
-          skills: true,
-          source: true,
-          applyUrl: true,
-          sourceUrl: true,
-          companyEmail: true,
-          description: true,
-          isFresh: true,
-          postedDate: true,
-          firstSeenAt: true,
-          createdAt: true,
+  const [userJobsResult, settingsResult] = await Promise.allSettled([
+    prisma.userJob.findMany({
+      where: { userId, isDismissed: false },
+      include: {
+        globalJob: {
+          select: {
+            id: true,
+            title: true,
+            company: true,
+            location: true,
+            salary: true,
+            jobType: true,
+            experienceLevel: true,
+            category: true,
+            skills: true,
+            source: true,
+            applyUrl: true,
+            sourceUrl: true,
+            companyEmail: true,
+            description: true,
+            isFresh: true,
+            postedDate: true,
+            firstSeenAt: true,
+            createdAt: true,
+          },
+        },
+        application: {
+          select: { id: true, status: true, sentAt: true },
         },
       },
-      application: {
-        select: { id: true, status: true, sentAt: true },
-      },
-    },
-    orderBy: { matchScore: "desc" },
-    take: 200,
-  });
+      orderBy: { matchScore: "desc" },
+      take: 200,
+    }),
+    getSettings(),
+  ]);
 
-  const serialized = userJobs.map((j) => ({
+  const userJobs =
+    userJobsResult.status === "fulfilled" ? userJobsResult.value : [];
+  const settings =
+    settingsResult.status === "fulfilled" ? settingsResult.value : null;
+
+  // Only show jobs matching user's city/country from settings (e.g. Lahore → no Karachi jobs).
+  const filteredByLocation = userJobs.filter((j) =>
+    jobMatchesLocationPreferences(j.globalJob.location, settings?.city, settings?.country)
+  );
+
+  const serialized = filteredByLocation.map((j) => ({
     ...j,
     createdAt: j.createdAt.toISOString(),
     updatedAt: j.updatedAt.toISOString(),
