@@ -47,7 +47,7 @@ async function main() {
     orderBy: { matchScore: "desc" },
   });
   const queryTime = queryElapsed();
-  pass(`Loaded ${userJobs.length} jobs in ${queryTime}`);
+  pass(`Loaded ${userJobs.length} jobs in ${queryTime}ms`);
 
   if (userJobs.length === 0) {
     warn("No jobs to validate. Add jobs or use a different userId.");

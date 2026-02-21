@@ -52,7 +52,7 @@ export const verdict = (title: string) => {
 
 export const timer = () => {
   const start = Date.now();
-  return () => `${Date.now() - start}ms`;
+  return () => Date.now() - start;
 };
 
 export const safely = async <T>(fn: () => Promise<T>, label: string): Promise<T | null> => {

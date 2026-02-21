@@ -143,7 +143,7 @@ async function main() {
   }
 
   const matchTime = elapsed();
-  pass(`Matched ${jobs.length} jobs in ${matchTime}`);
+  pass(`Matched ${jobs.length} jobs in ${matchTime}ms`);
 
   // ─── 5. Filter results breakdown ─────────────────────────────────────────
   subheader("5. Filter results breakdown");

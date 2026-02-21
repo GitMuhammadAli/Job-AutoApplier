@@ -92,7 +92,7 @@ async function main() {
       }
     }
     results.push({ name: "SMTP config", ok: smtpOk });
-    info(`  (${t1()})`);
+    info(`  (${t1()}ms)`);
     console.log("");
 
     // Test 2: Decrypt SMTP password
@@ -131,7 +131,7 @@ async function main() {
       }
     }
     results.push({ name: "Decrypt SMTP password", ok: decryptOk });
-    info(`  (${t2()})`);
+    info(`  (${t2()}ms)`);
     console.log("");
 
     // Test 3: Create transporter
@@ -160,7 +160,7 @@ async function main() {
       fail(`Transporter creation failed: ${msg}`);
       results.push({ name: "Create transporter", ok: false });
     }
-    info(`  (${t3()})`);
+    info(`  (${t3()}ms)`);
     console.log("");
 
     // Test 4: Verify SMTP connection
@@ -187,7 +187,7 @@ async function main() {
       fail("Skipped — no transporter");
     }
     results.push({ name: "Verify SMTP connection", ok: verifyOk });
-    info(`  (${t4()})`);
+    info(`  (${t4()}ms)`);
     console.log("");
 
     // Test 5: Send test email
@@ -231,7 +231,7 @@ async function main() {
       fail("Skipped — transporter not ready or verify failed");
       results.push({ name: "Send test email", ok: false });
     }
-    info(`  (${t5()})`);
+    info(`  (${t5()}ms)`);
     console.log("");
 
     // Test 6: canSendNow check
@@ -257,7 +257,7 @@ async function main() {
       }
     }
     results.push({ name: "canSendNow", ok: limitResult.allowed });
-    info(`  (${t6()})`);
+    info(`  (${t6()}ms)`);
     console.log("");
 
     // Test 7: getSendingStats
@@ -273,7 +273,7 @@ async function main() {
       pass("Not paused");
     }
     results.push({ name: "getSendingStats", ok: true });
-    info(`  (${t7()})`);
+    info(`  (${t7()}ms)`);
     console.log("");
 
     // Verdict
