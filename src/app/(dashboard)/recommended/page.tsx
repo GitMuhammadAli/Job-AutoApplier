@@ -1,7 +1,11 @@
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/app/actions/settings";
-import { jobMatchesLocationPreferences, deduplicateUserJobsByLogicalJob } from "@/lib/matching/location-filter";
+import {
+  jobMatchesLocationPreferences,
+  jobMatchesPlatformPreferences,
+  deduplicateUserJobsByLogicalJob,
+} from "@/lib/matching/location-filter";
 import { RecommendedClient } from "./client";
 
 export const dynamic = "force-dynamic";
@@ -50,11 +54,13 @@ export default async function RecommendedPage() {
   const settings =
     settingsResult.status === "fulfilled" ? settingsResult.value : null;
 
-  // Only show jobs matching user's city/country from settings (e.g. Lahore → no Karachi jobs).
-  const filteredByLocation = userJobs.filter((j) =>
-    jobMatchesLocationPreferences(j.globalJob.location, settings?.city, settings?.country)
-  );
-  const deduped = deduplicateUserJobsByLogicalJob(filteredByLocation);
+  // Only show jobs matching user's city/country and preferred platforms from settings.
+  const filteredBySettings = userJobs.filter((j) => {
+    if (!jobMatchesLocationPreferences(j.globalJob.location, settings?.city, settings?.country)) return false;
+    if (!jobMatchesPlatformPreferences(j.globalJob.source, settings?.preferredPlatforms)) return false;
+    return true;
+  });
+  const deduped = deduplicateUserJobsByLogicalJob(filteredBySettings);
 
   const serialized = deduped.map((j) => ({
     ...j,

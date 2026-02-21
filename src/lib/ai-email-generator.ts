@@ -167,14 +167,38 @@ Body: ${input.template.body.slice(0, 500)}`);
 
   let parsed: { subject: string; body: string };
   try {
-    const cleaned = rawResponse
+    let cleaned = rawResponse
       .replace(/```json\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
-    parsed = JSON.parse(cleaned);
+
+    // LLMs often return JSON with literal newlines inside string values.
+    // Fix by escaping unescaped newlines that appear between quotes.
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      // Replace real newlines inside JSON string values with \\n
+      cleaned = cleaned.replace(/(?<=:\s*")([\s\S]*?)(?="(?:\s*[,}]))/g, (match) =>
+        match.replace(/\r?\n/g, "\\n")
+      );
+      parsed = JSON.parse(cleaned);
+    }
   } catch {
-    console.error("[AI Email] JSON parse failed, raw:", rawResponse.slice(0, 200));
-    throw new Error("AI returned invalid JSON. Please try regenerating.");
+    // Last-resort: extract subject and body via regex
+    const subjectMatch = rawResponse.match(/"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const bodyMatch = rawResponse.match(/"body"\s*:\s*"([\s\S]*)"?\s*\}?\s*$/);
+    if (subjectMatch && bodyMatch) {
+      parsed = {
+        subject: subjectMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"'),
+        body: bodyMatch[1]
+          .replace(/"\s*\}?\s*$/, "")
+          .replace(/\\n/g, "\n")
+          .replace(/\\"/g, '"'),
+      };
+    } else {
+      console.error("[AI Email] JSON parse failed, raw:", rawResponse.slice(0, 200));
+      throw new Error("AI returned invalid JSON. Please try regenerating.");
+    }
   }
 
   const validated = EmailOutputSchema.parse(parsed);

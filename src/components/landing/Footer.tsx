@@ -5,7 +5,7 @@ const CREATOR = {
   name: "Ali Shahid",
   github: "https://github.com/GitMuhammadAli",
   linkedin: "https://linkedin.com/in/alishahid-fswebdev",
-  portfolio: "https://alishahid.dev",
+  portfolio: "https://alishahid-dev.vercel.app",
 };
 
 const FOOTER_LINKS = {

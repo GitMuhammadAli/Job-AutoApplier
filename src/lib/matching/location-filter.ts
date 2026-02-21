@@ -15,6 +15,21 @@ function isRemoteLocation(location: string | null): boolean {
 }
 
 /**
+ * Returns true if the job should be shown given user's preferred platforms (source).
+ * When preferredPlatforms is set, only jobs from those sources are shown.
+ */
+export function jobMatchesPlatformPreferences(
+  jobSource: string | null | undefined,
+  preferredPlatforms: string[] | null | undefined
+): boolean {
+  const platforms = (preferredPlatforms ?? []).map((p) => (p || "").toLowerCase().trim()).filter(Boolean);
+  if (platforms.length === 0) return true;
+  const sourceLower = (jobSource ?? "").toLowerCase().trim();
+  if (!sourceLower) return true;
+  return platforms.includes(sourceLower);
+}
+
+/**
  * Returns true if the job should be shown given user's city/country preferences.
  * - If city is set (e.g. Lahore): show only jobs in that city or remote. Never other cities (e.g. Karachi).
  * - If only country is set: show only jobs in that country or remote.

@@ -11,6 +11,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "debug-user-jobs": "tsx src/scripts/debug-user-jobs.ts",
+    "test-scrapers": "tsx src/scripts/test-scrapers.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

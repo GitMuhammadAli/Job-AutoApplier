@@ -67,19 +67,44 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Compound keywords that can appear with/without spaces/hyphens
+const COMPOUND_VARIANTS: Record<string, string[]> = {
+  "full stack": ["fullstack", "full-stack", "full stack", "full\u2011stack", "full\u2010stack"],
+  "front end": ["frontend", "front-end", "front end"],
+  "back end": ["backend", "back-end", "back end"],
+  "react native": ["react-native", "react native", "reactnative"],
+  "next.js": ["next.js", "nextjs", "next js"],
+  "node.js": ["node.js", "nodejs", "node js"],
+  "vue.js": ["vue.js", "vuejs", "vue js"],
+};
+
+function getKeywordVariants(keyword: string): string[] {
+  for (const [canonical, variants] of Object.entries(COMPOUND_VARIANTS)) {
+    if (keyword === canonical || variants.includes(keyword)) {
+      return variants;
+    }
+  }
+  return [keyword];
+}
+
 /**
  * Checks if a keyword appears as a whole word/phrase in text.
  * Prevents "css" from matching "accessing" or "vite" matching "invite".
+ * Handles compound keyword variants (e.g. "full stack" matches "fullstack").
  */
 function keywordMatchesText(keyword: string, text: string): boolean {
   if (keyword.length <= 1) return false;
-  const escaped = escapeRegex(keyword);
-  // For short keywords (2-3 chars like "go", "r", "css"), require strict word boundaries
-  // For longer keywords, use looser boundaries that work with dots/hyphens
-  const pattern = keyword.length <= 3
-    ? new RegExp(`(?:^|[\\s,;|/()\\[\\]:\\-])${escaped}(?:[\\s,;|/()\\[\\]:\\-.]|$)`, "i")
-    : new RegExp(`(?:^|\\b)${escaped}(?:\\b|$)`, "i");
-  return pattern.test(text);
+
+  const variants = getKeywordVariants(keyword);
+
+  for (const variant of variants) {
+    const escaped = escapeRegex(variant);
+    const pattern = variant.length <= 3
+      ? new RegExp(`(?:^|[\\s,;|/()\\[\\]:\\-])${escaped}(?:[\\s,;|/()\\[\\]:\\-.]|$)`, "i")
+      : new RegExp(`(?:^|\\b)${escaped}(?:\\b|$)`, "i");
+    if (pattern.test(text)) return true;
+  }
+  return false;
 }
 
 export function computeMatchScore(
@@ -91,26 +116,24 @@ export function computeMatchScore(
   const titleLower = job.title.toLowerCase();
   const descLower = (job.description || "").toLowerCase();
   const locationLower = (job.location || "").toLowerCase();
-  const combined = `${titleLower} ${descLower}`;
+  const skillsLower = (job.skills ?? []).map((s) => s.toLowerCase()).join(" ");
+  const combined = `${titleLower} ${descLower} ${skillsLower}`;
 
   // ════════════════════════════════════════════
-  // HARD FILTER 1: Platform
+  // HARD FILTER 1: Platform (case-insensitive so "LinkedIn" matches "linkedin")
   // ════════════════════════════════════════════
-  const platforms = settings.preferredPlatforms ?? [];
-  if (
-    platforms.length > 0 &&
-    job.source &&
-    !platforms.includes(job.source)
-  ) {
+  const platforms = (settings.preferredPlatforms ?? []).map((p) => (p || "").toLowerCase().trim()).filter(Boolean);
+  const jobSourceLower = (job.source || "").toLowerCase().trim();
+  if (platforms.length > 0 && jobSourceLower && !platforms.includes(jobSourceLower)) {
     return { ...REJECT, reasons: ["Platform not selected"] };
   }
 
   // ════════════════════════════════════════════
-  // HARD FILTER 2: At least 1 keyword MUST match as a whole word
+  // HARD FILTER 2: At least 1 keyword MUST match in title, description, or skills
   // ════════════════════════════════════════════
   const userKeywords = (settings.keywords ?? []).map((k) => k.toLowerCase().trim()).filter(Boolean);
   const matchedKeywords = userKeywords.filter(
-    (kw) => keywordMatchesText(kw, titleLower) || keywordMatchesText(kw, descLower)
+    (kw) => keywordMatchesText(kw, titleLower) || keywordMatchesText(kw, descLower) || keywordMatchesText(kw, skillsLower)
   );
   const titleKeywords = userKeywords.filter((kw) => keywordMatchesText(kw, titleLower));
 
@@ -122,27 +145,28 @@ export function computeMatchScore(
   // HARD FILTER 3: Category
   // ════════════════════════════════════════════
   const prefCats = settings.preferredCategories ?? [];
+  const GENERIC_TECH_CATS = new Set(["software engineering", "general", "other", ""]);
   if (prefCats.length > 0) {
     const userCats = prefCats.map((c) => c.toLowerCase());
     const jobCat = (job.category || "").toLowerCase();
 
-    const directCatMatch = jobCat && userCats.some(
-      (c) => c === jobCat || jobCat.includes(c) || c.includes(jobCat)
-    );
+    // Skip category filter for generic/uncategorized jobs — let keyword filter handle them
+    if (!GENERIC_TECH_CATS.has(jobCat)) {
+      const directCatMatch = jobCat && userCats.some(
+        (c) => c === jobCat || jobCat.includes(c) || c.includes(jobCat)
+      );
 
-    if (!directCatMatch) {
-      // Only do fuzzy match if user selected fewer than 15 categories
-      // (selecting everything means category filter adds no value)
-      if (prefCats.length < 15) {
-        const catKeywords = userCats.flatMap((c) =>
-          c.split(/[\s/]+/).filter((w) => w.length > 3 && !CATEGORY_STOP_WORDS.has(w))
-        );
-        const fuzzyCatMatch = catKeywords.some((ck) => keywordMatchesText(ck, combined));
-        if (!fuzzyCatMatch) {
-          return { ...REJECT, reasons: ["Category mismatch"] };
+      if (!directCatMatch) {
+        if (prefCats.length < 15) {
+          const catKeywords = userCats.flatMap((c) =>
+            c.split(/[\s/]+/).filter((w) => w.length > 3 && !CATEGORY_STOP_WORDS.has(w))
+          );
+          const fuzzyCatMatch = catKeywords.some((ck) => keywordMatchesText(ck, combined));
+          if (!fuzzyCatMatch) {
+            return { ...REJECT, reasons: ["Category mismatch"] };
+          }
         }
       }
-      // When 15+ categories selected, skip fuzzy — rely on keyword filter
     }
   }
 

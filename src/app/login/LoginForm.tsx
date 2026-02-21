@@ -251,7 +251,7 @@ export function LoginForm() {
         </div>
 
         <a
-          href="https://alishahid.dev"
+          href="https://alishahid-dev.vercel.app"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-1.5 mt-6 opacity-50 hover:opacity-100 transition-all hover:scale-105 active:scale-95"

@@ -1,6 +1,15 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 
+const INDEED_UAS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+];
+
+// Indeed blocks .com from certain regions; try country-specific domains
+const INDEED_DOMAINS = ["www.indeed.com", "pk.indeed.com", "www.indeed.co.uk"];
+
 export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const jobs: ScrapedJob[] = [];
 
@@ -9,14 +18,30 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
       try {
         const keyword = encodeURIComponent(q.keyword);
         const location = encodeURIComponent(city);
-        const url = `https://www.indeed.com/rss?q=${keyword}&l=${location}&sort=date&limit=25`;
+        const ua = INDEED_UAS[Math.floor(Math.random() * INDEED_UAS.length)];
 
-        const res = await fetchWithRetry(url, {
-          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" },
-        });
-        if (!res.ok) continue;
+        let xml = "";
+        for (const domain of INDEED_DOMAINS) {
+          try {
+            const url = `https://${domain}/rss?q=${keyword}&l=${location}&sort=date&limit=25`;
+            const res = await fetchWithRetry(url, {
+              headers: {
+                "User-Agent": ua,
+                "Accept": "application/rss+xml, application/xml, text/xml, */*",
+                "Accept-Language": "en-US,en;q=0.9",
+              },
+            });
+            if (res.ok) {
+              xml = await res.text();
+              if (xml.includes("<item>")) break;
+            }
+          } catch {
+            continue;
+          }
+        }
 
-        const xml = await res.text();
+        if (!xml || !xml.includes("<item>")) continue;
+
         const items = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
 
         for (const item of items) {
