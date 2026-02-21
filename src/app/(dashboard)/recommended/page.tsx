@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/app/actions/settings";
-import { jobMatchesLocationPreferences } from "@/lib/matching/location-filter";
+import { jobMatchesLocationPreferences, deduplicateUserJobsByLogicalJob } from "@/lib/matching/location-filter";
 import { RecommendedClient } from "./client";
 
 export const dynamic = "force-dynamic";
@@ -54,8 +54,9 @@ export default async function RecommendedPage() {
   const filteredByLocation = userJobs.filter((j) =>
     jobMatchesLocationPreferences(j.globalJob.location, settings?.city, settings?.country)
   );
+  const deduped = deduplicateUserJobsByLogicalJob(filteredByLocation);
 
-  const serialized = filteredByLocation.map((j) => ({
+  const serialized = deduped.map((j) => ({
     ...j,
     createdAt: j.createdAt.toISOString(),
     updatedAt: j.updatedAt.toISOString(),
