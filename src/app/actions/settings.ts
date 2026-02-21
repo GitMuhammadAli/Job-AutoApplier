@@ -41,7 +41,7 @@ const settingsSchema = z.object({
   emailNotifications: z.boolean().default(true),
   notificationEmail: z.string().email().optional().or(z.literal("")),
   // Email Provider
-  emailProvider: z.string().default("brevo"),
+  emailProvider: z.string().default("gmail"),
   smtpHost: z.string().optional().or(z.literal("")),
   smtpPort: z.number().nullable().optional(),
   smtpUser: z.string().optional().or(z.literal("")),
@@ -125,7 +125,7 @@ export async function saveSettings(rawData: unknown): Promise<{ success: boolean
       smtpPort: data.smtpPort ?? null,
       smtpUser: data.smtpUser || null,
       smtpPass: data.smtpPass || null,
-      emailProvider: data.emailProvider || "brevo",
+      emailProvider: data.emailProvider || "gmail",
       resumeMatchMode: data.resumeMatchMode || "smart",
       accountStatus: data.accountStatus || "active",
       notificationFrequency: data.notificationFrequency || "hourly",

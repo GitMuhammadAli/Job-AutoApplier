@@ -1,20 +1,26 @@
 import { SKILL_ALIASES } from "@/constants/skills";
 
-/**
- * Extracts canonical skill names from text using word-boundary regex.
- * Uses SKILL_ALIASES from constants/skills.ts for alias → canonical mapping.
- * Also checks the canonical name itself as a match target.
- */
+function buildSkillPattern(variant: string): RegExp {
+  const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const startsWord = /^\w/.test(variant) ? "\\b" : "(?<![\\w])";
+  const endsWord = /\w$/.test(variant) ? "\\b" : "(?![\\w])";
+  return new RegExp(`${startsWord}${escaped}${endsWord}`, "i");
+}
+
 export function extractSkillsFromContent(text: string): string[] {
-  if (!text) return [];
+  if (!text || text.trim().length < 10) return [];
+
+  const normalised = text
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[•·‣▪–—]/g, " ");
+
   const found: string[] = [];
 
   for (const [canonical, aliases] of Object.entries(SKILL_ALIASES)) {
     const allVariants = [canonical, ...aliases];
     for (const variant of allVariants) {
-      const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(`\\b${escaped}\\b`, "i");
-      if (regex.test(text)) {
+      if (buildSkillPattern(variant).test(normalised)) {
         found.push(canonical);
         break;
       }

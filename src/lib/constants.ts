@@ -32,7 +32,7 @@ export const LIMITS = {
   /** Duplicate-check candidate window */
   DUPLICATE_CHECK_BATCH: 500,
   /** Max keywords a user can configure */
-  MAX_KEYWORDS: 15,
+  MAX_KEYWORDS: 500,
   /** Min length per keyword */
   MIN_KEYWORD_LENGTH: 2,
   /** Max length per keyword */
