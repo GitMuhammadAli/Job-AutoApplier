@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
-import { computeMatchScore, MATCH_THRESHOLDS } from "@/lib/matching/score-engine";
+import {
+  computeMatchScore,
+  MATCH_THRESHOLDS,
+} from "@/lib/matching/score-engine";
 import { STARTER_TEMPLATES } from "@/constants/templates";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +33,7 @@ export async function POST() {
     const existingLinks = await prisma.userJob.findMany({
       where: { userId },
       select: { globalJobId: true },
+      take: 10000,
     });
     const linkedSet = new Set(existingLinks.map((l) => l.globalJobId));
 
@@ -49,6 +53,7 @@ export async function POST() {
     const userResumes = await prisma.resume.findMany({
       where: { userId, isDeleted: false },
       select: { id: true, name: true, content: true },
+      take: 50,
     });
     const resumes = userResumes;
 
@@ -78,7 +83,7 @@ export async function POST() {
           firstSeenAt: job.firstSeenAt,
         },
         settingsLike,
-        resumes
+        resumes,
       );
 
       if (result.score >= MATCH_THRESHOLDS.SHOW_ON_KANBAN) {
@@ -126,6 +131,9 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("[onboarding/complete] Error:", error);
-    return NextResponse.json({ totalScanned: 0, matched: 0, error: "Matching encountered an error" }, { status: 500 });
+    return NextResponse.json(
+      { totalScanned: 0, matched: 0, error: "Matching encountered an error" },
+      { status: 500 },
+    );
   }
 }

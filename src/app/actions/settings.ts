@@ -5,6 +5,16 @@ import { getAuthUserId } from "@/lib/auth";
 import { encryptSettingsFields, decryptSettingsFields } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { LIMITS, BANNED_KEYWORDS } from "@/lib/constants";
+
+const keywordSchema = z
+  .string()
+  .min(LIMITS.MIN_KEYWORD_LENGTH, `Keyword must be at least ${LIMITS.MIN_KEYWORD_LENGTH} characters`)
+  .max(LIMITS.MAX_KEYWORD_LENGTH, `Keyword must be at most ${LIMITS.MAX_KEYWORD_LENGTH} characters`)
+  .refine(
+    (kw) => !BANNED_KEYWORDS.some((b) => kw.toLowerCase().trim() === b),
+    { message: "This keyword is not allowed" }
+  );
 
 const settingsSchema = z.object({
   // Personal
@@ -14,7 +24,7 @@ const settingsSchema = z.object({
   portfolioUrl: z.string().url().optional().or(z.literal("")),
   githubUrl: z.string().url().optional().or(z.literal("")),
   // Job Preferences
-  keywords: z.array(z.string()).default([]),
+  keywords: z.array(keywordSchema).max(LIMITS.MAX_KEYWORDS, `Maximum ${LIMITS.MAX_KEYWORDS} keywords allowed`).default([]),
   city: z.string().optional().or(z.literal("")),
   country: z.string().optional().or(z.literal("")),
   salaryMin: z.number().nullable().optional(),
@@ -40,7 +50,9 @@ const settingsSchema = z.object({
   resumeMatchMode: z.string().default("smart"),
   // Application Automation
   applicationEmail: z.string().email().optional().or(z.literal("")),
-  applicationMode: z.enum(["MANUAL", "SEMI_AUTO", "FULL_AUTO"]).default("SEMI_AUTO"),
+  applicationMode: z
+    .enum(["MANUAL", "SEMI_AUTO", "FULL_AUTO"])
+    .default("SEMI_AUTO"),
   autoApplyEnabled: z.boolean().default(false),
   maxAutoApplyPerDay: z.number().min(1).max(50).default(10),
   minMatchScoreForAutoApply: z.number().min(0).max(100).default(75),
@@ -85,7 +97,7 @@ export async function getSettings() {
   return decryptSettingsFields(settings);
 }
 
-export async function saveSettings(rawData: unknown) {
+export async function saveSettings(rawData: unknown): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();
     const data = settingsSchema.parse(rawData);
@@ -127,30 +139,68 @@ export async function saveSettings(rawData: unknown) {
 
     const cleaned = encryptSettingsFields(nulled);
 
-    const result = await prisma.userSettings.upsert({
+    await prisma.userSettings.upsert({
       where: { userId },
       update: cleaned,
       create: { userId, ...cleaned },
     });
 
     revalidatePath("/settings");
-    return result;
+    return { success: true };
   } catch (error) {
     if (error instanceof z.ZodError) {
       const field = error.issues[0]?.path?.join(".") || "input";
-      throw new Error(`Invalid ${field}: ${error.issues[0]?.message}`);
+      return { success: false, error: `Invalid ${field}: ${error.issues[0]?.message}` };
     }
-    throw error;
+    console.error("[saveSettings] Error:", error);
+    return { success: false, error: "Failed to save settings" };
   }
 }
 
-export async function completeOnboarding() {
-  const userId = await getAuthUserId();
+export async function completeOnboarding(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
 
-  await prisma.userSettings.update({
-    where: { userId },
-    data: { isOnboarded: true },
-  });
+    await prisma.userSettings.update({
+      where: { userId },
+      data: { isOnboarded: true },
+    });
 
-  revalidatePath("/");
+    revalidatePath("/");
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("[completeOnboarding] Error:", error);
+    return { success: false, error: "Failed to complete onboarding" };
+  }
+}
+
+export async function deleteAccount(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const userId = await getAuthUserId();
+
+    await prisma.$transaction([
+      prisma.activity.deleteMany({ where: { userId } }),
+      prisma.jobApplication.deleteMany({ where: { userId } }),
+      prisma.userJob.deleteMany({ where: { userId } }),
+      prisma.resume.deleteMany({ where: { userId } }),
+      prisma.emailTemplate.deleteMany({ where: { userId } }),
+    ]);
+
+    await prisma.userSettings.delete({ where: { userId } }).catch(() => {});
+    await prisma.session.deleteMany({ where: { userId } });
+    await prisma.account.deleteMany({ where: { userId } });
+    await prisma.user.delete({ where: { id: userId } });
+
+    return { success: true };
+  } catch (error) {
+    console.error("[deleteAccount] Failed:", error);
+    return {
+      success: false,
+      error: "Failed to delete account. Please try again.",
+    };
+  }
 }

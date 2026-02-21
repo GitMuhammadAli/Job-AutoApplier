@@ -30,7 +30,7 @@ export function JobForm() {
 
     startTransition(async () => {
       try {
-        await createManualJob({
+        const result = await createManualJob({
           title: title.trim(),
           company: company.trim(),
           location: location.trim() || undefined,
@@ -39,6 +39,10 @@ export function JobForm() {
           description: description.trim() || undefined,
           notes: notes.trim() || undefined,
         });
+        if (!result.success) {
+          toast.error(result.error || "Failed to add job");
+          return;
+        }
         toast.success("Job added successfully");
         router.push("/dashboard");
       } catch {

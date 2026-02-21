@@ -209,3 +209,25 @@ export interface Analytics {
   ghosted: number;
   responseRate: number;
 }
+
+// ── Standard Response Types ──
+
+export type ActionResult<T = void> =
+  | { success: true; data: T }
+  | { success: false; error: string };
+
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  details?: string;
+}
+
+export interface CronResult {
+  success: boolean;
+  processed?: number;
+  skipped?: number;
+  failed?: number;
+  message?: string;
+  stats?: Record<string, unknown>;
+}

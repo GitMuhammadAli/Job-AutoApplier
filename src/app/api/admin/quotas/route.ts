@@ -13,35 +13,48 @@ const QUOTA_LIMITS: Record<string, { daily: number; monthly: number }> = {
 };
 
 export async function GET() {
-  if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  try {
+    if (!(await requireAdmin())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const quotas = await Promise.all(
+      Object.entries(QUOTA_LIMITS).map(async ([name, limits]) => {
+        const [dailyUsed, monthlyUsed] = await Promise.all([
+          prisma.systemLog.count({
+            where: {
+              type: "api_call",
+              source: name,
+              createdAt: { gte: todayStart },
+            },
+          }),
+          prisma.systemLog.count({
+            where: {
+              type: "api_call",
+              source: name,
+              createdAt: { gte: monthStart },
+            },
+          }),
+        ]);
+        return {
+          name,
+          dailyUsed,
+          dailyLimit: limits.daily,
+          monthlyUsed,
+          monthlyLimit: limits.monthly,
+        };
+      }),
+    );
+
+    return NextResponse.json(quotas);
+  } catch (error) {
+    console.error("[admin/quotas]", error);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
-
-  const quotas = await Promise.all(
-    Object.entries(QUOTA_LIMITS).map(async ([name, limits]) => {
-      const [dailyUsed, monthlyUsed] = await Promise.all([
-        prisma.systemLog.count({
-          where: { type: "api_call", source: name, createdAt: { gte: todayStart } },
-        }),
-        prisma.systemLog.count({
-          where: { type: "api_call", source: name, createdAt: { gte: monthStart } },
-        }),
-      ]);
-      return {
-        name,
-        dailyUsed,
-        dailyLimit: limits.daily,
-        monthlyUsed,
-        monthlyLimit: limits.monthly,
-      };
-    })
-  );
-
-  return NextResponse.json(quotas);
 }

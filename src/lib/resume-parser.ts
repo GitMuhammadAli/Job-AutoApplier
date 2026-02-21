@@ -1,3 +1,5 @@
+import { TIMEOUTS } from "./constants";
+
 export type PdfQuality = "good" | "poor" | "empty";
 
 export async function extractText(
@@ -37,7 +39,7 @@ export async function extractTextFromPDF(
     const pdfParse = (pdfParseModule as Record<string, unknown>).default || pdfParseModule;
     const data = await withTimeout(
       (pdfParse as (b: Buffer) => Promise<{ text: string }>)(buffer),
-      30000,
+      TIMEOUTS.RESUME_PARSE_TIMEOUT_MS,
       "PDF parsing"
     );
     const text = data.text || "";

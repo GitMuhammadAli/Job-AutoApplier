@@ -26,7 +26,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { createResume, updateResume, deleteResume, updateResumeCategories, setDefaultResume } from "@/app/actions/resume";
+import {
+  createResume,
+  updateResume,
+  deleteResume,
+  updateResumeCategories,
+  setDefaultResume,
+} from "@/app/actions/resume";
 import { JOB_CATEGORIES } from "@/constants/categories";
 import {
   FileText,
@@ -81,10 +87,15 @@ export function ResumeList({ resumes }: ResumeListProps) {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("name", name || file.name.replace(/\.pdf$/i, ""));
-      const res = await fetch("/api/resumes/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/resumes/upload", {
+        method: "POST",
+        body: formData,
+      });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Resume uploaded. Extracted ${data.resume.detectedSkills?.length || 0} skills.`);
+        toast.success(
+          `Resume uploaded. Extracted ${data.resume.detectedSkills?.length || 0} skills.`,
+        );
         setDialogOpen(false);
         setName("");
         setFileUrl("");
@@ -103,15 +114,16 @@ export function ResumeList({ resumes }: ResumeListProps) {
     if (!name.trim()) return;
     startTransition(async () => {
       try {
-        await createResume(name, fileUrl, content);
+        const result = await createResume(name, fileUrl, content);
+        if (!result.success) { toast.error(result.error || "Failed to create"); return; }
         toast.success("Resume added");
         setDialogOpen(false);
         setName("");
         setFileUrl("");
         setContent("");
         router.refresh();
-      } catch (err: any) {
-        toast.error(err.message || "Failed to create");
+      } catch {
+        toast.error("Failed to create resume");
       }
     });
   };
@@ -120,14 +132,15 @@ export function ResumeList({ resumes }: ResumeListProps) {
     if (!name.trim()) return;
     startTransition(async () => {
       try {
-        await updateResume(id, { name, fileUrl });
+        const result = await updateResume(id, { name, fileUrl });
+        if (!result.success) { toast.error(result.error || "Failed to update"); return; }
         toast.success("Resume updated");
         setEditingId(null);
         setName("");
         setFileUrl("");
         router.refresh();
-      } catch (err: any) {
-        toast.error(err.message || "Failed to update");
+      } catch {
+        toast.error("Failed to update resume");
       }
     });
   };
@@ -135,13 +148,16 @@ export function ResumeList({ resumes }: ResumeListProps) {
   const handleSaveContent = (id: string) => {
     startTransition(async () => {
       try {
-        await updateResume(id, { content });
-        toast.success("Resume content saved -- scraper will use this for matching");
+        const result = await updateResume(id, { content });
+        if (!result.success) { toast.error(result.error || "Failed to save content"); return; }
+        toast.success(
+          "Resume content saved -- scraper will use this for matching",
+        );
         setContentDialogId(null);
         setContent("");
         router.refresh();
-      } catch (err: any) {
-        toast.error(err.message || "Failed to save content");
+      } catch {
+        toast.error("Failed to save content");
       }
     });
   };
@@ -149,11 +165,12 @@ export function ResumeList({ resumes }: ResumeListProps) {
   const handleDelete = (id: string) => {
     startTransition(async () => {
       try {
-        await deleteResume(id);
+        const result = await deleteResume(id);
+        if (!result.success) { toast.error(result.error || "Failed to delete"); return; }
         toast.success("Resume deleted");
         router.refresh();
-      } catch (err: any) {
-        toast.error(err.message || "Failed to delete");
+      } catch {
+        toast.error("Failed to delete resume");
       }
     });
   };
@@ -167,30 +184,32 @@ export function ResumeList({ resumes }: ResumeListProps) {
     if (!categoryDialogId) return;
     startTransition(async () => {
       try {
-        await updateResumeCategories(categoryDialogId, selectedCategories);
+        const result = await updateResumeCategories(categoryDialogId, selectedCategories);
+        if (!result.success) { toast.error(result.error || "Failed to update categories"); return; }
         toast.success("Categories updated");
         setCategoryDialogId(null);
         router.refresh();
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : "Failed to update categories");
+      } catch {
+        toast.error("Failed to update categories");
       }
     });
   };
 
   const toggleCategory = (cat: string) => {
     setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
     );
   };
 
   const handleSetDefault = (id: string) => {
     startTransition(async () => {
       try {
-        await setDefaultResume(id);
+        const result = await setDefaultResume(id);
+        if (!result.success) { toast.error(result.error || "Failed to set default"); return; }
         toast.success("Default resume updated");
         router.refresh();
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : "Failed to set default");
+      } catch {
+        toast.error("Failed to set default resume");
       }
     });
   };
@@ -213,10 +232,13 @@ export function ResumeList({ resumes }: ResumeListProps) {
         <div className="flex items-start gap-2">
           <Brain className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Smart Resume Matching</p>
+            <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+              Smart Resume Matching
+            </p>
             <p className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 mt-0.5 leading-relaxed">
-              Paste your resume text into each variant. The scraper reads it to match jobs and recommend the best resume per job.
-              Without content, matching falls back to resume name keywords only.
+              Paste your resume text into each variant. The scraper reads it to
+              match jobs and recommend the best resume per job. Without content,
+              matching falls back to resume name keywords only.
             </p>
           </div>
         </div>
@@ -238,18 +260,34 @@ export function ResumeList({ resumes }: ResumeListProps) {
             <div className="space-y-4 pt-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">Name *</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Full-Stack" className="h-9" />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Full-Stack"
+                  className="h-9"
+                />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">File URL (Google Drive / Dropbox)</Label>
-                <Input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://..." className="h-9" />
+                <Label className="text-xs">
+                  File URL (Google Drive / Dropbox)
+                </Label>
+                <Input
+                  value={fileUrl}
+                  onChange={(e) => setFileUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="h-9"
+                />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Upload PDF (auto-extracts text for matching)</Label>
+                <Label className="text-xs">
+                  Upload PDF (auto-extracts text for matching)
+                </Label>
                 <div className="flex gap-2">
                   <label className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 dark:border-zinc-700 hover:border-blue-400 dark:hover:border-blue-500 px-3 py-3 cursor-pointer transition-colors">
                     <Upload className="h-4 w-4 text-slate-400 dark:text-zinc-500" />
-                    <span className="text-xs text-slate-500 dark:text-zinc-400">Choose PDF file...</span>
+                    <span className="text-xs text-slate-500 dark:text-zinc-400">
+                      Choose PDF file...
+                    </span>
                     <input
                       type="file"
                       accept=".pdf"
@@ -261,15 +299,27 @@ export function ResumeList({ resumes }: ResumeListProps) {
                     />
                   </label>
                 </div>
-                {uploading && <p className="text-xs text-blue-600 flex items-center gap-1" aria-live="polite"><Loader2 className="h-3 w-3 animate-spin" /> Parsing PDF&hellip;</p>}
+                {uploading && (
+                  <p
+                    className="text-xs text-blue-600 flex items-center gap-1"
+                    aria-live="polite"
+                  >
+                    <Loader2 className="h-3 w-3 animate-spin" /> Parsing
+                    PDF&hellip;
+                  </p>
+                )}
               </div>
               <div className="relative flex items-center">
                 <div className="flex-grow border-t border-slate-200 dark:border-zinc-700" />
-                <span className="flex-shrink mx-3 text-[10px] text-slate-400 dark:text-zinc-500">OR paste text</span>
+                <span className="flex-shrink mx-3 text-[10px] text-slate-400 dark:text-zinc-500">
+                  OR paste text
+                </span>
                 <div className="flex-grow border-t border-slate-200 dark:border-zinc-700" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Resume Content (paste your resume text)</Label>
+                <Label className="text-xs">
+                  Resume Content (paste your resume text)
+                </Label>
                 <Textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
@@ -278,8 +328,14 @@ export function ResumeList({ resumes }: ResumeListProps) {
                   className="resize-none text-xs"
                 />
               </div>
-              <Button onClick={handleCreate} disabled={isPending || uploading || !name.trim()} className="w-full">
-                {isPending && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              <Button
+                onClick={handleCreate}
+                disabled={isPending || uploading || !name.trim()}
+                className="w-full"
+              >
+                {isPending && (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                )}
                 Add Resume
               </Button>
             </div>
@@ -306,22 +362,35 @@ export function ResumeList({ resumes }: ResumeListProps) {
           </DialogHeader>
           <div className="space-y-3 pt-1">
             <p className="text-xs text-slate-500 dark:text-zinc-400">
-              Paste your full resume text below. The automation reads this to match your skills against job descriptions and recommend this resume for relevant positions.
+              Paste your full resume text below. The automation reads this to
+              match your skills against job descriptions and recommend this
+              resume for relevant positions.
             </p>
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder={"MUHAMMAD ALI SHAHID\nFull-Stack Developer\n\nSKILLS\nReact, Node.js, TypeScript, Next.js, NestJS, PostgreSQL, MongoDB, Docker, AWS, Git\n\nEXPERIENCE\nFull-Stack Developer at XYZ Corp (2023-Present)\n- Built REST APIs with NestJS and PostgreSQL\n- Developed frontend with Next.js and Tailwind CSS\n...\n\nEDUCATION\nBS Computer Science - University of Punjab (2019-2023)"}
+              placeholder={
+                "MUHAMMAD ALI SHAHID\nFull-Stack Developer\n\nSKILLS\nReact, Node.js, TypeScript, Next.js, NestJS, PostgreSQL, MongoDB, Docker, AWS, Git\n\nEXPERIENCE\nFull-Stack Developer at XYZ Corp (2023-Present)\n- Built REST APIs with NestJS and PostgreSQL\n- Developed frontend with Next.js and Tailwind CSS\n...\n\nEDUCATION\nBS Computer Science - University of Punjab (2019-2023)"
+              }
               rows={12}
               className="resize-none text-xs font-mono"
             />
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setContentDialogId(null); setContent(""); }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setContentDialogId(null);
+                  setContent("");
+                }}
+              >
                 Cancel
               </Button>
               <Button
                 size="sm"
-                onClick={() => contentDialogId && handleSaveContent(contentDialogId)}
+                onClick={() =>
+                  contentDialogId && handleSaveContent(contentDialogId)
+                }
                 disabled={isPending}
               >
                 {isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
@@ -350,7 +419,8 @@ export function ResumeList({ resumes }: ResumeListProps) {
             </DialogTitle>
           </DialogHeader>
           <p className="text-xs text-slate-500 dark:text-zinc-400">
-            Select which job categories this resume targets. The matcher will prefer this resume for jobs in these categories.
+            Select which job categories this resume targets. The matcher will
+            prefer this resume for jobs in these categories.
           </p>
           <div className="grid grid-cols-1 gap-1.5 pt-2">
             {JOB_CATEGORIES.map((cat) => (
@@ -380,11 +450,18 @@ export function ResumeList({ resumes }: ResumeListProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setCategoryDialogId(null); setSelectedCategories([]); }}
+                onClick={() => {
+                  setCategoryDialogId(null);
+                  setSelectedCategories([]);
+                }}
               >
                 Cancel
               </Button>
-              <Button size="sm" onClick={handleSaveCategories} disabled={isPending}>
+              <Button
+                size="sm"
+                onClick={handleSaveCategories}
+                disabled={isPending}
+              >
                 {isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
                 Save Categories
               </Button>
@@ -404,13 +481,31 @@ export function ResumeList({ resumes }: ResumeListProps) {
 
             {editingId === r.id ? (
               <div className="space-y-3">
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="h-9" />
-                <Input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="File URL" className="h-9" />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Name"
+                  className="h-9"
+                />
+                <Input
+                  value={fileUrl}
+                  onChange={(e) => setFileUrl(e.target.value)}
+                  placeholder="File URL"
+                  className="h-9"
+                />
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleUpdate(r.id)} disabled={isPending}>
+                  <Button
+                    size="sm"
+                    onClick={() => handleUpdate(r.id)}
+                    disabled={isPending}
+                  >
                     Save
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditingId(null)}
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -423,32 +518,49 @@ export function ResumeList({ resumes }: ResumeListProps) {
                       <FileText className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">{r.name}</p>
+                      <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">
+                        {r.name}
+                      </p>
                       <p className="text-[10px] text-slate-400 dark:text-zinc-500">
                         Added {new Date(r.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-0.5">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => openEdit(r)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-lg"
+                      onClick={() => openEdit(r)}
+                    >
                       <Pencil className="h-3 w-3 text-slate-400 dark:text-zinc-500" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 rounded-lg text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                        >
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete &quot;{r.name}&quot;?</AlertDialogTitle>
+                          <AlertDialogTitle>
+                            Delete &quot;{r.name}&quot;?
+                          </AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will unlink this resume from all associated jobs.
+                            This will unlink this resume from all associated
+                            jobs.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(r.id)} className="bg-red-600 hover:bg-red-700">
+                          <AlertDialogAction
+                            onClick={() => handleDelete(r.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
                             Delete
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -458,11 +570,16 @@ export function ResumeList({ resumes }: ResumeListProps) {
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="secondary" className="text-[10px] font-semibold rounded-md">
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] font-semibold rounded-md"
+                  >
                     {r.applicationCount} applications
                   </Badge>
                   {r.isDefault && (
-                    <Badge className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-0">Default</Badge>
+                    <Badge className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-0">
+                      Default
+                    </Badge>
                   )}
                   {r.content ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
@@ -470,19 +587,27 @@ export function ResumeList({ resumes }: ResumeListProps) {
                       Content added
                     </span>
                   ) : (
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">No content</span>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                      No content
+                    </span>
                   )}
                 </div>
 
                 {(r.targetCategories ?? []).length > 0 && (
                   <div className="flex items-center gap-1 flex-wrap">
                     {(r.targetCategories ?? []).slice(0, 3).map((cat) => (
-                      <Badge key={cat} variant="outline" className="text-[9px] px-1.5 py-0 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400">
+                      <Badge
+                        key={cat}
+                        variant="outline"
+                        className="text-[9px] px-1.5 py-0 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400"
+                      >
                         {cat}
                       </Badge>
                     ))}
                     {(r.targetCategories ?? []).length > 3 && (
-                      <span className="text-[9px] text-slate-400 dark:text-zinc-500">+{(r.targetCategories ?? []).length - 3} more</span>
+                      <span className="text-[9px] text-slate-400 dark:text-zinc-500">
+                        +{(r.targetCategories ?? []).length - 3} more
+                      </span>
                     )}
                   </div>
                 )}
@@ -542,8 +667,12 @@ export function ResumeList({ resumes }: ResumeListProps) {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-zinc-700 mx-auto mb-3">
             <FileText className="h-6 w-6 text-slate-300 dark:text-zinc-500" />
           </div>
-          <p className="text-sm font-medium text-slate-600 dark:text-zinc-400">No resumes yet</p>
-          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">Add your first resume variant to enable smart matching.</p>
+          <p className="text-sm font-medium text-slate-600 dark:text-zinc-400">
+            No resumes yet
+          </p>
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">
+            Add your first resume variant to enable smart matching.
+          </p>
         </div>
       )}
     </div>

@@ -16,33 +16,38 @@ const SOURCES = [
 ];
 
 export async function GET() {
-  if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  try {
+    if (!(await requireAdmin())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const health = await Promise.all(
+      SOURCES.map(async (source) => {
+        const [lastLog, jobs, errCount] = await Promise.all([
+          prisma.systemLog.findFirst({
+            where: { type: "scrape", source },
+            orderBy: { createdAt: "desc" },
+          }),
+          prisma.globalJob.count({ where: { source } }),
+          prisma.systemLog.count({
+            where: { type: "error", source, createdAt: { gte: dayAgo } },
+          }),
+        ]);
+        return {
+          source,
+          lastRun: lastLog?.createdAt ?? null,
+          totalJobs: jobs,
+          errorsLast24h: errCount,
+          metadata: lastLog?.metadata ?? null,
+        };
+      }),
+    );
+
+    return NextResponse.json(health);
+  } catch (error) {
+    console.error("[admin/scrapers]", error);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
-
-  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-  const health = await Promise.all(
-    SOURCES.map(async (source) => {
-      const [lastLog, jobs, errCount] = await Promise.all([
-        prisma.systemLog.findFirst({
-          where: { type: "scrape", source },
-          orderBy: { createdAt: "desc" },
-        }),
-        prisma.globalJob.count({ where: { source } }),
-        prisma.systemLog.count({
-          where: { type: "error", source, createdAt: { gte: dayAgo } },
-        }),
-      ]);
-      return {
-        source,
-        lastRun: lastLog?.createdAt ?? null,
-        totalJobs: jobs,
-        errorsLast24h: errCount,
-        metadata: lastLog?.metadata ?? null,
-      };
-    })
-  );
-
-  return NextResponse.json(health);
 }

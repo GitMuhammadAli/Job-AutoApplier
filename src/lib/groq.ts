@@ -2,6 +2,8 @@
  * Lightweight Groq API wrapper for AI text generation with retry/backoff.
  */
 
+import { TIMEOUTS } from "./constants";
+
 interface GroqOptions {
   temperature?: number;
   max_tokens?: number;
@@ -37,6 +39,7 @@ export async function generateWithGroq(
           temperature: options.temperature ?? 0.7,
           max_tokens: options.max_tokens ?? 800,
         }),
+        signal: AbortSignal.timeout(TIMEOUTS.AI_TIMEOUT_MS),
       });
 
       if (response.status === 429 || response.status >= 500) {

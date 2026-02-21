@@ -83,8 +83,10 @@ model GlobalJob {
   sourceUrl       String?
   applyUrl        String?
   companyUrl      String?
-  companyEmail    String?
-  isActive        Boolean   @default(true)
+  companyEmail      String?
+  emailSource       String?
+  emailContributedBy String?
+  isActive          Boolean   @default(true)
   isFresh         Boolean   @default(true)
   firstSeenAt     DateTime  @default(now())
   lastSeenAt      DateTime  @default(now())
@@ -161,6 +163,7 @@ model Resume {
   updatedAt        DateTime         @updatedAt
 
   @@index([userId])
+  @@index([userId, isDeleted])
 }
 
 // ── USER SETTINGS ──
@@ -261,6 +264,7 @@ model EmailTemplate {
   updatedAt  DateTime     @updatedAt
 
   @@index([userId])
+  @@index([userId, isDefault])
 }
 
 // ── JOB APPLICATION ──
@@ -294,6 +298,8 @@ model JobApplication {
 
   @@index([userId, status])
   @@index([userId, createdAt])
+  @@index([status, scheduledSendAt])
+  @@index([userId, sentAt])
 }
 
 enum ApplicationStatus {
@@ -325,6 +331,7 @@ model Activity {
 
   @@index([userJobId])
   @@index([userId, createdAt])
+  @@index([userId, type, createdAt])
 }
 
 enum ActivityType {
@@ -337,6 +344,7 @@ enum ActivityType {
   APPLICATION_BOUNCED
   APPLICATION_COPIED
   FOLLOW_UP_SENT
+  FOLLOW_UP_FLAGGED
   MANUAL_UPDATE
   DISMISSED
   NOTIFICATION_SENT
@@ -360,4 +368,5 @@ model SystemLog {
   createdAt DateTime @default(now())
 
   @@index([type, createdAt])
+  @@index([source, createdAt])
 }

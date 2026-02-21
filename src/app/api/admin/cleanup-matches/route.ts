@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { computeMatchScore, MATCH_THRESHOLDS } from "@/lib/matching/score-engine";
+import {
+  computeMatchScore,
+  MATCH_THRESHOLDS,
+} from "@/lib/matching/score-engine";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
-    await requireAdmin();
+    if (!(await requireAdmin())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const users = await prisma.userSettings.findMany({
       where: { isOnboarded: true },
@@ -67,7 +72,10 @@ export async function POST() {
         }
 
         // Re-score: update matchScore and matchReasons with new engine results
-        if (uj.matchScore !== match.score || JSON.stringify(uj.matchReasons) !== JSON.stringify(match.reasons)) {
+        if (
+          uj.matchScore !== match.score ||
+          JSON.stringify(uj.matchReasons) !== JSON.stringify(match.reasons)
+        ) {
           await prisma.userJob.update({
             where: { id: uj.id },
             data: {
@@ -91,7 +99,7 @@ export async function POST() {
     console.error("[cleanup-matches]", error);
     return NextResponse.json(
       { error: "Cleanup failed", details: String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

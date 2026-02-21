@@ -113,7 +113,11 @@ export function JobDetailClient({ job }: JobDetailProps) {
   const handleStageChange = (newStage: JobStage) => {
     startTransition(async () => {
       try {
-        await updateStage(job.id, newStage, job.stage);
+        const result = await updateStage(job.id, newStage, job.stage);
+        if (!result.success) {
+          toast.error(result.error || "Failed to update stage");
+          return;
+        }
         toast.success(`Moved to ${newStage.toLowerCase()}`);
         router.refresh();
       } catch {
@@ -125,7 +129,11 @@ export function JobDetailClient({ job }: JobDetailProps) {
   const handleDismiss = () => {
     startTransition(async () => {
       try {
-        await dismissJob(job.id, dismissReason || undefined);
+        const result = await dismissJob(job.id, dismissReason || undefined);
+        if (!result.success) {
+          toast.error(result.error || "Failed to dismiss job");
+          return;
+        }
         toast.success("Job dismissed");
         router.push("/dashboard");
       } catch {
@@ -137,7 +145,11 @@ export function JobDetailClient({ job }: JobDetailProps) {
   const handleSaveNote = () => {
     startTransition(async () => {
       try {
-        await addNote(job.id, noteText);
+        const result = await addNote(job.id, noteText);
+        if (!result.success) {
+          toast.error(result.error || "Failed to save note");
+          return;
+        }
         toast.success("Note saved");
         router.refresh();
       } catch {

@@ -26,7 +26,9 @@ async function main() {
   console.log("Navigating to login...");
   await page.goto(`${BASE_URL}/login`, { waitUntil: "networkidle" });
   console.log("\n>>> LOG IN MANUALLY (magic link, Google, or GitHub) <<<");
-  console.log(">>> Wait until you're on the dashboard, then press Enter here <<<\n");
+  console.log(
+    ">>> Wait until you're on the dashboard, then press Enter here <<<\n",
+  );
 
   await new Promise<void>((resolve) => {
     process.stdin.once("data", () => resolve());

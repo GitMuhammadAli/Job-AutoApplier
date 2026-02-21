@@ -25,25 +25,79 @@ interface ActivityTimelineProps {
   activities: ActivityItem[];
 }
 
-const TYPE_CONFIG: Record<ActivityType, { icon: typeof ArrowRight; label: string; color: string }> = {
-  STAGE_CHANGE: { icon: ArrowRight, label: "Stage Changed", color: "text-blue-500" },
-  NOTE_ADDED: { icon: MessageSquare, label: "Note Added", color: "text-slate-500" },
-  COVER_LETTER_GENERATED: { icon: FileText, label: "Cover Letter Generated", color: "text-violet-500" },
-  APPLICATION_PREPARED: { icon: Plus, label: "Application Prepared", color: "text-emerald-500" },
-  APPLICATION_SENT: { icon: Send, label: "Application Sent", color: "text-emerald-600" },
-  APPLICATION_FAILED: { icon: XCircle, label: "Application Failed", color: "text-red-500" },
-  APPLICATION_BOUNCED: { icon: AlertTriangle, label: "Email Bounced", color: "text-orange-500" },
-  APPLICATION_COPIED: { icon: Copy, label: "Application Copied", color: "text-blue-500" },
-  FOLLOW_UP_SENT: { icon: Clock, label: "Follow-up Sent", color: "text-amber-500" },
-  MANUAL_UPDATE: { icon: Plus, label: "Manual Update", color: "text-slate-500" },
+const TYPE_CONFIG: Record<
+  ActivityType,
+  { icon: typeof ArrowRight; label: string; color: string }
+> = {
+  STAGE_CHANGE: {
+    icon: ArrowRight,
+    label: "Stage Changed",
+    color: "text-blue-500",
+  },
+  NOTE_ADDED: {
+    icon: MessageSquare,
+    label: "Note Added",
+    color: "text-slate-500",
+  },
+  COVER_LETTER_GENERATED: {
+    icon: FileText,
+    label: "Cover Letter Generated",
+    color: "text-violet-500",
+  },
+  APPLICATION_PREPARED: {
+    icon: Plus,
+    label: "Application Prepared",
+    color: "text-emerald-500",
+  },
+  APPLICATION_SENT: {
+    icon: Send,
+    label: "Application Sent",
+    color: "text-emerald-600",
+  },
+  APPLICATION_FAILED: {
+    icon: XCircle,
+    label: "Application Failed",
+    color: "text-red-500",
+  },
+  APPLICATION_BOUNCED: {
+    icon: AlertTriangle,
+    label: "Email Bounced",
+    color: "text-orange-500",
+  },
+  APPLICATION_COPIED: {
+    icon: Copy,
+    label: "Application Copied",
+    color: "text-blue-500",
+  },
+  FOLLOW_UP_SENT: {
+    icon: Clock,
+    label: "Follow-up Sent",
+    color: "text-amber-500",
+  },
+  FOLLOW_UP_FLAGGED: {
+    icon: Clock,
+    label: "Follow-up Flagged",
+    color: "text-amber-400",
+  },
+  MANUAL_UPDATE: {
+    icon: Plus,
+    label: "Manual Update",
+    color: "text-slate-500",
+  },
   DISMISSED: { icon: Trash2, label: "Dismissed", color: "text-slate-400" },
-  NOTIFICATION_SENT: { icon: Bell, label: "Notification Sent", color: "text-cyan-500" },
+  NOTIFICATION_SENT: {
+    icon: Bell,
+    label: "Notification Sent",
+    color: "text-cyan-500",
+  },
 };
 
 export function ActivityTimeline({ activities }: ActivityTimelineProps) {
   if (activities.length === 0) {
     return (
-      <p className="text-sm text-slate-400 dark:text-zinc-500 italic py-4">No activity yet.</p>
+      <p className="text-sm text-slate-400 dark:text-zinc-500 italic py-4">
+        No activity yet.
+      </p>
     );
   }
 
@@ -79,7 +133,9 @@ export function ActivityTimeline({ activities }: ActivityTimelineProps) {
                 </p>
               )}
               {activity.type !== "STAGE_CHANGE" && activity.description && (
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{activity.description}</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                  {activity.description}
+                </p>
               )}
               <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
                 {new Date(activity.createdAt).toLocaleString()}

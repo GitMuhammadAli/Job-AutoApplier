@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { LIMITS } from "@/lib/constants";
 
 export interface DuplicateResult {
   isDuplicate: boolean;
@@ -6,16 +7,23 @@ export interface DuplicateResult {
 }
 
 function normalizeCompany(company: string): string {
-  return company.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+  return company
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
 }
 
 function normalizeTitle(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export async function checkDuplicate(
   userId: string,
-  globalJob: { company: string; title: string; id: string }
+  globalJob: { company: string; title: string; id: string },
 ): Promise<DuplicateResult> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const normCompany = normalizeCompany(globalJob.company);
@@ -33,6 +41,7 @@ export async function checkDuplicate(
         },
       },
     },
+    take: LIMITS.DUPLICATE_CHECK_BATCH,
   });
 
   for (const app of recentApps) {
@@ -71,7 +80,7 @@ export async function checkDuplicate(
 /** Backward-compatible boolean helper */
 export async function isDuplicateApplication(
   userId: string,
-  job: { title: string; company: string }
+  job: { title: string; company: string },
 ): Promise<boolean> {
   const result = await checkDuplicate(userId, {
     ...job,

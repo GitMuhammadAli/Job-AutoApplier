@@ -25,7 +25,9 @@ function getBrevoTransporter(): Transporter {
 export function getTransporterForUser(settings: EmailSettings): Transporter {
   const provider = settings.emailProvider || "brevo";
   const smtpPassword = settings.smtpPass
-    ? (isEncrypted(settings.smtpPass) ? decrypt(settings.smtpPass) : settings.smtpPass)
+    ? isEncrypted(settings.smtpPass)
+      ? decrypt(settings.smtpPass)
+      : settings.smtpPass
     : undefined;
 
   switch (provider) {
@@ -107,7 +109,8 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
     } catch (err) {
       lastError = err;
       const msg = err instanceof Error ? err.message : "";
-      const isTransient = /ECONNRESET|ETIMEDOUT|ECONNREFUSED|421|451|temporary/i.test(msg);
+      const isTransient =
+        /ECONNRESET|ETIMEDOUT|ECONNREFUSED|421|451|temporary/i.test(msg);
       if (!isTransient || attempt === maxRetries - 1) throw err;
       await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
     }
@@ -117,7 +120,7 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
 
 export async function sendApplicationEmail(
   options: SendApplicationEmailOptions,
-  transporter: Transporter
+  transporter: Transporter,
 ): Promise<SendApplicationEmailResult> {
   try {
     const info = await withRetry(() =>
@@ -133,7 +136,7 @@ export async function sendApplicationEmail(
           content: a.content,
           contentType: a.contentType,
         })),
-      })
+      }),
     );
     return { success: true, messageId: info.messageId };
   } catch (err) {
@@ -160,7 +163,7 @@ export interface SendNotificationEmailResult {
 }
 
 export async function sendNotificationEmail(
-  options: SendNotificationEmailOptions
+  options: SendNotificationEmailOptions,
 ): Promise<SendNotificationEmailResult> {
   const transporter = getBrevoTransporter();
   try {
@@ -172,7 +175,7 @@ export async function sendNotificationEmail(
         html: options.html,
         text: options.text,
         replyTo: options.replyTo,
-      })
+      }),
     );
     return { success: true, messageId: info.messageId };
   } catch (err) {
@@ -183,16 +186,32 @@ export async function sendNotificationEmail(
   }
 }
 
-export function formatCoverLetterHtml(coverLetter: string, signature?: string | null): string {
-  const paragraphs = coverLetter
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export function formatCoverLetterHtml(
+  coverLetter: string,
+  signature?: string | null,
+): string {
+  const safeCoverLetter = escapeHtml(coverLetter);
+  const paragraphs = safeCoverLetter
     .split("\n\n")
     .map((p) => p.trim())
     .filter(Boolean);
   const body = paragraphs
-    .map((p) => `<p style="margin:0 0 12px 0;line-height:1.6">${p.replace(/\n/g, "<br>")}</p>`)
+    .map(
+      (p) =>
+        `<p style="margin:0 0 12px 0;line-height:1.6">${p.replace(/\n/g, "<br>")}</p>`,
+    )
     .join("");
   const sig = signature
-    ? `<p style="margin-top:20px;color:#666;font-size:13px">${signature.replace(/\n/g, "<br>")}</p>`
+    ? `<p style="margin-top:20px;color:#666;font-size:13px">${escapeHtml(signature).replace(/\n/g, "<br>")}</p>`
     : "";
 
   return `

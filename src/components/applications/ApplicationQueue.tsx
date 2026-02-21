@@ -47,23 +47,54 @@ interface ApplicationQueueProps {
 
 const STATUS_CONFIG: Record<
   ApplicationStatus,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className?: string }
+  {
+    label: string;
+    variant: "default" | "secondary" | "destructive" | "outline";
+    className?: string;
+  }
 > = {
-  DRAFT: { label: "Draft", variant: "secondary", className: "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800" },
-  READY: { label: "Ready", variant: "default", className: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
-  SENDING: { label: "Sending", variant: "outline", className: "bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300" },
-  SENT: { label: "Sent", variant: "default", className: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800" },
-  FAILED: { label: "Failed", variant: "destructive", className: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800" },
-  BOUNCED: { label: "Bounced", variant: "destructive", className: "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800" },
+  DRAFT: {
+    label: "Draft",
+    variant: "secondary",
+    className:
+      "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+  },
+  READY: {
+    label: "Ready",
+    variant: "default",
+    className:
+      "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+  },
+  SENDING: {
+    label: "Sending",
+    variant: "outline",
+    className:
+      "bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300",
+  },
+  SENT: {
+    label: "Sent",
+    variant: "default",
+    className:
+      "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  },
+  FAILED: {
+    label: "Failed",
+    variant: "destructive",
+    className:
+      "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800",
+  },
+  BOUNCED: {
+    label: "Bounced",
+    variant: "destructive",
+    className:
+      "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800",
+  },
 };
 
 function StatusBadge({ status }: { status: ApplicationStatus }) {
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.DRAFT;
   return (
-    <Badge
-      variant={config.variant}
-      className={config.className ?? ""}
-    >
+    <Badge variant={config.variant} className={config.className ?? ""}>
       {config.label}
     </Badge>
   );
@@ -88,12 +119,17 @@ function ApplicationCard({
       const res = await fetch(`/api/applications/${app.id}/send`, {
         method: "POST",
       });
-      const data = await res.json();
-      if (data.success) {
+      let data: { success?: boolean; error?: string };
+      try {
+        data = await res.json();
+      } catch {
+        data = { error: res.statusText || "Invalid response" };
+      }
+      if (res.ok && data.success) {
         toast.success(`Sent to ${app.recipientEmail}!`);
         onRefresh();
       } else {
-        toast.error(data.error || "Send failed");
+        toast.error(data.error || res.statusText || "Send failed");
       }
     } catch {
       toast.error("Network error");
@@ -105,11 +141,12 @@ function ApplicationCard({
   const handleMarkReady = async () => {
     setLoading("ready");
     try {
-      await markApplicationReady(app.id);
+      const result = await markApplicationReady(app.id);
+      if (!result.success) { toast.error(result.error || "Failed to mark ready"); return; }
       toast.success("Marked as ready");
       onRefresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to mark ready");
+    } catch {
+      toast.error("Failed to mark ready");
     } finally {
       setLoading(null);
     }
@@ -118,11 +155,12 @@ function ApplicationCard({
   const handleMarkManual = async () => {
     setLoading("manual");
     try {
-      await markApplicationManual(app.id);
+      const result = await markApplicationManual(app.id);
+      if (!result.success) { toast.error(result.error || "Failed to mark manual"); return; }
       toast.success("Marked as manually applied");
       onRefresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to mark manual");
+    } catch {
+      toast.error("Failed to mark manual");
     } finally {
       setLoading(null);
     }
@@ -131,11 +169,12 @@ function ApplicationCard({
   const handleDelete = async () => {
     setLoading("delete");
     try {
-      await deleteApplication(app.id);
+      const result = await deleteApplication(app.id);
+      if (!result.success) { toast.error(result.error || "Failed to delete"); return; }
       toast.success("Application deleted");
       onRefresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete");
+    } catch {
+      toast.error("Failed to delete");
     } finally {
       setLoading(null);
     }
@@ -144,11 +183,12 @@ function ApplicationCard({
   const handleRetry = async () => {
     setLoading("retry");
     try {
-      await markApplicationReady(app.id);
+      const result = await markApplicationReady(app.id);
+      if (!result.success) { toast.error(result.error || "Retry failed"); return; }
       toast.success("Queued for retry");
       onRefresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Retry failed");
+    } catch {
+      toast.error("Retry failed");
     } finally {
       setLoading(null);
     }
@@ -156,7 +196,8 @@ function ApplicationCard({
 
   const job = app.userJob.globalJob;
   const matchScore = app.userJob.matchScore;
-  const createdDate = typeof app.createdAt === "string" ? new Date(app.createdAt) : app.createdAt;
+  const createdDate =
+    typeof app.createdAt === "string" ? new Date(app.createdAt) : app.createdAt;
   const jobDetailHref = `/jobs/${app.userJob.id}`;
 
   return (
@@ -180,20 +221,23 @@ function ApplicationCard({
               {job.title}
             </h3>
             <ExternalLink className="h-3.5 w-3.5 text-slate-300 dark:text-zinc-600 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0" />
-            <Badge variant="outline" className="text-[10px] font-medium shrink-0 dark:border-zinc-600 dark:text-zinc-300">
+            <Badge
+              variant="outline"
+              className="text-[10px] font-medium shrink-0 dark:border-zinc-600 dark:text-zinc-300"
+            >
               {job.source}
             </Badge>
             <StatusBadge status={app.status} />
           </div>
-          <p className="text-sm text-slate-600 dark:text-zinc-400 mt-0.5">{job.company}</p>
+          <p className="text-sm text-slate-600 dark:text-zinc-400 mt-0.5">
+            {job.company}
+          </p>
           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-slate-500 dark:text-zinc-400">
             <span title="Recipient">{app.recipientEmail}</span>
             {matchScore != null && (
               <span>Match: {Math.round(matchScore)}%</span>
             )}
-            {app.resume?.name && (
-              <span>Resume: {app.resume.name}</span>
-            )}
+            {app.resume?.name && <span>Resume: {app.resume.name}</span>}
             <span>{formatDistanceToNow(createdDate, { addSuffix: true })}</span>
           </div>
         </Link>
@@ -327,7 +371,10 @@ function ApplicationCard({
   );
 }
 
-export function ApplicationQueue({ applications, counts }: ApplicationQueueProps) {
+export function ApplicationQueue({
+  applications,
+  counts,
+}: ApplicationQueueProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -341,10 +388,10 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
   const filteredApplications = getFilteredForTab(activeTab);
 
   const selectedDrafts = filteredApplications.filter(
-    (a) => selectedIds.has(a.id) && a.status === "DRAFT"
+    (a) => selectedIds.has(a.id) && a.status === "DRAFT",
   );
   const selectedCount = filteredApplications.filter((a) =>
-    selectedIds.has(a.id)
+    selectedIds.has(a.id),
   ).length;
 
   const toggleSelect = (id: string) => {
@@ -387,7 +434,7 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
     (a) =>
       selectedIds.has(a.id) &&
       (a.status === "DRAFT" || a.status === "READY") &&
-      !!a.recipientEmail
+      !!a.recipientEmail,
   );
 
   const handleBulkSend = async () => {
@@ -403,11 +450,20 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ applicationIds: ids }),
       });
-      const data = await res.json();
-      if (data.sent > 0) {
+      let data: { sent?: number; failed?: number; error?: string };
+      try {
+        data = await res.json();
+      } catch {
+        data = { error: res.statusText || "Invalid response" };
+      }
+      if (!res.ok) {
+        toast.error(data.error || res.statusText || "Bulk send failed");
+        return;
+      }
+      if ((data.sent ?? 0) > 0) {
         toast.success(`${data.sent} application(s) sent!`);
       }
-      if (data.failed > 0) {
+      if ((data.failed ?? 0) > 0) {
         toast.error(`${data.failed} failed to send`);
       }
       setSelectedIds(new Set());
@@ -462,38 +518,56 @@ export function ApplicationQueue({ applications, counts }: ApplicationQueueProps
         <TabsList className="flex flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="all" className="gap-1.5">
             All
-            <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 text-[10px]">
+            <Badge
+              variant="secondary"
+              className="ml-0.5 h-5 px-1.5 text-[10px]"
+            >
               {counts.total}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="draft" className="gap-1.5">
             Draft
-            <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 text-[10px]">
+            <Badge
+              variant="secondary"
+              className="ml-0.5 h-5 px-1.5 text-[10px]"
+            >
               {counts.draft}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="ready" className="gap-1.5">
             Ready
-            <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 text-[10px]">
+            <Badge
+              variant="secondary"
+              className="ml-0.5 h-5 px-1.5 text-[10px]"
+            >
               {counts.ready}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="sent" className="gap-1.5">
             Sent
-            <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 text-[10px]">
+            <Badge
+              variant="secondary"
+              className="ml-0.5 h-5 px-1.5 text-[10px]"
+            >
               {counts.sent}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="failed" className="gap-1.5">
             Failed
-            <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 text-[10px]">
+            <Badge
+              variant="secondary"
+              className="ml-0.5 h-5 px-1.5 text-[10px]"
+            >
               {counts.failed}
             </Badge>
           </TabsTrigger>
           {counts.bounced > 0 && (
             <TabsTrigger value="bounced" className="gap-1.5">
               Bounced
-              <Badge variant="secondary" className="ml-0.5 h-5 px-1.5 text-[10px]">
+              <Badge
+                variant="secondary"
+                className="ml-0.5 h-5 px-1.5 text-[10px]"
+              >
                 {counts.bounced}
               </Badge>
             </TabsTrigger>
@@ -592,7 +666,9 @@ function ApplicationList({
   if (applications.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/50 py-12 text-center space-y-3">
-        <p className="text-sm text-slate-500 dark:text-zinc-400">No applications in this tab</p>
+        <p className="text-sm text-slate-500 dark:text-zinc-400">
+          No applications in this tab
+        </p>
         <div className="flex items-center justify-center gap-3">
           <a
             href="/dashboard"
