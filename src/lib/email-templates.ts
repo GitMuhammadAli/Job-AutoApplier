@@ -46,7 +46,7 @@ export function newJobsNotificationTemplate(
           <div style="font-weight:600;color:#1e293b">${j.title}</div>
           <div style="font-size:12px;color:#64748b;margin-top:2px">${j.company}${j.location ? ` · ${j.location}` : ""}</div>
           ${j.salary ? `<div style="font-size:12px;color:#059669;margin-top:2px">${j.salary}</div>` : ""}
-          ${j.matchReasons.length > 0 ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">${j.matchReasons.slice(0, 3).join(" · ")}</div>` : ""}
+          ${(j.matchReasons ?? []).length > 0 ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">${(j.matchReasons ?? []).slice(0, 3).join(" · ")}</div>` : ""}
         </td>
         <td style="padding:12px;border-bottom:1px solid #f1f5f9;text-align:center;vertical-align:middle">
           <span style="font-weight:700;color:${scoreColor};font-size:16px">${Math.round(j.matchScore)}%</span>

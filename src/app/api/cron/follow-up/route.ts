@@ -78,6 +78,15 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    await prisma.systemLog.create({
+      data: {
+        type: "cron",
+        source: "follow-up",
+        message: `Marked ${ghosted.count} ghosted, flagged ${processed} follow-ups`,
+        metadata: { ghosted: ghosted.count, followUps: processed },
+      },
+    });
+
     return NextResponse.json({
       success: true,
       ghosted: ghosted.count,

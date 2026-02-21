@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
     const users = await prisma.userSettings.findMany({
       where: { isOnboarded: true, keywords: { isEmpty: false } },
       include: { user: { select: { id: true, name: true, email: true } } },
+      take: 500,
     });
 
     if (users.length === 0) {
@@ -64,8 +65,9 @@ export async function GET(req: NextRequest) {
       const settings = decryptSettingsFields(rawSettings);
       const userId = settings.userId;
       const resumes = await prisma.resume.findMany({
-        where: { userId },
+        where: { userId, isDeleted: false },
         select: { id: true, name: true, content: true, isDefault: true },
+        take: 50,
       });
 
       const existingJobIds = new Set(
@@ -145,6 +147,15 @@ export async function GET(req: NextRequest) {
     }
 
     const totalMatched = results.reduce((sum, r) => sum + r.matched, 0);
+
+    await prisma.systemLog.create({
+      data: {
+        type: "cron",
+        source: "match-all-users",
+        message: `Matched ${totalMatched} jobs across ${users.length} users from ${unmatchedJobs.length} available jobs`,
+        metadata: { users: users.length, availableJobs: unmatchedJobs.length, totalMatched },
+      },
+    });
 
     return NextResponse.json({
       success: true,

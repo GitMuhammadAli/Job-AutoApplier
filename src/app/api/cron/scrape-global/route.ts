@@ -17,6 +17,21 @@ import { categorizeJob } from "@/lib/job-categorizer";
 import { sendNotificationEmail } from "@/lib/email";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
+function sanitizeScrapedText(text: string | null): string | null {
+  if (!text) return text;
+  return text
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
@@ -97,8 +112,14 @@ export async function GET(req: NextRequest) {
       error?: string;
     }[] = [];
 
-    // Scrape each source independently — one failure doesn't kill others
+    const startTime = Date.now();
+    let timedOut = false;
+
     for (const source of sources) {
+      if (Date.now() - startTime > 50000) {
+        timedOut = true;
+        break;
+      }
       const scraperFn = SCRAPERS[source];
       if (!scraperFn) continue;
 
@@ -109,6 +130,10 @@ export async function GET(req: NextRequest) {
 
         for (const job of jobs) {
           try {
+            job.description = sanitizeScrapedText(job.description);
+            job.title = sanitizeScrapedText(job.title) || job.title;
+            job.company = sanitizeScrapedText(job.company) || job.company;
+
             if (!job.category) {
               job.category = categorizeJob(
                 job.title,
@@ -266,6 +291,8 @@ export async function GET(req: NextRequest) {
       results,
       totalNew: results.reduce((s, r) => s + r.new, 0),
       totalUpdated: results.reduce((s, r) => s + r.updated, 0),
+      timedOut,
+      durationMs: Date.now() - startTime,
       matchResult,
       sendResult,
     });

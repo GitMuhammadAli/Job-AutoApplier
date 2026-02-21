@@ -134,7 +134,7 @@ Company: ${input.job.company}
 Location: ${input.job.location || "Not specified"}
 ${sourceName ? `Found on: ${sourceName}` : ""}
 ${input.job.salary ? `Salary: ${input.job.salary}` : ""}
-Skills Required: ${input.job.skills.length > 0 ? input.job.skills.join(", ") : "Not listed"}
+Skills Required: ${(input.job.skills ?? []).length > 0 ? (input.job.skills ?? []).join(", ") : "Not listed"}
 Description: ${sanitizeForPrompt(input.job.description || "No description available")}`);
 
   const profileParts = [`Name: ${input.profile.fullName}`];
@@ -149,8 +149,8 @@ Description: ${sanitizeForPrompt(input.job.description || "No description availa
   userParts.push(`\nCANDIDATE PROFILE:\n${profileParts.join("\n")}`);
 
   userParts.push(`\nMATCHED RESUME: "${input.resume.name}"
-Skills: ${input.resume.detectedSkills.join(", ") || "Not specified"}
-Content Preview: ${(input.resume.content || "").slice(0, 1500)}`);
+Skills: ${(input.resume.detectedSkills ?? []).join(", ") || "Not specified"}
+Content Preview: ${sanitizeForPrompt((input.resume.content || "").slice(0, 1500))}`);
 
   if (input.template?.body) {
     userParts.push(`\nUSER'S PREFERRED TEMPLATE STYLE (use as inspiration, not copy):

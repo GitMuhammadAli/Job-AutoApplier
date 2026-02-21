@@ -98,7 +98,7 @@ export function OnboardingWizard() {
       setStepError(null);
     }
     setKeywordInput("");
-  }, [keywordInput, keywords, stepError]);
+  }, [keywordInput, keywords]);
 
   const toggleArr = (arr: string[], val: string, setter: (v: string[]) => void) => {
     setter(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);

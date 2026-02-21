@@ -313,11 +313,11 @@ export function JobDetailClient({ job }: JobDetailProps) {
 
             {/* Skills & Match */}
             <div className="space-y-3 sm:space-y-4">
-              {g.skills.length > 0 && (
+              {(g.skills ?? []).length > 0 && (
                 <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
                   <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Skills</h3>
                   <div className="flex flex-wrap gap-1.5">
-                    {g.skills.map((skill) => (
+                    {(g.skills ?? []).map((skill) => (
                       <Badge key={skill} variant="outline" className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-0">
                         {skill}
                       </Badge>
@@ -326,11 +326,11 @@ export function JobDetailClient({ job }: JobDetailProps) {
                 </div>
               )}
 
-              {job.matchReasons.length > 0 && (
+              {(job.matchReasons ?? []).length > 0 && (
                 <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
                   <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Match Reasons</h3>
                   <ul className="space-y-1">
-                    {job.matchReasons.map((reason, i) => (
+                    {(job.matchReasons ?? []).map((reason, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-slate-600 dark:text-zinc-400">
                         <ArrowRight className="h-3 w-3 text-emerald-500 mt-0.5 flex-shrink-0" />
                         {reason}

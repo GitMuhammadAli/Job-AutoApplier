@@ -12,9 +12,14 @@ export async function GET() {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
+    const userIsAdmin = isAdmin(session.user.email);
+    const userId = (session.user as { id?: string }).id;
+
     const now = new Date();
     const dayStart = new Date(now);
     dayStart.setHours(0, 0, 0, 0);
+
+    const userFilter = userIsAdmin ? {} : { userId: userId ?? "" };
 
     const [
       recentLogs,
@@ -30,21 +35,22 @@ export async function GET() {
         take: 20,
       }),
       prisma.jobApplication.count({
-        where: { status: "SENT", sentAt: { gte: dayStart } },
+        where: { ...userFilter, status: "SENT", sentAt: { gte: dayStart } },
       }),
       prisma.jobApplication.count({
-        where: { status: "FAILED", updatedAt: { gte: dayStart } },
+        where: { ...userFilter, status: "FAILED", updatedAt: { gte: dayStart } },
       }),
       prisma.jobApplication.count({
-        where: { status: "BOUNCED", updatedAt: { gte: dayStart } },
+        where: { ...userFilter, status: "BOUNCED", updatedAt: { gte: dayStart } },
       }),
       prisma.jobApplication.count({
-        where: { status: "DRAFT", createdAt: { gte: dayStart } },
+        where: { ...userFilter, status: "DRAFT", createdAt: { gte: dayStart } },
       }),
       prisma.systemLock.findMany(),
       prisma.systemLog.findMany({
         where: { type: "scrape", createdAt: { gte: dayStart } },
         orderBy: { createdAt: "desc" },
+        take: 100,
       }),
     ]);
 

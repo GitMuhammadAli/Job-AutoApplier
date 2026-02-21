@@ -176,6 +176,12 @@ export function TemplateEditor({
       </div>
 
       <div className="grid gap-4">
+        {templates.length === 0 && (
+          <div className="rounded-xl border-2 border-dashed border-slate-200 dark:border-zinc-700 py-10 text-center">
+            <p className="text-sm text-slate-500 dark:text-zinc-400">No email templates yet</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">Create your first template above to get started.</p>
+          </div>
+        )}
         {templates.map((t) => (
           <div
             key={t.id}

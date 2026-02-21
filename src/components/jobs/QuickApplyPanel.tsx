@@ -540,12 +540,12 @@ export function QuickApplyPanel({
       )}
 
       {/* Match Reasons */}
-      {userJob.matchReasons.length > 0 && (
+      {(userJob.matchReasons ?? []).length > 0 && (
         <div className="rounded-lg bg-slate-50 dark:bg-zinc-800/50 p-3 space-y-1.5">
           <h4 className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
             Why This Match
           </h4>
-          {userJob.matchReasons.map((reason, i) => (
+          {(userJob.matchReasons ?? []).map((reason, i) => (
             <div
               key={i}
               className="flex items-start gap-1.5 text-xs text-slate-600 dark:text-zinc-400"

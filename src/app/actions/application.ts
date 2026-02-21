@@ -226,6 +226,43 @@ export async function bulkMarkReady(applicationIds: string[]) {
   }
 }
 
+export async function cancelApplication(applicationId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+
+    const app = await prisma.jobApplication.findFirst({
+      where: { id: applicationId, userId },
+    });
+    if (!app) return { success: false, error: "Application not found" };
+
+    if (!["DRAFT", "READY"].includes(app.status)) {
+      return { success: false, error: `Cannot cancel — application is already ${app.status.toLowerCase()}` };
+    }
+
+    await prisma.$transaction([
+      prisma.jobApplication.update({
+        where: { id: applicationId },
+        data: { status: "CANCELLED", scheduledSendAt: null },
+      }),
+      prisma.activity.create({
+        data: {
+          userJobId: app.userJobId,
+          userId,
+          type: "APPLICATION_CANCELLED",
+          description: "Application cancelled by user",
+        },
+      }),
+    ]);
+
+    revalidatePath("/applications");
+    revalidatePath(`/jobs/${app.userJobId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("[cancelApplication] Error:", error);
+    return { success: false, error: "Failed to cancel application" };
+  }
+}
+
 export async function deleteApplication(applicationId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getAuthUserId();

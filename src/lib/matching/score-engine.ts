@@ -96,10 +96,11 @@ export function computeMatchScore(
   // ════════════════════════════════════════════
   // HARD FILTER 1: Platform
   // ════════════════════════════════════════════
+  const platforms = settings.preferredPlatforms ?? [];
   if (
-    settings.preferredPlatforms.length > 0 &&
+    platforms.length > 0 &&
     job.source &&
-    !settings.preferredPlatforms.includes(job.source)
+    !platforms.includes(job.source)
   ) {
     return { ...REJECT, reasons: ["Platform not selected"] };
   }
@@ -107,7 +108,7 @@ export function computeMatchScore(
   // ════════════════════════════════════════════
   // HARD FILTER 2: At least 1 keyword MUST match as a whole word
   // ════════════════════════════════════════════
-  const userKeywords = settings.keywords.map((k) => k.toLowerCase().trim()).filter(Boolean);
+  const userKeywords = (settings.keywords ?? []).map((k) => k.toLowerCase().trim()).filter(Boolean);
   const matchedKeywords = userKeywords.filter(
     (kw) => keywordMatchesText(kw, titleLower) || keywordMatchesText(kw, descLower)
   );
@@ -120,8 +121,9 @@ export function computeMatchScore(
   // ════════════════════════════════════════════
   // HARD FILTER 3: Category
   // ════════════════════════════════════════════
-  if (settings.preferredCategories.length > 0) {
-    const userCats = settings.preferredCategories.map((c) => c.toLowerCase());
+  const prefCats = settings.preferredCategories ?? [];
+  if (prefCats.length > 0) {
+    const userCats = prefCats.map((c) => c.toLowerCase());
     const jobCat = (job.category || "").toLowerCase();
 
     const directCatMatch = jobCat && userCats.some(
@@ -131,7 +133,7 @@ export function computeMatchScore(
     if (!directCatMatch) {
       // Only do fuzzy match if user selected fewer than 15 categories
       // (selecting everything means category filter adds no value)
-      if (settings.preferredCategories.length < 15) {
+      if (prefCats.length < 15) {
         const catKeywords = userCats.flatMap((c) =>
           c.split(/[\s/]+/).filter((w) => w.length > 3 && !CATEGORY_STOP_WORDS.has(w))
         );
@@ -208,8 +210,9 @@ export function computeMatchScore(
     if (!resume.content) continue;
     const resumeLower = resume.content.toLowerCase();
 
-    const jobSkills = job.skills.length > 0
-      ? job.skills
+    const jSkills = job.skills ?? [];
+    const jobSkills = jSkills.length > 0
+      ? jSkills
       : extractKeywordsFromText(combined);
 
     let matchCount = 0;
@@ -245,8 +248,9 @@ export function computeMatchScore(
   }
 
   // Factor 4: CATEGORY MATCH (0-10 points)
-  if (settings.preferredCategories.length > 0 && job.category) {
-    const userCats = settings.preferredCategories.map((c) => c.toLowerCase());
+  const scoreCats = settings.preferredCategories ?? [];
+  if (scoreCats.length > 0 && job.category) {
+    const userCats = scoreCats.map((c) => c.toLowerCase());
     const jobCat = job.category.toLowerCase();
     if (userCats.some((c) => c === jobCat || jobCat.includes(c) || c.includes(jobCat))) {
       score += 10;
@@ -265,7 +269,7 @@ export function computeMatchScore(
     const countryMatch = countryLower && locationLower.includes(countryLower);
     const remoteMatch =
       (locationLower.includes("remote") || locationLower.includes("anywhere") || locationLower.includes("worldwide")) &&
-      settings.workType.includes("remote");
+      (settings.workType ?? []).includes("remote");
 
     if (cityMatch) {
       score += 10;

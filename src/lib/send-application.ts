@@ -87,15 +87,21 @@ export async function sendApplication(
     }
   }
 
-  // Mark as SENDING to prevent double-send
+  // Atomic claim: only one caller can transition DRAFT/READY → SENDING
   try {
-    await prisma.jobApplication.update({
-      where: { id: applicationId },
+    const claimed = await prisma.jobApplication.updateMany({
+      where: {
+        id: applicationId,
+        status: { in: ["DRAFT", "READY"] },
+      },
       data: { status: "SENDING" },
     });
+    if (claimed.count === 0) {
+      return { success: false, error: "Already sending or sent" };
+    }
 
     const result = await transporter.sendMail({
-      from: `${settings.fullName || "JobPilot User"} <${settings.smtpUser}>`,
+      from: `${settings.fullName || "JobPilot User"} <${settings.applicationEmail || settings.smtpUser}>`,
       to: application.recipientEmail,
       subject: application.subject,
       text: application.emailBody,

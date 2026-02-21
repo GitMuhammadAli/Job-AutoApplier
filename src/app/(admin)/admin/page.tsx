@@ -84,7 +84,18 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <AlertTriangle className="h-8 w-8 text-slate-300 dark:text-zinc-600" />
+        <p className="text-sm text-slate-500 dark:text-zinc-400">Failed to load admin stats</p>
+        <Button size="sm" variant="outline" onClick={fetchStats} className="gap-1.5">
+          <RefreshCw className="h-3.5 w-3.5" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-5xl">

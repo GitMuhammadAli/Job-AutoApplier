@@ -10,7 +10,10 @@ export async function fetchWithRetry(
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const res = await fetch(url, init);
+      const res = await fetch(url, {
+        ...init,
+        signal: init?.signal ?? AbortSignal.timeout(15000),
+      });
 
       if (res.status === 429) {
         const retryAfter = res.headers.get("retry-after");

@@ -334,7 +334,7 @@ export async function getResumes() {
   try {
     const userId = await getAuthUserId();
     return prisma.resume.findMany({
-      where: { userId },
+      where: { userId, isDeleted: false },
       orderBy: { createdAt: "desc" },
       take: LIMITS.RESUMES_PER_PAGE,
     });

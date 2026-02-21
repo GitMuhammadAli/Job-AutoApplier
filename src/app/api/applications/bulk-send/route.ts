@@ -68,11 +68,10 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // Respect delay between sends
+      // Brief delay between sends (capped to prevent timeout)
       if (settings && i < applications.length - 1) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, settings.sendDelaySeconds * 1000)
-        );
+        const delay = Math.min(settings.sendDelaySeconds * 1000, 5000);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
@@ -81,6 +80,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ sent, failed, results });
   } catch (error) {
+    if (error instanceof Error && error.message === "Not authenticated") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("[BulkSend] Error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

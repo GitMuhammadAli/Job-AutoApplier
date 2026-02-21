@@ -58,7 +58,7 @@ export async function getPriorityPlatforms(): Promise<string[]> {
 
   const platforms = new Set<string>();
   for (const s of settings) {
-    for (const p of s.priorityPlatforms) {
+    for (const p of s.priorityPlatforms ?? []) {
       platforms.add(p);
     }
   }
