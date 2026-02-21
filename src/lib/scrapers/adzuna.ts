@@ -28,6 +28,7 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
   if (!appId || !appKey) return [];
 
   const jobs: ScrapedJob[] = [];
+  const seen = new Set<string>();
 
   for (const q of queries.slice(0, 5)) {
     try {
@@ -46,6 +47,10 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
         if (results.length === 0) break;
 
         for (const r of results) {
+          const sourceId = `adzuna-${r.id}`;
+          if (seen.has(sourceId)) continue;
+          seen.add(sourceId);
+
           jobs.push({
             title: r.title || "Untitled",
             company: r.company?.display_name || "Unknown",
@@ -58,7 +63,7 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
             skills: [],
             postedDate: r.created ? new Date(r.created) : null,
             source: "adzuna",
-            sourceId: `adzuna-${r.id}`,
+            sourceId,
             sourceUrl: r.redirect_url || null,
             applyUrl: r.redirect_url || null,
             companyUrl: null,

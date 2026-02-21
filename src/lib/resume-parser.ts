@@ -35,10 +35,10 @@ export async function extractTextFromPDF(
   buffer: Buffer
 ): Promise<{ text: string; quality: PdfQuality }> {
   try {
-    const pdfParseModule = await import("pdf-parse");
-    const pdfParse = (pdfParseModule as Record<string, unknown>).default || pdfParseModule;
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: buffer });
     const data = await withTimeout(
-      (pdfParse as (b: Buffer) => Promise<{ text: string }>)(buffer),
+      parser.getText() as Promise<{ text: string }>,
       TIMEOUTS.RESUME_PARSE_TIMEOUT_MS,
       "PDF parsing"
     );

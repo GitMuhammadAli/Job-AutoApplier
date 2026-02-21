@@ -68,10 +68,11 @@ export async function generateApplicationEmail(
   systemParts.push(`You are an expert job application email writer.
 
 RULES:
-- Write a professional application email (150-250 words)
+- The email body MUST be between 120 and 200 words. This is a strict requirement — do NOT write fewer than 120 words.
 - NO clichés: no "I am writing to express my interest", no "I am excited to apply"
 - NO placeholder brackets like [Company] or {name} — use the ACTUAL values provided
 - Mention 2-3 specific qualifications from the candidate's resume that match the job
+- If the job description is empty or says "No description available", do NOT invent job requirements — focus on the job title, company, and candidate's own skills
 - Include a clear call-to-action: request for interview, call, or next steps
 - Keep it concise, confident, and specific to THIS job at THIS company
 - The email should read like a real human wrote it, not a template
@@ -160,45 +161,13 @@ Body: ${input.template.body.slice(0, 500)}`);
 
   userParts.push("\nGenerate the application email now. Return ONLY JSON.");
 
-  const rawResponse = await generateWithGroq(systemPrompt, userParts.join("\n"), {
-    temperature: 0.7,
-    max_tokens: 800,
-  });
+  let parsed = await generateAndParseEmail(systemPrompt, userParts.join("\n"));
 
-  let parsed: { subject: string; body: string };
-  try {
-    let cleaned = rawResponse
-      .replace(/```json\n?/g, "")
-      .replace(/```\n?/g, "")
-      .trim();
-
-    // LLMs often return JSON with literal newlines inside string values.
-    // Fix by escaping unescaped newlines that appear between quotes.
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      // Replace real newlines inside JSON string values with \\n
-      cleaned = cleaned.replace(/(?<=:\s*")([\s\S]*?)(?="(?:\s*[,}]))/g, (match) =>
-        match.replace(/\r?\n/g, "\\n")
-      );
-      parsed = JSON.parse(cleaned);
-    }
-  } catch {
-    // Last-resort: extract subject and body via regex
-    const subjectMatch = rawResponse.match(/"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    const bodyMatch = rawResponse.match(/"body"\s*:\s*"([\s\S]*)"?\s*\}?\s*$/);
-    if (subjectMatch && bodyMatch) {
-      parsed = {
-        subject: subjectMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"'),
-        body: bodyMatch[1]
-          .replace(/"\s*\}?\s*$/, "")
-          .replace(/\\n/g, "\n")
-          .replace(/\\"/g, '"'),
-      };
-    } else {
-      console.error("[AI Email] JSON parse failed, raw:", rawResponse.slice(0, 200));
-      throw new Error("AI returned invalid JSON. Please try regenerating.");
-    }
+  const wordCount = parsed.body.split(/\s+/).filter(Boolean).length;
+  if (wordCount < 100) {
+    const retryPrompt = userParts.join("\n") +
+      `\n\nIMPORTANT: Your previous response was only ${wordCount} words. The email body MUST be at least 120 words. Write a more detailed email with specific qualifications and a compelling pitch.`;
+    parsed = await generateAndParseEmail(systemPrompt, retryPrompt);
   }
 
   const validated = EmailOutputSchema.parse(parsed);
@@ -228,6 +197,46 @@ Body: ${input.template.body.slice(0, 500)}`);
   }
 
   return { subject, body, coverLetter: null };
+}
+
+async function generateAndParseEmail(
+  systemPrompt: string,
+  userPrompt: string
+): Promise<{ subject: string; body: string }> {
+  const rawResponse = await generateWithGroq(systemPrompt, userPrompt, {
+    temperature: 0.7,
+    max_tokens: 800,
+  });
+
+  try {
+    let cleaned = rawResponse
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
+      .trim();
+
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      cleaned = cleaned.replace(/(?<=:\s*")([\s\S]*?)(?="(?:\s*[,}]))/g, (match) =>
+        match.replace(/\r?\n/g, "\\n")
+      );
+      return JSON.parse(cleaned);
+    }
+  } catch {
+    const subjectMatch = rawResponse.match(/"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const bodyMatch = rawResponse.match(/"body"\s*:\s*"([\s\S]*)"?\s*\}?\s*$/);
+    if (subjectMatch && bodyMatch) {
+      return {
+        subject: subjectMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"'),
+        body: bodyMatch[1]
+          .replace(/"\s*\}?\s*$/, "")
+          .replace(/\\n/g, "\n")
+          .replace(/\\"/g, '"'),
+      };
+    }
+    console.error("[AI Email] JSON parse failed, raw:", rawResponse.slice(0, 200));
+    throw new Error("AI returned invalid JSON. Please try regenerating.");
+  }
 }
 
 function replacePlaceholders(

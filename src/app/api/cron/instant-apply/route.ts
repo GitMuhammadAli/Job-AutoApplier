@@ -7,6 +7,7 @@ import {
 import { pickBestResume } from "@/lib/matching/resume-matcher";
 import { findCompanyEmail } from "@/lib/email-extractor";
 import { isDuplicateApplication } from "@/lib/duplicate-checker";
+import { buildExistingJobKeys, isDuplicateByKey } from "@/lib/matching/location-filter";
 import { sendApplication } from "@/lib/send-application";
 import { sendNotificationEmail } from "@/lib/email";
 import { decryptSettingsFields } from "@/lib/encryption";
@@ -47,10 +48,33 @@ export async function GET(req: NextRequest) {
   try {
     const startTime = Date.now();
 
-    const freshJobs = await prisma.globalJob.findMany({
+    const rawFreshJobs = await prisma.globalJob.findMany({
       where: { isFresh: true, isActive: true },
       take: LIMITS.MATCH_BATCH,
     });
+
+    // Round-robin by source so no single source monopolizes processing time
+    const bySource = new Map<string, typeof rawFreshJobs>();
+    for (const job of rawFreshJobs) {
+      const list = bySource.get(job.source) || [];
+      list.push(job);
+      bySource.set(job.source, list);
+    }
+    const sources = Array.from(bySource.keys());
+    const freshJobs: typeof rawFreshJobs = [];
+    let idx = 0;
+    let hasMore = true;
+    while (hasMore) {
+      hasMore = false;
+      for (const src of sources) {
+        const list = bySource.get(src)!;
+        if (idx < list.length) {
+          freshJobs.push(list[idx]);
+          if (idx + 1 < list.length) hasMore = true;
+        }
+      }
+      idx++;
+    }
 
     if (freshJobs.length === 0) {
       await releaseLock("instant-apply");
@@ -88,14 +112,14 @@ export async function GET(req: NextRequest) {
 
       if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
 
-      const existingJobIds = new Set(
-        (
-          await prisma.userJob.findMany({
-            where: { userId },
-            select: { globalJobId: true },
-            take: LIMITS.EXISTING_JOB_IDS,
-          })
-        ).map((j) => j.globalJobId),
+      const existingUserJobs = await prisma.userJob.findMany({
+        where: { userId },
+        select: { globalJobId: true, globalJob: { select: { title: true, company: true } } },
+        take: LIMITS.EXISTING_JOB_IDS,
+      });
+      const existingJobIds = new Set(existingUserJobs.map((j) => j.globalJobId));
+      const existingJobKeys = buildExistingJobKeys(
+        existingUserJobs.map((j) => j.globalJob)
       );
 
       const isFullAuto =
@@ -116,6 +140,7 @@ export async function GET(req: NextRequest) {
 
       for (const freshJob of freshJobs) {
         if (existingJobIds.has(freshJob.id)) continue;
+        if (isDuplicateByKey(existingJobKeys, freshJob.title, freshJob.company)) continue;
 
         try {
           const match = computeMatchScore(freshJob, settings, resumes);
@@ -134,6 +159,9 @@ export async function GET(req: NextRequest) {
               matchReasons: match.reasons,
             },
           });
+          existingJobKeys.add(
+            `${(freshJob.title ?? "").toLowerCase().replace(/\b(inc|llc|ltd|corp|gmbh|co|company|pvt|private|limited|\.)\b/g, "").replace(/[^a-z0-9]/g, "")}|${(freshJob.company ?? "").toLowerCase().replace(/\b(inc|llc|ltd|corp|gmbh|co|company|pvt|private|limited|\.)\b/g, "").replace(/[^a-z0-9]/g, "")}`
+          );
           stats.matched++;
 
           // Manual mode: only create UserJob, no drafts
@@ -412,7 +440,8 @@ Write the ENTIRE email in ${lang}.
 4. Mention 2-3 specific qualifications matching the job
 5. Include a clear call-to-action
 6. End with candidate's name
-${settings.customClosing ? `7. Use this closing: "${settings.customClosing}"` : ""}
+7. If the job description is empty or says "N/A", do NOT invent job requirements. Focus only on the job title, company name, and the candidate's skills.
+${settings.customClosing ? `8. Use this closing: "${settings.customClosing}"` : ""}
 ${settings.customSystemPrompt ? `\n## CUSTOM INSTRUCTIONS\n${settings.customSystemPrompt}\n` : ""}
 
 ## Output

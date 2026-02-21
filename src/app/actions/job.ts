@@ -8,7 +8,6 @@ import type { JobStage } from "@prisma/client";
 import { LIMITS } from "@/lib/constants";
 import { getSettings } from "@/app/actions/settings";
 import {
-  jobMatchesLocationPreferences,
   jobMatchesPlatformPreferences,
   deduplicateUserJobsByLogicalJob,
 } from "@/lib/matching/location-filter";
@@ -61,11 +60,8 @@ export async function getJobs() {
       getSettings(),
     ]);
 
-    const city = settings?.city ?? null;
-    const country = settings?.country ?? null;
     const preferredPlatforms = settings?.preferredPlatforms ?? [];
     const filtered = userJobs.filter((j) => {
-      if (!jobMatchesLocationPreferences(j.globalJob.location, city, country)) return false;
       if (!jobMatchesPlatformPreferences(j.globalJob.source, preferredPlatforms)) return false;
       return true;
     });

@@ -2,7 +2,6 @@ import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/app/actions/settings";
 import {
-  jobMatchesLocationPreferences,
   jobMatchesPlatformPreferences,
   deduplicateUserJobsByLogicalJob,
 } from "@/lib/matching/location-filter";
@@ -54,9 +53,8 @@ export default async function RecommendedPage() {
   const settings =
     settingsResult.status === "fulfilled" ? settingsResult.value : null;
 
-  // Only show jobs matching user's city/country and preferred platforms from settings.
+  // Only filter by platform — location was already handled by the matching engine
   const filteredBySettings = userJobs.filter((j) => {
-    if (!jobMatchesLocationPreferences(j.globalJob.location, settings?.city, settings?.country)) return false;
     if (!jobMatchesPlatformPreferences(j.globalJob.source, settings?.preferredPlatforms)) return false;
     return true;
   });

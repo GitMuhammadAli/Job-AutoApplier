@@ -88,11 +88,11 @@ interface ScraperEntry {
 
 const SCRAPERS: ScraperEntry[] = [
   { name: "linkedin", fn: (q) => fetchLinkedIn(q) },
-  { name: "indeed", fn: (q) => fetchIndeed(q) },
+  { name: "indeed", fn: (q) => fetchIndeed(q), needsKey: "RAPIDAPI_KEY" },
   { name: "remotive", fn: (q) => fetchRemotive(q) },
   { name: "arbeitnow", fn: () => fetchArbeitnow() },
   { name: "adzuna", fn: (q) => fetchAdzuna(q), needsKey: "ADZUNA_APP_ID" },
-  { name: "rozee", fn: (q) => fetchRozee(q) },
+  { name: "rozee", fn: (q) => fetchRozee(q), needsKey: "SERPAPI_KEY" },
   { name: "jsearch", fn: (q) => fetchJSearch(q, 3), needsKey: "RAPIDAPI_KEY" },
   { name: "google", fn: (q) => fetchGoogleJobs(q), needsKey: "SERPAPI_KEY" },
 ];
@@ -105,6 +105,13 @@ function separator(title: string) {
 }
 
 async function main() {
+  // Override Date.getDate so both Rozee (odd days) and Google Jobs (even days) run
+  const origGetDate = Date.prototype.getDate;
+  let forcedDay: number | null = null;
+  Date.prototype.getDate = function () {
+    return forcedDay ?? origGetDate.call(this);
+  };
+
   separator("SCRAPER TEST — Testing all 8 platforms");
   console.log(`Keywords: ${QUERIES.map((q) => q.keyword).join(", ")}`);
   console.log(`Cities: ${QUERIES[0].cities.join(", ")}`);
@@ -124,9 +131,15 @@ async function main() {
     }
 
     try {
+      // Force correct day-of-month for date-gated scrapers
+      if (scraper.name === "google") forcedDay = 2;    // even day
+      else if (scraper.name === "rozee") forcedDay = 1; // odd day
+      else forcedDay = null;
+
       const startMs = Date.now();
       const jobs = await scraper.fn(QUERIES);
       const elapsed = Date.now() - startMs;
+      forcedDay = null;
 
       if (jobs.length === 0) {
         console.log(` 0 jobs (${elapsed}ms) — EMPTY`);

@@ -3,6 +3,7 @@ import { fetchWithRetry } from "./fetch-with-retry";
 
 export async function fetchRemotive(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const jobs: ScrapedJob[] = [];
+  const seen = new Set<string>();
 
   try {
     const res = await fetchWithRetry("https://remotive.com/api/remote-jobs?limit=50", {
@@ -33,6 +34,10 @@ export async function fetchRemotive(queries: SearchQuery[]): Promise<ScrapedJob[
 
       if (!isRelevant) continue;
 
+      const sourceId = `remotive-${r.id}`;
+      if (seen.has(sourceId)) continue;
+      seen.add(sourceId);
+
       jobs.push({
         title: r.title || "Untitled",
         company: r.company_name || "Unknown",
@@ -45,7 +50,7 @@ export async function fetchRemotive(queries: SearchQuery[]): Promise<ScrapedJob[
         skills: r.tags || [],
         postedDate: r.publication_date ? new Date(r.publication_date) : null,
         source: "remotive",
-        sourceId: `remotive-${r.id}`,
+        sourceId,
         sourceUrl: r.url || null,
         applyUrl: r.url || null,
         companyUrl: r.company_logo_url || null,
