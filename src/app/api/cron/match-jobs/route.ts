@@ -4,6 +4,7 @@ import {
   computeMatchScore,
   MATCH_THRESHOLDS,
 } from "@/lib/matching/score-engine";
+import { buildExistingJobKeys, isDuplicateByKey } from "@/lib/matching/location-filter";
 import { LIMITS, TIMEOUTS } from "@/lib/constants";
 
 export const maxDuration = 60;
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
-    const recentJobs = await prisma.globalJob.findMany({
+    const rawRecent = await prisma.globalJob.findMany({
       where: {
         isActive: true,
         isFresh: false,
@@ -59,6 +60,29 @@ export async function GET(req: NextRequest) {
       },
       take: LIMITS.MATCH_BATCH,
     });
+
+    // Round-robin by source for fair processing across all platforms
+    const bySource = new Map<string, typeof rawRecent>();
+    for (const job of rawRecent) {
+      const list = bySource.get(job.source) || [];
+      list.push(job);
+      bySource.set(job.source, list);
+    }
+    const sources = Array.from(bySource.keys());
+    const recentJobs: typeof rawRecent = [];
+    let rrIdx = 0;
+    let rrMore = true;
+    while (rrMore) {
+      rrMore = false;
+      for (const src of sources) {
+        const list = bySource.get(src)!;
+        if (rrIdx < list.length) {
+          recentJobs.push(list[rrIdx]);
+          if (rrIdx + 1 < list.length) rrMore = true;
+        }
+      }
+      rrIdx++;
+    }
 
     if (recentJobs.length === 0) {
       return NextResponse.json({
@@ -78,20 +102,21 @@ export async function GET(req: NextRequest) {
         select: { id: true, name: true, content: true },
       });
 
-      const existingIds = new Set(
-        (
-          await prisma.userJob.findMany({
-            where: { userId: user.userId },
-            select: { globalJobId: true },
-            take: LIMITS.EXISTING_JOB_IDS,
-          })
-        ).map((uj) => uj.globalJobId),
+      const existingUserJobs = await prisma.userJob.findMany({
+        where: { userId: user.userId },
+        select: { globalJobId: true, globalJob: { select: { title: true, company: true } } },
+        take: LIMITS.EXISTING_JOB_IDS,
+      });
+      const existingIds = new Set(existingUserJobs.map((uj) => uj.globalJobId));
+      const existingJobKeys = buildExistingJobKeys(
+        existingUserJobs.map((j) => j.globalJob)
       );
 
       let userMatched = 0;
 
       for (const job of recentJobs) {
         if (existingIds.has(job.id)) continue;
+        if (isDuplicateByKey(existingJobKeys, job.title, job.company)) continue;
 
         const match = computeMatchScore(job, user, resumes);
 

@@ -124,7 +124,7 @@ export async function saveSettings(rawData: unknown): Promise<{ success: boolean
       smtpHost: data.smtpHost || null,
       smtpPort: data.smtpPort ?? null,
       smtpUser: data.smtpUser || null,
-      smtpPass: data.smtpPass || null,
+      smtpPass: data.smtpPass ? data.smtpPass.replace(/\s/g, "") || null : null,
       emailProvider: data.emailProvider || "gmail",
       resumeMatchMode: data.resumeMatchMode || "smart",
       accountStatus: data.accountStatus || "active",

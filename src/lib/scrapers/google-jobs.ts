@@ -10,6 +10,7 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
   if (dayOfMonth % 2 !== 0) return [];
 
   const jobs: ScrapedJob[] = [];
+  const seen = new Set<string>();
 
   for (const q of queries.slice(0, 4)) {
     for (const city of q.cities.slice(0, 2)) {
@@ -25,6 +26,13 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
 
         for (const r of results) {
           const applyLink = r.apply_options?.[0]?.link || null;
+          const titleSlug = (r.title || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+          const companySlug = (r.company_name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+          const sourceId = r.job_id
+            ? `google-${r.job_id}`
+            : `google-${titleSlug}-${companySlug}`;
+          if (seen.has(sourceId)) continue;
+          seen.add(sourceId);
 
           jobs.push({
             title: r.title || "Untitled",
@@ -40,7 +48,7 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
               ? parseRelativeDate(r.detected_extensions.posted_at)
               : null,
             source: "google",
-            sourceId: `google-${r.job_id || Date.now()}`,
+            sourceId,
             sourceUrl: applyLink,
             applyUrl: applyLink,
             companyUrl: null,

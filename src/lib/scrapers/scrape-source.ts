@@ -2,17 +2,27 @@ import { prisma } from "@/lib/prisma";
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { categorizeJob } from "@/lib/job-categorizer";
 
-function sanitizeScrapedText(text: string | null): string | null {
+function sanitizeScrapedText(text: string | null, stripHtml = true): string | null {
   if (!text) return text;
-  return text
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ")
+  let out = text;
+  if (stripHtml) {
+    out = out
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ");
+  }
+  return out
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&ndash;/g, "\u2013")
+    .replace(/&mdash;/g, "\u2014")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -32,6 +42,8 @@ export async function scrapeAndUpsert(
       job.description = sanitizeScrapedText(job.description);
       job.title = sanitizeScrapedText(job.title) || job.title;
       job.company = sanitizeScrapedText(job.company) || job.company;
+      job.location = sanitizeScrapedText(job.location, false) || job.location;
+      job.salary = sanitizeScrapedText(job.salary, false) || job.salary;
 
       if (!job.category) {
         job.category = categorizeJob(job.title, job.skills || [], job.description || "");

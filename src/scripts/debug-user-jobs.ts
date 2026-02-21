@@ -92,31 +92,28 @@ async function main() {
   const city = (settings.city ?? "").trim().toLowerCase();
   const country = (settings.country ?? "").trim().toLowerCase();
 
+  // Platform filter only (location already handled by matching engine — no double-filter)
   const afterPlatformFilter = userJobs.filter((uj) => {
     const src = (uj.globalJob?.source ?? "").toLowerCase().trim();
     if (platformsLower.length === 0) return true;
     if (!src) return true;
     return platformsLower.includes(src);
   });
-  const afterLocationFilter = afterPlatformFilter.filter((uj) => {
-    const loc = (uj.globalJob?.location ?? "").toLowerCase();
-    if (city) {
-      if (!loc) return true;
-      if (/remote|anywhere|worldwide|global/.test(loc)) return true;
-      const cityPart = city.split(",")[0]?.trim() ?? "";
-      return cityPart ? loc.includes(cityPart) : true;
-    }
-    if (country) {
-      if (!loc) return true;
-      if (/remote|anywhere|worldwide|global/.test(loc)) return true;
-      return loc.includes(country);
-    }
+
+  // Deduplicate by normalized title + company
+  const seen = new Set<string>();
+  const deduped = afterPlatformFilter.filter((uj) => {
+    const title = (uj.globalJob?.title ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+    const company = (uj.globalJob?.company ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+    const key = `${company}|${title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 
-  console.log("After applying display filters (platform + location from settings):");
+  console.log("After applying display filters (platform only, no location re-filter):");
   const bySourceAfter = new Map<string, number>();
-  for (const uj of afterLocationFilter) {
+  for (const uj of deduped) {
     const src = uj.globalJob?.source ?? "unknown";
     bySourceAfter.set(src, (bySourceAfter.get(src) ?? 0) + 1);
   }
@@ -124,11 +121,11 @@ async function main() {
   for (const [source, count] of sortedAfter) {
     console.log(`  ${source}: ${count}`);
   }
-  console.log("  TOTAL displayed:", afterLocationFilter.length);
+  console.log("  TOTAL displayed:", deduped.length);
   console.log("");
 
   console.log("Sample jobs (first 5 by score):");
-  for (const uj of afterLocationFilter.slice(0, 5)) {
+  for (const uj of deduped.slice(0, 5)) {
     console.log(`  - [${uj.globalJob?.source}] ${uj.globalJob?.company} – ${uj.globalJob?.title} (${uj.globalJob?.location ?? "n/a"})`);
   }
 }

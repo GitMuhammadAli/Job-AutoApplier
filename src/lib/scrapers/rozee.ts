@@ -1,62 +1,76 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
+import { categorizeJob } from "@/lib/job-categorizer";
 
-const USER_AGENTS = [
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-];
-
+/**
+ * Fetches Rozee.pk jobs via SerpAPI Google Jobs.
+ * Rozee's website is a client-side SPA with CAPTCHA protection, making direct
+ * scraping impractical. Google has already indexed Rozee listings, so we
+ * search Google Jobs for Pakistan-based roles and identify Rozee-sourced ones.
+ */
 export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> {
+  const key = process.env.SERPAPI_KEY;
+  if (!key) return [];
+
+  // Run on odd days to share SerpAPI quota with Google Jobs (even days)
+  const dayOfMonth = new Date().getDate();
+  if (dayOfMonth % 2 === 0) return [];
+
   const jobs: ScrapedJob[] = [];
+  const seen = new Set<string>();
 
-  for (const q of queries.slice(0, 6)) {
+  const PK_CITIES = ["lahore", "karachi", "islamabad", "rawalpindi", "faisalabad", "multan", "peshawar", "hyderabad", "quetta", "sialkot"];
+
+  for (const q of queries.slice(0, 4)) {
     try {
-      const keyword = encodeURIComponent(q.keyword);
-      const url = `https://www.rozee.pk/job/jsearch/q/${keyword}`;
+      // Search Google Jobs for Pakistan-specific listings
+      const query = encodeURIComponent(`${q.keyword} jobs Pakistan`);
+      const url = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&api_key=${key}`;
 
-      const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-      const res = await fetchWithRetry(url, {
-        headers: { "User-Agent": ua },
-      });
+      const res = await fetchWithRetry(url);
       if (!res.ok) continue;
 
-      const html = await res.text();
+      const data = await res.json();
+      const results = data?.jobs_results || [];
 
-      if (html.includes("captcha") || html.includes("access denied") || html.length < 500) {
-        console.warn("[Rozee] Likely blocked — CAPTCHA or access denied detected");
-        continue;
-      }
+      for (const r of results) {
+        const locLower = (r.location || "").toLowerCase();
+        const isPakistan = locLower.includes("pakistan") ||
+          PK_CITIES.some((c) => locLower.includes(c));
 
-      const listings = html.match(/<div class="job[^"]*"[\s\S]*?<\/div>\s*<\/div>/g) || [];
+        if (!isPakistan) continue;
 
-      for (const listing of listings.slice(0, 15)) {
-        const title = extractText(listing, /class="[^"]*title[^"]*"[^>]*>([\s\S]*?)<\//);
-        const company = extractText(listing, /class="[^"]*company[^"]*"[^>]*>([\s\S]*?)<\//);
-        const location = extractText(listing, /class="[^"]*location[^"]*"[^>]*>([\s\S]*?)<\//);
-        const link = extractLink(listing);
+        const applyOptions: Array<{ link?: string; title?: string }> = r.apply_options || [];
+        const rozeeLink = applyOptions.find(
+          (opt) => opt.link && opt.link.toLowerCase().includes("rozee.pk")
+        );
+        const applyUrl = rozeeLink?.link || applyOptions[0]?.link || null;
+        const sourceId = `rozee-${r.job_id || hashString(r.title + r.company_name)}`;
 
-        if (!title) continue;
+        if (seen.has(sourceId)) continue;
+        seen.add(sourceId);
 
-        const sourceId = link
-          ? `rozee-${hashString(link)}`
-          : `rozee-${Date.now()}-${Math.random()}`;
+        const title = r.title || "Untitled";
+        const description = r.description || null;
+        const skills = extractSkills(description || "");
 
         jobs.push({
-          title: cleanHtml(title),
-          company: cleanHtml(company || "Unknown"),
-          location: cleanHtml(location || "Pakistan"),
-          description: null,
-          salary: null,
-          jobType: null,
+          title,
+          company: r.company_name || "Unknown",
+          location: r.location || "Pakistan",
+          description,
+          salary: r.detected_extensions?.salary || null,
+          jobType: r.detected_extensions?.schedule_type?.toLowerCase() || null,
           experienceLevel: null,
-          category: null,
-          skills: [],
-          postedDate: null,
+          category: categorizeJob(title, skills, description || ""),
+          skills,
+          postedDate: r.detected_extensions?.posted_at
+            ? parseRelativeDate(r.detected_extensions.posted_at)
+            : null,
           source: "rozee",
           sourceId,
-          sourceUrl: link ? `https://www.rozee.pk${link}` : null,
-          applyUrl: link ? `https://www.rozee.pk${link}` : null,
+          sourceUrl: applyUrl,
+          applyUrl,
           companyUrl: null,
           companyEmail: null,
         });
@@ -69,18 +83,34 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
   return jobs;
 }
 
-function extractText(html: string, regex: RegExp): string | null {
-  const match = html.match(regex);
-  return match ? match[1].trim() : null;
+function parseRelativeDate(text: string): Date | null {
+  const now = new Date();
+  const match = text.match(/(\d+)\s*(day|hour|week|month)/i);
+  if (!match) return null;
+
+  const num = parseInt(match[1]);
+  const unit = match[2].toLowerCase();
+
+  if (unit.startsWith("hour")) now.setHours(now.getHours() - num);
+  else if (unit.startsWith("day")) now.setDate(now.getDate() - num);
+  else if (unit.startsWith("week")) now.setDate(now.getDate() - num * 7);
+  else if (unit.startsWith("month")) now.setMonth(now.getMonth() - num);
+
+  return now;
 }
 
-function extractLink(html: string): string | null {
-  const match = html.match(/href="(\/job\/[^"]+)"/);
-  return match ? match[1] : null;
-}
-
-function cleanHtml(text: string): string {
-  return text.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+function extractSkills(text: string): string[] {
+  const skillPatterns = [
+    "react", "vue", "angular", "next.js", "node.js", "express", "nestjs",
+    "typescript", "javascript", "python", "java", "c#", "go", "rust", "ruby",
+    "php", "swift", "kotlin", "flutter", "react native",
+    "aws", "azure", "gcp", "docker", "kubernetes", "terraform",
+    "postgresql", "mysql", "mongodb", "redis", "elasticsearch",
+    "graphql", "rest api", "microservices", "ci/cd", "git",
+    "tailwind", "sass", "css", "html", "figma",
+  ];
+  const lower = text.toLowerCase();
+  return skillPatterns.filter((s) => lower.includes(s));
 }
 
 function hashString(str: string): string {

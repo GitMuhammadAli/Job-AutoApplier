@@ -153,9 +153,11 @@ function parseLinkedInHtml(
     if (!title || !company) continue;
 
     const jobIdMatch = link?.match(/\/view\/(\d+)/);
+    const titleSlug = cleanText(title).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
+    const companySlug = cleanText(company).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
     const jobId = jobIdMatch
       ? jobIdMatch[1]
-      : `li-${Date.now()}-${Math.random()}`;
+      : `${titleSlug}-${companySlug}`;
 
     if (seenIds.has(jobId)) continue;
     seenIds.add(jobId);

@@ -9,6 +9,7 @@ export async function fetchJSearch(
   if (!key) return [];
 
   const jobs: ScrapedJob[] = [];
+  const seen = new Set<string>();
   const limited = queries.slice(0, maxQueries);
 
   for (const q of limited) {
@@ -31,6 +32,12 @@ export async function fetchJSearch(
         const results = data?.data || [];
 
         for (const r of results) {
+          const titleSlug = (r.job_title || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
+          const compSlug = (r.employer_name || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
+          const id = r.job_id || `jsearch-${titleSlug}-${compSlug}`;
+          if (seen.has(id)) continue;
+          seen.add(id);
+
           jobs.push({
             title: r.job_title || "Untitled",
             company: r.employer_name || "Unknown",
@@ -45,7 +52,7 @@ export async function fetchJSearch(
             skills: extractSkills(r.job_description || ""),
             postedDate: r.job_posted_at_datetime_utc ? new Date(r.job_posted_at_datetime_utc) : null,
             source: "jsearch",
-            sourceId: r.job_id || `jsearch-${Date.now()}-${Math.random()}`,
+            sourceId: id,
             sourceUrl: r.job_google_link || null,
             applyUrl: r.job_apply_link || r.job_google_link || null,
             companyUrl: r.employer_website || null,
