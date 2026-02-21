@@ -47,3 +47,49 @@ export function jobMatchesLocationPreferences(
 
   return true;
 }
+
+/** Normalize for dedupe key: trim, lower case, treat empty as "" */
+function jobKey(title: string | null, company: string | null, location: string | null): string {
+  const t = (title ?? "").trim().toLowerCase();
+  const c = (company ?? "").trim().toLowerCase();
+  const l = (location ?? "").trim().toLowerCase();
+  return `${t}|${c}|${l}`;
+}
+
+/**
+ * Deduplicate user jobs so the same logical job (title + company + location) appears only once.
+ * Keeps the row with highest matchScore; if tied, most recent createdAt.
+ * Use after location filter when displaying lists (dashboard, recommended).
+ */
+export function deduplicateUserJobsByLogicalJob<T extends {
+  globalJob: { title: string | null; company: string | null; location: string | null };
+  matchScore: number | null;
+  createdAt: Date | string;
+}>(jobs: T[]): T[] {
+  const byKey = new Map<string, T>();
+  for (const j of jobs) {
+    const key = jobKey(j.globalJob.title, j.globalJob.company, j.globalJob.location);
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, j);
+      continue;
+    }
+    const scoreA = existing.matchScore ?? 0;
+    const scoreB = j.matchScore ?? 0;
+    if (scoreB > scoreA) {
+      byKey.set(key, j);
+    } else if (scoreB === scoreA) {
+      const timeA = new Date(existing.createdAt).getTime();
+      const timeB = new Date(j.createdAt).getTime();
+      if (timeB > timeA) byKey.set(key, j);
+    }
+  }
+  const out = Array.from(byKey.values());
+  out.sort((a, b) => {
+    const sa = a.matchScore ?? 0;
+    const sb = b.matchScore ?? 0;
+    if (sb !== sa) return sb - sa;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+  return out;
+}
