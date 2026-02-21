@@ -25,6 +25,7 @@ export async function getEmailTemplates() {
   return prisma.emailTemplate.findMany({
     where: { userId },
     orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+    take: 100,
   });
 }
 

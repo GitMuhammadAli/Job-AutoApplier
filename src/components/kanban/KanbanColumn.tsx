@@ -44,7 +44,7 @@ export function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) 
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 space-y-2 px-2 pb-2.5 min-h-[80px] transition-colors rounded-b-xl scrollbar-thin overflow-y-auto max-h-[55vh] md:max-h-[68vh]",
+          "flex-1 space-y-2.5 px-2.5 pb-3 min-h-[80px] transition-colors rounded-b-xl scrollbar-thin overflow-y-auto max-h-[55vh] md:max-h-[68vh]",
           isOver && "bg-slate-50/50 dark:bg-zinc-800/50"
         )}
       >

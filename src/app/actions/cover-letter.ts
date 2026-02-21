@@ -23,6 +23,7 @@ export async function generateCoverLetter(userJobId: string) {
     const resumes = await prisma.resume.findMany({
       where: { userId },
       select: { name: true, content: true },
+      take: 50,
     });
 
     const bestResume = resumes.find((r) => r.content) || resumes[0];

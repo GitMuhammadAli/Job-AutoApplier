@@ -117,10 +117,10 @@ export default function SystemHealthPage() {
       <div className="rounded-xl bg-white dark:bg-zinc-800 p-5 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100 dark:ring-zinc-700/50">
         <h2 className="text-sm font-bold text-slate-700 dark:text-zinc-300 mb-3">Today&apos;s Activity</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatBox label="Sent" value={data.today.sent} color="text-emerald-600" />
-          <StatBox label="Drafted" value={data.today.drafted} color="text-blue-600" />
-          <StatBox label="Failed" value={data.today.failed} color="text-red-600" />
-          <StatBox label="Bounced" value={data.today.bounced} color="text-amber-600" />
+          <StatBox label="Sent" value={data.today.sent} color="text-emerald-600 dark:text-emerald-400" />
+          <StatBox label="Drafted" value={data.today.drafted} color="text-blue-600 dark:text-blue-400" />
+          <StatBox label="Failed" value={data.today.failed} color="text-red-600 dark:text-red-400" />
+          <StatBox label="Bounced" value={data.today.bounced} color="text-amber-600 dark:text-amber-400" />
         </div>
       </div>
 

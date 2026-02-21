@@ -19,7 +19,7 @@ import {
   updateEmailTemplate,
   deleteEmailTemplate,
 } from "@/app/actions/email-template";
-import { Star, Plus, Save, Trash2, Pencil } from "lucide-react";
+import { Star, Plus, Save, Trash2, Pencil, Loader2 } from "lucide-react";
 
 const PLACEHOLDER_CHIPS = [
   "{{company}}",
@@ -411,7 +411,7 @@ function CreateTemplateDialog({
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-600 mb-1.5 block">
+            <label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-1.5 block">
               Subject
             </label>
             <Input
@@ -457,7 +457,7 @@ function CreateTemplateDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? "Creating..." : "Create"}
+            {saving ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Creating...</> : "Create"}
           </Button>
         </DialogFooter>
       </DialogContent>
