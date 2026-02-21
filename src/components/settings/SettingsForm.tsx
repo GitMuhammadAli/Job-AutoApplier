@@ -395,7 +395,7 @@ export function SettingsForm({
   };
 
   return (
-    <div className="space-y-8 max-w-3xl">
+    <div className="space-y-8 max-w-4xl mx-auto">
       {/* ── Account Status ── */}
       <div
         className={`rounded-xl p-4 shadow-sm ring-1 ${accountStatus === "active" ? "bg-emerald-50 dark:bg-emerald-900/30 ring-emerald-200 dark:ring-emerald-800/40" : accountStatus === "paused" ? "bg-amber-50 dark:bg-amber-900/30 ring-amber-200 dark:ring-amber-800/40" : "bg-slate-100 dark:bg-zinc-800 ring-slate-200 dark:ring-zinc-700"}`}
