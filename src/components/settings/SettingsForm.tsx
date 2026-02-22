@@ -30,6 +30,7 @@ import {
 } from "@/constants/categories";
 import { APPLICATION_MODES, EMAIL_PROVIDERS } from "@/constants/settings";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { HelpTooltip } from "@/components/shared/HelpTooltip";
 import {
   Save,
   User,
@@ -1076,7 +1077,7 @@ export function SettingsForm({
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="SMTP Host">
+              <Field label="SMTP Host" helpTip="For Gmail: smtp.gmail.com">
                 <Input
                   value={smtpHost}
                   onChange={(e) => setSmtpHost(e.target.value)}
@@ -1089,7 +1090,7 @@ export function SettingsForm({
                   }
                 />
               </Field>
-              <Field label="SMTP Port">
+              <Field label="SMTP Port" helpTip="465 for secure (SSL), 587 for TLS">
                 <Input
                   type="number"
                   value={smtpPort}
@@ -1107,7 +1108,7 @@ export function SettingsForm({
                 spellCheck={false}
               />
             </Field>
-            <Field label="App Password">
+            <Field label="App Password" helpTip="Not your Gmail password — generate one at myaccount.google.com → Security → App Passwords">
               <Input
                 type="password"
                 value={smtpPass}
@@ -1354,6 +1355,7 @@ export function SettingsForm({
               <Field
                 label={`Min Match Score (${minMatchScore}%)`}
                 hint="Only auto-applies to jobs scoring above this threshold. Higher = more relevant but fewer applications."
+                helpTip="Jobs above this score get auto-applied. 70% is recommended."
               >
                 <input
                   type="range"
@@ -1401,6 +1403,7 @@ export function SettingsForm({
           <Field
             label="Delay between emails (seconds)"
             hint="Wait time between each sent email. Gmail recommends 60-120s to avoid throttling."
+            helpTip="Minimum 60 seconds to look natural"
           >
             <Input
               type="number"
@@ -1429,6 +1432,7 @@ export function SettingsForm({
           <Field
             label="Max sends per day"
             hint="Total emails per day. New Gmail accounts should stay under 20; established ones can go higher."
+            helpTip="20-30 is safe for Gmail"
           >
             <Input
               type="number"
@@ -1443,6 +1447,7 @@ export function SettingsForm({
           <Field
             label="Cooldown after burst (minutes)"
             hint="Pause after hitting the hourly limit. Gives your email time to cool down."
+            helpTip="Pause after rapid sends to avoid throttling"
           >
             <Input
               type="number"
@@ -1457,6 +1462,7 @@ export function SettingsForm({
           <Field
             label="Auto-pause on bounces (hours)"
             hint="If 3+ emails bounce in a day, all sending stops for this many hours to protect your reputation."
+            helpTip="Auto-pause if emails bounce to protect your sender reputation"
           >
             <Input
               type="number"
@@ -1581,6 +1587,7 @@ export function SettingsForm({
           <Field
             label="Custom System Prompt"
             hint="Extra instructions injected into every AI generation. Tell the AI what to emphasize, avoid, or always include."
+            helpTip="Extra AI instructions — e.g. 'always mention my React experience'"
           >
             <Textarea
               value={customPrompt}
@@ -1598,6 +1605,7 @@ export function SettingsForm({
             <Field
               label="Preferred Tone"
               hint="Sets the writing style for all generated emails and cover letters"
+              helpTip="How formal your emails sound"
             >
               <Select value={tone} onValueChange={setTone}>
                 <SelectTrigger>
@@ -1677,6 +1685,7 @@ export function SettingsForm({
           <Field
             label="Custom Closing"
             hint="Replaces the AI's default sign-off (e.g. 'Best regards'). Leave empty to let the AI decide."
+            helpTip="Replaces the default sign-off in emails"
           >
             <Input
               value={customClosing}
@@ -2001,11 +2010,13 @@ function Section({
 function Field({
   label,
   hint,
+  helpTip,
   children,
   className,
 }: {
   label: string;
   hint?: string;
+  helpTip?: string;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -2013,6 +2024,7 @@ function Field({
     <div className={className}>
       <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400 mb-0.5 block">
         {label}
+        {helpTip && <HelpTooltip text={helpTip} />}
       </Label>
       {hint && (
         <p className="text-[10px] text-slate-400 dark:text-zinc-500 mb-1.5">

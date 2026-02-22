@@ -51,7 +51,7 @@ ${coverLetter ?? "(none)"}
     return (
       <Button variant="outline" size="sm" onClick={copyAll} className="gap-1.5">
         <Copy className="h-3.5 w-3.5" />
-        Copy All
+        Copy Email
       </Button>
     );
   }
@@ -60,7 +60,7 @@ ${coverLetter ?? "(none)"}
     <div className="flex flex-wrap items-center gap-2">
       <Button variant="outline" size="sm" onClick={copyAll} className="gap-1.5">
         <Copy className="h-3.5 w-3.5" />
-        Copy All
+        Copy Email
       </Button>
       <Button
         variant="ghost"
