@@ -38,7 +38,7 @@ export async function POST() {
     for (const settings of users) {
       const resumes = await prisma.resume.findMany({
         where: { userId: settings.userId, isDeleted: false },
-        select: { id: true, name: true, content: true },
+        select: { id: true, name: true, content: true, detectedSkills: true },
       });
 
       const userJobs = await prisma.userJob.findMany({

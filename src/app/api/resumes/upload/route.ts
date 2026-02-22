@@ -3,7 +3,7 @@ import { put, list } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { extractText } from "@/lib/resume-parser";
-import { extractSkillsFromContent } from "@/lib/skill-extractor";
+import { parseResume } from "@/lib/skill-extractor";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +81,8 @@ export async function POST(req: NextRequest) {
 
     const ext = fileName.split(".").pop()?.toLowerCase() || "pdf";
     const { text: textContent, quality: textQuality } = await extractText(buffer, ext);
-    const detectedSkills = extractSkillsFromContent(textContent);
+    const parsed = parseResume(textContent);
+    const detectedSkills = parsed.skills;
 
     const blob = await put(`resumes/${userId}/${fileName}`, buffer, {
       access: "public",

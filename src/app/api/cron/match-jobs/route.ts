@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
 
       const resumes = await prisma.resume.findMany({
         where: { userId: user.userId },
-        select: { id: true, name: true, content: true },
+        select: { id: true, name: true, content: true, detectedSkills: true },
       });
 
       const existingUserJobs = await prisma.userJob.findMany({

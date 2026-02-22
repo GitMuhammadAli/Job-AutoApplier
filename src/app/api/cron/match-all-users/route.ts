@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
       const userId = settings.userId;
       const resumes = await prisma.resume.findMany({
         where: { userId, isDeleted: false },
-        select: { id: true, name: true, content: true, isDefault: true },
+        select: { id: true, name: true, content: true, detectedSkills: true, isDefault: true },
         take: 50,
       });
 

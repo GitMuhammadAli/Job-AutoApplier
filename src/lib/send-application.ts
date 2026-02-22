@@ -69,21 +69,20 @@ export async function sendApplication(
   if (application.resume?.fileUrl) {
     try {
       const response = await fetch(application.resume.fileUrl);
-      const buffer = Buffer.from(await response.arrayBuffer());
-      attachments.push({
-        filename:
-          application.resume.fileName ||
-          `${application.resume.name}.pdf`,
-        content: buffer,
-        contentType:
-          application.resume.fileType === "pdf"
-            ? "application/pdf"
-            : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      });
-    } catch {
-      console.error(
-        `[SendApp] Failed to download resume ${application.resume.id}`
-      );
+      if (response.ok) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const rawName = application.resume.fileName || application.resume.name;
+        const fileName = rawName.toLowerCase().endsWith(".pdf") ? rawName : `${rawName}.pdf`;
+        attachments.push({
+          filename: fileName,
+          content: buffer,
+          contentType: "application/pdf",
+        });
+      } else {
+        console.error(`[SendApp] Resume download HTTP ${response.status} for ${application.resume.id}`);
+      }
+    } catch (err) {
+      console.error(`[SendApp] Failed to download resume ${application.resume.id}:`, err);
     }
   }
 
@@ -100,12 +99,15 @@ export async function sendApplication(
       return { success: false, error: "Already sending or sent" };
     }
 
+    const cleanSubject = cleanJsonField(application.subject, "subject");
+    const cleanBody = cleanJsonField(application.emailBody, "body");
+
     const result = await transporter.sendMail({
       from: `${settings.fullName || "JobPilot User"} <${settings.applicationEmail || settings.smtpUser}>`,
       to: application.recipientEmail,
-      subject: application.subject,
-      text: application.emailBody,
-      html: formatEmailAsHtml(application.emailBody),
+      subject: cleanSubject,
+      text: cleanBody,
+      html: formatEmailAsHtml(cleanBody),
       attachments: attachments.map((a) => ({
         filename: a.filename,
         content: a.content,
@@ -170,6 +172,17 @@ export async function sendApplication(
 
     return { success: false, error: errorMsg };
   }
+}
+
+function cleanJsonField(value: string, field: "subject" | "body"): string {
+  if (!value || !value.trimStart().startsWith("{")) return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed === "object" && parsed !== null && typeof parsed[field] === "string") {
+      return parsed[field];
+    }
+  } catch { /* not JSON */ }
+  return value;
 }
 
 function formatEmailAsHtml(text: string): string {

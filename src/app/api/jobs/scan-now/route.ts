@@ -168,7 +168,7 @@ export async function POST() {
 
     const userResumes = await prisma.resume.findMany({
       where: { userId, isDeleted: false },
-      select: { id: true, name: true, content: true },
+      select: { id: true, name: true, content: true, detectedSkills: true },
       take: 50,
     });
 
