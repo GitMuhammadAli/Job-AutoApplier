@@ -33,6 +33,7 @@ import {
   updateResumeCategories,
   setDefaultResume,
   reExtractResume,
+  rephraseResumeContent,
 } from "@/app/actions/resume";
 import { JOB_CATEGORIES } from "@/constants/categories";
 import {
@@ -49,6 +50,7 @@ import {
   Tags,
   Star,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 
 interface ResumeWithStats {
@@ -82,6 +84,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
   const [categoryDialogId, setCategoryDialogId] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [reExtracting, setReExtracting] = useState<string | null>(null);
+  const [rephrasing, setRephrasing] = useState<string | null>(null);
 
   const handlePdfUpload = async (file: File) => {
     if (!file) return;
@@ -244,6 +247,24 @@ export function ResumeList({ resumes }: ResumeListProps) {
       toast.error("Re-extraction failed");
     }
     setReExtracting(null);
+  };
+
+  const handleRephrase = async (id: string) => {
+    setRephrasing(id);
+    try {
+      const result = await rephraseResumeContent(id);
+      if (result.success) {
+        toast.success(
+          `Resume rephrased! Detected ${result.detectedSkills?.length || 0} skills.`,
+        );
+        router.refresh();
+      } else {
+        toast.error(result.error || "Rephrase failed");
+      }
+    } catch {
+      toast.error("Rephrase failed");
+    }
+    setRephrasing(null);
   };
 
   const resumesWithFiles = resumes.filter((r) => r.fileUrl);
@@ -666,6 +687,22 @@ export function ResumeList({ resumes }: ResumeListProps) {
                     <ClipboardPaste className="h-3 w-3 mr-1" />
                     {r.content ? "Edit Content" : "Paste Resume"}
                   </Button>
+                  {r.content && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] px-2 border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/30"
+                      onClick={() => handleRephrase(r.id)}
+                      disabled={rephrasing === r.id}
+                    >
+                      {rephrasing === r.id ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1" />
+                      )}
+                      {rephrasing === r.id ? "Rephrasing..." : "AI Rephrase"}
+                    </Button>
+                  )}
                   {r.fileUrl && (
                     <Button
                       variant="outline"
