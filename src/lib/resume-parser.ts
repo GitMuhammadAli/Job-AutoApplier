@@ -1,5 +1,6 @@
 import { TIMEOUTS } from "./constants";
 import path from "path";
+import { pathToFileURL } from "url";
 
 export type PdfQuality = "good" | "poor" | "empty";
 
@@ -28,36 +29,21 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 
 /**
- * Tries pdf-parse v2 first; if it returns < 20 chars, falls back to pdfjs-dist
- * which handles custom font encodings/CMap tables far more reliably.
+ * Two-step PDF text extraction:
+ *  1. pdfjs-dist (Mozilla PDF.js) — handles virtually all PDFs including custom fonts
+ *  2. pdf-parse v2 — fast fallback
+ *
+ * pdfjs-dist is tried FIRST because it handles custom font encodings (LaTeX, Canva,
+ * design tools) that pdf-parse cannot decode. It requires:
+ *  - Worker disabled (server-side, no Web Workers)
+ *  - CMap + standard fonts for font decoding
+ *  - Listed in next.config.js serverComponentsExternalPackages
  */
 export async function extractTextFromPDF(
   buffer: Buffer
 ): Promise<{ text: string; quality: PdfQuality }> {
-  // ── Attempt 1: pdf-parse v2 (fast, but limited font support) ──
+  // ── Attempt 1: pdfjs-dist (most reliable for complex PDFs) ──
   let text = "";
-  let parser: { getText: () => Promise<{ text: string }>; destroy?: () => Promise<void> } | null = null;
-  try {
-    const { PDFParse } = await import("pdf-parse");
-    parser = new PDFParse({ data: buffer });
-    const data = await withTimeout(
-      parser.getText(),
-      TIMEOUTS.RESUME_PARSE_TIMEOUT_MS,
-      "PDF parsing (pdf-parse)"
-    );
-    text = (data.text || "").trim();
-    console.log(`[resume-parser] pdf-parse v2: got ${text.length} chars`);
-  } catch (err) {
-    console.warn("[resume-parser] pdf-parse v2 failed:", (err as Error).message);
-  } finally {
-    try { await parser?.destroy?.(); } catch { /* ignore cleanup errors */ }
-  }
-
-  if (text.length >= 20) {
-    return { text, quality: assessQuality(text) };
-  }
-
-  // ── Attempt 2: pdfjs-dist with CMap + standard fonts ──
   try {
     text = await withTimeout(
       extractWithPdfjs(buffer),
@@ -65,49 +51,93 @@ export async function extractTextFromPDF(
       "PDF parsing (pdfjs-dist)"
     );
     console.log(`[resume-parser] pdfjs-dist: got ${text.length} chars`);
-    if (text.length > 0) {
+    if (text.length >= 20) {
       return { text, quality: assessQuality(text) };
     }
   } catch (err) {
     console.warn("[resume-parser] pdfjs-dist failed:", (err as Error).message);
   }
 
-  console.warn(`[resume-parser] All extraction methods returned 0 chars for ${buffer.length} byte PDF`);
+  // ── Attempt 2: pdf-parse v2 (fast, simpler) ──
+  try {
+    text = await withTimeout(
+      extractWithPdfParse(buffer),
+      TIMEOUTS.RESUME_PARSE_TIMEOUT_MS,
+      "PDF parsing (pdf-parse)"
+    );
+    console.log(`[resume-parser] pdf-parse v2: got ${text.length} chars`);
+    if (text.length >= 20) {
+      return { text, quality: assessQuality(text) };
+    }
+  } catch (err) {
+    console.warn("[resume-parser] pdf-parse v2 failed:", (err as Error).message);
+  }
+
+  console.warn(`[resume-parser] All methods returned 0 chars for ${buffer.length} byte PDF`);
   return { text: "", quality: "empty" };
 }
 
-function getPdfjsPaths() {
+async function extractWithPdfParse(buffer: Buffer): Promise<string> {
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: buffer });
   try {
-    const pkgPath = require.resolve("pdfjs-dist/package.json");
-    const root = path.dirname(pkgPath);
-    return {
-      cMapUrl: path.join(root, "cmaps") + path.sep,
-      standardFontDataUrl: path.join(root, "standard_fonts") + path.sep,
-    };
-  } catch {
-    return { cMapUrl: undefined, standardFontDataUrl: undefined };
+    const data = await (parser.getText() as Promise<{ text: string }>);
+    return (data.text || "").trim();
+  } finally {
+    try {
+      await (parser as { destroy?: () => Promise<void> }).destroy?.();
+    } catch { /* ignore */ }
   }
 }
 
 async function extractWithPdfjs(buffer: Buffer): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const uint8 = new Uint8Array(buffer);
-  const { cMapUrl, standardFontDataUrl } = getPdfjsPaths();
 
-  const doc = await pdfjsLib.getDocument({
+  const uint8 = new Uint8Array(buffer);
+
+  // Resolve worker, CMap, and font paths as file:// URLs (pdfjs-dist v5 requires URL format)
+  let workerSrc: string | undefined;
+  let cMapUrl: string | undefined;
+  let standardFontDataUrl: string | undefined;
+  try {
+    const pkgPath = require.resolve("pdfjs-dist/package.json");
+    const root = path.dirname(pkgPath);
+    workerSrc = pathToFileURL(path.join(root, "legacy", "build", "pdf.worker.mjs")).href;
+    cMapUrl = pathToFileURL(path.join(root, "cmaps")).href + "/";
+    standardFontDataUrl = pathToFileURL(path.join(root, "standard_fonts")).href + "/";
+  } catch {
+    console.warn("[resume-parser] Could not resolve pdfjs-dist paths");
+  }
+
+  if (workerSrc && pdfjsLib.GlobalWorkerOptions) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+  }
+
+  const loadingTask = pdfjsLib.getDocument({
     data: uint8,
     useSystemFonts: true,
     isEvalSupported: false,
     disableFontFace: true,
-    ...(cMapUrl && { cMapUrl, cMapPacked: true }),
-    ...(standardFontDataUrl && { standardFontDataUrl }),
-  }).promise;
+    disableAutoFetch: true,
+    disableStream: true,
+    ...(cMapUrl ? { cMapUrl, cMapPacked: true } : {}),
+    ...(standardFontDataUrl ? { standardFontDataUrl } : {}),
+  });
+
+  const doc = await loadingTask.promise;
 
   const pages: string[] = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
-    const content = await page.getTextContent({ includeMarkedContent: false });
-    const items = content.items as Array<{ str: string; hasEOL?: boolean }>;
+    const content = await page.getTextContent({
+      includeMarkedContent: false,
+      disableNormalization: false,
+    });
+    const items = content.items as Array<{
+      str: string;
+      hasEOL?: boolean;
+      transform?: number[];
+    }>;
     let pageText = "";
     for (const item of items) {
       pageText += item.str;
@@ -115,6 +145,9 @@ async function extractWithPdfjs(buffer: Buffer): Promise<string> {
     }
     pages.push(pageText.trim());
   }
+
+  // Clean up
+  try { await doc.destroy(); } catch { /* ignore */ }
 
   return pages.filter(Boolean).join("\n\n").trim();
 }
