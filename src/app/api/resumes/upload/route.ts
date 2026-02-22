@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
 
     const blob = await put(`resumes/${userId}/${fileName}`, buffer, {
       access: "public",
+      addRandomSuffix: true,
     });
 
     const resumeData = {

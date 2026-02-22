@@ -95,61 +95,67 @@ async function extractWithPdfjs(buffer: Buffer): Promise<string> {
 
   const uint8 = new Uint8Array(buffer);
 
-  // Resolve worker, CMap, and font paths as file:// URLs (pdfjs-dist v5 requires URL format)
-  let workerSrc: string | undefined;
+  const prevWorkerSrc = pdfjsLib.GlobalWorkerOptions?.workerSrc;
+
   let cMapUrl: string | undefined;
   let standardFontDataUrl: string | undefined;
   try {
     const pkgPath = require.resolve("pdfjs-dist/package.json");
     const root = path.dirname(pkgPath);
-    workerSrc = pathToFileURL(path.join(root, "legacy", "build", "pdf.worker.mjs")).href;
+    const workerSrc = pathToFileURL(path.join(root, "legacy", "build", "pdf.worker.mjs")).href;
     cMapUrl = pathToFileURL(path.join(root, "cmaps")).href + "/";
     standardFontDataUrl = pathToFileURL(path.join(root, "standard_fonts")).href + "/";
+
+    if (pdfjsLib.GlobalWorkerOptions) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+    }
   } catch {
     console.warn("[resume-parser] Could not resolve pdfjs-dist paths");
   }
 
-  if (workerSrc && pdfjsLib.GlobalWorkerOptions) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
-  }
-
-  const loadingTask = pdfjsLib.getDocument({
-    data: uint8,
-    useSystemFonts: true,
-    isEvalSupported: false,
-    disableFontFace: true,
-    disableAutoFetch: true,
-    disableStream: true,
-    ...(cMapUrl ? { cMapUrl, cMapPacked: true } : {}),
-    ...(standardFontDataUrl ? { standardFontDataUrl } : {}),
-  });
-
-  const doc = await loadingTask.promise;
-
-  const pages: string[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent({
-      includeMarkedContent: false,
-      disableNormalization: false,
+  try {
+    const loadingTask = pdfjsLib.getDocument({
+      data: uint8,
+      useSystemFonts: true,
+      isEvalSupported: false,
+      disableFontFace: true,
+      disableAutoFetch: true,
+      disableStream: true,
+      ...(cMapUrl ? { cMapUrl, cMapPacked: true } : {}),
+      ...(standardFontDataUrl ? { standardFontDataUrl } : {}),
     });
-    const items = content.items as Array<{
-      str: string;
-      hasEOL?: boolean;
-      transform?: number[];
-    }>;
-    let pageText = "";
-    for (const item of items) {
-      pageText += item.str;
-      if (item.hasEOL) pageText += "\n";
+
+    const doc = await loadingTask.promise;
+
+    const pages: string[] = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent({
+        includeMarkedContent: false,
+        disableNormalization: false,
+      });
+      const items = content.items as Array<{
+        str: string;
+        hasEOL?: boolean;
+        transform?: number[];
+      }>;
+      let pageText = "";
+      for (const item of items) {
+        pageText += item.str;
+        if (item.hasEOL) pageText += "\n";
+      }
+      pages.push(pageText.trim());
     }
-    pages.push(pageText.trim());
+
+    try { await doc.destroy(); } catch { /* ignore */ }
+
+    return pages.filter(Boolean).join("\n\n").trim();
+  } finally {
+    // Restore previous workerSrc so pdf-parse fallback doesn't pick up our worker
+    if (pdfjsLib.GlobalWorkerOptions) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = prevWorkerSrc ?? "";
+    }
   }
-
-  // Clean up
-  try { await doc.destroy(); } catch { /* ignore */ }
-
-  return pages.filter(Boolean).join("\n\n").trim();
 }
 
 function assessQuality(text: string): PdfQuality {

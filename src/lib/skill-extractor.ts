@@ -21,7 +21,7 @@ export interface ParsedResume {
 const SECTION_HEADERS: Record<keyof ParsedResume["sections"], RegExp> = {
   summary: /\b(summary|profile|about\s*me|objective|professional\s*summary|career\s*summary|personal\s*statement)\b/i,
   experience: /\b(experience|work\s*experience|employment|professional\s*experience|work\s*history|career\s*history)\b/i,
-  education: /\b(education|academic|qualification|degree|university|college)\b/i,
+  education: /\b(education|academic|qualifications?|academic\s*background)\b/i,
   skills: /\b(skills|technical\s*skills|core\s*competencies|competencies|technologies|tech\s*stack|tools|expertise|proficiencies)\b/i,
   projects: /\b(projects|personal\s*projects|portfolio|side\s*projects|key\s*projects)\b/i,
   certifications: /\b(certifications?|licenses?|credentials|awards|achievements|honors)\b/i,
@@ -30,8 +30,8 @@ const SECTION_HEADERS: Record<keyof ParsedResume["sections"], RegExp> = {
 const EDUCATION_LEVELS: Array<{ pattern: RegExp; level: string }> = [
   { pattern: /\b(ph\.?d|doctorate|doctoral)\b/i, level: "PhD" },
   { pattern: /\b(master|m\.?s\.?c?|m\.?a\.?|mba|m\.?eng)\b/i, level: "Master" },
-  { pattern: /\b(bachelor|b\.?s\.?c?|b\.?a\.?|b\.?eng|b\.?tech|undergraduate)\b/i, level: "Bachelor" },
-  { pattern: /\b(associate|diploma|a\.?s\.?|a\.?a\.?)\b/i, level: "Associate" },
+  { pattern: /\b(bachelors?'?s?|b\.?s\.?c?|b\.?a\.?|b\.?eng|b\.?tech|undergraduate)\b/i, level: "Bachelor" },
+  { pattern: /\b(associate|diploma|a\.s\.?|a\.a\.?)\b/i, level: "Associate" },
   { pattern: /\b(certificate|bootcamp|boot\s*camp|nanodegree)\b/i, level: "Certificate" },
 ];
 
