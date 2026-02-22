@@ -273,7 +273,7 @@ export async function reExtractResume(resumeId: string): Promise<{
     if (!text || text.length < 10) {
       return {
         success: false,
-        error: `Could not extract text (got ${text?.length ?? 0} chars from ${buffer.length} byte file). It may be a scanned/image PDF. Please re-upload or paste your resume text manually.`,
+        error: `Could not extract text from this PDF. This usually happens with PDFs made in design tools (Canva, Figma) or some LaTeX templates. Try: 1) Re-upload the PDF, or 2) Open the PDF → Select All → Copy → use "Paste Resume" to paste the text manually.`,
       };
     }
 
