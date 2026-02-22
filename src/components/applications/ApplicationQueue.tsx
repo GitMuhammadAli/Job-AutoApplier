@@ -385,6 +385,11 @@ export function ApplicationQueue({
   const [activeTab, setActiveTab] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{
+    current: number;
+    total: number;
+    label: string;
+  } | null>(null);
 
   const getFilteredForTab = (tab: string) =>
     tab === "all"
@@ -424,8 +429,10 @@ export function ApplicationQueue({
       return;
     }
     setBulkLoading(true);
+    setBulkProgress({ current: 0, total: ids.length, label: "Marking ready" });
     try {
       const count = await bulkMarkReady(ids);
+      setBulkProgress({ current: ids.length, total: ids.length, label: "Marking ready" });
       toast.success(`${count} application(s) marked ready`);
       setSelectedIds(new Set());
       router.refresh();
@@ -433,6 +440,7 @@ export function ApplicationQueue({
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {
       setBulkLoading(false);
+      setTimeout(() => setBulkProgress(null), 1200);
     }
   };
 
@@ -444,40 +452,39 @@ export function ApplicationQueue({
   );
 
   const handleBulkSend = async () => {
-    const ids = selectedSendable.map((a) => a.id);
-    if (ids.length === 0) {
+    const apps = selectedSendable;
+    if (apps.length === 0) {
       toast.error("Select applications with recipient emails first");
       return;
     }
     setBulkLoading(true);
+    setBulkProgress({ current: 0, total: apps.length, label: "Sending" });
+    let sent = 0;
+    let failed = 0;
     try {
-      const res = await fetch("/api/applications/bulk-send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationIds: ids }),
-      });
-      let data: { sent?: number; failed?: number; error?: string };
-      try {
-        data = await res.json();
-      } catch {
-        data = { error: res.statusText || "Invalid response" };
+      for (let i = 0; i < apps.length; i++) {
+        setBulkProgress({ current: i, total: apps.length, label: "Sending" });
+        try {
+          const res = await fetch(`/api/applications/${apps[i].id}/send`, {
+            method: "POST",
+          });
+          const data = await res.json().catch(() => ({ success: false }));
+          if (res.ok && data.success) sent++;
+          else failed++;
+        } catch {
+          failed++;
+        }
       }
-      if (!res.ok) {
-        toast.error(data.error || res.statusText || "Bulk send failed");
-        return;
-      }
-      if ((data.sent ?? 0) > 0) {
-        toast.success(`${data.sent} application(s) sent!`);
-      }
-      if ((data.failed ?? 0) > 0) {
-        toast.error(`${data.failed} failed to send`);
-      }
+      setBulkProgress({ current: apps.length, total: apps.length, label: "Sending" });
+      if (sent > 0) toast.success(`${sent} application(s) sent!`);
+      if (failed > 0) toast.error(`${failed} failed to send`);
       setSelectedIds(new Set());
       router.refresh();
     } catch {
       toast.error("Bulk send failed");
     } finally {
       setBulkLoading(false);
+      setTimeout(() => setBulkProgress(null), 1200);
     }
   };
 
@@ -488,10 +495,13 @@ export function ApplicationQueue({
       return;
     }
     setBulkLoading(true);
+    setBulkProgress({ current: 0, total: toDelete.length, label: "Deleting" });
     try {
-      for (const id of toDelete) {
-        await deleteApplication(id);
+      for (let i = 0; i < toDelete.length; i++) {
+        setBulkProgress({ current: i, total: toDelete.length, label: "Deleting" });
+        await deleteApplication(toDelete[i]);
       }
+      setBulkProgress({ current: toDelete.length, total: toDelete.length, label: "Deleting" });
       toast.success(`${toDelete.length} application(s) deleted`);
       setSelectedIds(new Set());
       router.refresh();
@@ -499,6 +509,7 @@ export function ApplicationQueue({
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {
       setBulkLoading(false);
+      setTimeout(() => setBulkProgress(null), 1200);
     }
   };
 
@@ -581,51 +592,87 @@ export function ApplicationQueue({
         </TabsList>
 
         {selectedCount > 0 && (
-          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2">
-            <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">
-              {selectedCount} selected
-            </span>
-            <Button
-              size="sm"
-              onClick={handleBulkSend}
-              disabled={bulkLoading || selectedSendable.length === 0}
-              className="gap-1.5"
-            >
-              {bulkLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Mail className="h-3.5 w-3.5" />
-              )}
-              Send ({selectedSendable.length})
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleBulkMarkReady}
-              disabled={bulkLoading || selectedDrafts.length === 0}
-              className="gap-1.5"
-            >
-              {bulkLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Check className="h-3.5 w-3.5" />
-              )}
-              Mark All Ready
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleBulkDelete}
-              disabled={bulkLoading || selectedDrafts.length === 0}
-              className="gap-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
-            >
-              {bulkLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" />
-              )}
-              Delete Selected
-            </Button>
+          <div className="mt-4 space-y-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">
+                {selectedCount} selected
+              </span>
+              <Button
+                size="sm"
+                onClick={handleBulkSend}
+                disabled={bulkLoading || selectedSendable.length === 0}
+                className="gap-1.5"
+              >
+                {bulkLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Mail className="h-3.5 w-3.5" />
+                )}
+                Send ({selectedSendable.length})
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleBulkMarkReady}
+                disabled={bulkLoading || selectedDrafts.length === 0}
+                className="gap-1.5"
+              >
+                {bulkLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Check className="h-3.5 w-3.5" />
+                )}
+                Mark All Ready
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleBulkDelete}
+                disabled={bulkLoading || selectedDrafts.length === 0}
+                className="gap-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+              >
+                {bulkLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Delete Selected
+              </Button>
+            </div>
+
+            {bulkProgress && (
+              <div className="rounded-lg border border-blue-200 dark:border-blue-800/50 bg-blue-50/80 dark:bg-blue-950/30 px-4 py-2.5 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-blue-700 dark:text-blue-300">
+                    {bulkProgress.label}...{" "}
+                    {bulkProgress.current >= bulkProgress.total
+                      ? "Done!"
+                      : `${bulkProgress.current + 1} of ${bulkProgress.total}`}
+                  </span>
+                  <span className="tabular-nums text-blue-600/70 dark:text-blue-400/70">
+                    {Math.round(
+                      (bulkProgress.current / bulkProgress.total) * 100,
+                    )}
+                    %
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-blue-200/60 dark:bg-blue-900/40 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ease-out ${
+                      bulkProgress.current >= bulkProgress.total
+                        ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
+                        : "bg-gradient-to-r from-blue-400 to-blue-600"
+                    }`}
+                    style={{
+                      width: `${Math.max(
+                        (bulkProgress.current / bulkProgress.total) * 100,
+                        2,
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

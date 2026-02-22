@@ -28,6 +28,7 @@ export interface GenerateEmailInput {
   };
   profile: {
     fullName: string;
+    phone: string | null;
     experienceLevel: string | null;
     linkedinUrl: string | null;
     githubUrl: string | null;
@@ -68,7 +69,7 @@ export async function generateApplicationEmail(
   systemParts.push(`You are an expert job application email writer.
 
 RULES:
-- The email body MUST be between 120 and 200 words. This is a strict requirement — do NOT write fewer than 120 words.
+- The email body MUST be between 100 and 150 words. Keep it SHORT and punchy — hiring managers skim emails in under 2 minutes. Do NOT exceed 150 words.
 - NO clichés: no "I am writing to express my interest", no "I am excited to apply"
 - NO placeholder brackets like [Company] or {name} — use the ACTUAL values provided
 - Mention 2-3 specific qualifications from the candidate's resume that match the job
@@ -77,7 +78,8 @@ RULES:
 - Keep it concise, confident, and specific to THIS job at THIS company
 - The email should read like a real human wrote it, not a template
 - Do NOT start with "Dear Hiring Manager" — use "Hi [actual company name] team" or similar
-- End with candidate's full name
+- End with the candidate's custom closing if provided, otherwise a short sign-off and their full name
+- Say "Please find my resume attached" near the end — but do NOT include any URLs, links, phone numbers, or contact info in the body. The system appends a professional signature block with all links automatically.
 - Do NOT say "as advertised on your website" — if a source platform is given, reference it naturally (e.g. "I came across this role on LinkedIn")
 - Do NOT fabricate where the job was found — only mention the source if provided`);
 
@@ -164,27 +166,50 @@ Body: ${input.template.body.slice(0, 500)}`);
   let parsed = await generateAndParseEmail(systemPrompt, userParts.join("\n"));
 
   const wordCount = parsed.body.split(/\s+/).filter(Boolean).length;
-  if (wordCount < 100) {
+  if (wordCount < 80) {
     const retryPrompt = userParts.join("\n") +
-      `\n\nIMPORTANT: Your previous response was only ${wordCount} words. The email body MUST be at least 120 words. Write a more detailed email with specific qualifications and a compelling pitch.`;
+      `\n\nIMPORTANT: Your previous response was only ${wordCount} words. The email body MUST be at least 100 words but no more than 150. Write a concise, specific email.`;
     parsed = await generateAndParseEmail(systemPrompt, retryPrompt);
   }
 
   const validated = EmailOutputSchema.parse(parsed);
 
   let { subject, body } = validated;
+
+  // Safety net: if subject or body is still raw JSON, extract the field
+  subject = unwrapJsonField(subject, "subject");
+  body = unwrapJsonField(body, "body");
+
   subject = replacePlaceholders(subject, input);
   body = replacePlaceholders(body, input);
 
+  // Append LinkedIn / GitHub / Portfolio links if enabled and not already in body
+  const links: string[] = [];
+  if (input.profile.includeLinkedin && input.profile.linkedinUrl) {
+    if (!body.toLowerCase().includes(input.profile.linkedinUrl.toLowerCase())) {
+      links.push(`LinkedIn: ${input.profile.linkedinUrl}`);
+    }
+  }
+  if (input.profile.includeGithub && input.profile.githubUrl) {
+    if (!body.toLowerCase().includes(input.profile.githubUrl.toLowerCase())) {
+      links.push(`GitHub: ${input.profile.githubUrl}`);
+    }
+  }
+  if (input.profile.includePortfolio && input.profile.portfolioUrl) {
+    if (!body.toLowerCase().includes(input.profile.portfolioUrl.toLowerCase())) {
+      links.push(`Portfolio: ${input.profile.portfolioUrl}`);
+    }
+  }
+  if (links.length > 0) {
+    body = body.trim() + "\n\n" + links.join("\n");
+  }
+
   if (input.settings.defaultSignature) {
-    // Avoid duplicating the signature if the AI already included the closing
     const sigNorm = input.settings.defaultSignature.replace(/\s+/g, " ").trim().toLowerCase();
     const bodyTail = body.slice(-200).replace(/\s+/g, " ").trim().toLowerCase();
     const alreadyPresent = sigNorm.length > 5 && bodyTail.includes(sigNorm);
 
     if (!alreadyPresent) {
-      // If customClosing was used, the AI already wrote a sign-off — only
-      // append the signature if it adds something the closing didn't cover
       if (input.settings.customClosing) {
         const closingNorm = input.settings.customClosing.replace(/\s+/g, " ").trim().toLowerCase();
         if (closingNorm !== sigNorm) {
@@ -208,46 +233,100 @@ async function generateAndParseEmail(
     max_tokens: 800,
   });
 
+  const result = extractSubjectAndBody(rawResponse);
+  if (!result) {
+    console.error("[AI Email] Could not extract subject/body from:", rawResponse.slice(0, 300));
+    throw new Error("AI returned invalid format. Please try regenerating.");
+  }
+
+  return result;
+}
+
+/**
+ * Aggressively extracts subject and body from AI response.
+ * Handles: valid JSON, markdown-wrapped JSON, nested JSON, malformed JSON.
+ * NEVER returns raw JSON as the body.
+ */
+function extractSubjectAndBody(raw: string): { subject: string; body: string } | null {
+  const cleaned = raw
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+  // Attempt 1: Direct JSON.parse
   try {
-    let cleaned = rawResponse
-      .replace(/```json\n?/g, "")
-      .replace(/```\n?/g, "")
-      .trim();
-
-    let result: { subject: string; body: string };
-    try {
-      result = JSON.parse(cleaned);
-    } catch {
-      cleaned = cleaned.replace(/(?<=:\s*")([\s\S]*?)(?="(?:\s*[,}]))/g, (match) =>
-        match.replace(/\r?\n/g, "\\n")
-      );
-      result = JSON.parse(cleaned);
-    }
-
-    if (typeof result.body === "string" && result.body.trimStart().startsWith("{")) {
-      try {
-        const nested = JSON.parse(result.body);
-        if (nested.body) result.body = nested.body;
-        if (nested.subject && !result.subject) result.subject = nested.subject;
-      } catch { /* not nested JSON */ }
-    }
-
-    return result;
-  } catch {
-    const subjectMatch = rawResponse.match(/"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    const bodyMatch = rawResponse.match(/"body"\s*:\s*"([\s\S]*)"?\s*\}?\s*$/);
-    if (subjectMatch && bodyMatch) {
+    const parsed = JSON.parse(cleaned);
+    if (parsed && typeof parsed.subject === "string" && typeof parsed.body === "string") {
       return {
-        subject: subjectMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"'),
-        body: bodyMatch[1]
-          .replace(/"\s*\}?\s*$/, "")
-          .replace(/\\n/g, "\n")
-          .replace(/\\"/g, '"'),
+        subject: deepUnwrapJson(parsed.subject, "subject"),
+        body: deepUnwrapJson(parsed.body, "body"),
       };
     }
-    console.error("[AI Email] JSON parse failed, raw:", rawResponse.slice(0, 200));
-    throw new Error("AI returned invalid JSON. Please try regenerating.");
+  } catch { /* continue to fallbacks */ }
+
+  // Attempt 2: Fix newlines in JSON values and retry
+  try {
+    const fixed = cleaned.replace(
+      /(?<=:\s*")([\s\S]*?)(?="(?:\s*[,}]))/g,
+      (match) => match.replace(/\r?\n/g, "\\n")
+    );
+    const parsed = JSON.parse(fixed);
+    if (parsed && typeof parsed.subject === "string" && typeof parsed.body === "string") {
+      return {
+        subject: deepUnwrapJson(parsed.subject, "subject"),
+        body: deepUnwrapJson(parsed.body, "body"),
+      };
+    }
+  } catch { /* continue */ }
+
+  // Attempt 3: Regex extraction as last resort
+  const subjectMatch = cleaned.match(/"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const bodyMatch = cleaned.match(/"body"\s*:\s*"([\s\S]*)"\s*\}?\s*$/);
+  if (subjectMatch && bodyMatch) {
+    return {
+      subject: unescapeJsonString(subjectMatch[1]),
+      body: unescapeJsonString(bodyMatch[1].replace(/"\s*\}?\s*$/, "")),
+    };
   }
+
+  return null;
+}
+
+/**
+ * If a string is itself a JSON object containing the target field, unwrap it.
+ * Handles multiple levels of nesting.
+ */
+function deepUnwrapJson(value: string, field: "subject" | "body"): string {
+  let current = value;
+  for (let i = 0; i < 3; i++) {
+    if (!current || !current.trimStart().startsWith("{")) break;
+    try {
+      const parsed = JSON.parse(current);
+      if (typeof parsed === "object" && parsed !== null && typeof parsed[field] === "string") {
+        current = parsed[field];
+      } else {
+        break;
+      }
+    } catch {
+      break;
+    }
+  }
+  return current;
+}
+
+function unescapeJsonString(s: string): string {
+  return s.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+}
+
+function unwrapJsonField(value: string, field: "subject" | "body"): string {
+  if (!value || !value.trimStart().startsWith("{")) return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed === "object" && parsed !== null && typeof parsed[field] === "string") {
+      return parsed[field];
+    }
+  } catch { /* not JSON */ }
+  return value;
 }
 
 function replacePlaceholders(

@@ -43,6 +43,7 @@ interface UserSettingsLike {
 interface ResumeLike {
   content: string | null;
   name: string;
+  detectedSkills?: string[] | unknown;
 }
 
 interface MatchResult {
@@ -634,35 +635,57 @@ export function computeMatchScore(
   }
 
   // Factor 3: SKILL MATCH from resume (0-20 points)
+  // Uses detectedSkills (structured) as primary signal, falls back to raw text
   let bestResumeId: string | null = null;
   let bestResumeName: string | null = null;
   let bestResumeScore = 0;
 
+  const jSkills = job.skills ?? [];
+  const jobSkills = jSkills.length > 0
+    ? jSkills
+    : extractKeywordsFromText(combined);
+  const jobSkillsLower = new Set(jobSkills.map((s) => s.toLowerCase().trim()));
+
   for (const resume of resumes) {
-    if (!resume.content) continue;
-    const resumeLower = resume.content.toLowerCase();
+    const resumeSkills = normalizeDetectedSkills(resume.detectedSkills);
 
-    const jSkills = job.skills ?? [];
-    const jobSkills = jSkills.length > 0
-      ? jSkills
-      : extractKeywordsFromText(combined);
-
-    let matchCount = 0;
-    for (const skill of jobSkills) {
-      if (resumeLower.includes(skill.toLowerCase())) matchCount++;
+    // Method A: structured skill overlap (high-quality signal)
+    let structuredScore = 0;
+    if (resumeSkills.length > 0 && jobSkillsLower.size > 0) {
+      const resumeSkillsLower = resumeSkills.map((s) => s.toLowerCase());
+      const jobSkillsArr = Array.from(jobSkillsLower);
+      let overlap = 0;
+      for (const js of jobSkillsArr) {
+        if (resumeSkillsLower.includes(js)) { overlap++; continue; }
+        for (const rs of resumeSkillsLower) {
+          if (rs.includes(js) || js.includes(rs)) { overlap++; break; }
+        }
+      }
+      structuredScore = jobSkillsArr.length > 0 ? overlap / jobSkillsArr.length : 0;
     }
 
-    const resumeKeywords = new Set(
-      resumeLower.split(/[\s,;|]+/).filter((w) => w.length > 3)
-    );
-    let resumeHits = 0;
-    for (const rk of Array.from(resumeKeywords).slice(0, 50)) {
-      if (combined.includes(rk)) resumeHits++;
+    // Method B: raw text keyword overlap (fallback / supplementary)
+    let textScore = 0;
+    if (resume.content) {
+      const resumeLower = resume.content.toLowerCase();
+      let matchCount = 0;
+      for (const skill of jobSkills) {
+        if (resumeLower.includes(skill.toLowerCase())) matchCount++;
+      }
+      const resumeKeywords = new Set(
+        resumeLower.split(/[\s,;|]+/).filter((w) => w.length > 3)
+      );
+      let resumeHits = 0;
+      for (const rk of Array.from(resumeKeywords).slice(0, 50)) {
+        if (combined.includes(rk)) resumeHits++;
+      }
+      textScore = jobSkills.length > 0
+        ? (matchCount / jobSkills.length) * 0.7 + Math.min(resumeHits / 20, 1) * 0.3
+        : Math.min(resumeHits / 15, 1);
     }
 
-    const rScore = jobSkills.length > 0
-      ? (matchCount / jobSkills.length) * 0.7 + Math.min(resumeHits / 20, 1) * 0.3
-      : Math.min(resumeHits / 15, 1);
+    // Take the better signal — structured skills are higher quality when available
+    const rScore = Math.max(structuredScore, textScore);
 
     if (rScore > bestResumeScore) {
       bestResumeScore = rScore;
@@ -773,6 +796,15 @@ function extractKeywordsFromText(text: string): string[] {
     "tailwind", "sass", "html", "css", "figma",
     "machine learning", "deep learning", "nlp", "tensorflow", "pytorch",
     "django", "flask", "spring", "laravel", ".net",
+    "fastapi", "prisma", "drizzle", "supabase", "firebase",
+    "kafka", "rabbitmq", "nginx", "linux", "jest", "cypress",
+    "stripe", "oauth", "jwt", "websocket", "grpc", "trpc",
   ];
   return techTerms.filter((t) => text.includes(t));
+}
+
+function normalizeDetectedSkills(raw: string[] | unknown): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter((s): s is string => typeof s === "string");
+  return [];
 }

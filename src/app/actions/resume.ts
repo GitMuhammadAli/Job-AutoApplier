@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { extractSkillsFromContent } from "@/lib/skill-extractor";
+import { parseResume } from "@/lib/skill-extractor";
 import { extractText } from "@/lib/resume-parser";
 import { z } from "zod";
 import { LIMITS } from "@/lib/constants";
@@ -181,13 +181,13 @@ export async function updateResumeText(resumeId: string, content: string): Promi
     });
     if (!resume) return { success: false, error: "Resume not found" };
 
-    const detectedSkills = extractSkillsFromContent(content);
+    const parsed = parseResume(content);
 
     await prisma.resume.update({
       where: { id: resumeId },
       data: {
         content: content || null,
-        detectedSkills,
+        detectedSkills: parsed.skills,
         textQuality:
           content.split(/\s+/).filter((w) => w.length > 0).length >= 50
             ? "good"
@@ -196,7 +196,7 @@ export async function updateResumeText(resumeId: string, content: string): Promi
     });
 
     revalidatePath("/resumes");
-    return { success: true, detectedSkills };
+    return { success: true, detectedSkills: parsed.skills };
   } catch (error) {
     console.error("[updateResumeText] Error:", error);
     return { success: false, error: "Failed to update resume content." };
@@ -276,15 +276,15 @@ export async function reExtractResume(resumeId: string): Promise<{
       };
     }
 
-    const detectedSkills = extractSkillsFromContent(text);
+    const parsed = parseResume(text);
 
     await prisma.resume.update({
       where: { id: resumeId },
-      data: { content: text, textQuality: quality, detectedSkills },
+      data: { content: text, textQuality: quality, detectedSkills: parsed.skills },
     });
 
     revalidatePath("/resumes");
-    return { success: true, detectedSkills, contentLength: text.length };
+    return { success: true, detectedSkills: parsed.skills, contentLength: text.length };
   } catch (error) {
     console.error("[reExtractResume] Error:", error);
     return { success: false, error: "Failed to re-extract resume content. Please try re-uploading or pasting text manually." };

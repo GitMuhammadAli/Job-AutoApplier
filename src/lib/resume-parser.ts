@@ -104,4 +104,5 @@ function assessQuality(text: string): PdfQuality {
   return "good";
 }
 
-export { extractSkillsFromContent } from "@/lib/skill-extractor";
+export { extractSkillsFromContent, parseResume } from "@/lib/skill-extractor";
+export type { ParsedResume } from "@/lib/skill-extractor";
