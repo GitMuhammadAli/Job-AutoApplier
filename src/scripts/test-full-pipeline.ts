@@ -345,6 +345,7 @@ async function main() {
 
           const profile: GenerateEmailInput["profile"] = {
             fullName: (settings!.fullName as string) || user?.name || "Candidate",
+            phone: (settings!.phone as string) ?? null,
             experienceLevel: (settings!.experienceLevel as string) ?? null,
             linkedinUrl: (settings!.linkedinUrl as string) ?? null,
             githubUrl: (settings!.githubUrl as string) ?? null,

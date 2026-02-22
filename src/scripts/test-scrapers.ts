@@ -375,6 +375,7 @@ async function testAIEmailGeneration(
     },
     profile: {
       fullName: "Ali Shahid",
+      phone: null,
       experienceLevel: "entry",
       linkedinUrl: "https://linkedin.com/in/alishahid-fswebdev",
       githubUrl: "https://github.com/GitMuhammadAli",

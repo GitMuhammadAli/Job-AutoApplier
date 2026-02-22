@@ -56,6 +56,7 @@ async function buildEmailInput(
     },
     profile: {
       fullName: settings.fullName,
+      phone: settings.phone,
       experienceLevel: settings.experienceLevel,
       linkedinUrl: settings.linkedinUrl,
       githubUrl: settings.githubUrl,

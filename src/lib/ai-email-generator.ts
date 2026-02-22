@@ -11,6 +11,10 @@ function sanitizeForPrompt(text: string): string {
     .slice(0, 3000);
 }
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 const EmailOutputSchema = z.object({
   subject: z.string().min(5).max(200),
   body: z.string().min(50).max(3000),
@@ -183,42 +187,57 @@ Body: ${input.template.body.slice(0, 500)}`);
   subject = replacePlaceholders(subject, input);
   body = replacePlaceholders(body, input);
 
-  // Append LinkedIn / GitHub / Portfolio links if enabled and not already in body
-  const links: string[] = [];
-  if (input.profile.includeLinkedin && input.profile.linkedinUrl) {
-    if (!body.toLowerCase().includes(input.profile.linkedinUrl.toLowerCase())) {
-      links.push(`LinkedIn: ${input.profile.linkedinUrl}`);
-    }
+  // Build professional signature block
+  body = body.trim();
+
+  // Strip any links the AI may have included in the body
+  if (input.profile.linkedinUrl) {
+    body = body.replace(new RegExp(`\\(?${escapeRegex(input.profile.linkedinUrl)}\\)?`, "gi"), "").trim();
   }
-  if (input.profile.includeGithub && input.profile.githubUrl) {
-    if (!body.toLowerCase().includes(input.profile.githubUrl.toLowerCase())) {
-      links.push(`GitHub: ${input.profile.githubUrl}`);
-    }
+  if (input.profile.githubUrl) {
+    body = body.replace(new RegExp(`\\(?${escapeRegex(input.profile.githubUrl)}\\)?`, "gi"), "").trim();
   }
-  if (input.profile.includePortfolio && input.profile.portfolioUrl) {
-    if (!body.toLowerCase().includes(input.profile.portfolioUrl.toLowerCase())) {
-      links.push(`Portfolio: ${input.profile.portfolioUrl}`);
-    }
-  }
-  if (links.length > 0) {
-    body = body.trim() + "\n\n" + links.join("\n");
+  if (input.profile.portfolioUrl) {
+    body = body.replace(new RegExp(`\\(?${escapeRegex(input.profile.portfolioUrl)}\\)?`, "gi"), "").trim();
   }
 
-  if (input.settings.defaultSignature) {
-    const sigNorm = input.settings.defaultSignature.replace(/\s+/g, " ").trim().toLowerCase();
-    const bodyTail = body.slice(-200).replace(/\s+/g, " ").trim().toLowerCase();
-    const alreadyPresent = sigNorm.length > 5 && bodyTail.includes(sigNorm);
+  // Strip phone if AI put it in the body
+  if (input.profile.phone) {
+    body = body.replace(new RegExp(escapeRegex(input.profile.phone), "g"), "").trim();
+  }
 
-    if (!alreadyPresent) {
-      if (input.settings.customClosing) {
-        const closingNorm = input.settings.customClosing.replace(/\s+/g, " ").trim().toLowerCase();
-        if (closingNorm !== sigNorm) {
-          body = body.trim() + "\n\n" + input.settings.defaultSignature;
-        }
-      } else {
-        body = body.trim() + "\n\n" + input.settings.defaultSignature;
-      }
-    }
+  // Clean up orphaned link references the AI might have left
+  body = body
+    .replace(/LinkedIn\s*(?:profile)?\s*\(\s*\)/gi, "")
+    .replace(/GitHub\s*(?:repository|profile)?\s*\(\s*\)/gi, "")
+    .replace(/Portfolio\s*\(\s*\)/gi, "")
+    .replace(/You can (?:also )?(?:visit|view|check out) my [\w\s,]+(?:and [\w\s]+)?(?:for more [\w\s]+)?\.?\s*/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  // Use defaultSignature if set
+  const sig = input.settings.defaultSignature ?? "";
+  if (sig) {
+    body += "\n\n" + sig;
+  }
+  const sigLower = sig.toLowerCase();
+
+  // Append contact details block — skip any link already in the signature
+  const contactLines: string[] = [];
+  if (input.profile.phone && !sigLower.includes(input.profile.phone)) {
+    contactLines.push(`Phone: ${input.profile.phone}`);
+  }
+  if (input.profile.includeLinkedin && input.profile.linkedinUrl && !sigLower.includes("linkedin.com/in/")) {
+    contactLines.push(`LinkedIn: ${input.profile.linkedinUrl}`);
+  }
+  if (input.profile.includeGithub && input.profile.githubUrl && !sigLower.includes("github.com/")) {
+    contactLines.push(`GitHub: ${input.profile.githubUrl}`);
+  }
+  if (input.profile.includePortfolio && input.profile.portfolioUrl && !sigLower.includes(input.profile.portfolioUrl.toLowerCase())) {
+    contactLines.push(`Portfolio: ${input.profile.portfolioUrl}`);
+  }
+  if (contactLines.length > 0) {
+    body += "\n\n" + contactLines.join("\n");
   }
 
   return { subject, body, coverLetter: null };
