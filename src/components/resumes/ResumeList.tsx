@@ -99,9 +99,15 @@ export function ResumeList({ resumes }: ResumeListProps) {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(
-          `Resume uploaded. Extracted ${data.resume.detectedSkills?.length || 0} skills.`,
-        );
+        const skillCount = data.resume.detectedSkills?.length || 0;
+        if (data.needsManualText) {
+          toast.warning(
+            "Resume uploaded but text extraction failed. Click \"Paste Resume\" to add your resume text manually, or try \"Re-parse PDF\".",
+            { duration: 8000 },
+          );
+        } else {
+          toast.success(`Resume uploaded! Extracted ${skillCount} skills.`);
+        }
         setDialogOpen(false);
         setName("");
         setFileUrl("");
@@ -121,7 +127,10 @@ export function ResumeList({ resumes }: ResumeListProps) {
     startTransition(async () => {
       try {
         const result = await createResume(name, fileUrl, content);
-        if (!result.success) { toast.error(result.error || "Failed to create"); return; }
+        if (!result.success) {
+          toast.error(result.error || "Failed to create");
+          return;
+        }
         toast.success("Resume added");
         setDialogOpen(false);
         setName("");
@@ -139,7 +148,10 @@ export function ResumeList({ resumes }: ResumeListProps) {
     startTransition(async () => {
       try {
         const result = await updateResume(id, { name, fileUrl });
-        if (!result.success) { toast.error(result.error || "Failed to update"); return; }
+        if (!result.success) {
+          toast.error(result.error || "Failed to update");
+          return;
+        }
         toast.success("Resume updated");
         setEditingId(null);
         setName("");
@@ -155,7 +167,10 @@ export function ResumeList({ resumes }: ResumeListProps) {
     startTransition(async () => {
       try {
         const result = await updateResume(id, { content });
-        if (!result.success) { toast.error(result.error || "Failed to save content"); return; }
+        if (!result.success) {
+          toast.error(result.error || "Failed to save content");
+          return;
+        }
         toast.success(
           "Resume content saved -- scraper will use this for matching",
         );
@@ -172,7 +187,10 @@ export function ResumeList({ resumes }: ResumeListProps) {
     startTransition(async () => {
       try {
         const result = await deleteResume(id);
-        if (!result.success) { toast.error(result.error || "Failed to delete"); return; }
+        if (!result.success) {
+          toast.error(result.error || "Failed to delete");
+          return;
+        }
         toast.success("Resume deleted");
         router.refresh();
       } catch {
@@ -190,8 +208,14 @@ export function ResumeList({ resumes }: ResumeListProps) {
     if (!categoryDialogId) return;
     startTransition(async () => {
       try {
-        const result = await updateResumeCategories(categoryDialogId, selectedCategories);
-        if (!result.success) { toast.error(result.error || "Failed to update categories"); return; }
+        const result = await updateResumeCategories(
+          categoryDialogId,
+          selectedCategories,
+        );
+        if (!result.success) {
+          toast.error(result.error || "Failed to update categories");
+          return;
+        }
         toast.success("Categories updated");
         setCategoryDialogId(null);
         router.refresh();
@@ -211,7 +235,10 @@ export function ResumeList({ resumes }: ResumeListProps) {
     startTransition(async () => {
       try {
         const result = await setDefaultResume(id);
-        if (!result.success) { toast.error(result.error || "Failed to set default"); return; }
+        if (!result.success) {
+          toast.error(result.error || "Failed to set default");
+          return;
+        }
         toast.success("Default resume updated");
         router.refresh();
       } catch {
@@ -257,11 +284,16 @@ export function ResumeList({ resumes }: ResumeListProps) {
         toast.info("Extracting text from PDF first...");
         const extractResult = await reExtractResume(r.id);
         if (!extractResult.success) {
-          toast.error(extractResult.error || "Could not extract text. Paste your resume text first, then rephrase.");
+          toast.error(
+            extractResult.error ||
+              "Could not extract text. Paste your resume text first, then rephrase.",
+          );
           setRephrasing(null);
           return;
         }
-        toast.success(`Extracted ${extractResult.contentLength?.toLocaleString()} chars. Now rephrasing...`);
+        toast.success(
+          `Extracted ${extractResult.contentLength?.toLocaleString()} chars. Now rephrasing...`,
+        );
       } else if (!r.content) {
         toast.error("No content to rephrase. Paste your resume text first.");
         setRephrasing(null);
@@ -717,7 +749,9 @@ export function ResumeList({ resumes }: ResumeListProps) {
                         <Sparkles className="h-3 w-3 mr-1" />
                       )}
                       {rephrasing === r.id
-                        ? r.content ? "Rephrasing..." : "Extracting..."
+                        ? r.content
+                          ? "Rephrasing..."
+                          : "Extracting..."
                         : "AI Rephrase"}
                     </Button>
                   )}
