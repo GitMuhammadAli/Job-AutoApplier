@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
   experimental: {
-    serverComponentsExternalPackages: ["pdf-parse", "mammoth"],
+    serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist"],
     serverActions: {
       allowedOrigins: [
         process.env.NEXT_PUBLIC_APP_URL
@@ -22,6 +22,12 @@ module.exports = {
         ],
       },
     ];
+  },
+
+  webpack: (config) => {
+    // pdfjs-dist tries to require 'canvas' for Node.js rendering — we only need text extraction
+    config.resolve.alias.canvas = false;
+    return config;
   },
 
   images: {
