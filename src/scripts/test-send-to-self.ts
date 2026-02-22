@@ -65,6 +65,7 @@ async function main() {
     },
     profile: {
       fullName: settings.fullName || "Ali Shahid",
+      phone: settings.phone,
       experienceLevel: settings.experienceLevel,
       linkedinUrl: settings.linkedinUrl,
       githubUrl: settings.githubUrl,

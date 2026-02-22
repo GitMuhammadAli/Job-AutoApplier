@@ -1,6 +1,6 @@
 import { getResumesWithStats } from "@/app/actions/resume";
 import { ResumeList } from "@/components/resumes/ResumeList";
-import { FileText, Sparkles } from "lucide-react";
+import { FileText, Sparkles, Lightbulb } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +36,20 @@ export default async function ResumesPage() {
           </div>
         )}
       </div>
+      {!loadError && resumes.length < 3 && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/60 dark:bg-amber-950/30 px-4 py-3">
+          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              Tip: Upload resumes for different tech stacks
+            </p>
+            <p className="mt-0.5 text-xs text-amber-700/80 dark:text-amber-400/70">
+              For example, a MERN stack resume, a Next.js resume, and a general full-stack resume.
+              The AI picks the best-matching resume for each job automatically — more variants means better recommendations and higher match scores.
+            </p>
+          </div>
+        </div>
+      )}
       {loadError ? (
         <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30 p-6 text-center">
           <p className="text-sm font-medium text-red-700 dark:text-red-300">Failed to load resumes</p>

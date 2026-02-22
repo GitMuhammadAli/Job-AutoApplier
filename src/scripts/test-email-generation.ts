@@ -156,6 +156,7 @@ async function main() {
 
     const profile: GenerateEmailInput["profile"] = {
       fullName: settings.fullName,
+      phone: settings.phone,
       experienceLevel: settings.experienceLevel,
       linkedinUrl: settings.linkedinUrl,
       githubUrl: settings.githubUrl,
