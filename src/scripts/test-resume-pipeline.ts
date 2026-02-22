@@ -179,6 +179,7 @@ async function main() {
   console.log("─".repeat(75));
 
   const resumeForMatching = {
+    id: "test-resume-id",
     content: text,
     name: path.basename(PDF_PATH, ".pdf"),
     detectedSkills: parsed.skills,
@@ -190,7 +191,6 @@ async function main() {
       job,
       MOCK_USER_SETTINGS,
       [resumeForMatching],
-      { resumeId: "test-resume-id", resume: resumeForMatching }
     );
     const overlap = job.skills.filter((s) =>
       parsed.skills.some((ps) => ps.toLowerCase() === s.toLowerCase())
