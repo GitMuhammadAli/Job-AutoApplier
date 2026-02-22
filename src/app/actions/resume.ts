@@ -5,6 +5,7 @@ import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { parseResume } from "@/lib/skill-extractor";
 import { extractText } from "@/lib/resume-parser";
+import { generateWithGroq } from "@/lib/groq";
 import { z } from "zod";
 import { LIMITS } from "@/lib/constants";
 
@@ -316,5 +317,68 @@ export async function setDefaultResume(resumeId: string): Promise<{ success: boo
   } catch (error) {
     console.error("[setDefaultResume] Error:", error);
     return { success: false, error: "Failed to set default resume." };
+  }
+}
+
+export async function rephraseResumeContent(
+  resumeId: string
+): Promise<{ success: boolean; content?: string; detectedSkills?: string[]; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+
+    const resume = await prisma.resume.findFirst({
+      where: { id: resumeId, userId, isDeleted: false },
+    });
+    if (!resume) return { success: false, error: "Resume not found" };
+    if (!resume.content || resume.content.trim().length < 50) {
+      return { success: false, error: "Resume needs content first. Paste your resume text or upload a PDF, then rephrase." };
+    }
+
+    const settings = await prisma.userSettings.findUnique({ where: { userId } });
+
+    const systemPrompt = `You are an expert resume writer. Rephrase and improve the given resume text to be more impactful, professional, and ATS-friendly.
+
+RULES:
+- Keep ALL factual information (dates, companies, degrees, skills, projects) exactly the same — do NOT invent or remove anything
+- Improve phrasing: use strong action verbs, quantify achievements where possible, remove filler words
+- Keep the same overall structure and sections (Experience, Skills, Education, etc.)
+- Make bullet points concise and results-oriented
+- Preserve all technical skills and keywords — they are critical for ATS matching
+- Output ONLY the rephrased resume text, no explanations or commentary
+- Keep a similar length — do not drastically shorten or lengthen the content
+- Use professional, confident language without being arrogant`;
+
+    const userPrompt = `Here is the resume text to rephrase and improve:\n\n${resume.content.slice(0, 8000)}${
+      settings?.fullName ? `\n\nCandidate name: ${settings.fullName}` : ""
+    }`;
+
+    const rephrased = await generateWithGroq(systemPrompt, userPrompt, {
+      temperature: 0.5,
+      max_tokens: 2000,
+    });
+
+    if (!rephrased || rephrased.trim().length < 50) {
+      return { success: false, error: "AI returned an unusable result. Try again." };
+    }
+
+    const parsed = parseResume(rephrased.trim());
+
+    await prisma.resume.update({
+      where: { id: resumeId },
+      data: {
+        content: rephrased.trim(),
+        detectedSkills: parsed.skills,
+        textQuality:
+          rephrased.split(/\s+/).filter((w) => w.length > 0).length >= 50
+            ? "good"
+            : "poor",
+      },
+    });
+
+    revalidatePath("/resumes");
+    return { success: true, content: rephrased.trim(), detectedSkills: parsed.skills };
+  } catch (error) {
+    console.error("[rephraseResumeContent] Error:", error);
+    return { success: false, error: "Failed to rephrase resume. Please try again." };
   }
 }
