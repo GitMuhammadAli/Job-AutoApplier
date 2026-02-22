@@ -56,14 +56,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const allowedTypes = [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "text/plain",
-    ];
-    if (!allowedTypes.includes(file.type)) {
+    if (file.type !== "application/pdf") {
       return NextResponse.json(
-        { error: "Only PDF, DOCX, and TXT files are supported" },
+        { error: "Only PDF files are supported. Please convert your resume to PDF first." },
         { status: 400 }
       );
     }
