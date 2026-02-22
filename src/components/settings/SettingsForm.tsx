@@ -29,6 +29,7 @@ import {
   KEYWORD_PRESETS,
 } from "@/constants/categories";
 import { APPLICATION_MODES, EMAIL_PROVIDERS } from "@/constants/settings";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Save,
   User,
@@ -52,6 +53,7 @@ import {
   ChevronRight,
   Info,
   Trash2,
+  Settings2,
 } from "lucide-react";
 
 interface SettingsFormProps {
@@ -411,10 +413,10 @@ export function SettingsForm({
   };
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      {/* ── Account Status ── */}
+    <div className="max-w-4xl mx-auto">
+      {/* ── Account Status (always visible) ── */}
       <div
-        className={`rounded-xl p-4 shadow-sm ring-1 ${accountStatus === "active" ? "bg-emerald-50 dark:bg-emerald-900/30 ring-emerald-200 dark:ring-emerald-800/40" : accountStatus === "paused" ? "bg-amber-50 dark:bg-amber-900/30 ring-amber-200 dark:ring-amber-800/40" : "bg-slate-100 dark:bg-zinc-800 ring-slate-200 dark:ring-zinc-700"}`}
+        className={`rounded-xl p-4 shadow-sm ring-1 mb-6 ${accountStatus === "active" ? "bg-emerald-50 dark:bg-emerald-900/30 ring-emerald-200 dark:ring-emerald-800/40" : accountStatus === "paused" ? "bg-amber-50 dark:bg-amber-900/30 ring-amber-200 dark:ring-amber-800/40" : "bg-slate-100 dark:bg-zinc-800 ring-slate-200 dark:ring-zinc-700"}`}
       >
         <div className="flex items-center justify-between">
           <div>
@@ -446,6 +448,37 @@ export function SettingsForm({
           </Select>
         </div>
       </div>
+
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto gap-1 bg-slate-100 dark:bg-zinc-800 p-1 mb-6">
+          <TabsTrigger value="profile" className="gap-1.5 text-xs py-2">
+            <User className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Profile</span>
+          </TabsTrigger>
+          <TabsTrigger value="preferences" className="gap-1.5 text-xs py-2">
+            <Briefcase className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Jobs</span>
+          </TabsTrigger>
+          <TabsTrigger value="email" className="gap-1.5 text-xs py-2">
+            <Mail className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Email</span>
+          </TabsTrigger>
+          <TabsTrigger value="automation" className="gap-1.5 text-xs py-2">
+            <Settings2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Automation</span>
+          </TabsTrigger>
+          <TabsTrigger value="ai" className="gap-1.5 text-xs py-2">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">AI</span>
+          </TabsTrigger>
+          <TabsTrigger value="account" className="gap-1.5 text-xs py-2">
+            <Shield className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Account</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ══════ TAB 1: Profile ══════ */}
+        <TabsContent value="profile" className="space-y-8">
 
       {/* ── Personal Info ── */}
       <Section
@@ -514,6 +547,11 @@ export function SettingsForm({
           </Field>
         </div>
       </Section>
+
+        </TabsContent>
+
+        {/* ══════ TAB 2: Job Preferences ══════ */}
+        <TabsContent value="preferences" className="space-y-8">
 
       {/* ── Job Preferences ── */}
       <Section
@@ -931,6 +969,11 @@ export function SettingsForm({
         )}
       </Section>
 
+        </TabsContent>
+
+        {/* ══════ TAB 3: Email & Templates ══════ */}
+        <TabsContent value="email" className="space-y-8">
+
       {/* ── Email Provider Education Cards ── */}
       <Section
         icon={<Mail className="h-4 w-4" />}
@@ -1138,68 +1181,10 @@ export function SettingsForm({
         </div>
       </Section>
 
-      {/* ── Notifications ── */}
-      <Section
-        icon={<Bell className="h-4 w-4" />}
-        title="Notifications"
-        description="Get email alerts when JobPilot finds new jobs matching your preferences. You can control frequency to avoid inbox overload."
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm font-medium">Email Notifications</Label>
-              <p className="text-xs text-slate-400 dark:text-zinc-500">
-                Sends a summary of new job matches to your email
-              </p>
-            </div>
-            <Switch
-              checked={emailNotifications}
-              onCheckedChange={setEmailNotifications}
-            />
-          </div>
-          {emailNotifications && (
-            <>
-              <Field
-                label="Notification Email"
-                hint="Leave empty to use your login email. Use a different email if you want alerts separated from applications."
-              >
-                <Input
-                  value={notificationEmail}
-                  onChange={(e) => setNotificationEmail(e.target.value)}
-                  placeholder="alerts@example.com"
-                />
-              </Field>
-              <Field
-                label="Notification Frequency"
-                hint="How often you receive match digest emails. Real-time can be noisy during active scraping."
-              >
-                <Select
-                  value={notificationFrequency}
-                  onValueChange={setNotificationFrequency}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="realtime">
-                      Real-time — instant alert per match
-                    </SelectItem>
-                    <SelectItem value="hourly">
-                      Hourly — bundled digest, max 1/hour
-                    </SelectItem>
-                    <SelectItem value="daily">
-                      Daily — one summary per day
-                    </SelectItem>
-                    <SelectItem value="off">
-                      Off — no email notifications
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </>
-          )}
-        </div>
-      </Section>
+        </TabsContent>
+
+        {/* ══════ TAB 4: Automation ══════ */}
+        <TabsContent value="automation" className="space-y-8">
 
       {/* ── Application Mode ── */}
       <Section
@@ -1581,6 +1566,11 @@ export function SettingsForm({
         </Section>
       )}
 
+        </TabsContent>
+
+        {/* ══════ TAB 5: AI Settings ══════ */}
+        <TabsContent value="ai" className="space-y-8">
+
       {/* ── AI Customization ── */}
       <Section
         icon={<Sparkles className="h-4 w-4" />}
@@ -1698,6 +1688,74 @@ export function SettingsForm({
         </div>
       </Section>
 
+        </TabsContent>
+
+        {/* ══════ TAB 6: Account ══════ */}
+        <TabsContent value="account" className="space-y-8">
+
+      {/* ── Notifications ── */}
+      <Section
+        icon={<Bell className="h-4 w-4" />}
+        title="Notifications"
+        description="Get email alerts when JobPilot finds new jobs matching your preferences. You can control frequency to avoid inbox overload."
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm font-medium">Email Notifications</Label>
+              <p className="text-xs text-slate-400 dark:text-zinc-500">
+                Sends a summary of new job matches to your email
+              </p>
+            </div>
+            <Switch
+              checked={emailNotifications}
+              onCheckedChange={setEmailNotifications}
+            />
+          </div>
+          {emailNotifications && (
+            <>
+              <Field
+                label="Notification Email"
+                hint="Leave empty to use your login email. Use a different email if you want alerts separated from applications."
+              >
+                <Input
+                  value={notificationEmail}
+                  onChange={(e) => setNotificationEmail(e.target.value)}
+                  placeholder="alerts@example.com"
+                />
+              </Field>
+              <Field
+                label="Notification Frequency"
+                hint="How often you receive match digest emails. Real-time can be noisy during active scraping."
+              >
+                <Select
+                  value={notificationFrequency}
+                  onValueChange={setNotificationFrequency}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="realtime">
+                      Real-time — instant alert per match
+                    </SelectItem>
+                    <SelectItem value="hourly">
+                      Hourly — bundled digest, max 1/hour
+                    </SelectItem>
+                    <SelectItem value="daily">
+                      Daily — one summary per day
+                    </SelectItem>
+                    <SelectItem value="off">
+                      Off — no email notifications
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </>
+          )}
+        </div>
+      </Section>
+
       {/* ── Mode Comparison Table ── */}
       <Section
         icon={<Grid3X3 className="h-4 w-4" />}
@@ -1783,8 +1841,11 @@ export function SettingsForm({
         <DeleteAccountSection />
       </Section>
 
-      {/* ── Save Button ── */}
-      <div className="sticky bottom-4 flex justify-end">
+        </TabsContent>
+      </Tabs>
+
+      {/* ── Save Button (always visible) ── */}
+      <div className="sticky bottom-4 flex justify-end mt-6">
         <Button
           onClick={handleSave}
           disabled={saving}
