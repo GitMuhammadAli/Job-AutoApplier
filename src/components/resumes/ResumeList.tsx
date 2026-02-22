@@ -249,10 +249,26 @@ export function ResumeList({ resumes }: ResumeListProps) {
     setReExtracting(null);
   };
 
-  const handleRephrase = async (id: string) => {
-    setRephrasing(id);
+  const handleRephrase = async (r: ResumeWithStats) => {
+    setRephrasing(r.id);
     try {
-      const result = await rephraseResumeContent(id);
+      // If no content yet, extract from PDF first
+      if (!r.content && r.fileUrl) {
+        toast.info("Extracting text from PDF first...");
+        const extractResult = await reExtractResume(r.id);
+        if (!extractResult.success) {
+          toast.error(extractResult.error || "Could not extract text. Paste your resume text first, then rephrase.");
+          setRephrasing(null);
+          return;
+        }
+        toast.success(`Extracted ${extractResult.contentLength?.toLocaleString()} chars. Now rephrasing...`);
+      } else if (!r.content) {
+        toast.error("No content to rephrase. Paste your resume text first.");
+        setRephrasing(null);
+        return;
+      }
+
+      const result = await rephraseResumeContent(r.id);
       if (result.success) {
         toast.success(
           `Resume rephrased! Detected ${result.detectedSkills?.length || 0} skills.`,
@@ -687,12 +703,12 @@ export function ResumeList({ resumes }: ResumeListProps) {
                     <ClipboardPaste className="h-3 w-3 mr-1" />
                     {r.content ? "Edit Content" : "Paste Resume"}
                   </Button>
-                  {r.content && (
+                  {(r.content || r.fileUrl) && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-7 text-[10px] px-2 border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/30"
-                      onClick={() => handleRephrase(r.id)}
+                      onClick={() => handleRephrase(r)}
                       disabled={rephrasing === r.id}
                     >
                       {rephrasing === r.id ? (
@@ -700,7 +716,9 @@ export function ResumeList({ resumes }: ResumeListProps) {
                       ) : (
                         <Sparkles className="h-3 w-3 mr-1" />
                       )}
-                      {rephrasing === r.id ? "Rephrasing..." : "AI Rephrase"}
+                      {rephrasing === r.id
+                        ? r.content ? "Rephrasing..." : "Extracting..."
+                        : "AI Rephrase"}
                     </Button>
                   )}
                   {r.fileUrl && (
