@@ -8,23 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { saveSettings, completeOnboarding } from "@/app/actions/settings";
-import { JOB_CATEGORIES, WORK_TYPES, EXPERIENCE_LEVELS, TONE_OPTIONS, LANGUAGE_OPTIONS, KEYWORD_PRESETS } from "@/constants/categories";
-import { EMAIL_PROVIDERS } from "@/constants/settings";
+import { JOB_CATEGORIES, WORK_TYPES, EXPERIENCE_LEVELS, KEYWORD_PRESETS } from "@/constants/categories";
 import {
-  Loader2, ChevronRight, ChevronLeft, User, Briefcase, Grid3X3,
-  Sparkles, FileUp, Mail, Brain, Rocket, Upload, CheckCircle2,
+  Loader2, ChevronRight, ChevronLeft, User, Briefcase,
+  Sparkles, FileUp, Rocket, Upload, CheckCircle2,
   Settings, ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 
 const STEPS = [
   { title: "About You", icon: User, description: "Basic info for personalized applications" },
-  { title: "What You Want", icon: Briefcase, description: "Keywords, location, and preferences" },
-  { title: "Categories", icon: Grid3X3, description: "Select job categories you're interested in" },
-  { title: "Resume", icon: FileUp, description: "Upload your resume for smart matching" },
-  { title: "AI Settings", icon: Brain, description: "Configure AI tone and language" },
-  { title: "Email Provider", icon: Mail, description: "Set up email for sending applications" },
-  { title: "Ready!", icon: Rocket, description: "Let's find your first matches" },
+  { title: "Job Preferences", icon: Briefcase, description: "Keywords, categories, and location" },
+  { title: "Resume", icon: FileUp, description: "Upload your resume for better matching" },
+  { title: "You're Ready!", icon: Rocket, description: "Let's find your first matches" },
 ];
 
 export function OnboardingWizard() {
@@ -54,14 +50,6 @@ export function OnboardingWizard() {
   const [uploading, setUploading] = useState(false);
   const [uploadedResume, setUploadedResume] = useState<{ name: string; skills: string[] } | null>(null);
 
-  // Step 4: AI Settings
-  const [tone, setTone] = useState("professional");
-  const [language, setLanguage] = useState("English");
-  const [customPrompt, setCustomPrompt] = useState("");
-
-  // Step 5: Email Provider
-  const [emailProvider, setEmailProvider] = useState("gmail");
-
   // Validation
   const [stepError, setStepError] = useState<string | null>(null);
 
@@ -72,8 +60,6 @@ export function OnboardingWizard() {
         return null;
       case 1:
         if (keywords.length === 0) return "Add at least one keyword.";
-        return null;
-      case 2:
         if (categories.length === 0) return "Select at least one category.";
         return null;
       default:
@@ -144,14 +130,20 @@ export function OnboardingWizard() {
         city,
         country,
         experienceLevel,
-        workType: workTypes,
+        workType: workTypes.length > 0 ? workTypes : undefined,
         preferredCategories: categories,
         emailNotifications: true,
-        preferredPlatforms: ["jsearch", "indeed", "remotive", "linkedin", "arbeitnow"],
-        preferredTone: tone,
-        emailLanguage: language,
-        customSystemPrompt: customPrompt || undefined,
-        emailProvider,
+        preferredPlatforms: ["jsearch", "indeed", "remotive", "linkedin", "arbeitnow", "arbeitnow", "rozee", "adzuna", "google"],
+        preferredTone: "professional",
+        emailLanguage: "English",
+        applicationMode: "MANUAL",
+        maxAutoApplyPerDay: 20,
+        maxSendsPerHour: 8,
+        sendDelaySeconds: 120,
+        minMatchScoreForAutoApply: 70,
+        includeLinkedin: true,
+        includeGithub: true,
+        includePortfolio: true,
       });
       if (!settingsResult.success) {
         toast.error(settingsResult.error || "Failed to save settings");
@@ -230,7 +222,7 @@ export function OnboardingWizard() {
             </div>
           )}
 
-          {/* Step 1: What You Want */}
+          {/* Step 1: Job Preferences (keywords + categories + location) */}
           {step === 1 && (
             <div className="space-y-4">
               <div>
@@ -259,7 +251,7 @@ export function OnboardingWizard() {
               {/* Keyword Presets */}
               <div>
                 <Label className="text-xs font-medium text-slate-600 dark:text-zinc-300 mb-1.5 block">Quick Add — Skill Groups</Label>
-                <div className="max-h-52 overflow-y-auto space-y-1 rounded-lg border border-slate-200 dark:border-zinc-700 p-2 scrollbar-thin">
+                <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-slate-200 dark:border-zinc-700 p-2 scrollbar-thin">
                   {KEYWORD_PRESETS.map((preset) => {
                     const allSelected = preset.keywords.every((kw) => keywords.includes(kw));
                     const someSelected = preset.keywords.some((kw) => keywords.includes(kw));
@@ -322,9 +314,31 @@ export function OnboardingWizard() {
                   })}
                 </div>
                 <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
-                  {keywords.length} keyword{keywords.length !== 1 ? "s" : ""} selected — add as many as you need
+                  {keywords.length} keyword{keywords.length !== 1 ? "s" : ""} selected
                 </p>
               </div>
+
+              {/* Categories inline */}
+              <div>
+                <Label className="text-xs font-medium text-slate-600 dark:text-zinc-300">Job Categories</Label>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mb-1.5">Select categories that match your skills</p>
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                  {JOB_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => toggleArr(categories, cat, setCategories)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
+                        categories.includes(cat) ? "bg-violet-600 text-white shadow-sm" : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">{categories.length} selected</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="ob-city" className="text-xs font-medium text-slate-600 dark:text-zinc-300">City</Label>
@@ -352,50 +366,11 @@ export function OnboardingWizard() {
                   ))}
                 </div>
               </div>
-              <div>
-                <Label className="text-xs font-medium text-slate-600 dark:text-zinc-300">Work Type</Label>
-                <div className="flex flex-wrap gap-2 mt-1.5">
-                  {WORK_TYPES.map((w) => (
-                    <button
-                      key={w.value}
-                      type="button"
-                      onClick={() => toggleArr(workTypes, w.value, setWorkTypes)}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors touch-manipulation ${
-                        workTypes.includes(w.value) ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
-                      }`}
-                    >
-                      {w.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
-          {/* Step 2: Categories */}
+          {/* Step 2: Resume Upload */}
           {step === 2 && (
-            <div>
-              <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Select categories that match your skills. This helps us find the right jobs.</p>
-              <div className="flex flex-wrap gap-1.5 max-h-60 overflow-y-auto">
-                {JOB_CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => toggleArr(categories, cat, setCategories)}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
-                      categories.includes(cat) ? "bg-violet-600 text-white shadow-sm" : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-2">{categories.length} selected</p>
-            </div>
-          )}
-
-          {/* Step 3: Resume Upload */}
-          {step === 3 && (
             <div className="space-y-4">
               {uploadedResume ? (
                 <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-4 ring-1 ring-emerald-200 dark:ring-emerald-800/50">
@@ -443,111 +418,16 @@ export function OnboardingWizard() {
                   )}
                 </label>
               )}
-              <p className="text-[10px] text-slate-400 dark:text-zinc-500 text-center">
-                You can skip this and upload later from the Resumes page.
-              </p>
-            </div>
-          )}
-
-          {/* Step 4: AI Settings */}
-          {step === 4 && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-xs font-medium text-slate-600 dark:text-zinc-300">Cover Letter Tone</Label>
-                <div className="flex flex-wrap gap-2 mt-1.5">
-                  {TONE_OPTIONS.map((t) => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => setTone(t.value)}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors touch-manipulation ${
-                        tone === t.value ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="ob-language" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Language</Label>
-                <select
-                  id="ob-language"
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                >
-                  {LANGUAGE_OPTIONS.map((l) => (
-                    <option key={l} value={l}>{l}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="ob-prompt" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Custom AI Instructions (optional)</Label>
-                <Textarea
-                  id="ob-prompt"
-                  value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder="e.g. Always mention my 3 years of React experience. Use a formal tone for German companies."
-                  rows={3}
-                  className="mt-1 resize-none text-xs"
-                />
+              <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3 ring-1 ring-blue-100 dark:ring-blue-800/40">
+                <p className="text-xs text-blue-700 dark:text-blue-300 font-medium text-center">
+                  Matching works 3x better with a resume — we extract your skills automatically.
+                </p>
               </div>
             </div>
           )}
 
-          {/* Step 5: Email Provider */}
-          {step === 5 && (
-            <div className="space-y-3">
-              <p className="text-xs text-slate-400 dark:text-zinc-500">Choose how JobPilot sends application emails. You can change this later in Settings.</p>
-              <div className="grid gap-2">
-                {EMAIL_PROVIDERS.map((p) => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    onClick={() => setEmailProvider(p.value)}
-                    className={`flex items-start gap-3 rounded-xl p-3 text-left transition-all ${
-                      emailProvider === p.value
-                        ? "bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-500"
-                        : "bg-slate-50 dark:bg-zinc-800/50 ring-1 ring-slate-200 dark:ring-zinc-700 hover:ring-slate-300 dark:hover:ring-zinc-600"
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{p.label}</span>
-                        {p.badge && (
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                            p.badgeColor === "green" ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" :
-                            p.badgeColor === "yellow" ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300" :
-                            "bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300"
-                          }`}>
-                            {p.badge}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">{p.description}</p>
-                      <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1 font-mono">{p.hrSees.replace("{name}", fullName || "Your Name").replace("{email}", "you@email.com")}</p>
-                    </div>
-                    <div className={`h-4 w-4 rounded-full border-2 mt-0.5 flex-shrink-0 ${
-                      emailProvider === p.value ? "border-blue-500 bg-blue-500" : "border-slate-300 dark:border-zinc-600"
-                    }`}>
-                      {emailProvider === p.value && (
-                        <div className="h-full w-full flex items-center justify-center">
-                          <div className="h-1.5 w-1.5 rounded-full bg-white dark:bg-zinc-800" />
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-slate-400 dark:text-zinc-500 text-center">
-                You&apos;ll configure email credentials in Settings after onboarding.
-              </p>
-            </div>
-          )}
-
-          {/* Step 6: Ready */}
-          {step === 6 && (
+          {/* Step 3: Ready */}
+          {step === 3 && (
             <div className="text-center py-4">
               {matching ? (
                 <div className="space-y-4">
@@ -586,8 +466,7 @@ export function OnboardingWizard() {
                 {city && <p><strong>Location:</strong> {city}{country ? `, ${country}` : ""}</p>}
                 {categories.length > 0 && <p><strong>Categories:</strong> {categories.length} selected</p>}
                 {uploadedResume && <p><strong>Resume:</strong> {uploadedResume.name} ({uploadedResume.skills.length} skills)</p>}
-                <p><strong>AI Tone:</strong> {tone} / {language}</p>
-                <p><strong>Email:</strong> {EMAIL_PROVIDERS.find((p) => p.value === emailProvider)?.label}</p>
+                {experienceLevel && <p><strong>Experience:</strong> {experienceLevel}</p>}
               </div>
 
               {/* Advanced settings prompt */}
@@ -626,7 +505,7 @@ export function OnboardingWizard() {
 
             {step < STEPS.length - 1 ? (
               <Button size="sm" onClick={goNext}>
-                {step === 3 && !uploadedResume ? "Skip" : "Next"}
+                {step === 2 && !uploadedResume ? "Skip" : "Next"}
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             ) : (

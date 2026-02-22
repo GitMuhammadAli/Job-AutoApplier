@@ -23,7 +23,7 @@ import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { ActivityTimeline } from "@/components/jobs/ActivityTimeline";
 import { QuickApplyPanel } from "@/components/jobs/QuickApplyPanel";
 import { updateStage, dismissJob, addNote } from "@/app/actions/job";
-import { generateCoverLetter, saveCoverLetter } from "@/app/actions/cover-letter";
+
 import type { JobStage, ActivityType } from "@prisma/client";
 import {
   ExternalLink,
@@ -37,9 +37,6 @@ import {
   ArrowRight,
   Star,
   Tag,
-  Sparkles,
-  Copy,
-  FileText,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -101,8 +98,6 @@ export function JobDetailClient({ job }: JobDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [noteText, setNoteText] = useState(job.notes || "");
-  const [coverLetterText, setCoverLetterText] = useState(job.coverLetter || "");
-  const [generating, setGenerating] = useState(false);
   const [dismissReason, setDismissReason] = useState("");
 
   const g = job.globalJob;
@@ -291,7 +286,6 @@ export function JobDetailClient({ job }: JobDetailProps) {
             <div className="-mx-1 px-1 sm:mx-0 sm:px-0 overflow-x-auto scrollbar-thin mb-3 sm:mb-4">
               <TabsList className="bg-slate-100/80 dark:bg-zinc-700/80 rounded-lg p-0.5 w-max sm:w-auto">
                 <TabsTrigger value="details" className="text-[11px] sm:text-xs rounded-md px-2.5 sm:px-3">Details</TabsTrigger>
-                <TabsTrigger value="cover-letter" className="text-[11px] sm:text-xs rounded-md px-2.5 sm:px-3">Cover Letter</TabsTrigger>
                 <TabsTrigger value="notes" className="text-[11px] sm:text-xs rounded-md px-2.5 sm:px-3">Notes</TabsTrigger>
                 <TabsTrigger value="activity" className="text-[11px] sm:text-xs rounded-md px-2.5 sm:px-3">Activity</TabsTrigger>
               </TabsList>
@@ -382,90 +376,6 @@ export function JobDetailClient({ job }: JobDetailProps) {
           )}
         </TabsContent>
 
-        <TabsContent value="cover-letter" className="mt-3 sm:mt-4">
-          <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-3 sm:space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-violet-500" />
-                AI Cover Letter
-              </h3>
-              <div className="flex gap-2">
-                {coverLetterText && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      navigator.clipboard.writeText(coverLetterText).then(
-                        () => toast.success("Copied to clipboard"),
-                        () => toast.error("Failed to copy — try selecting and copying manually")
-                      );
-                    }}
-                  >
-                    <Copy className="h-3.5 w-3.5 mr-1.5" />
-                    Copy
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    setGenerating(true);
-                    try {
-                      const letter = await generateCoverLetter(job.id);
-                      setCoverLetterText(letter);
-                      toast.success("Cover letter generated");
-                    } catch (err: unknown) {
-                      toast.error(err instanceof Error ? err.message : "Generation failed");
-                    }
-                    setGenerating(false);
-                  }}
-                  disabled={generating || isPending}
-                  className="bg-violet-600 hover:bg-violet-700"
-                >
-                  {generating ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
-                  {coverLetterText ? "Regenerate" : "Generate"}
-                </Button>
-              </div>
-            </div>
-
-            {coverLetterText ? (
-              <>
-                <Textarea
-                  value={coverLetterText}
-                  onChange={(e) => setCoverLetterText(e.target.value)}
-                  rows={12}
-                  className="text-sm leading-relaxed"
-                />
-                <div className="flex justify-end">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      startTransition(async () => {
-                        try {
-                          await saveCoverLetter(job.id, coverLetterText);
-                          toast.success("Cover letter saved");
-                        } catch {
-                          toast.error("Failed to save");
-                        }
-                      });
-                    }}
-                    disabled={isPending}
-                  >
-                    <FileText className="h-3.5 w-3.5 mr-1.5" />
-                    Save Edits
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8">
-                <Sparkles className="h-8 w-8 text-slate-200 dark:text-zinc-600 mx-auto mb-2" />
-                <p className="text-sm text-slate-500 dark:text-zinc-400">Click Generate to create a personalized cover letter using AI.</p>
-                <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">Uses your resume content and settings for tone/language.</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
         <TabsContent value="notes" className="mt-3 sm:mt-4">
           <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700 space-y-3">
             <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Notes</h3>
@@ -491,7 +401,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
           </Tabs>
         </div>
 
-        {/* Right: Quick Apply Panel */}
+        {/* Right: Apply via Email Panel */}
         <div className="w-full lg:w-[380px] shrink-0">
           <div className="lg:sticky lg:top-16 rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
             <QuickApplyPanel
@@ -527,12 +437,7 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 
 const DISMISS_REASONS = [
   "Not relevant",
-  "Low salary",
-  "Wrong location",
-  "Already applied",
-  "Company not interested",
-  "Role too junior",
-  "Role too senior",
-  "Bad reviews",
+  "Already applied elsewhere",
+  "Salary doesn't match",
   "Other",
 ];

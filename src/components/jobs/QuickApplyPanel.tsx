@@ -254,7 +254,7 @@ export function QuickApplyPanel({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Quick Apply</h3>
+          <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Apply via Email</h3>
           {score != null && (
             <Badge
               variant="outline"
@@ -293,7 +293,7 @@ export function QuickApplyPanel({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Quick Apply</h3>
+        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Apply via Email</h3>
         {score != null && (
           <Badge
             variant="outline"

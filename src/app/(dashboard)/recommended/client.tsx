@@ -70,8 +70,8 @@ export function RecommendedClient({ jobs }: Props) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]["value"]>("score");
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
-  const [stageFilter, setStageFilter] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
+  const [stageFilter, setStageFilter] = useState<string | null>("SAVED");
+  const [showFilters, setShowFilters] = useState(true);
 
   const sources = useMemo(() => {
     const s = new Set(jobs.map((j) => j.globalJob.source));
@@ -292,7 +292,7 @@ function JobDetailCard({ job }: { job: UserJobWithGlobal }) {
           <span className="truncate font-medium">{g.company}</span>
         </div>
         {score > 0 && (
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0" title="Based on keyword matches, skills, location, and job freshness">
             <span className={`text-sm font-bold tabular-nums ${getScoreColor(score)}`}>
               {Math.round(score)}%
             </span>

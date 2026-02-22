@@ -279,7 +279,7 @@ function ApplicationCard({
               ) : (
                 <Check className="h-3.5 w-3.5" />
               )}
-              Mark Ready
+              Queue to Send
             </Button>
           )}
           <CopyApplicationBundle
@@ -304,7 +304,7 @@ function ApplicationCard({
               ) : (
                 <Send className="h-3.5 w-3.5" />
               )}
-              Mark Manual
+              Applied Elsewhere
             </Button>
           )}
           {app.status === "DRAFT" && (
@@ -342,7 +342,7 @@ function ApplicationCard({
               ) : (
                 <RotateCcw className="h-3 w-3" />
               )}
-              Retry
+              Retry Send
             </Button>
             <CopyApplicationBundle
               senderEmail={app.senderEmail}
@@ -543,7 +543,7 @@ export function ApplicationQueue({
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="draft" className="gap-1.5">
-            Draft
+            Drafts
             <Badge
               variant="secondary"
               className="ml-0.5 h-5 px-1.5 text-[10px]"
@@ -552,7 +552,7 @@ export function ApplicationQueue({
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="ready" className="gap-1.5">
-            Ready
+            Ready to Send
             <Badge
               variant="secondary"
               className="ml-0.5 h-5 px-1.5 text-[10px]"
@@ -622,7 +622,7 @@ export function ApplicationQueue({
                 ) : (
                   <Check className="h-3.5 w-3.5" />
                 )}
-                Mark All Ready
+                Queue All to Send
               </Button>
               <Button
                 size="sm"
@@ -680,19 +680,24 @@ export function ApplicationQueue({
           {renderTabContent("all")}
         </TabsContent>
         <TabsContent value="draft" className="mt-4">
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Emails not ready yet</p>
           {renderTabContent("draft")}
         </TabsContent>
         <TabsContent value="ready" className="mt-4">
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Will be sent automatically</p>
           {renderTabContent("ready")}
         </TabsContent>
         <TabsContent value="sent" className="mt-4">
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Successfully delivered</p>
           {renderTabContent("sent")}
         </TabsContent>
         <TabsContent value="failed" className="mt-4">
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Something went wrong — you can retry</p>
           {renderTabContent("failed")}
         </TabsContent>
         {counts.bounced > 0 && (
           <TabsContent value="bounced" className="mt-4">
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Email bounced — address may be invalid</p>
             {renderTabContent("bounced")}
           </TabsContent>
         )}

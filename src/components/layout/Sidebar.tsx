@@ -5,20 +5,17 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
-  Plus,
   BarChart3,
   FileText,
   Settings,
   Zap,
   Menu,
   X,
-  Radio,
   LogOut,
   Mail,
   Inbox,
   ShieldCheck,
   PanelLeftClose,
-  PanelLeftOpen,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,15 +23,19 @@ import { Button } from "@/components/ui/button";
 import { ASMark } from "@/components/ui/as-mark";
 import { useSidebarStore } from "@/store/useSidebarStore";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, desc: "Kanban board" },
-  { href: "/recommended", label: "Recommended", icon: Sparkles, desc: "Browse all matches" },
-  { href: "/applications", label: "Application Queue", icon: Inbox, desc: "Manage applications" },
-  { href: "/jobs/new", label: "Add Job", icon: Plus, desc: "Track manually" },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, desc: "Performance" },
+const MAIN_NAV = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, desc: "Job pipeline" },
+  { href: "/recommended", label: "Jobs", icon: Sparkles, desc: "Browse matches" },
+  { href: "/applications", label: "Applications", icon: Inbox, desc: "Track & send" },
+];
+
+const TOOLS_NAV = [
   { href: "/resumes", label: "Resumes", icon: FileText, desc: "CV variants" },
   { href: "/templates", label: "Templates", icon: Mail, desc: "Email templates" },
-  { href: "/system-health", label: "System Health", icon: Radio, desc: "Monitor crons" },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, desc: "Insights" },
+];
+
+const BOTTOM_NAV = [
   { href: "/settings", label: "Settings", icon: Settings, desc: "Preferences" },
 ];
 
@@ -51,9 +52,9 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
   const pathname = usePathname();
   const { collapsed, mobileOpen, toggle, setMobileOpen } = useSidebarStore();
 
-  const navItems = adminUser
-    ? [...NAV_ITEMS, { href: "/admin", label: "Admin Panel", icon: ShieldCheck, desc: "System admin" }]
-    : NAV_ITEMS;
+  const adminNav = adminUser
+    ? [{ href: "/admin", label: "Admin Panel", icon: ShieldCheck, desc: "System admin" }]
+    : [];
 
   const isVisible = mobileOpen || !collapsed;
 
@@ -136,60 +137,36 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-0.5 px-3 py-3 overflow-y-auto scrollbar-thin">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200",
-                  isActive
-                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md shadow-blue-600/25"
-                    : "text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100"
-                )}
-              >
-                <div
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                    isActive
-                      ? "bg-white/20"
-                      : "bg-slate-100 dark:bg-zinc-800 group-hover:bg-slate-200/70 dark:group-hover:bg-zinc-700"
-                  )}
-                >
-                  <item.icon className={cn("h-4 w-4", isActive ? "text-white" : "text-slate-500 dark:text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-200")} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className={cn("text-sm font-semibold", isActive ? "text-white" : "text-slate-700 dark:text-zinc-200")}>{item.label}</div>
-                  <div className={cn("text-[10px] leading-tight", isActive ? "text-blue-100" : "text-slate-400 dark:text-zinc-500")}>{item.desc}</div>
-                </div>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Sources */}
-        <div className="border-t border-slate-100 dark:border-zinc-800 px-4 py-2.5">
-          <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-zinc-500">
-            <Radio className="h-3 w-3" />
-            <span>8 job sources connected</span>
-          </div>
-          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-            {["JSearch", "Indeed", "Remotive", "Arbeitnow", "Adzuna", "LinkedIn", "Rozee.pk", "Google"].map((s) => (
-              <span
-                key={s}
-                className="inline-block rounded bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[9px] font-medium text-slate-500 dark:text-zinc-400"
-              >
-                {s}
-              </span>
+        <nav className="flex-1 px-3 py-3 overflow-y-auto scrollbar-thin flex flex-col">
+          {/* Main */}
+          <div className="space-y-0.5">
+            {MAIN_NAV.map((item) => (
+              <NavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
             ))}
           </div>
-        </div>
+
+          {/* Tools */}
+          <div className="mt-5">
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Tools</p>
+            <div className="space-y-0.5">
+              {TOOLS_NAV.map((item) => (
+                <NavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex-1" />
+
+          {/* Bottom — Settings + Admin */}
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800 space-y-0.5">
+            {BOTTOM_NAV.map((item) => (
+              <NavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+            ))}
+            {adminNav.map((item) => (
+              <NavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+            ))}
+          </div>
+        </nav>
 
         {/* User info + sign out */}
         {user && (
@@ -230,5 +207,48 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
         </a>
       </aside>
     </>
+  );
+}
+
+function NavLink({
+  item,
+  pathname,
+  onNavigate,
+}: {
+  item: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; desc: string };
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const isActive =
+    item.href === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname.startsWith(item.href);
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={cn(
+        "group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200",
+        isActive
+          ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md shadow-blue-600/25"
+          : "text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100"
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+          isActive
+            ? "bg-white/20"
+            : "bg-slate-100 dark:bg-zinc-800 group-hover:bg-slate-200/70 dark:group-hover:bg-zinc-700"
+        )}
+      >
+        <item.icon className={cn("h-4 w-4", isActive ? "text-white" : "text-slate-500 dark:text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-200")} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className={cn("text-sm font-semibold", isActive ? "text-white" : "text-slate-700 dark:text-zinc-200")}>{item.label}</div>
+        <div className={cn("text-[10px] leading-tight", isActive ? "text-blue-100" : "text-slate-400 dark:text-zinc-500")}>{item.desc}</div>
+      </div>
+    </Link>
   );
 }
