@@ -5,7 +5,7 @@ function resolveAppUrl(): string {
       return url.replace(/\/+$/, "");
     }
   }
-  return "https://jobpilot.app";
+  return "https://job-auto-applier-three.vercel.app";
 }
 
 const APP_URL = resolveAppUrl();
