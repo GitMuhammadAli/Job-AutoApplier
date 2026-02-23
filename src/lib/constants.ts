@@ -56,8 +56,8 @@ export const TIMEOUTS = {
   SMTP_TIMEOUT_MS: 10_000,
   /** Groq API per-call timeout (ms) */
   AI_TIMEOUT_MS: 15_000,
-  /** Resume parser timeout (ms) */
-  RESUME_PARSE_TIMEOUT_MS: 10_000,
+  /** Resume parser timeout per method (ms) — generous for serverless cold starts */
+  RESUME_PARSE_TIMEOUT_MS: 25_000,
   /** Careers page scrape timeout (ms) */
   CAREERS_SCRAPE_TIMEOUT_MS: 5_000,
   /** Delay between consecutive email sends (ms) */
