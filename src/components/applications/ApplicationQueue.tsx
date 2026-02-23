@@ -307,22 +307,20 @@ function ApplicationCard({
               Applied Elsewhere
             </Button>
           )}
-          {app.status === "DRAFT" && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDelete}
-              disabled={!!loading}
-              className="gap-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
-            >
-              {loading === "delete" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" />
-              )}
-              Delete
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleDelete}
+            disabled={!!loading}
+            className="gap-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+          >
+            {loading === "delete" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+            Delete
+          </Button>
         </div>
 
         {app.status === "FAILED" && (
@@ -489,9 +487,9 @@ export function ApplicationQueue({
   };
 
   const handleBulkDelete = async () => {
-    const toDelete = selectedDrafts.map((a) => a.id);
+    const toDelete = filteredApplications.filter((a) => selectedIds.has(a.id)).map((a) => a.id);
     if (toDelete.length === 0) {
-      toast.error("Select draft applications first");
+      toast.error("Select applications first");
       return;
     }
     setBulkLoading(true);
@@ -628,7 +626,7 @@ export function ApplicationQueue({
                 size="sm"
                 variant="outline"
                 onClick={handleBulkDelete}
-                disabled={bulkLoading || selectedDrafts.length === 0}
+                disabled={bulkLoading || selectedCount === 0}
                 className="gap-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
               >
                 {bulkLoading ? (

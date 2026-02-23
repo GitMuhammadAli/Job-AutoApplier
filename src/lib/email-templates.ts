@@ -1,4 +1,14 @@
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://jobpilot.app";
+function resolveAppUrl(): string {
+  const candidates = [process.env.NEXT_PUBLIC_APP_URL, process.env.NEXTAUTH_URL];
+  for (const url of candidates) {
+    if (url && !url.includes("your-vercel-domain") && !url.includes("your-domain") && !url.includes("localhost")) {
+      return url.replace(/\/+$/, "");
+    }
+  }
+  return "https://jobpilot.app";
+}
+
+const APP_URL = resolveAppUrl();
 
 function layout(title: string, body: string): string {
   return `<!DOCTYPE html>
