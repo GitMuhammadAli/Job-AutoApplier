@@ -1,6 +1,4 @@
 import { TIMEOUTS } from "./constants";
-import path from "path";
-import { pathToFileURL } from "url";
 
 export type PdfQuality = "good" | "poor" | "empty";
 
@@ -28,134 +26,109 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
-/**
- * Two-step PDF text extraction:
- *  1. pdfjs-dist (Mozilla PDF.js) — handles virtually all PDFs including custom fonts
- *  2. pdf-parse v2 — fast fallback
- *
- * pdfjs-dist is tried FIRST because it handles custom font encodings (LaTeX, Canva,
- * design tools) that pdf-parse cannot decode. It requires:
- *  - Worker disabled (server-side, no Web Workers)
- *  - CMap + standard fonts for font decoding
- *  - Listed in next.config.js serverComponentsExternalPackages
- */
 export async function extractTextFromPDF(
   buffer: Buffer
 ): Promise<{ text: string; quality: PdfQuality }> {
-  // ── Attempt 1: pdfjs-dist (most reliable for complex PDFs) ──
-  let text = "";
+  const timeout = TIMEOUTS.RESUME_PARSE_TIMEOUT_MS;
+  let bestText = "";
+
+  // ── Attempt 1: unpdf (serverless-optimized, no canvas/worker deps) ──
   try {
-    text = await withTimeout(
-      extractWithPdfjs(buffer),
-      TIMEOUTS.RESUME_PARSE_TIMEOUT_MS,
-      "PDF parsing (pdfjs-dist)"
-    );
-    console.log(`[resume-parser] pdfjs-dist: got ${text.length} chars`);
+    const text = await withTimeout(extractWithUnpdf(buffer), timeout, "unpdf");
+    console.log(`[resume-parser] unpdf: ${text.length} chars`);
     if (text.length >= 20) {
       return { text, quality: assessQuality(text) };
     }
+    if (text.length > bestText.length) bestText = text;
+  } catch (err) {
+    console.warn("[resume-parser] unpdf failed:", (err as Error).message);
+  }
+
+  // ── Attempt 2: pdf-parse v2 (bundles its own pdfjs-dist) ──
+  try {
+    const text = await withTimeout(extractWithPdfParse(buffer), timeout, "pdf-parse");
+    console.log(`[resume-parser] pdf-parse: ${text.length} chars`);
+    if (text.length >= 20) {
+      return { text, quality: assessQuality(text) };
+    }
+    if (text.length > bestText.length) bestText = text;
+  } catch (err) {
+    console.warn("[resume-parser] pdf-parse failed:", (err as Error).message);
+  }
+
+  // ── Attempt 3: pdfjs-dist direct (works locally, may fail on serverless) ──
+  try {
+    const text = await withTimeout(extractWithPdfjs(buffer), timeout, "pdfjs-dist");
+    console.log(`[resume-parser] pdfjs-dist: ${text.length} chars`);
+    if (text.length >= 20) {
+      return { text, quality: assessQuality(text) };
+    }
+    if (text.length > bestText.length) bestText = text;
   } catch (err) {
     console.warn("[resume-parser] pdfjs-dist failed:", (err as Error).message);
   }
 
-  // ── Attempt 2: pdf-parse v2 (fast, simpler) ──
-  try {
-    text = await withTimeout(
-      extractWithPdfParse(buffer),
-      TIMEOUTS.RESUME_PARSE_TIMEOUT_MS,
-      "PDF parsing (pdf-parse)"
-    );
-    console.log(`[resume-parser] pdf-parse v2: got ${text.length} chars`);
-    if (text.length >= 20) {
-      return { text, quality: assessQuality(text) };
-    }
-  } catch (err) {
-    console.warn("[resume-parser] pdf-parse v2 failed:", (err as Error).message);
-  }
+  console.warn(`[resume-parser] All methods got <20 chars for ${buffer.length} byte PDF`);
+  return { text: bestText, quality: bestText.length > 0 ? "poor" : "empty" };
+}
 
-  console.warn(`[resume-parser] All methods returned 0 chars for ${buffer.length} byte PDF`);
-  return { text: "", quality: "empty" };
+async function extractWithUnpdf(buffer: Buffer): Promise<string> {
+  const { extractText, getDocumentProxy } = await import("unpdf");
+  const uint8 = new Uint8Array(buffer);
+  const pdf = await getDocumentProxy(uint8);
+  const { text } = await extractText(pdf, { mergePages: true });
+  return (text as string).trim();
 }
 
 async function extractWithPdfParse(buffer: Buffer): Promise<string> {
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: buffer });
   try {
-    const data = await (parser.getText() as Promise<{ text: string }>);
-    return (data.text || "").trim();
+    const result = await parser.getText();
+    const text = typeof result === "string" ? result : (result as { text?: string })?.text ?? "";
+    return text.trim();
   } finally {
-    try {
-      await (parser as { destroy?: () => Promise<void> }).destroy?.();
-    } catch { /* ignore */ }
+    try { await (parser as { destroy?: () => Promise<void> }).destroy?.(); } catch { /* ignore */ }
   }
 }
 
 async function extractWithPdfjs(buffer: Buffer): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-
   const uint8 = new Uint8Array(buffer);
 
-  const prevWorkerSrc = pdfjsLib.GlobalWorkerOptions?.workerSrc;
-
-  let cMapUrl: string | undefined;
-  let standardFontDataUrl: string | undefined;
-  try {
-    const pkgPath = require.resolve("pdfjs-dist/package.json");
-    const root = path.dirname(pkgPath);
-    const workerSrc = pathToFileURL(path.join(root, "legacy", "build", "pdf.worker.mjs")).href;
-    cMapUrl = pathToFileURL(path.join(root, "cmaps")).href + "/";
-    standardFontDataUrl = pathToFileURL(path.join(root, "standard_fonts")).href + "/";
-
-    if (pdfjsLib.GlobalWorkerOptions) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
-    }
-  } catch {
-    console.warn("[resume-parser] Could not resolve pdfjs-dist paths");
+  if (pdfjsLib.GlobalWorkerOptions) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "";
   }
 
-  try {
-    const loadingTask = pdfjsLib.getDocument({
-      data: uint8,
-      useSystemFonts: true,
-      isEvalSupported: false,
-      disableFontFace: true,
-      disableAutoFetch: true,
-      disableStream: true,
-      ...(cMapUrl ? { cMapUrl, cMapPacked: true } : {}),
-      ...(standardFontDataUrl ? { standardFontDataUrl } : {}),
+  const loadingTask = pdfjsLib.getDocument({
+    data: uint8,
+    useSystemFonts: true,
+    isEvalSupported: false,
+    disableFontFace: true,
+    disableAutoFetch: true,
+    disableStream: true,
+  });
+
+  const doc = await loadingTask.promise;
+  const pages: string[] = [];
+
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent({
+      includeMarkedContent: false,
+      disableNormalization: false,
     });
-
-    const doc = await loadingTask.promise;
-
-    const pages: string[] = [];
-    for (let i = 1; i <= doc.numPages; i++) {
-      const page = await doc.getPage(i);
-      const content = await page.getTextContent({
-        includeMarkedContent: false,
-        disableNormalization: false,
-      });
-      const items = content.items as Array<{
-        str: string;
-        hasEOL?: boolean;
-        transform?: number[];
-      }>;
-      let pageText = "";
-      for (const item of items) {
-        pageText += item.str;
-        if (item.hasEOL) pageText += "\n";
-      }
-      pages.push(pageText.trim());
+    const items = content.items as Array<{ str: string; hasEOL?: boolean }>;
+    let pageText = "";
+    for (const item of items) {
+      pageText += item.str;
+      if (item.hasEOL) pageText += "\n";
     }
-
-    try { await doc.destroy(); } catch { /* ignore */ }
-
-    return pages.filter(Boolean).join("\n\n").trim();
-  } finally {
-    // Restore previous workerSrc so pdf-parse fallback doesn't pick up our worker
-    if (pdfjsLib.GlobalWorkerOptions) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = prevWorkerSrc ?? "";
-    }
+    pages.push(pageText.trim());
   }
+
+  try { await doc.destroy(); } catch { /* ignore */ }
+  return pages.filter(Boolean).join("\n\n").trim();
 }
 
 function assessQuality(text: string): PdfQuality {
