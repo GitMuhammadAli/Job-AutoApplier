@@ -11,6 +11,24 @@ function sanitizeForPrompt(text: string): string {
     .slice(0, 3000);
 }
 
+/**
+ * Strip the candidate's own contact info block from resume content
+ * so the AI doesn't pick up a different name/email/phone from the resume.
+ */
+function sanitizeResumeForPrompt(content: string | null, profileName: string): string {
+  if (!content) return "No resume content";
+  let text = content;
+
+  // Remove common resume header patterns (name, contact info, links)
+  text = text
+    .replace(/^\*{0,2}[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}\*{0,2}\s*\n/m, "")
+    .replace(/\*{0,2}Contact\s*Information:?\*{0,2}[\s\S]{0,500}?(?=\*{0,2}(?:Professional|Summary|Experience|Education|Skills|Projects))/i, "")
+    .replace(/(?:Phone|Email|GitHub|LinkedIn|Portfolio|Website)\s*:?\s*\[?[^\]\n]+\]?\(?[^\)\n]*\)?\s*\n?/gi, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+
+  return sanitizeForPrompt(text.slice(0, 1500));
+}
+
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -85,7 +103,8 @@ RULES:
 - End with the candidate's custom closing if provided, otherwise a short sign-off and their full name
 - Say "Please find my resume attached" near the end — but do NOT include any URLs, links, phone numbers, or contact info in the body. The system appends a professional signature block with all links automatically.
 - Do NOT say "as advertised on your website" — if a source platform is given, reference it naturally (e.g. "I came across this role on LinkedIn")
-- Do NOT fabricate where the job was found — only mention the source if provided`);
+- Do NOT fabricate where the job was found — only mention the source if provided
+- CRITICAL: Sign the email with EXACTLY the candidate's name from CANDIDATE PROFILE, not from the resume. The resume may contain a different/longer name — ignore it and use ONLY the name given in CANDIDATE PROFILE.`);
 
   const tone = input.settings.preferredTone || "professional";
   const toneInstructions: Record<string, string> = {
@@ -157,7 +176,7 @@ Description: ${sanitizeForPrompt(input.job.description || "No description availa
 
   userParts.push(`\nMATCHED RESUME: "${input.resume.name}"
 Skills: ${(input.resume.detectedSkills ?? []).join(", ") || "Not specified"}
-Content Preview: ${sanitizeForPrompt((input.resume.content || "").slice(0, 1500))}`);
+Content Preview: ${sanitizeResumeForPrompt(input.resume.content, input.profile.fullName)}`);
 
   if (input.template?.body) {
     userParts.push(`\nUSER'S PREFERRED TEMPLATE STYLE (use as inspiration, not copy):
@@ -187,6 +206,9 @@ Body: ${input.template.body.slice(0, 500)}`);
   subject = replacePlaceholders(subject, input);
   body = replacePlaceholders(body, input);
 
+  // Enforce the profile name in subject too
+  subject = enforceProfileName(subject, input.profile.fullName, input.resume.content);
+
   // Build professional signature block
   body = body.trim();
 
@@ -214,6 +236,9 @@ Body: ${input.template.body.slice(0, 500)}`);
     .replace(/You can (?:also )?(?:visit|view|check out) my [\w\s,]+(?:and [\w\s]+)?(?:for more [\w\s]+)?\.?\s*/gi, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  // Enforce the profile name — the AI may have used a different name from the resume
+  body = enforceProfileName(body, input.profile.fullName, input.resume.content);
 
   // Use defaultSignature if set
   const sig = input.settings.defaultSignature ?? "";
@@ -346,6 +371,37 @@ function unwrapJsonField(value: string, field: "subject" | "body"): string {
     }
   } catch { /* not JSON */ }
   return value;
+}
+
+/**
+ * If the AI used a name from the resume that differs from the profile name,
+ * replace it with the correct profile name.
+ */
+function enforceProfileName(body: string, profileName: string, resumeContent: string | null): string {
+  if (!resumeContent || !profileName) return body;
+
+  // Extract potential names from the resume header (first 3 lines)
+  const headerLines = resumeContent.split("\n").slice(0, 3);
+  const resumeNames: string[] = [];
+  for (const line of headerLines) {
+    const cleaned = line.replace(/\*+/g, "").trim();
+    if (cleaned.length > 3 && cleaned.length < 60 && /^[A-Za-z\s.\-']+$/.test(cleaned)) {
+      resumeNames.push(cleaned);
+    }
+  }
+
+  const profileLower = profileName.toLowerCase().trim();
+  for (const resumeName of resumeNames) {
+    if (resumeName.toLowerCase().trim() === profileLower) continue;
+
+    // The resume has a different name — replace all occurrences in the body
+    const regex = new RegExp(escapeRegex(resumeName), "gi");
+    if (regex.test(body)) {
+      body = body.replace(regex, profileName);
+    }
+  }
+
+  return body;
 }
 
 function replacePlaceholders(

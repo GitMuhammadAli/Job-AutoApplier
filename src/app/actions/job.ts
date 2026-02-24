@@ -14,7 +14,7 @@ import {
 
 // ── Get all user jobs (for Kanban board) — only jobs matching user's city/country from settings ──
 
-export async function getJobs() {
+export async function getJobs(preloadedSettings?: Awaited<ReturnType<typeof getSettings>> | null) {
   try {
     const userId = await getAuthUserId();
 
@@ -57,7 +57,7 @@ export async function getJobs() {
         orderBy: { matchScore: "desc" },
         take: LIMITS.JOBS_PER_PAGE,
       }),
-      getSettings(),
+      preloadedSettings !== undefined ? Promise.resolve(preloadedSettings) : getSettings(),
     ]);
 
     const preferredPlatforms = settings?.preferredPlatforms ?? [];

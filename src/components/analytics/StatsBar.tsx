@@ -9,10 +9,20 @@ import {
   Ghost,
   XCircle,
 } from "lucide-react";
-import type { UserJobWithGlobal } from "@/store/useJobStore";
+
+interface AnalyticsData {
+  totalJobs: number;
+  applied: number;
+  interviews: number;
+  offers: number;
+  rejected: number;
+  ghosted: number;
+  responseRate: number;
+}
 
 interface StatsBarProps {
-  jobs: UserJobWithGlobal[];
+  analytics?: AnalyticsData;
+  jobs?: { stage: string }[];
 }
 
 const STAT_CONFIGS = [
@@ -25,19 +35,31 @@ const STAT_CONFIGS = [
   { key: "response", label: "Response Rate", icon: TrendingUp, iconBg: "bg-violet-100 dark:bg-violet-900/40", iconColor: "text-violet-600 dark:text-violet-400", gradient: "from-violet-500 to-violet-700" },
 ] as const;
 
-export function StatsBar({ jobs }: StatsBarProps) {
-  const total = jobs.length;
-  const applied = jobs.filter((j) => j.stage !== "SAVED").length;
-  const interviews = jobs.filter((j) => j.stage === "INTERVIEW").length;
-  const offers = jobs.filter((j) => j.stage === "OFFER").length;
-  const rejected = jobs.filter((j) => j.stage === "REJECTED").length;
-  const ghosted = jobs.filter((j) => j.stage === "GHOSTED").length;
-  const responseRate =
-    applied > 0 ? Math.round(((interviews + offers) / applied) * 100) : 0;
+export function StatsBar({ analytics, jobs }: StatsBarProps) {
+  let data: AnalyticsData;
+
+  if (analytics) {
+    data = analytics;
+  } else {
+    const list = jobs ?? [];
+    const totalJobs = list.length;
+    const applied = list.filter((j) => j.stage !== "SAVED").length;
+    const interviews = list.filter((j) => j.stage === "INTERVIEW").length;
+    const offers = list.filter((j) => j.stage === "OFFER").length;
+    const rejected = list.filter((j) => j.stage === "REJECTED").length;
+    const ghosted = list.filter((j) => j.stage === "GHOSTED").length;
+    const responseRate = applied > 0 ? Math.round(((interviews + offers) / applied) * 100) : 0;
+    data = { totalJobs, applied, interviews, offers, rejected, ghosted, responseRate };
+  }
 
   const values: Record<string, string | number> = {
-    total, applied, interviews, offers, rejected, ghosted,
-    response: `${responseRate}%`,
+    total: data.totalJobs,
+    applied: data.applied,
+    interviews: data.interviews,
+    offers: data.offers,
+    rejected: data.rejected,
+    ghosted: data.ghosted,
+    response: `${data.responseRate}%`,
   };
 
   return (

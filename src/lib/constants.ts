@@ -2,9 +2,9 @@
 
 export const LIMITS = {
   /** Max UserJobs returned per Kanban page load */
-  JOBS_PER_PAGE: 500,
+  JOBS_PER_PAGE: 200,
   /** Max applications returned per page */
-  APPLICATIONS_PER_PAGE: 500,
+  APPLICATIONS_PER_PAGE: 200,
   /** Max resumes returned per listing */
   RESUMES_PER_PAGE: 100,
   /** Max activities returned for a single job detail */
