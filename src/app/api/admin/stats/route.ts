@@ -154,6 +154,23 @@ export async function GET() {
       }),
     );
 
+    // Recently active users (last 24h)
+    const recentlyActive = await prisma.userSettings.findMany({
+      where: { lastVisitedAt: { gte: dayAgo } },
+      select: {
+        userId: true,
+        fullName: true,
+        lastVisitedAt: true,
+        accountStatus: true,
+        applicationMode: true,
+        user: { select: { name: true, email: true, image: true, createdAt: true } },
+      },
+      orderBy: { lastVisitedAt: "desc" },
+      take: 20,
+    });
+
+    const onlineThreshold = new Date(now.getTime() - 5 * 60 * 1000);
+
     // Quotas
     const [jsearchUsed, groqUsed, brevoUsed] = await Promise.all([
       prisma.systemLog.count({
@@ -223,6 +240,17 @@ export async function GET() {
         message: e.message,
         createdAt: e.createdAt,
         source: e.source,
+      })),
+      recentlyActiveUsers: recentlyActive.map((s) => ({
+        id: s.userId,
+        name: s.fullName || s.user.name || s.user.email || "Unknown",
+        email: s.user.email,
+        image: s.user.image,
+        lastActive: s.lastVisitedAt,
+        isOnline: s.lastVisitedAt ? s.lastVisitedAt >= onlineThreshold : false,
+        status: s.accountStatus || "unknown",
+        mode: s.applicationMode || "MANUAL",
+        joinedAt: s.user.createdAt,
       })),
     });
   } catch (error) {
