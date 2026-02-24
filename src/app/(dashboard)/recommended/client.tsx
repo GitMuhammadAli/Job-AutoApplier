@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo, useCallback, useRef, useEffect, memo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -109,10 +109,11 @@ export function RecommendedClient({
   const [isPending, startTransition] = useTransition();
   const [searchInput, setSearchInput] = useState(currentFilters.q || "");
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const totalPages = Math.ceil(total / pageSize);
 
-  function buildUrl(overrides: Record<string, string | null>) {
+  const buildUrl = useCallback((overrides: Record<string, string | null>) => {
     const merged = { ...currentFilters, ...overrides };
     const params = new URLSearchParams();
     for (const [k, v] of Object.entries(merged)) {
@@ -123,29 +124,54 @@ export function RecommendedClient({
     }
     const qs = params.toString();
     return `/recommended${qs ? `?${qs}` : ""}`;
-  }
+  }, [currentFilters]);
 
-  function updateFilter(key: string, value: string | null) {
+  const updateFilter = useCallback((key: string, value: string | null) => {
     const overrides: Record<string, string | null> = { [key]: value };
     if (key !== "page") overrides.page = null;
     startTransition(() => {
       router.push(buildUrl(overrides));
     });
-  }
+  }, [buildUrl, router]);
 
-  function handleSearch(e: React.FormEvent) {
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     updateFilter("q", searchInput.trim() || null);
-  }
+  }, [searchInput, updateFilter]);
 
-  function clearSearch() {
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchInput(val);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      const trimmed = val.trim();
+      if (trimmed.length >= 3 || trimmed.length === 0) {
+        updateFilter("q", trimmed || null);
+      }
+    }, 400);
+  }, [updateFilter]);
+
+  useEffect(() => {
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, []);
+
+  const clearSearch = useCallback(() => {
     setSearchInput("");
     updateFilter("q", null);
-  }
+  }, [updateFilter]);
 
-  const activeSources = (currentFilters.source || "").split(",").filter(Boolean);
-  const sortedSources = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]);
-  const visibleJobs = jobs.filter((j) => !dismissedIds.has(j.id));
+  const activeSources = useMemo(() => (currentFilters.source || "").split(",").filter(Boolean), [currentFilters.source]);
+  const sortedSources = useMemo(() => Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]), [sourceCounts]);
+  const visibleJobs = useMemo(() => jobs.filter((j) => !dismissedIds.has(j.id)), [jobs, dismissedIds]);
+
+  const handleDismiss = useCallback((id: string) => {
+    setDismissedIds((prev) => {
+      const next = new Set(Array.from(prev));
+      next.add(id);
+      return next;
+    });
+    dismissGlobalJob(id);
+  }, []);
 
   return (
     <div className={`space-y-4 animate-slide-up ${isPending ? "opacity-70 pointer-events-none" : ""}`}>
@@ -175,7 +201,7 @@ export function RecommendedClient({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-zinc-500" />
           <Input
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={handleSearchChange}
             placeholder="Search jobs..."
             className="pl-9 pr-8 h-9 text-sm"
           />
@@ -315,14 +341,7 @@ export function RecommendedClient({
             <JobCard
               key={job.id}
               job={job}
-              onDismiss={(id) => {
-                setDismissedIds((prev) => {
-                  const next = new Set(Array.from(prev));
-                  next.add(id);
-                  return next;
-                });
-                dismissGlobalJob(id);
-              }}
+              onDismiss={handleDismiss}
             />
           ))}
         </div>
@@ -354,7 +373,7 @@ export function RecommendedClient({
   );
 }
 
-function JobCard({ job, onDismiss }: { job: RecommendedJob; onDismiss: (id: string) => void }) {
+const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob; onDismiss: (id: string) => void }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(!!job.userJobId);
 
@@ -363,7 +382,7 @@ function JobCard({ job, onDismiss }: { job: RecommendedJob; onDismiss: (id: stri
   const status = getStatusBadge(job.applicationStatus);
   const detailUrl = job.userJobId ? `/jobs/${job.userJobId}` : `/jobs/${job.id}`;
 
-  async function handleSave(e: React.MouseEvent) {
+  const handleSave = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (saved || saving) return;
@@ -371,20 +390,20 @@ function JobCard({ job, onDismiss }: { job: RecommendedJob; onDismiss: (id: stri
     const result = await saveGlobalJob(job.id);
     setSaving(false);
     if (result.success) setSaved(true);
-  }
+  }, [saved, saving, job.id]);
 
-  function handleDismiss(e: React.MouseEvent) {
+  const handleDismiss = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     onDismiss(job.id);
-  }
+  }, [onDismiss, job.id]);
 
-  function handleViewExternal(e: React.MouseEvent) {
+  const handleViewExternal = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const url = job.applyUrl || job.sourceUrl;
     if (url) window.open(url, "_blank");
-  }
+  }, [job.applyUrl, job.sourceUrl]);
 
   return (
     <div className="group block rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-all duration-200 hover:shadow-md hover:ring-slate-200/80 dark:hover:ring-zinc-600/80">
@@ -529,4 +548,4 @@ function JobCard({ job, onDismiss }: { job: RecommendedJob; onDismiss: (id: stri
       </div>
     </div>
   );
-}
+});

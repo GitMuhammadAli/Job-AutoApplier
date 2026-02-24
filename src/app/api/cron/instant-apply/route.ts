@@ -215,8 +215,7 @@ export async function GET(req: NextRequest) {
           } else if (isFullAuto && !isOutsidePeakHours) {
             if (
               match.score >= (settings.minMatchScoreForAutoApply || 75) &&
-              (emailResult.confidence === "HIGH" ||
-                emailResult.confidence === "MEDIUM")
+              emailResult.confidenceScore >= 70
             ) {
               const isDupe = await isDuplicateApplication(userId, {
                 title: freshJob.title,

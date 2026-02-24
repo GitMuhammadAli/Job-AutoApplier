@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -106,7 +106,7 @@ function StatusBadge({ status }: { status: ApplicationStatus }) {
   );
 }
 
-function ApplicationCard({
+const ApplicationCard = memo(function ApplicationCard({
   app,
   selected,
   onToggleSelect,
@@ -119,7 +119,7 @@ function ApplicationCard({
 }) {
   const [loading, setLoading] = useState<string | null>(null);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     setLoading("send");
     try {
       const res = await fetch(`/api/applications/${app.id}/send`, {
@@ -142,9 +142,9 @@ function ApplicationCard({
     } finally {
       setLoading(null);
     }
-  };
+  }, [app.id, app.recipientEmail, onRefresh]);
 
-  const handleMarkReady = async () => {
+  const handleMarkReady = useCallback(async () => {
     setLoading("ready");
     try {
       const result = await markApplicationReady(app.id);
@@ -156,9 +156,9 @@ function ApplicationCard({
     } finally {
       setLoading(null);
     }
-  };
+  }, [app.id, onRefresh]);
 
-  const handleMarkManual = async () => {
+  const handleMarkManual = useCallback(async () => {
     setLoading("manual");
     try {
       const result = await markApplicationManual(app.id);
@@ -170,9 +170,9 @@ function ApplicationCard({
     } finally {
       setLoading(null);
     }
-  };
+  }, [app.id, onRefresh]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     setLoading("delete");
     try {
       const result = await deleteApplication(app.id);
@@ -184,9 +184,9 @@ function ApplicationCard({
     } finally {
       setLoading(null);
     }
-  };
+  }, [app.id, onRefresh]);
 
-  const handleRetry = async () => {
+  const handleRetry = useCallback(async () => {
     setLoading("retry");
     try {
       const result = await markApplicationReady(app.id);
@@ -198,7 +198,7 @@ function ApplicationCard({
     } finally {
       setLoading(null);
     }
-  };
+  }, [app.id, onRefresh]);
 
   const job = app.userJob.globalJob;
   const matchScore = app.userJob.matchScore;
@@ -373,7 +373,7 @@ function ApplicationCard({
       </CardContent>
     </Card>
   );
-}
+});
 
 export function ApplicationQueue({
   applications,
@@ -389,36 +389,36 @@ export function ApplicationQueue({
     label: string;
   } | null>(null);
 
-  const getFilteredForTab = (tab: string) =>
-    tab === "all"
-      ? applications
-      : applications.filter((a) => a.status === tab.toUpperCase());
-
-  const filteredApplications = getFilteredForTab(activeTab);
-
-  const selectedDrafts = filteredApplications.filter(
-    (a) => selectedIds.has(a.id) && a.status === "DRAFT",
+  const filteredApplications = useMemo(
+    () => activeTab === "all" ? applications : applications.filter((a) => a.status === activeTab.toUpperCase()),
+    [applications, activeTab],
   );
-  const selectedCount = filteredApplications.filter((a) =>
-    selectedIds.has(a.id),
-  ).length;
 
-  const toggleSelect = (id: string) => {
+  const selectedDrafts = useMemo(
+    () => filteredApplications.filter((a) => selectedIds.has(a.id) && a.status === "DRAFT"),
+    [filteredApplications, selectedIds],
+  );
+  const selectedCount = useMemo(
+    () => filteredApplications.filter((a) => selectedIds.has(a.id)).length,
+    [filteredApplications, selectedIds],
+  );
+
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  }, []);
 
-  const toggleSelectAll = () => {
+  const toggleSelectAll = useCallback(() => {
     if (selectedCount === filteredApplications.length) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(filteredApplications.map((a) => a.id)));
     }
-  };
+  }, [selectedCount, filteredApplications]);
 
   const handleBulkMarkReady = async () => {
     const ids = selectedDrafts.map((a) => a.id);
@@ -511,7 +511,11 @@ export function ApplicationQueue({
     }
   };
 
-  const refresh = () => router.refresh();
+  const refresh = useCallback(() => router.refresh(), [router]);
+
+  const getFilteredForTab = useCallback((tab: string) =>
+    tab === "all" ? applications : applications.filter((a) => a.status === tab.toUpperCase()),
+  [applications]);
 
   const renderTabContent = (tabValue: string) => {
     const list = getFilteredForTab(tabValue);

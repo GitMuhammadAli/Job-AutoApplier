@@ -6,6 +6,37 @@ function startOfDay(date: Date): Date {
   return d;
 }
 
+export type EmailProvider = "gmail" | "outlook" | "custom" | "brevo";
+
+interface ProviderLimits {
+  maxPerDay: number;
+  maxPerHour: number;
+  label: string;
+}
+
+const PROVIDER_LIMITS: Record<EmailProvider, ProviderLimits> = {
+  gmail:   { maxPerDay: 500, maxPerHour: 60, label: "Gmail" },
+  outlook: { maxPerDay: 300, maxPerHour: 30, label: "Outlook" },
+  custom:  { maxPerDay: Infinity, maxPerHour: Infinity, label: "Custom SMTP" },
+  brevo:   { maxPerDay: 300, maxPerHour: 60, label: "Brevo" },
+};
+
+export function detectProvider(emailProvider?: string | null, smtpHost?: string | null): EmailProvider {
+  if (emailProvider === "gmail") return "gmail";
+  if (emailProvider === "outlook") return "outlook";
+  if (emailProvider === "brevo" || !emailProvider || emailProvider === "default") return "brevo";
+  if (emailProvider === "custom" && smtpHost) {
+    const host = smtpHost.toLowerCase();
+    if (host.includes("gmail") || host.includes("google")) return "gmail";
+    if (host.includes("outlook") || host.includes("office365") || host.includes("hotmail") || host.includes("live.com")) return "outlook";
+  }
+  return "custom";
+}
+
+function getProviderLimits(provider: EmailProvider): ProviderLimits {
+  return PROVIDER_LIMITS[provider];
+}
+
 interface LimitResult {
   allowed: boolean;
   reason?: string;
@@ -17,6 +48,7 @@ interface LimitResult {
     maxPerHour: number;
     warmupDay?: number;
     warmupTotal?: number;
+    provider?: string;
   };
 }
 
@@ -47,8 +79,10 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
 
   // Check 2b: Email warmup — progressive limits for new SMTP accounts
   const warmupLimits = getWarmupLimits(settings.smtpSetupDate);
-  const effectiveMaxPerDay = Math.min(settings.maxSendsPerDay, warmupLimits.maxPerDay);
-  const effectiveMaxPerHour = Math.min(settings.maxSendsPerHour, warmupLimits.maxPerHour);
+  const provider = detectProvider(settings.emailProvider, settings.smtpHost);
+  const providerLimits = getProviderLimits(provider);
+  const effectiveMaxPerDay = Math.min(settings.maxSendsPerDay, warmupLimits.maxPerDay, providerLimits.maxPerDay);
+  const effectiveMaxPerHour = Math.min(settings.maxSendsPerHour, warmupLimits.maxPerHour, providerLimits.maxPerHour);
 
   const todayStart = startOfDay(now);
 
@@ -140,6 +174,7 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
       hourCount,
       maxPerDay: effectiveMaxPerDay,
       maxPerHour: effectiveMaxPerHour,
+      provider: providerLimits.label,
       ...(warmupLimits.isWarmup ? { warmupDay: warmupLimits.day, warmupTotal: 7 } : {}),
     },
   };

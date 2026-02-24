@@ -22,6 +22,7 @@ model User {
   settings      UserSettings?
   activities    Activity[]
   applications  JobApplication[]
+  feedback      UserFeedback[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -377,4 +378,22 @@ model SystemLog {
 
   @@index([type, createdAt])
   @@index([source, createdAt])
+}
+
+// ── USER FEEDBACK ──
+
+model UserFeedback {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "bug" | "suggestion" | "compliment" | "other"
+  message   String   @db.Text
+  page      String?
+  status    String   @default("new") // "new" | "reviewed" | "resolved" | "dismissed"
+  adminNote String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }

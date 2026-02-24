@@ -9,6 +9,7 @@ import {
   ScrollText,
   ArrowLeft,
   Radio,
+  MessageSquare,
 } from "lucide-react";
 import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
 
@@ -16,6 +17,7 @@ const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/scrapers", label: "Scrapers", icon: Radio },
+  { href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/admin/logs", label: "Logs", icon: ScrollText },
 ];
 

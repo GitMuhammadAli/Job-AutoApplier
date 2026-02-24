@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import {
   BarChart,
   Bar,
@@ -87,7 +87,7 @@ const TICK_DARK = "#a1a1aa";
 const TOOLTIP_BORDER_LIGHT = "#e2e8f0";
 const TOOLTIP_BORDER_DARK = "#52525b";
 
-export function Charts({
+export const Charts = memo(function Charts({
   applicationsOverTime,
   stageFunnel,
   sourceBreakdown,
@@ -332,4 +332,4 @@ export function Charts({
       )}
     </div>
   );
-}
+});
