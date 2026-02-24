@@ -12,16 +12,12 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
   const key = process.env.SERPAPI_KEY;
   if (!key) return [];
 
-  // Run on odd days to share SerpAPI quota with Google Jobs (even days)
-  const dayOfMonth = new Date().getDate();
-  if (dayOfMonth % 2 === 0) return [];
-
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
   const PK_CITIES = ["lahore", "karachi", "islamabad", "rawalpindi", "faisalabad", "multan", "peshawar", "hyderabad", "quetta", "sialkot"];
 
-  for (const q of queries.slice(0, 4)) {
+  for (const q of queries.slice(0, 5)) {
     try {
       // Search Google Jobs for Pakistan-specific listings
       const query = encodeURIComponent(`${q.keyword} jobs Pakistan`);

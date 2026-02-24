@@ -347,6 +347,79 @@ export async function getAnalytics() {
   }
 }
 
+export async function getDeliveryStats() {
+  try {
+    const userId = await getAuthUserId();
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const prevWeekStart = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+    const [thisWeek, prevWeek, todayMatches, emailBreakdown] = await Promise.all([
+      prisma.jobApplication.findMany({
+        where: { userId, createdAt: { gte: weekAgo } },
+        select: { status: true, appliedVia: true },
+      }),
+      prisma.jobApplication.findMany({
+        where: { userId, createdAt: { gte: prevWeekStart, lt: weekAgo } },
+        select: { status: true },
+      }),
+      prisma.userJob.count({
+        where: { userId, isDismissed: false, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      }),
+      prisma.userJob.findMany({
+        where: { userId, isDismissed: false, matchScore: { gte: 40 } },
+        select: {
+          globalJob: {
+            select: { companyEmail: true, emailConfidence: true },
+          },
+        },
+        take: 500,
+      }),
+    ]);
+
+    const sent = thisWeek.filter((a) => a.status === "SENT").length;
+    const bounced = thisWeek.filter((a) => a.status === "BOUNCED").length;
+    const failed = thisWeek.filter((a) => a.status === "FAILED").length;
+    const draft = thisWeek.filter((a) => a.status === "DRAFT").length;
+    const delivered = sent;
+
+    const emailApps = thisWeek.filter((a) => a.appliedVia === "EMAIL").length;
+    const siteApps = thisWeek.filter((a) => a.appliedVia === "PLATFORM" || a.appliedVia === "MANUAL").length;
+
+    const prevSent = prevWeek.filter((a) => a.status === "SENT").length;
+    const prevBounced = prevWeek.filter((a) => a.status === "BOUNCED").length;
+    const prevDeliveryRate = prevSent + prevBounced > 0
+      ? Math.round((prevSent / (prevSent + prevBounced)) * 100) : 0;
+
+    const deliveryRate = sent + bounced > 0
+      ? Math.round((sent / (sent + bounced)) * 100) : 0;
+
+    const verifiedEmail = emailBreakdown.filter(
+      (j) => j.globalJob.companyEmail && (j.globalJob.emailConfidence ?? 0) >= 70
+    ).length;
+    const unverifiedEmail = emailBreakdown.filter(
+      (j) => j.globalJob.companyEmail && (j.globalJob.emailConfidence ?? 0) < 70
+    ).length;
+    const noEmail = emailBreakdown.filter(
+      (j) => !j.globalJob.companyEmail
+    ).length;
+
+    return {
+      thisWeek: { sent, bounced, failed, draft, delivered, emailApps, siteApps, total: thisWeek.length, deliveryRate },
+      prevWeek: { deliveryRate: prevDeliveryRate },
+      todayMatches,
+      emailAvailability: { verified: verifiedEmail, unverified: unverifiedEmail, none: noEmail, total: emailBreakdown.length },
+    };
+  } catch (error) {
+    console.error("[getDeliveryStats] Error:", error);
+    return {
+      thisWeek: { sent: 0, bounced: 0, failed: 0, draft: 0, delivered: 0, emailApps: 0, siteApps: 0, total: 0, deliveryRate: 0 },
+      prevWeek: { deliveryRate: 0 },
+      todayMatches: 0,
+      emailAvailability: { verified: 0, unverified: 0, none: 0, total: 0 },
+    };
+  }
+}
+
 function getWeekLabel(date: Date): string {
   const d = new Date(date);
   const start = new Date(d.getFullYear(), 0, 1);

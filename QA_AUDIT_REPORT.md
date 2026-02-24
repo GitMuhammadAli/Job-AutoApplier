@@ -128,3 +128,28 @@
 | — | AI emails using wrong name from resume | Three-layer fix in `ai-email-generator.ts`: (1) sanitize resume to strip name/contact, (2) CRITICAL prompt rule to use profile name, (3) post-processing `enforceProfileName()` replaces any incorrect name. | **FIXED** |
 | — | Settings page lacks guidance for AI configuration | Added `SuggestionTip` component with contextual inline tips for Full Name (capitalization), Experience Level (penalty warning), Custom System Prompt (example), Preferred Tone (startup suggestion), Custom Closing (example), Default Signature (example), and Categories (count warnings). AI tab has a quick-start guide banner. | **NEW FEATURE** |
 | — | Slow page loads due to inefficient data fetching | Analytics: parallelized 8+ sequential queries into `Promise.all`. Dashboard: eliminated duplicate `getSettings()` calls. Applications: removed redundant `getApplicationCounts()`. Constants: reduced `JOBS_PER_PAGE` and `APPLICATIONS_PER_PAGE` from 500 to 200. | **FIXED** |
+| — | Guessed emails bounce, causing "Address not found" errors | Removed email "best guess" strategy. Expanded careers/contact page scraping. MX-verified pattern guess now returns LOW confidence (30). Only emails with confidence >= 50 are persisted. Cleaned up existing low-confidence guessed emails in DB. | **FIXED** |
+| — | No auto-email generation when navigating to job detail | Added `autoApply` URL param support. "Apply" button from recommended page passes `?apply=true`. QuickApplyPanel auto-triggers email generation on mount with `useRef` guard to prevent duplicates. | **FIXED** |
+| — | Email generation failures show only transient toast | Added persistent inline `generateError` state in QuickApplyPanel. Shows specific error message (no resume, settings incomplete, AI busy). Button text changes to "Retry" on failure. | **FIXED** |
+| — | No email confidence visibility in UI | Job detail page shows email status: green (verified), amber (low confidence with warning), red (not found). Recommended page job cards show email badges. QuickApplyPanel shows email status banner. | **NEW FEATURE** |
+| — | Admin panel lacks scraper quality visibility | Admin dashboard now shows per-source quality metrics: email rate, skill rate, top skills, top categories, overall email coverage, delivery rate (delivered/bounced/failed). | **NEW FEATURE** |
+| — | No bulk job management for users or admin | Added `bulkDismissJobs`, `bulkDeleteOldJobs`, `bulkDismissByStage` server actions. User-facing `BulkActionsBar` component on dashboard. Admin cleanup API endpoints for clearing inactive, stale, and no-email jobs. | **NEW FEATURE** |
+| — | Bounce webhook doesn't clear email metadata | Bounce webhook now clears `emailConfidence` and `emailSource` along with `companyEmail` from GlobalJob on bounce. | **FIXED** |
+| — | Resume matcher includes deleted resumes | Added `isDeleted: false` filter to `prisma.resume.findMany` in resume-matcher. | **FIXED** |
+
+---
+
+## 11. Performance Fixes Applied
+
+| # | Bottleneck | Fix Applied | Impact | Status |
+|---|-----------|-------------|--------|--------|
+| P1 | Dashboard fetches settings THEN jobs sequentially | `Promise.all([getSettingsLite(), getJobs()])` | -400ms per load | **FIXED** |
+| P2 | `getSettings()` loads 50+ fields, never cached | React `cache()` for per-request dedup + `unstable_cache` with 5-minute TTL. Created `getSettingsLite()` with `select` for 12 essential fields. | -300ms per page | **FIXED** |
+| P3 | No DB connection pooling | Added `pgbouncer=true` and `connection_limit=5` to DATABASE_URL | -200ms cold start | **FIXED** |
+| P4 | Vercel functions may be in wrong region | Set `vercel.json` regions to `["iad1"]` to match Neon DB | -500ms cumulative | **FIXED** |
+| P5 | `@dnd-kit/sortable` in bundle but unused | Removed from package.json | -30KB bundle | **FIXED** |
+| P6 | Full globalJob record loaded on detail page | Added Prisma `select` to globalJob + activities queries | -200ms | **FIXED** |
+| P7 | SettingsForm (2,300 lines) loaded eagerly, all tabs render | Lazy-loaded via `next/dynamic` with `ssr: false`. Tabs converted to controlled mode — only active tab content renders. | -200KB+ initial JS | **FIXED** |
+| P8 | Charts, OnboardingWizard, TemplateEditor imported statically | All three use `next/dynamic` with loading skeletons | -150KB per page | **FIXED** |
+| P9 | New SMTP transporter created per email | Transporters cached in Map with 10-minute TTL, `pool: true`, `maxConnections: 3` | -3s per batch | **FIXED** |
+| P10 | No Prisma query logging for bottleneck identification | `PrismaClient({ log: [{ emit: "stdout", level: "query" }] })` in dev mode | Measurement tool | **FIXED** |

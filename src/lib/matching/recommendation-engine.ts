@@ -35,6 +35,7 @@ export interface RecommendedJob {
   sourceUrl: string | null;
   applyUrl: string | null;
   companyEmail: string | null;
+  emailConfidence: number | null;
   postedDate: string | null;
   firstSeenAt: string;
   createdAt: string;
@@ -203,6 +204,7 @@ export async function getRecommendedJobs(
       sourceUrl: true,
       applyUrl: true,
       companyEmail: true,
+      emailConfidence: true,
       postedDate: true,
       firstSeenAt: true,
       createdAt: true,
@@ -419,6 +421,7 @@ export async function getRecommendedJobs(
       sourceUrl: s.job.sourceUrl,
       applyUrl: s.job.applyUrl,
       companyEmail: s.job.companyEmail,
+      emailConfidence: s.job.emailConfidence ?? null,
       postedDate: s.job.postedDate?.toISOString() ?? null,
       firstSeenAt: s.job.firstSeenAt.toISOString(),
       createdAt: s.job.createdAt.toISOString(),

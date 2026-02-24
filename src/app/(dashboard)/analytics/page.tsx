@@ -1,10 +1,22 @@
 import { getAnalytics } from "@/app/actions/analytics";
 import { StatsBar } from "@/components/analytics/StatsBar";
-import { Charts } from "@/components/analytics/Charts";
 import { SpeedMetrics } from "@/components/analytics/SpeedMetrics";
 import { WeeklyComparison } from "@/components/analytics/WeeklyComparison";
 import { KeywordEffectiveness } from "@/components/analytics/KeywordEffectiveness";
-import { BarChart3, TrendingUp } from "lucide-react";
+import { BarChart3, TrendingUp, Loader2 } from "lucide-react";
+import nextDynamic from "next/dynamic";
+
+const Charts = nextDynamic(
+  () => import("@/components/analytics/Charts").then((m) => m.Charts),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+      </div>
+    ),
+  },
+);
 
 export const dynamic = "force-dynamic";
 

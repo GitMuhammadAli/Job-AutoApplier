@@ -24,6 +24,8 @@ import {
   markApplicationReady,
   markApplicationManual,
   bulkMarkReady,
+  bulkCancelDrafts,
+  bulkDeleteByStatus,
   deleteApplication,
 } from "@/app/actions/application";
 import type { ApplicationStatus } from "@prisma/client";
@@ -592,6 +594,61 @@ export function ApplicationQueue({
             </TabsTrigger>
           )}
         </TabsList>
+
+        {/* Quick cleanup actions (no selection needed) */}
+        {(counts.failed > 0 || counts.bounced > 0 || counts.draft > 2) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Quick:</span>
+            {counts.failed > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-[10px] gap-1 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                onClick={async () => {
+                  const result = await bulkDeleteByStatus("FAILED");
+                  if (result.success) {
+                    toast.success(`Deleted ${result.count} failed application(s)`);
+                    router.refresh();
+                  } else toast.error(result.error || "Failed");
+                }}
+              >
+                <Trash2 className="h-3 w-3" /> Delete {counts.failed} failed
+              </Button>
+            )}
+            {counts.bounced > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-[10px] gap-1 text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                onClick={async () => {
+                  const result = await bulkDeleteByStatus("BOUNCED");
+                  if (result.success) {
+                    toast.success(`Deleted ${result.count} bounced application(s)`);
+                    router.refresh();
+                  } else toast.error(result.error || "Failed");
+                }}
+              >
+                <Trash2 className="h-3 w-3" /> Delete {counts.bounced} bounced
+              </Button>
+            )}
+            {counts.draft > 2 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-[10px] gap-1 text-slate-500 dark:text-zinc-400 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-zinc-800"
+                onClick={async () => {
+                  const result = await bulkCancelDrafts();
+                  if (result.success) {
+                    toast.success(`Cancelled ${result.count} draft(s)`);
+                    router.refresh();
+                  } else toast.error(result.error || "Failed");
+                }}
+              >
+                <RotateCcw className="h-3 w-3" /> Cancel all {counts.draft} drafts
+              </Button>
+            )}
+          </div>
+        )}
 
         {selectedCount > 0 && (
           <div className="mt-4 space-y-2">

@@ -6,13 +6,26 @@ export async function fetchArbeitnow(): Promise<ScrapedJob[]> {
   const seen = new Set<string>();
 
   try {
-    const res = await fetchWithRetry("https://www.arbeitnow.com/api/job-board-api", {
-      headers: { "User-Agent": "JobPilot/1.0" },
-    });
-    if (!res.ok) return [];
+    // Fetch multiple pages to get more listings
+    const allResults: Array<{
+      slug?: string; title?: string; company_name?: string;
+      location?: string; description?: string; remote?: boolean;
+      tags?: string[]; created_at?: number; url?: string;
+    }> = [];
+    for (const page of [1, 2, 3]) {
+      const res = await fetchWithRetry(
+        `https://www.arbeitnow.com/api/job-board-api?page=${page}`,
+        { headers: { "User-Agent": "JobPilot/1.0" } },
+      );
+      if (!res.ok) break;
 
-    const data = await res.json();
-    const results = data?.data || [];
+      const data = await res.json();
+      const pageResults = data?.data || [];
+      if (pageResults.length === 0) break;
+      allResults.push(...pageResults);
+    }
+
+    const results = allResults;
 
     for (const r of results) {
       const sourceId = `arbeitnow-${r.slug || `${(r.title || "").toLowerCase().replace(/[^a-z0-9]/g, "")}-${Date.now()}`}`;

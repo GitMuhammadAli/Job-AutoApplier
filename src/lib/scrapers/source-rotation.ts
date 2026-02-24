@@ -17,8 +17,7 @@ export function getTodaysSources(): string[] {
     sources.push("adzuna");
   }
 
-  const dayOfMonth = new Date().getDate();
-  if (process.env.SERPAPI_KEY && dayOfMonth % 2 === 0) {
+  if (process.env.SERPAPI_KEY) {
     sources.push("google");
   }
 
@@ -34,8 +33,7 @@ export function getPaidSourcesToday(): string[] {
   if (process.env.RAPIDAPI_KEY) sources.push("jsearch");
   if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) sources.push("adzuna");
 
-  const dayOfMonth = new Date().getDate();
-  if (process.env.SERPAPI_KEY && dayOfMonth % 2 === 0) sources.push("google");
+  if (process.env.SERPAPI_KEY) sources.push("google");
 
   return sources;
 }

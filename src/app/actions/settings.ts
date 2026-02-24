@@ -3,7 +3,9 @@
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { encryptSettingsFields, decryptSettingsFields } from "@/lib/encryption";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import { z } from "zod";
 import { LIMITS, BANNED_KEYWORDS } from "@/lib/constants";
 
@@ -84,9 +86,7 @@ const settingsSchema = z.object({
   blacklistedCompanies: z.array(z.string().max(100)).max(200).default([]),
 });
 
-export async function getSettings() {
-  const userId = await getAuthUserId();
-
+async function _fetchSettings(userId: string) {
   let settings = await prisma.userSettings.findUnique({
     where: { userId },
   });
@@ -98,6 +98,40 @@ export async function getSettings() {
   }
 
   return decryptSettingsFields(settings);
+}
+
+function getCachedSettingsFn(userId: string) {
+  return unstable_cache(
+    () => _fetchSettings(userId),
+    [`user-settings-${userId}`],
+    { revalidate: 300, tags: [`settings-${userId}`] },
+  )();
+}
+
+export const getSettings = cache(async () => {
+  const userId = await getAuthUserId();
+  return getCachedSettingsFn(userId);
+});
+
+export async function getSettingsLite() {
+  const userId = await getAuthUserId();
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: {
+      isOnboarded: true,
+      keywords: true,
+      negativeKeywords: true,
+      city: true,
+      country: true,
+      preferredPlatforms: true,
+      blacklistedCompanies: true,
+      preferredCategories: true,
+      experienceLevel: true,
+      workType: true,
+      fullName: true,
+    },
+  });
+  return settings;
 }
 
 export async function saveSettings(rawData: unknown): Promise<{ success: boolean; error?: string }> {
@@ -159,9 +193,10 @@ export async function saveSettings(rawData: unknown): Promise<{ success: boolean
       create: { userId, ...cleaned },
     });
 
+    revalidateTag(`settings-${userId}`);
     revalidatePath("/settings");
     revalidatePath("/dashboard");
-    revalidatePath("/dashboard/recommended");
+    revalidatePath("/recommended");
     return { success: true };
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -182,6 +217,7 @@ export async function completeOnboarding(): Promise<{ success: boolean; error?: 
       data: { isOnboarded: true },
     });
 
+    revalidateTag(`settings-${userId}`);
     revalidatePath("/");
     revalidatePath("/dashboard");
     return { success: true };

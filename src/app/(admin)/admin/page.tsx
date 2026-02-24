@@ -45,6 +45,7 @@ interface AdminStats {
   jobs: { active: number; inactive: number; fresh: number; sourceDistribution: Record<string, number> };
   applicationsToday: { sent: number; failed: number; bounced: number };
   applicationPipeline: { draft: number; ready: number; sending: number; sentTotal: number; sentThisWeek: number };
+  quality: { overallEmailRate: number; deliveryRate: number; totalBounced: number; totalSent: number; totalFailed: number };
   scrapers: {
     source: string;
     lastRun: string | null;
@@ -52,6 +53,12 @@ interface AdminStats {
     jobCount: number;
     updatedCount: number;
     totalJobs: number;
+    withEmail: number;
+    withSkills: number;
+    emailRate: number;
+    skillRate: number;
+    topSkills: { name: string; count: number }[];
+    topCategories: { name: string; count: number }[];
     isHealthy: boolean;
     lastError: string | null;
     lastErrorAt: string | null;
@@ -174,6 +181,97 @@ export default function AdminDashboard() {
         <StatCard icon={<AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />} label="Failed" value={stats.applicationsToday.failed} />
         <StatCard icon={<Ban className="h-4 w-4 text-orange-600 dark:text-orange-400" />} label="Bounced" value={stats.applicationsToday.bounced} />
         <StatCard icon={<TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />} label="Total Sent" value={stats.applicationPipeline.sentTotal} />
+      </div>
+
+      {/* Scraper Quality Metrics */}
+      <div className="rounded-xl bg-white dark:bg-zinc-800 p-5 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
+        <h2 className="text-sm font-bold text-slate-800 dark:text-zinc-100 mb-4 flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-slate-500 dark:text-zinc-400" />
+          Scraper Quality &amp; Email Coverage
+          <span className="ml-auto text-[10px] font-normal text-slate-400 dark:text-zinc-500">
+            {stats.quality.overallEmailRate}% jobs have email &middot; {stats.quality.deliveryRate}% delivery rate
+          </span>
+        </h2>
+
+        {/* Quality summary bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-3 text-center">
+            <div className="text-lg font-bold text-blue-700 dark:text-blue-300">{stats.quality.overallEmailRate}%</div>
+            <div className="text-[10px] text-blue-600 dark:text-blue-400">Email Coverage</div>
+          </div>
+          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-3 text-center">
+            <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{stats.quality.deliveryRate}%</div>
+            <div className="text-[10px] text-emerald-600 dark:text-emerald-400">Delivery Rate</div>
+          </div>
+          <div className="rounded-lg bg-violet-50 dark:bg-violet-900/20 p-3 text-center">
+            <div className="text-lg font-bold text-violet-700 dark:text-violet-300">{stats.quality.totalSent}</div>
+            <div className="text-[10px] text-violet-600 dark:text-violet-400">Delivered</div>
+          </div>
+          <div className="rounded-lg bg-orange-50 dark:bg-orange-900/20 p-3 text-center">
+            <div className="text-lg font-bold text-orange-700 dark:text-orange-300">{stats.quality.totalBounced}</div>
+            <div className="text-[10px] text-orange-600 dark:text-orange-400">Bounced</div>
+          </div>
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 text-center">
+            <div className="text-lg font-bold text-red-700 dark:text-red-300">{stats.quality.totalFailed}</div>
+            <div className="text-[10px] text-red-600 dark:text-red-400">Failed</div>
+          </div>
+        </div>
+
+        {/* Per-source quality table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-zinc-700">
+                <th className="text-left py-2 px-2 font-semibold text-slate-500 dark:text-zinc-400">Source</th>
+                <th className="text-right py-2 px-2 font-semibold text-slate-500 dark:text-zinc-400">Total</th>
+                <th className="text-right py-2 px-2 font-semibold text-slate-500 dark:text-zinc-400">Has Email</th>
+                <th className="text-right py-2 px-2 font-semibold text-slate-500 dark:text-zinc-400">Email %</th>
+                <th className="text-right py-2 px-2 font-semibold text-slate-500 dark:text-zinc-400">Has Skills</th>
+                <th className="text-left py-2 px-2 font-semibold text-slate-500 dark:text-zinc-400">Top Skills</th>
+                <th className="text-left py-2 px-2 font-semibold text-slate-500 dark:text-zinc-400">Categories</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50 dark:divide-zinc-800">
+              {stats.scrapers
+                .sort((a, b) => b.totalJobs - a.totalJobs)
+                .map((s) => (
+                  <tr key={s.source} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30">
+                    <td className="py-2 px-2 font-bold text-slate-700 dark:text-zinc-200 capitalize">{s.source}</td>
+                    <td className="py-2 px-2 text-right tabular-nums text-slate-600 dark:text-zinc-300">{s.totalJobs.toLocaleString()}</td>
+                    <td className="py-2 px-2 text-right tabular-nums text-slate-600 dark:text-zinc-300">{s.withEmail.toLocaleString()}</td>
+                    <td className="py-2 px-2 text-right">
+                      <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        s.emailRate >= 20 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          : s.emailRate >= 5 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                          : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                      }`}>
+                        {s.emailRate}%
+                      </span>
+                    </td>
+                    <td className="py-2 px-2 text-right tabular-nums text-slate-600 dark:text-zinc-300">{s.skillRate}%</td>
+                    <td className="py-2 px-2">
+                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        {s.topSkills.slice(0, 4).map((skill) => (
+                          <span key={skill.name} className="rounded bg-slate-100 dark:bg-zinc-700 px-1 py-0.5 text-[9px] text-slate-600 dark:text-zinc-300">
+                            {skill.name}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="py-2 px-2">
+                      <div className="flex flex-wrap gap-1 max-w-[150px]">
+                        {s.topCategories.slice(0, 3).map((cat) => (
+                          <span key={cat.name} className="rounded bg-blue-50 dark:bg-blue-900/30 px-1 py-0.5 text-[9px] text-blue-600 dark:text-blue-400">
+                            {cat.name}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Recently Active Users */}
@@ -362,6 +460,52 @@ export default function AdminDashboard() {
               </Button>
               <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" disabled={!!triggeringSource} onClick={() => handleTrigger("match-all-users")}>
                 <Globe className="h-3 w-3" /> Match All
+              </Button>
+            </div>
+          </div>
+
+          {/* Database Cleanup */}
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-700">
+            <h3 className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Database Cleanup</h3>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20" disabled={!!triggeringSource}
+                onClick={async () => {
+                  setTriggeringSource("clear-inactive");
+                  try {
+                    const res = await fetch("/api/admin/jobs", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear-inactive" }) });
+                    const data = await res.json();
+                    toast.success(data.message || `Cleaned ${data.count} jobs`);
+                    setTimeout(fetchStats, 2000);
+                  } catch { toast.error("Failed"); }
+                  setTriggeringSource(null);
+                }}>
+                <Trash2 className="h-3 w-3" /> Clear Inactive Jobs
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20" disabled={!!triggeringSource}
+                onClick={async () => {
+                  setTriggeringSource("clear-old");
+                  try {
+                    const res = await fetch("/api/admin/jobs", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear-old", olderThanDays: 14 }) });
+                    const data = await res.json();
+                    toast.success(data.message || `Cleaned ${data.count} jobs`);
+                    setTimeout(fetchStats, 2000);
+                  } catch { toast.error("Failed"); }
+                  setTriggeringSource(null);
+                }}>
+                <Clock className="h-3 w-3" /> Deactivate Stale ({">"}14d)
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1 text-slate-600 dark:text-slate-400" disabled={!!triggeringSource}
+                onClick={async () => {
+                  setTriggeringSource("clear-no-email");
+                  try {
+                    const res = await fetch("/api/admin/jobs", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear-no-email" }) });
+                    const data = await res.json();
+                    toast.success(data.message || `Cleaned ${data.count} jobs`);
+                    setTimeout(fetchStats, 2000);
+                  } catch { toast.error("Failed"); }
+                  setTriggeringSource(null);
+                }}>
+                <Ban className="h-3 w-3" /> Deactivate No-Email ({">"}7d)
               </Button>
             </div>
           </div>

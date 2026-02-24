@@ -6,7 +6,7 @@ export async function fetchRemotive(queries: SearchQuery[]): Promise<ScrapedJob[
   const seen = new Set<string>();
 
   try {
-    const res = await fetchWithRetry("https://remotive.com/api/remote-jobs?limit=50", {
+    const res = await fetchWithRetry("https://remotive.com/api/remote-jobs?limit=200", {
       headers: { "User-Agent": "JobPilot/1.0" },
     });
     if (!res.ok) return [];

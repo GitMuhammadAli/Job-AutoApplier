@@ -311,6 +311,56 @@ export async function deleteApplication(applicationId: string): Promise<{ succes
   }
 }
 
+export async function bulkDeleteByStatus(
+  status: "FAILED" | "BOUNCED" | "CANCELLED",
+): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    const result = await prisma.jobApplication.deleteMany({
+      where: { userId, status },
+    });
+    revalidatePath("/applications");
+    revalidatePath("/dashboard");
+    return { success: true, count: result.count };
+  } catch (error) {
+    console.error("[bulkDeleteByStatus] Error:", error);
+    return { success: false, count: 0, error: `Failed to delete ${status.toLowerCase()} applications` };
+  }
+}
+
+export async function bulkCancelDrafts(): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    const result = await prisma.jobApplication.updateMany({
+      where: { userId, status: "DRAFT" },
+      data: { status: "CANCELLED" },
+    });
+    revalidatePath("/applications");
+    return { success: true, count: result.count };
+  } catch (error) {
+    console.error("[bulkCancelDrafts] Error:", error);
+    return { success: false, count: 0, error: "Failed to cancel drafts" };
+  }
+}
+
+export async function startFresh(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    await prisma.$transaction([
+      prisma.activity.deleteMany({ where: { userId } }),
+      prisma.jobApplication.deleteMany({ where: { userId } }),
+      prisma.userJob.deleteMany({ where: { userId } }),
+    ]);
+    revalidatePath("/dashboard");
+    revalidatePath("/applications");
+    revalidatePath("/recommended");
+    return { success: true };
+  } catch (error) {
+    console.error("[startFresh] Error:", error);
+    return { success: false, error: "Failed to start fresh" };
+  }
+}
+
 export async function getApplicationById(applicationId: string) {
   try {
     const userId = await getAuthUserId();

@@ -74,6 +74,8 @@ interface QuickApplyPanelProps {
       title: string;
       company: string;
       companyEmail: string | null;
+      emailConfidence: number | null;
+      emailSource: string | null;
       location: string | null;
     };
   };
@@ -98,6 +100,7 @@ export function QuickApplyPanel({
   const [showPlatforms, setShowPlatforms] = useState(false);
   const [applicationMode, setApplicationMode] = useState<string | null>(null);
   const [selectedResumeId, setSelectedResumeId] = useState<string>("");
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [matchInfo, setMatchInfo] = useState<{
     name: string;
     tier: string;
@@ -148,6 +151,7 @@ export function QuickApplyPanel({
   }, []);
 
   function handleGenerate() {
+    setGenerateError(null);
     startGenerate(async () => {
       try {
         const resumeId = selectedResumeId || undefined;
@@ -158,16 +162,20 @@ export function QuickApplyPanel({
         setCoverLetter(result.application.coverLetter || "");
         setRecipientEmail(result.application.recipientEmail);
         setMatchInfo(result.matchedResume);
+        setGenerateError(null);
         toast.success(`Draft ready! Resume: ${result.matchedResume.name}`);
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Generation failed";
+        let displayMsg: string;
         if (msg.includes("rate") || msg.includes("429") || msg.includes("Too Many")) {
-          toast.error("AI is busy. Please wait a moment and try again.");
+          displayMsg = "AI is busy. Please wait a moment and try again.";
         } else if (msg.includes("GROQ_API_KEY")) {
-          toast.error("AI not configured. Contact the admin.");
+          displayMsg = "AI not configured. Contact the admin.";
         } else {
-          toast.error(msg);
+          displayMsg = msg;
         }
+        setGenerateError(displayMsg);
+        toast.error(displayMsg);
       }
     });
   }
@@ -340,6 +348,50 @@ export function QuickApplyPanel({
       <p className="text-xs text-slate-500 dark:text-zinc-400">
         {userJob.globalJob.title} at {userJob.globalJob.company}
       </p>
+
+      {/* Email Status Banner */}
+      {!application && (
+        userJob.globalJob.companyEmail ? (
+          userJob.globalJob.emailConfidence != null && userJob.globalJob.emailConfidence < 70 ? (
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 p-2.5 ring-1 ring-amber-200 dark:ring-amber-800/40">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                    Email may be inaccurate
+                  </p>
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                    {userJob.globalJob.companyEmail} was {userJob.globalJob.emailSource?.includes("guess") ? "guessed from domain name" : "found with low confidence"}. Verify before sending.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-2.5 ring-1 ring-emerald-200 dark:ring-emerald-800/40">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                  Email found: {userJob.globalJob.companyEmail}
+                </p>
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-2.5 ring-1 ring-red-200 dark:ring-red-800/40">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-red-700 dark:text-red-300">
+                  No email found
+                </p>
+                <p className="text-[10px] text-red-600 dark:text-red-400 mt-0.5">
+                  No company email was found in the job listing. You can enter one manually after generating the draft, or use &quot;Copy All&quot; to apply via the job platform.
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      )}
 
       {/* Resume Selector */}
       {availableResumes.length > 1 && (
@@ -619,13 +671,24 @@ export function QuickApplyPanel({
             <p className="text-sm text-slate-500 dark:text-zinc-400">
               No draft yet. Click below to generate.
             </p>
+            {generateError && (
+              <div className="rounded-lg bg-red-50 dark:bg-red-900/30 p-3 ring-1 ring-red-200 dark:ring-red-800/40 text-left">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-red-700 dark:text-red-300">Generation failed</p>
+                    <p className="text-[11px] text-red-600 dark:text-red-400 mt-0.5 break-words">{generateError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             <Button size="sm" onClick={handleGenerate} disabled={isGenerating}>
               {isGenerating ? (
                 <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
               ) : (
                 <Sparkles className="h-3.5 w-3.5 mr-1.5" />
               )}
-              Generate Email
+              {generateError ? "Retry" : "Generate Email"}
             </Button>
           </div>
         </div>

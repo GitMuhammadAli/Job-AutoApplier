@@ -13,11 +13,11 @@ export async function fetchJSearch(
   const limited = queries.slice(0, maxQueries);
 
   for (const q of limited) {
-    for (const city of q.cities.slice(0, 2)) {
+    for (const city of q.cities.slice(0, 3)) {
       try {
         const query = `${q.keyword} jobs in ${city}`;
         const res = await fetchWithRetry(
-          `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=1&date_posted=week`,
+          `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=2&date_posted=week`,
           {
             headers: {
               "x-rapidapi-host": "jsearch.p.rapidapi.com",

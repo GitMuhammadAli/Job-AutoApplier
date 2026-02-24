@@ -1,6 +1,18 @@
 import { getEmailTemplates, seedStarterTemplates } from "@/app/actions/email-template";
-import { TemplateEditor } from "@/components/templates/TemplateEditor";
-import { Mail } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
+import nextDynamic from "next/dynamic";
+
+const TemplateEditor = nextDynamic(
+  () => import("@/components/templates/TemplateEditor").then((m) => m.TemplateEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+      </div>
+    ),
+  },
+);
 
 export const dynamic = "force-dynamic";
 

@@ -289,6 +289,8 @@ export function SettingsForm({
     s.notificationFrequency || "hourly",
   );
 
+  const [activeTab, setActiveTab] = useState("profile");
+
   const addKeyword = useCallback(() => {
     const val = keywordInput.trim();
     if (val && !keywords.includes(val)) {
@@ -463,7 +465,7 @@ export function SettingsForm({
         </div>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto gap-1 bg-slate-100 dark:bg-zinc-800 p-1 mb-6">
           <TabsTrigger value="profile" className="gap-1.5 text-xs py-2">
             <User className="h-3.5 w-3.5" />
@@ -492,7 +494,8 @@ export function SettingsForm({
         </TabsList>
 
         {/* ══════ TAB 1: Profile ══════ */}
-        <TabsContent value="profile" className="space-y-8">
+        {activeTab === "profile" && (
+        <TabsContent value="profile" className="space-y-8" forceMount>
 
       {/* Profile completeness tip */}
       {(!fullName || !linkedinUrl || !githubUrl) && (
@@ -589,9 +592,11 @@ export function SettingsForm({
       </Section>
 
         </TabsContent>
+        )}
 
         {/* ══════ TAB 2: Job Preferences ══════ */}
-        <TabsContent value="preferences" className="space-y-8">
+        {activeTab === "preferences" && (
+        <TabsContent value="preferences" className="space-y-8" forceMount>
 
       {/* ── Job Preferences ── */}
       <Section
@@ -1073,9 +1078,11 @@ export function SettingsForm({
       </Section>
 
         </TabsContent>
+        )}
 
         {/* ══════ TAB 3: Email & Templates ══════ */}
-        <TabsContent value="email" className="space-y-8">
+        {activeTab === "email" && (
+        <TabsContent value="email" className="space-y-8" forceMount>
 
       {/* ── Email Provider Education Cards ── */}
       <Section
@@ -1285,9 +1292,11 @@ export function SettingsForm({
       </Section>
 
         </TabsContent>
+        )}
 
         {/* ══════ TAB 4: Automation ══════ */}
-        <TabsContent value="automation" className="space-y-8">
+        {activeTab === "automation" && (
+        <TabsContent value="automation" className="space-y-8" forceMount>
 
       {/* ── Application Mode ── */}
       <Section
@@ -1681,9 +1690,11 @@ export function SettingsForm({
       )}
 
         </TabsContent>
+        )}
 
         {/* ══════ TAB 5: AI Settings ══════ */}
-        <TabsContent value="ai" className="space-y-8">
+        {activeTab === "ai" && (
+        <TabsContent value="ai" className="space-y-8" forceMount>
 
       {/* Quick-Start Tips */}
       <div className="rounded-xl bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-950/30 dark:to-blue-950/30 p-4 ring-1 ring-violet-200/50 dark:ring-violet-800/30">
@@ -1841,9 +1852,11 @@ export function SettingsForm({
       </Section>
 
         </TabsContent>
+        )}
 
         {/* ══════ TAB 6: Account ══════ */}
-        <TabsContent value="account" className="space-y-8">
+        {activeTab === "account" && (
+        <TabsContent value="account" className="space-y-8" forceMount>
 
       {/* ── Notifications ── */}
       <Section
@@ -1994,6 +2007,7 @@ export function SettingsForm({
       </Section>
 
         </TabsContent>
+        )}
       </Tabs>
 
       {/* ── Save Button (always visible) ── */}

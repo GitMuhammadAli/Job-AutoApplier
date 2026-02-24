@@ -11,6 +11,17 @@ export interface EmailSettings {
   smtpPass?: string | null;
 }
 
+const TRANSPORTER_TTL_MS = 10 * 60 * 1000;
+
+const transporterCache = new Map<
+  string,
+  { transporter: Transporter; createdAt: number }
+>();
+
+function getCacheKey(settings: EmailSettings): string {
+  return `${settings.emailProvider || "brevo"}:${settings.smtpUser || ""}:${settings.smtpHost || ""}:${settings.smtpPort || ""}`;
+}
+
 function getBrevoTransporter(): Transporter {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
@@ -20,10 +31,23 @@ function getBrevoTransporter(): Transporter {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    pool: true,
+    maxConnections: 3,
   });
 }
 
 export function getTransporterForUser(settings: EmailSettings): Transporter {
+  const key = getCacheKey(settings);
+  const cached = transporterCache.get(key);
+  if (cached && Date.now() - cached.createdAt < TRANSPORTER_TTL_MS) {
+    return cached.transporter;
+  }
+
+  if (cached) {
+    cached.transporter.close?.();
+    transporterCache.delete(key);
+  }
+
   const provider = settings.emailProvider || "brevo";
   const smtpPassword = settings.smtpPass
     ? isEncrypted(settings.smtpPass)
@@ -35,11 +59,15 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
     connectionTimeout: 10000,
     greetingTimeout: 5000,
     socketTimeout: 30000,
+    pool: true as const,
+    maxConnections: 3,
   };
+
+  let transporter: Transporter;
 
   switch (provider) {
     case "gmail":
-      return nodemailer.createTransport({
+      transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
           user: settings.smtpUser ?? undefined,
@@ -47,8 +75,9 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
         },
         ...baseOpts,
       });
+      break;
     case "outlook":
-      return nodemailer.createTransport({
+      transporter = nodemailer.createTransport({
         host: "smtp-mail.outlook.com",
         port: 587,
         secure: false,
@@ -58,9 +87,10 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
         },
         ...baseOpts,
       });
+      break;
     case "custom": {
       const port = settings.smtpPort ?? 587;
-      return nodemailer.createTransport({
+      transporter = nodemailer.createTransport({
         host: settings.smtpHost ?? undefined,
         port,
         secure: port === 465,
@@ -70,10 +100,14 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
         },
         ...baseOpts,
       });
+      break;
     }
     default:
-      return getBrevoTransporter();
+      transporter = getBrevoTransporter();
   }
+
+  transporterCache.set(key, { transporter, createdAt: Date.now() });
+  return transporter;
 }
 
 let systemTransporter: Transporter | null = null;

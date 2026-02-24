@@ -38,7 +38,7 @@ export const dynamic = "force-dynamic";
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;
 
 const SCRAPERS: Record<string, ScraperFn> = {
-  jsearch: (q) => fetchJSearch(q, 6),
+  jsearch: (q) => fetchJSearch(q, 8),
   indeed: (q) => fetchIndeed(q),
   remotive: (q) => fetchRemotive(q),
   arbeitnow: () => fetchArbeitnow(),
@@ -113,130 +113,132 @@ export async function GET(req: NextRequest) {
     }[] = [];
 
     const startTime = Date.now();
-    let timedOut = false;
 
-    for (const source of sources) {
-      if (Date.now() - startTime > 50000) {
-        timedOut = true;
-        break;
-      }
-      const scraperFn = SCRAPERS[source];
-      if (!scraperFn) continue;
+    // Run all scrapers in parallel — each has its own timeout handling
+    const scraperTasks = sources
+      .filter((source) => SCRAPERS[source])
+      .map(async (source) => {
+        const scraperFn = SCRAPERS[source];
+        try {
+          const jobs = await scraperFn(queries);
+          let newCount = 0;
+          let updatedCount = 0;
 
-      try {
-        const jobs = await scraperFn(queries);
-        let newCount = 0;
-        let updatedCount = 0;
+          for (const job of jobs) {
+            try {
+              job.description = sanitizeScrapedText(job.description);
+              job.title = sanitizeScrapedText(job.title) || job.title;
+              job.company = sanitizeScrapedText(job.company) || job.company;
 
-        for (const job of jobs) {
-          try {
-            job.description = sanitizeScrapedText(job.description);
-            job.title = sanitizeScrapedText(job.title) || job.title;
-            job.company = sanitizeScrapedText(job.company) || job.company;
+              if (!job.category) {
+                job.category = categorizeJob(
+                  job.title,
+                  job.skills || [],
+                  job.description || "",
+                );
+              }
 
-            if (!job.category) {
-              job.category = categorizeJob(
-                job.title,
-                job.skills || [],
-                job.description || "",
-              );
-            }
-
-            const existing = await prisma.globalJob.findUnique({
-              where: {
-                sourceId_source: { sourceId: job.sourceId, source: job.source },
-              },
-              select: { id: true },
-            });
-
-            if (existing) {
-              await prisma.globalJob.update({
-                where: { id: existing.id },
-                data: {
-                  lastSeenAt: new Date(),
-                  isActive: true,
-                  ...(job.description ? { description: job.description } : {}),
-                  ...(job.salary ? { salary: job.salary } : {}),
-                  ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
-                  ...(job.companyEmail
-                    ? { companyEmail: job.companyEmail }
-                    : {}),
+              const existing = await prisma.globalJob.findUnique({
+                where: {
+                  sourceId_source: { sourceId: job.sourceId, source: job.source },
                 },
+                select: { id: true },
               });
-              updatedCount++;
-            } else {
-              await prisma.globalJob.create({
-                data: {
-                  title: job.title,
-                  company: job.company,
-                  location: job.location,
-                  description: job.description,
-                  salary: job.salary,
-                  jobType: job.jobType,
-                  experienceLevel: job.experienceLevel,
-                  category: job.category,
-                  skills: job.skills,
-                  postedDate: job.postedDate,
-                  source: job.source,
-                  sourceId: job.sourceId,
-                  sourceUrl: job.sourceUrl,
-                  applyUrl: job.applyUrl,
-                  companyUrl: job.companyUrl,
-                  companyEmail: job.companyEmail,
-                  isActive: true,
-                  isFresh: true,
-                  firstSeenAt: new Date(),
-                  lastSeenAt: new Date(),
-                },
-              });
-              newCount++;
+
+              if (existing) {
+                await prisma.globalJob.update({
+                  where: { id: existing.id },
+                  data: {
+                    lastSeenAt: new Date(),
+                    isActive: true,
+                    ...(job.description ? { description: job.description } : {}),
+                    ...(job.salary ? { salary: job.salary } : {}),
+                    ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
+                    ...(job.companyEmail
+                      ? { companyEmail: job.companyEmail }
+                      : {}),
+                  },
+                });
+                updatedCount++;
+              } else {
+                await prisma.globalJob.create({
+                  data: {
+                    title: job.title,
+                    company: job.company,
+                    location: job.location,
+                    description: job.description,
+                    salary: job.salary,
+                    jobType: job.jobType,
+                    experienceLevel: job.experienceLevel,
+                    category: job.category,
+                    skills: job.skills,
+                    postedDate: job.postedDate,
+                    source: job.source,
+                    sourceId: job.sourceId,
+                    sourceUrl: job.sourceUrl,
+                    applyUrl: job.applyUrl,
+                    companyUrl: job.companyUrl,
+                    companyEmail: job.companyEmail,
+                    isActive: true,
+                    isFresh: true,
+                    firstSeenAt: new Date(),
+                    lastSeenAt: new Date(),
+                  },
+                });
+                newCount++;
+              }
+            } catch {
+              // skip individual upsert failures
             }
-          } catch {
-            // skip individual upsert failures
           }
-        }
 
-        results.push({
-          source,
-          found: jobs.length,
-          new: newCount,
-          updated: updatedCount,
-          status: "success",
-        });
-
-        await prisma.systemLog.create({
-          data: {
-            type: "scrape",
-            source,
-            message: `${source}: ${jobs.length} found, ${newCount} new, ${updatedCount} updated`,
-            metadata: {
-              found: jobs.length,
-              new: newCount,
-              updated: updatedCount,
+          await prisma.systemLog.create({
+            data: {
+              type: "scrape",
+              source,
+              message: `${source}: ${jobs.length} found, ${newCount} new, ${updatedCount} updated`,
+              metadata: { found: jobs.length, new: newCount, updated: updatedCount },
             },
-          },
-        });
-      } catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error);
-        results.push({
-          source,
-          found: 0,
-          new: 0,
-          updated: 0,
-          status: "failed",
-          error: errMsg,
-        });
-        console.error(`[Scrape] ${source} failed:`, error);
+          });
 
-        await prisma.systemLog.create({
-          data: {
-            type: "error",
+          return {
             source,
-            message: `Scraper ${source} failed: ${errMsg}`,
-          },
-        });
+            found: jobs.length,
+            new: newCount,
+            updated: updatedCount,
+            status: "success" as const,
+          };
+        } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error);
+          console.error(`[Scrape] ${source} failed:`, error);
+
+          await prisma.systemLog.create({
+            data: {
+              type: "error",
+              source,
+              message: `Scraper ${source} failed: ${errMsg}`,
+            },
+          }).catch(() => {});
+
+          return {
+            source,
+            found: 0,
+            new: 0,
+            updated: 0,
+            status: "failed" as const,
+            error: errMsg,
+          };
+        }
+      });
+
+    const settled = await Promise.allSettled(scraperTasks);
+    for (const s of settled) {
+      if (s.status === "fulfilled") {
+        results.push(s.value);
       }
     }
+
+    const timedOut = false;
 
     const failedCount = results.filter((r) => r.status === "failed").length;
     if (failedCount > sources.length / 2 && process.env.NOTIFICATION_EMAIL) {
