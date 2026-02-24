@@ -5,8 +5,9 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const adminCheck = await requireAdmin();
-  if (adminCheck) return adminCheck;
+  if (!(await requireAdmin())) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const status = req.nextUrl.searchParams.get("status");
   const type = req.nextUrl.searchParams.get("type");
@@ -28,8 +29,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const adminCheck = await requireAdmin();
-  if (adminCheck) return adminCheck;
+  if (!(await requireAdmin())) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { id, status, adminNote } = await req.json();
   if (!id || !status) {
