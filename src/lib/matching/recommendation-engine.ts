@@ -240,11 +240,28 @@ export async function getRecommendedJobs(
     afterLocation.push(job);
   }
 
+  // Negative keyword hard filter
+  const negKeywords = (settings.negativeKeywords ?? []).map((k: string) => k.toLowerCase().trim()).filter(Boolean);
+  const afterNegFilter: typeof afterLocation = [];
+  if (negKeywords.length > 0) {
+    for (const job of afterLocation) {
+      const titleLower = normalizeText(job.title);
+      const descLower = normalizeText(job.description || "");
+      const skillsLower = (job.skills ?? []).map((s: string) => normalizeText(s)).join(" ");
+      const negMatch = negKeywords.some(
+        (nk: string) => keywordMatchesText(nk, titleLower) || keywordMatchesText(nk, descLower) || keywordMatchesText(nk, skillsLower)
+      );
+      if (!negMatch) afterNegFilter.push(job);
+    }
+  } else {
+    afterNegFilter.push(...afterLocation);
+  }
+
   // Keyword hard filter
-  for (const job of afterLocation) {
+  for (const job of afterNegFilter) {
     const titleLower = normalizeText(job.title);
     const descLower = normalizeText(job.description || "");
-    const skillsLower = (job.skills ?? []).map((s) => normalizeText(s)).join(" ");
+    const skillsLower = (job.skills ?? []).map((s: string) => normalizeText(s)).join(" ");
 
     const matchedKw = keywordsMatchJob(userKeywords, titleLower, descLower, skillsLower);
 
@@ -268,6 +285,7 @@ export async function getRecommendedJobs(
   const scoreStart = Date.now();
   const userProfile: UserSettingsLike = {
     keywords: settings.keywords ?? [],
+    negativeKeywords: settings.negativeKeywords ?? [],
     city: settings.city,
     country: settings.country,
     experienceLevel: settings.experienceLevel,

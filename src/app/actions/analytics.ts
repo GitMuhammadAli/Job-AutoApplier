@@ -37,6 +37,7 @@ const EMPTY_ANALYTICS = {
   ],
   responseRateBreakdown: [] as { name: string; value: number }[],
   topCompanies: [] as { company: string; count: number }[],
+  keywordEffectiveness: [] as { keyword: string; matches: number; saves: number; dismisses: number; applied: number }[],
   weeklyComparison: {
     thisWeek: { applications: 0, matches: 0 },
     lastWeek: { applications: 0, matches: 0 },
@@ -297,6 +298,53 @@ export async function getAnalytics() {
     const responseRatePercent =
       totalSent > 0 ? Math.round(((interviews + offers) / totalSent) * 100) : 0;
 
+    // ── Keyword Effectiveness ──
+    const userSettings = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { keywords: true },
+    });
+    const userKeywords = userSettings?.keywords ?? [];
+    const keywordEffectiveness: { keyword: string; matches: number; saves: number; dismisses: number; applied: number }[] = [];
+
+    if (userKeywords.length > 0) {
+      const allUserJobs = await prisma.userJob.findMany({
+        where: { userId },
+        select: {
+          matchReasons: true,
+          stage: true,
+          isDismissed: true,
+          globalJob: { select: { title: true, skills: true } },
+        },
+        take: 3000,
+      });
+
+      for (const kw of userKeywords) {
+        const kwLower = kw.toLowerCase();
+        let matches = 0, saves = 0, dismisses = 0, applied = 0;
+
+        for (const uj of allUserJobs) {
+          const titleLower = (uj.globalJob.title || "").toLowerCase();
+          const skillsStr = (uj.globalJob.skills as string[] || []).join(" ").toLowerCase();
+          const reasonsStr = (typeof uj.matchReasons === "string" ? uj.matchReasons : JSON.stringify(uj.matchReasons ?? "")).toLowerCase();
+
+          const kwInTitle = titleLower.includes(kwLower);
+          const kwInSkills = skillsStr.includes(kwLower);
+          const kwInReasons = reasonsStr.includes(kwLower);
+
+          if (kwInTitle || kwInSkills || kwInReasons) {
+            matches++;
+            if (uj.isDismissed) dismisses++;
+            else if (uj.stage === "SAVED") saves++;
+            else applied++;
+          }
+        }
+
+        keywordEffectiveness.push({ keyword: kw, matches, saves, dismisses, applied });
+      }
+
+      keywordEffectiveness.sort((a, b) => b.matches - a.matches);
+    }
+
     return {
       totalJobs,
       applied,
@@ -328,6 +376,7 @@ export async function getAnalytics() {
         avgMatchScore: avgScore,
         responseRatePercent,
       },
+      keywordEffectiveness,
     };
   } catch (error) {
     console.error("[getAnalytics] Error:", error);
