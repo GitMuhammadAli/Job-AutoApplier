@@ -108,6 +108,7 @@ export async function getRecommendedJobs(
       where: { userId },
       select: {
         keywords: true,
+        negativeKeywords: true,
         city: true,
         country: true,
         experienceLevel: true,

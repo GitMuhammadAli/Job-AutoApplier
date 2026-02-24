@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { decrypt, isEncrypted } from "@/lib/encryption";
+import { classifyError } from "@/lib/email-errors";
 
 export interface EmailSettings {
   emailProvider?: string | null;
@@ -30,6 +31,12 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
       : settings.smtpPass
     : undefined;
 
+  const baseOpts = {
+    connectionTimeout: 10000,
+    greetingTimeout: 5000,
+    socketTimeout: 30000,
+  };
+
   switch (provider) {
     case "gmail":
       return nodemailer.createTransport({
@@ -38,9 +45,7 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
           user: settings.smtpUser ?? undefined,
           pass: smtpPassword,
         },
-        connectionTimeout: 10000,
-        greetingTimeout: 5000,
-        socketTimeout: 30000,
+        ...baseOpts,
       });
     case "outlook":
       return nodemailer.createTransport({
@@ -51,9 +56,7 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
           user: settings.smtpUser ?? undefined,
           pass: smtpPassword,
         },
-        connectionTimeout: 10000,
-        greetingTimeout: 5000,
-        socketTimeout: 30000,
+        ...baseOpts,
       });
     case "custom": {
       const port = settings.smtpPort ?? 587;
@@ -65,9 +68,7 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
           user: settings.smtpUser ?? undefined,
           pass: smtpPassword,
         },
-        connectionTimeout: 10000,
-        greetingTimeout: 5000,
-        socketTimeout: 30000,
+        ...baseOpts,
       });
     }
     default:
@@ -119,10 +120,8 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
       return await fn();
     } catch (err) {
       lastError = err;
-      const msg = err instanceof Error ? err.message : "";
-      const isTransient =
-        /ECONNRESET|ETIMEDOUT|ECONNREFUSED|421|451|temporary/i.test(msg);
-      if (!isTransient || attempt === maxRetries - 1) throw err;
+      const classified = classifyError(err);
+      if (!classified.retryable || attempt === maxRetries - 1) throw err;
       await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
     }
   }

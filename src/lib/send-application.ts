@@ -3,38 +3,12 @@ import { prisma } from "./prisma";
 import { canSendNow } from "./send-limiter";
 import { checkDuplicate } from "./duplicate-checker";
 import { decryptSettingsFields } from "./encryption";
+import { classifyError } from "./email-errors";
 
 interface SendResult {
   success: boolean;
   error?: string;
   messageId?: string;
-}
-
-const PERMANENT_SMTP_CODES = [
-  "550", // Mailbox not found / address rejected
-  "551", // User not local
-  "552", // Exceeded storage allocation
-  "553", // Mailbox name not allowed
-  "554", // Relay access denied / transaction failed
-  "521", // Server does not accept mail
-  "523", // Recipient mailbox full (permanent)
-  "541", // Recipient rejected
-  "556", // Domain does not accept mail
-];
-
-function isPermanentSmtpRejection(errorMsg: string): boolean {
-  const msg = errorMsg.toLowerCase();
-  if (PERMANENT_SMTP_CODES.some((code) => msg.includes(code))) return true;
-  if (msg.includes("relay access denied")) return true;
-  if (msg.includes("address rejected")) return true;
-  if (msg.includes("address not found")) return true;
-  if (msg.includes("recipient rejected")) return true;
-  if (msg.includes("does not exist")) return true;
-  if (msg.includes("user unknown")) return true;
-  if (msg.includes("no such user")) return true;
-  if (msg.includes("mailbox not found")) return true;
-  if (msg.includes("mailbox unavailable")) return true;
-  return false;
 }
 
 export async function sendApplication(
@@ -134,7 +108,7 @@ export async function sendApplication(
       to: application.recipientEmail,
       subject: cleanSubject,
       text: cleanBody,
-      html: formatEmailAsHtml(cleanBody),
+      headers: { "X-Mailer": undefined as unknown as string },
       attachments: attachments.map((a) => ({
         filename: a.filename,
         content: a.content,
@@ -164,17 +138,16 @@ export async function sendApplication(
 
     return { success: true, messageId: result.messageId };
   } catch (err: unknown) {
-    const errorMsg =
-      err instanceof Error ? err.message : "Unknown send error";
+    const classified = classifyError(err);
 
-    if (isPermanentSmtpRejection(errorMsg)) {
+    if (classified.type === "permanent") {
       await prisma.$transaction([
         prisma.jobApplication.update({
           where: { id: applicationId },
           data: {
             status: "BOUNCED",
             retryCount: (application.retryCount || 0) + 1,
-            errorMessage: errorMsg,
+            errorMessage: classified.message,
           },
         }),
         prisma.activity.create({
@@ -182,23 +155,46 @@ export async function sendApplication(
             userId,
             userJobId: application.userJobId,
             type: "APPLICATION_BOUNCED",
-            description: `Email to ${application.recipientEmail} rejected: ${errorMsg}`,
+            description: `Email to ${application.recipientEmail} rejected: ${classified.message}`,
           },
         }),
       ]);
 
-      // Clear the bad email from GlobalJob so it's not reused
       await prisma.globalJob.update({
         where: { id: application.userJob.globalJobId },
-        data: { companyEmail: null },
+        data: { companyEmail: null, emailConfidence: null, emailSource: null },
       }).catch(() => {});
 
       console.error(
-        `[SendApp] Permanent rejection for ${application.recipientEmail}: ${errorMsg}`
+        `[SendApp] Permanent rejection for ${application.recipientEmail}: ${classified.message}`
       );
-      return { success: false, error: errorMsg };
+      return { success: false, error: classified.message };
     }
 
+    if (classified.type === "auth") {
+      await prisma.jobApplication.update({
+        where: { id: applicationId },
+        data: {
+          status: "FAILED",
+          retryCount: (application.retryCount || 0) + 1,
+          errorMessage: `Auth error: ${classified.message}`,
+        },
+      });
+      console.error(`[SendApp] Auth failure: ${classified.message}`);
+      return { success: false, error: `SMTP auth failed — check your app password in Settings` };
+    }
+
+    // Rate limit: don't count as retry, just re-queue for later
+    if (classified.type === "rate_limit") {
+      await prisma.jobApplication.update({
+        where: { id: applicationId },
+        data: { status: "READY" },
+      });
+      console.warn(`[SendApp] Rate limited: ${classified.message}`);
+      return { success: false, error: `Rate limited by provider — will retry later` };
+    }
+
+    // Transient / network errors: retry up to 3 times
     const currentRetry = (application.retryCount || 0) + 1;
 
     if (currentRetry < 3) {
@@ -207,7 +203,7 @@ export async function sendApplication(
         data: { status: "READY", retryCount: currentRetry },
       });
       console.error(
-        `[SendApp] Attempt ${currentRetry}/3 failed: ${errorMsg}`
+        `[SendApp] ${classified.type} error, attempt ${currentRetry}/3: ${classified.message}`
       );
     } else {
       await prisma.$transaction([
@@ -216,7 +212,7 @@ export async function sendApplication(
           data: {
             status: "FAILED",
             retryCount: currentRetry,
-            errorMessage: errorMsg,
+            errorMessage: classified.message,
           },
         }),
         prisma.activity.create({
@@ -224,13 +220,13 @@ export async function sendApplication(
             userId,
             userJobId: application.userJobId,
             type: "APPLICATION_FAILED",
-            description: `Failed after 3 attempts: ${errorMsg}`,
+            description: `Failed after 3 attempts (${classified.type}): ${classified.message}`,
           },
         }),
       ]);
     }
 
-    return { success: false, error: errorMsg };
+    return { success: false, error: classified.message };
   }
 }
 
@@ -245,14 +241,3 @@ function cleanJsonField(value: string, field: "subject" | "body"): string {
   return value;
 }
 
-function formatEmailAsHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\n/g, "<br>")
-    .replace(
-      /(https?:\/\/[^\s]+)/g,
-      '<a href="$1" style="color: #2563eb;">$1</a>'
-    );
-}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -36,7 +36,7 @@ function getApplySpeed(job: UserJobWithGlobal): { label: string; fast: boolean }
   return { label: `${diffMin}m`, fast: false };
 }
 
-export function JobCard({ job, onStageChange }: JobCardProps) {
+export const JobCard = memo(function JobCard({ job, onStageChange }: JobCardProps) {
   const router = useRouter();
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
@@ -209,4 +209,4 @@ export function JobCard({ job, onStageChange }: JobCardProps) {
       </div>
     </div>
   );
-}
+});
