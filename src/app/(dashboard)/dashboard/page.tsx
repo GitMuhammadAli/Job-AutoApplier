@@ -1,21 +1,37 @@
-import { getJobs } from "@/app/actions/job";
-import { getSettings } from "@/app/actions/settings";
+import { getJobs, getTodaysQueue } from "@/app/actions/job";
+import { getSettingsLite } from "@/app/actions/settings";
+import { getDeliveryStats } from "@/app/actions/analytics";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
-import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { StatusBanner } from "@/components/dashboard/StatusBanner";
-import { Zap, Clock, Mail, Plus } from "lucide-react";
+import { BulkActionsBar } from "@/components/dashboard/BulkActionsBar";
+import { TodaysQueue } from "@/components/dashboard/TodaysQueue";
+import { DeliveryStats } from "@/components/dashboard/DeliveryStats";
+import { Zap, Clock, Mail, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
+import nextDynamic from "next/dynamic";
+
+const OnboardingWizard = nextDynamic(
+  () => import("@/components/onboarding/OnboardingWizard").then((m) => m.OnboardingWizard),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      </div>
+    ),
+  },
+);
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const settingsResult = await getSettings().catch(() => null);
-  const settings = settingsResult;
-  const settingsLoadError = !settingsResult;
-
-  const jobs: Awaited<ReturnType<typeof getJobs>> = settingsLoadError
-    ? []
-    : await getJobs(settings).catch(() => []);
+  const [settings, jobs, todaysQueue, deliveryStats] = await Promise.all([
+    getSettingsLite().catch(() => null),
+    getJobs().catch(() => []),
+    getTodaysQueue().catch(() => ({ autoApply: [], quickApply: [], total: 0 })),
+    getDeliveryStats().catch(() => null),
+  ]);
+  const settingsLoadError = !settings;
 
   if (settingsLoadError) {
     console.error("[DashboardPage] getSettings failed");
@@ -87,6 +103,20 @@ export default async function DashboardPage() {
             </span>
           </div>
         </div>
+      </div>
+
+      <BulkActionsBar jobCount={jobs.length} />
+
+      {/* Today's queue + delivery stats side by side on larger screens */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {todaysQueue.total > 0 && (
+          <TodaysQueue
+            autoApply={todaysQueue.autoApply as any}
+            quickApply={todaysQueue.quickApply as any}
+            total={todaysQueue.total}
+          />
+        )}
+        {deliveryStats && <DeliveryStats stats={deliveryStats} />}
       </div>
 
       {jobs.length === 0 ? (

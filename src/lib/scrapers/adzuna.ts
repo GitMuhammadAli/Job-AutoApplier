@@ -30,14 +30,13 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
-  for (const q of queries.slice(0, 5)) {
+  for (const q of queries.slice(0, 8)) {
     try {
       const country = resolveCountryCode(q.cities || []);
       const keyword = encodeURIComponent(q.keyword);
 
-      // Fetch page 1 and page 2
-      for (const page of [1, 2]) {
-        const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?app_id=${appId}&app_key=${appKey}&what=${keyword}&results_per_page=20&max_days_old=7&sort_by=date`;
+      for (const page of [1, 2, 3]) {
+        const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?app_id=${appId}&app_key=${appKey}&what=${keyword}&results_per_page=50&max_days_old=14&sort_by=date`;
 
         const res = await fetchWithRetry(url);
         if (!res.ok) break;

@@ -22,7 +22,8 @@ import { STAGE_CONFIG, STAGES, daysAgo } from "@/lib/utils";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { ActivityTimeline } from "@/components/jobs/ActivityTimeline";
 import { QuickApplyPanel } from "@/components/jobs/QuickApplyPanel";
-import { updateStage, dismissJob, addNote } from "@/app/actions/job";
+import { QuickApplyKit } from "@/components/jobs/QuickApplyKit";
+import { updateStage, dismissJob, addNote, markAppliedFromSite } from "@/app/actions/job";
 
 import type { JobStage, ActivityType } from "@prisma/client";
 import {
@@ -37,6 +38,9 @@ import {
   ArrowRight,
   Star,
   Tag,
+  AlertCircle,
+  Mail,
+  CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -56,6 +60,8 @@ interface GlobalJobData {
   applyUrl: string | null;
   companyUrl: string | null;
   companyEmail: string | null;
+  emailConfidence: number | null;
+  emailSource: string | null;
   postedDate: Date | string | null;
 }
 
@@ -84,6 +90,18 @@ interface ResumeOption {
   isDefault: boolean;
 }
 
+interface ProfileData {
+  fullName: string | null;
+  applicationEmail: string | null;
+  phone: string | null;
+  linkedinUrl: string | null;
+  portfolioUrl: string | null;
+  githubUrl: string | null;
+  experienceLevel: string | null;
+  city: string | null;
+  country: string | null;
+}
+
 interface JobDetailProps {
   job: {
     id: string;
@@ -100,13 +118,32 @@ interface JobDetailProps {
   };
   resumes?: ResumeOption[];
   autoApply?: boolean;
+  profile?: ProfileData | null;
 }
 
-export function JobDetailClient({ job, resumes = [], autoApply = false }: JobDetailProps) {
+export function JobDetailClient({ job, resumes = [], autoApply = false, profile = null }: JobDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [noteText, setNoteText] = useState(job.notes || "");
   const [dismissReason, setDismissReason] = useState("");
+  const [markedApplied, setMarkedApplied] = useState(job.stage === "APPLIED");
+
+  const handleMarkApplied = () => {
+    startTransition(async () => {
+      try {
+        const result = await markAppliedFromSite(job.id, job.globalJob.source);
+        if (!result.success) {
+          toast.error(result.error || "Failed to mark as applied");
+          return;
+        }
+        setMarkedApplied(true);
+        toast.success("Marked as applied!");
+        router.refresh();
+      } catch {
+        toast.error("Failed to mark as applied");
+      }
+    });
+  };
 
   const g = job.globalJob;
   const config = STAGE_CONFIG[job.stage];
@@ -209,13 +246,42 @@ export function JobDetailClient({ job, resumes = [], autoApply = false }: JobDet
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {g.applyUrl && (
-              <Button variant="outline" size="sm" asChild className="shadow-sm text-xs">
-                <a href={g.applyUrl} target="_blank" rel="noopener noreferrer">
+            {(g.applyUrl || g.sourceUrl) && (
+              <Button size="sm" asChild className="shadow-sm text-xs bg-blue-600 hover:bg-blue-700 text-white">
+                <a href={g.applyUrl || g.sourceUrl || "#"} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                  Apply
+                  Apply on Site
                 </a>
               </Button>
+            )}
+            {g.companyEmail && (g.emailConfidence ?? 0) >= 70 && (
+              <Button variant="outline" size="sm" className="shadow-sm text-xs text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                onClick={() => {
+                  const panel = document.getElementById("quick-apply-panel");
+                  panel?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <Mail className="h-3.5 w-3.5 mr-1.5" />
+                Email Apply
+              </Button>
+            )}
+            {!markedApplied && job.stage !== "APPLIED" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="shadow-sm text-xs"
+                onClick={handleMarkApplied}
+                disabled={isPending}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                I Applied
+              </Button>
+            )}
+            {markedApplied && (
+              <Badge variant="outline" className="border-0 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Applied
+              </Badge>
             )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -310,7 +376,25 @@ export function JobDetailClient({ job, resumes = [], autoApply = false }: JobDet
               {g.experienceLevel && <InfoRow icon={<Tag className="h-3.5 w-3.5" />} label="Level" value={g.experienceLevel} />}
               {g.category && <InfoRow icon={<Tag className="h-3.5 w-3.5" />} label="Category" value={g.category} />}
               {days !== null && <InfoRow icon={<Clock className="h-3.5 w-3.5" />} label="Posted" value={`${days === 0 ? "Today" : `${days} days ago`}`} />}
-              {g.companyEmail && <InfoRow icon={<Send className="h-3.5 w-3.5" />} label="Email" value={g.companyEmail} />}
+              {g.companyEmail ? (
+                <div className="space-y-1">
+                  <InfoRow icon={<Send className="h-3.5 w-3.5" />} label="Email" value={g.companyEmail} />
+                  {g.emailConfidence != null && g.emailConfidence < 70 && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 ml-6 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Low confidence ({g.emailSource?.includes("guess") ? "guessed" : "scraped"}) — verify before sending
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 text-xs sm:text-sm">
+                  <span className="text-slate-400 dark:text-zinc-500 mt-0.5 shrink-0"><Send className="h-3.5 w-3.5" /></span>
+                  <span className="text-slate-500 dark:text-zinc-400 min-w-[50px] sm:min-w-[60px] shrink-0">Email:</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-medium text-xs flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> Not found — apply via link or enter manually
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Skills & Match */}
@@ -343,6 +427,16 @@ export function JobDetailClient({ job, resumes = [], autoApply = false }: JobDet
               )}
             </div>
           </div>
+
+          {/* Quick Apply Kit */}
+          {profile && (
+            <QuickApplyKit
+              profile={profile}
+              jobId={job.id}
+              jobTitle={g.title}
+              company={g.company}
+            />
+          )}
 
           {/* Description */}
           {g.description && (
@@ -409,9 +503,9 @@ export function JobDetailClient({ job, resumes = [], autoApply = false }: JobDet
           </Tabs>
         </div>
 
-        {/* Right: Apply via Email Panel */}
+        {/* Right: Apply Panel */}
         <div className="w-full lg:w-[380px] shrink-0">
-          <div className="lg:sticky lg:top-16 rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+          <div id="quick-apply-panel" className="lg:sticky lg:top-16 rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
             <QuickApplyPanel
               userJob={{
                 id: job.id,
@@ -421,6 +515,8 @@ export function JobDetailClient({ job, resumes = [], autoApply = false }: JobDet
                   title: g.title,
                   company: g.company,
                   companyEmail: g.companyEmail,
+                  emailConfidence: g.emailConfidence,
+                  emailSource: g.emailSource,
                   location: g.location,
                 },
               }}

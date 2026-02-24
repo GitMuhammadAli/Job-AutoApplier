@@ -396,6 +396,260 @@ export async function dismissGlobalJob(globalJobId: string, reason?: string): Pr
   }
 }
 
+// ── Bulk actions ──
+
+export async function bulkDismissJobs(userJobIds: string[]): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    if (userJobIds.length === 0) return { success: true, count: 0 };
+    if (userJobIds.length > 500) return { success: false, count: 0, error: "Too many jobs selected (max 500)" };
+
+    const result = await prisma.userJob.updateMany({
+      where: { id: { in: userJobIds }, userId },
+      data: { isDismissed: true, dismissReason: "Bulk dismissed" },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/");
+    return { success: true, count: result.count };
+  } catch (error) {
+    console.error("[bulkDismissJobs] Error:", error);
+    return { success: false, count: 0, error: "Failed to bulk dismiss" };
+  }
+}
+
+export async function bulkDeleteOldJobs(olderThanDays: number): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+
+    const result = await prisma.userJob.updateMany({
+      where: {
+        userId,
+        isDismissed: false,
+        stage: "SAVED",
+        createdAt: { lt: cutoff },
+        application: null,
+      },
+      data: { isDismissed: true, dismissReason: `Auto-cleared: older than ${olderThanDays} days` },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/");
+    return { success: true, count: result.count };
+  } catch (error) {
+    console.error("[bulkDeleteOldJobs] Error:", error);
+    return { success: false, count: 0, error: "Failed to clear old jobs" };
+  }
+}
+
+export async function bulkDismissByStage(stage: string): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+
+    const result = await prisma.userJob.updateMany({
+      where: { userId, stage: stage as JobStage, isDismissed: false },
+      data: { isDismissed: true, dismissReason: `Bulk cleared stage: ${stage}` },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/");
+    return { success: true, count: result.count };
+  } catch (error) {
+    console.error("[bulkDismissByStage] Error:", error);
+    return { success: false, count: 0, error: "Failed to clear stage" };
+  }
+}
+
+// ── Bulk dismiss from recommended page (by GlobalJob IDs) ──
+
+export async function bulkDismissGlobalJobs(
+  globalJobIds: string[],
+): Promise<{ success: boolean; count: number; error?: string }> {
+  if (globalJobIds.length > 500) return { success: false, count: 0, error: "Max 500 at once" };
+  try {
+    const userId = await getAuthUserId();
+    let count = 0;
+
+    for (const globalJobId of globalJobIds) {
+      await prisma.userJob.upsert({
+        where: { userId_globalJobId: { userId, globalJobId } },
+        create: { userId, globalJobId, isDismissed: true, dismissReason: "Bulk dismissed" },
+        update: { isDismissed: true, dismissReason: "Bulk dismissed" },
+      });
+      count++;
+    }
+
+    revalidatePath("/recommended");
+    revalidatePath("/dashboard");
+    return { success: true, count };
+  } catch (error) {
+    console.error("[bulkDismissGlobalJobs] Error:", error);
+    return { success: false, count: 0, error: "Failed to bulk dismiss" };
+  }
+}
+
+// ── Bulk dismiss low-score jobs from recommended ──
+
+export async function bulkDismissBelowScore(
+  maxScore: number,
+): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+
+    const result = await prisma.userJob.updateMany({
+      where: {
+        userId,
+        isDismissed: false,
+        matchScore: { lt: maxScore },
+        application: null,
+      },
+      data: { isDismissed: true, dismissReason: `Score below ${maxScore}` },
+    });
+
+    revalidatePath("/recommended");
+    revalidatePath("/dashboard");
+    return { success: true, count: result.count };
+  } catch (error) {
+    console.error("[bulkDismissBelowScore] Error:", error);
+    return { success: false, count: 0, error: "Failed to dismiss" };
+  }
+}
+
+// ── Start Fresh (nuclear option) ──
+
+export async function startFresh(): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+
+    const [appResult, jobResult] = await prisma.$transaction([
+      prisma.jobApplication.deleteMany({ where: { userId } }),
+      prisma.userJob.deleteMany({ where: { userId } }),
+    ]);
+
+    revalidatePath("/dashboard");
+    revalidatePath("/recommended");
+    revalidatePath("/applications");
+    return { success: true, count: jobResult.count };
+  } catch (error) {
+    console.error("[startFresh] Error:", error);
+    return { success: false, count: 0, error: "Failed to start fresh" };
+  }
+}
+
+// ── Today's Queue (top 10 new jobs for quick daily application) ──
+
+export async function getTodaysQueue() {
+  try {
+    const userId = await getAuthUserId();
+    const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+    const jobs = await prisma.userJob.findMany({
+      where: {
+        userId,
+        isDismissed: false,
+        stage: "SAVED",
+        application: null,
+        createdAt: { gte: since },
+        matchScore: { gte: 40 },
+      },
+      select: {
+        id: true,
+        matchScore: true,
+        matchReasons: true,
+        createdAt: true,
+        globalJob: {
+          select: {
+            id: true,
+            title: true,
+            company: true,
+            location: true,
+            source: true,
+            sourceUrl: true,
+            applyUrl: true,
+            companyEmail: true,
+            emailConfidence: true,
+            postedDate: true,
+            jobType: true,
+          },
+        },
+      },
+      orderBy: { matchScore: "desc" },
+      take: 15,
+    });
+
+    const autoApply = jobs
+      .filter((j) => j.globalJob.companyEmail && (j.globalJob.emailConfidence ?? 0) >= 70)
+      .slice(0, 5);
+    const quickApply = jobs
+      .filter((j) => !autoApply.some((a) => a.id === j.id))
+      .slice(0, 10 - autoApply.length);
+
+    return { autoApply, quickApply, total: autoApply.length + quickApply.length };
+  } catch (error) {
+    console.error("[getTodaysQueue] Error:", error);
+    return { autoApply: [], quickApply: [], total: 0 };
+  }
+}
+
+// ── Mark as applied from site (quick track without email) ──
+
+export async function markAppliedFromSite(
+  userJobId: string,
+  platform?: string,
+) {
+  try {
+    const userId = await getAuthUserId();
+
+    const userJob = await prisma.userJob.findFirst({
+      where: { id: userJobId, userId },
+      include: { globalJob: { select: { title: true, company: true } } },
+    });
+    if (!userJob) return { success: false, error: "Job not found" };
+
+    await prisma.userJob.update({
+      where: { id: userJobId },
+      data: { stage: "APPLIED" },
+    });
+
+    const existing = await prisma.jobApplication.findUnique({
+      where: { userJobId },
+    });
+
+    if (!existing) {
+      await prisma.jobApplication.create({
+        data: {
+          userJobId,
+          userId,
+          senderEmail: "",
+          recipientEmail: "",
+          subject: `Applied to ${userJob.globalJob.title} at ${userJob.globalJob.company}`,
+          emailBody: `Applied via ${platform || "job site"}`,
+          status: "SENT",
+          appliedVia: "PLATFORM",
+          sentAt: new Date(),
+        },
+      });
+    }
+
+    await prisma.activity.create({
+      data: {
+        userId,
+        userJobId,
+        type: "APPLICATION_SENT",
+        description: `Applied via ${platform || "job site"}`,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/applications");
+    return { success: true };
+  } catch (error) {
+    console.error("[markAppliedFromSite] Error:", error);
+    return { success: false, error: "Failed to mark as applied" };
+  }
+}
+
 // ── Get resumes (for dropdowns) ──
 
 export async function getResumes() {

@@ -5,15 +5,11 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
   const key = process.env.SERPAPI_KEY;
   if (!key) return [];
 
-  // Only run on even days to conserve 100/month limit
-  const dayOfMonth = new Date().getDate();
-  if (dayOfMonth % 2 !== 0) return [];
-
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
-  for (const q of queries.slice(0, 4)) {
-    for (const city of q.cities.slice(0, 2)) {
+  for (const q of queries.slice(0, 5)) {
+    for (const city of q.cities.slice(0, 3)) {
       try {
         const query = encodeURIComponent(`${q.keyword} jobs ${city || ""}`);
         const url = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&api_key=${key}`;

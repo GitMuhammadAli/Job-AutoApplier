@@ -101,26 +101,7 @@ export async function findCompanyEmail(job: {
     }
   }
 
-  // Strategy 2: Domain patterns + MX verification with multiple prefixes
-  const domain = extractDomain(
-    job.company,
-    job.companyUrl || job.sourceUrl
-  );
-  if (domain) {
-    const hasMx = await verifyMxRecord(domain);
-    if (hasMx) {
-      const prefixes = ["careers", "hr", "hiring", "jobs", "recruitment"];
-      const bestPrefix = prefixes[0];
-      return {
-        email: `${bestPrefix}@${domain}`,
-        confidence: "MEDIUM",
-        confidenceScore: 50,
-        method: `pattern_guess_mx_verified (${domain})`,
-      };
-    }
-  }
-
-  // Strategy 3: Scrape careers page for emails
+  // Strategy 2: Scrape careers page for real emails
   const scrapeUrl = job.applyUrl || job.companyUrl || job.sourceUrl;
   if (scrapeUrl) {
     try {
@@ -129,41 +110,61 @@ export async function findCompanyEmail(job: {
       const isJobBoard = isJobBoardDomain(originHost);
 
       if (!isJobBoard) {
-        const response = await fetch(`${companyOrigin}/careers`, {
-          signal: AbortSignal.timeout(5000),
-          headers: { "User-Agent": "Mozilla/5.0" },
-        });
+        const pagesToTry = ["/careers", "/contact", "/jobs", "/about"];
+        for (const page of pagesToTry) {
+          try {
+            const response = await fetch(`${companyOrigin}${page}`, {
+              signal: AbortSignal.timeout(5000),
+              headers: { "User-Agent": "Mozilla/5.0" },
+            });
 
-        if (response.ok) {
-          const html = await response.text();
-          const pageEmails = html.match(EMAIL_REGEX) || [];
-          const filtered = pageEmails.filter((e) => !NOREPLY_FILTER.test(e));
+            if (response.ok) {
+              const html = await response.text();
+              const pageEmails = html.match(EMAIL_REGEX) || [];
+              const filtered = pageEmails.filter(
+                (e) =>
+                  !NOREPLY_FILTER.test(e) &&
+                  !GENERIC_EMAIL_BLACKLIST.some((bl) => e.toLowerCase().startsWith(bl))
+              );
 
-          if (filtered.length > 0) {
-            return {
-              email: filtered[0].toLowerCase(),
-              confidence: "MEDIUM",
-              confidenceScore: 75,
-              method: "careers_page_scrape",
-            };
+              if (filtered.length > 0) {
+                const hrEmail = filtered.find((e) => HR_PREFIX.test(e));
+                return {
+                  email: (hrEmail || filtered[0]).toLowerCase(),
+                  confidence: "MEDIUM",
+                  confidenceScore: 75,
+                  method: `scraped_from_${page.slice(1)}_page`,
+                };
+              }
+            }
+          } catch {
+            // Page not found or blocked — try next
           }
         }
       }
     } catch {
-      // Timeout or blocked
+      // Invalid URL
     }
   }
 
-  // Strategy 4: Best guess (no verification)
+  // Strategy 3: Domain + MX verified pattern (only if MX exists)
+  const domain = extractDomain(
+    job.company,
+    job.companyUrl || job.sourceUrl
+  );
   if (domain) {
-    return {
-      email: `careers@${domain}`,
-      confidence: "LOW",
-      confidenceScore: 20,
-      method: "best_guess_unverified",
-    };
+    const hasMx = await verifyMxRecord(domain);
+    if (hasMx) {
+      return {
+        email: `careers@${domain}`,
+        confidence: "LOW",
+        confidenceScore: 30,
+        method: `pattern_guess_mx_verified (${domain})`,
+      };
+    }
   }
 
+  // No guessing — if we can't find or verify an email, return none
   return { email: null, confidence: "NONE", confidenceScore: 0, method: "none" };
 }
 

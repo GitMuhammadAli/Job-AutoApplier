@@ -97,10 +97,10 @@ export async function GET() {
       }),
     ]);
 
-    // Scraper status
+    // Scraper status with quality metrics
     const scraperStatus = await Promise.all(
       SCRAPE_SOURCES.map(async (source) => {
-        const [lastLog, lastError, totalJobs] = await Promise.all([
+        const [lastLog, lastError, totalJobs, withEmail, withSkills, recentJobs] = await Promise.all([
           prisma.systemLog.findFirst({
             where: { type: "scrape", source },
             orderBy: { createdAt: "desc" },
@@ -110,9 +110,30 @@ export async function GET() {
             orderBy: { createdAt: "desc" },
           }),
           prisma.globalJob.count({ where: { source, isActive: true } }),
+          prisma.globalJob.count({ where: { source, isActive: true, companyEmail: { not: null } } }),
+          prisma.globalJob.count({ where: { source, isActive: true, skills: { isEmpty: false } } }),
+          prisma.globalJob.findMany({
+            where: { source, isActive: true },
+            select: { skills: true, category: true },
+            take: 200,
+            orderBy: { createdAt: "desc" },
+          }),
         ]);
 
         const meta = (lastLog?.metadata ?? {}) as Record<string, unknown>;
+        const skillCounts: Record<string, number> = {};
+        const categoryCounts: Record<string, number> = {};
+        for (const job of recentJobs) {
+          for (const skill of job.skills ?? []) {
+            skillCounts[skill] = (skillCounts[skill] || 0) + 1;
+          }
+          if (job.category) {
+            categoryCounts[job.category] = (categoryCounts[job.category] || 0) + 1;
+          }
+        }
+        const topSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count }));
+        const topCategories = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count }));
+
         return {
           source,
           lastRun: lastLog?.createdAt ?? null,
@@ -120,6 +141,12 @@ export async function GET() {
           jobCount: (meta.newJobs as number) ?? (meta.jobs as number) ?? 0,
           updatedCount: (meta.updatedJobs as number) ?? 0,
           totalJobs,
+          withEmail,
+          withSkills,
+          emailRate: totalJobs > 0 ? Math.round((withEmail / totalJobs) * 100) : 0,
+          skillRate: totalJobs > 0 ? Math.round((withSkills / totalJobs) * 100) : 0,
+          topSkills,
+          topCategories,
           isHealthy:
             !!lastLog &&
             (!lastError || lastLog.createdAt > lastError.createdAt),
@@ -128,6 +155,17 @@ export async function GET() {
         };
       }),
     );
+
+    // Email delivery stats
+    const [totalSent, totalBounced, totalFailed] = await Promise.all([
+      prisma.jobApplication.count({ where: { status: "SENT" } }),
+      prisma.jobApplication.count({ where: { status: "BOUNCED" } }),
+      prisma.jobApplication.count({ where: { status: "FAILED" } }),
+    ]);
+    const deliveryRate = totalSent + totalBounced > 0 ? Math.round((totalSent / (totalSent + totalBounced)) * 100) : 100;
+    const totalActiveWithEmail = scraperStatus.reduce((sum, s) => sum + s.withEmail, 0);
+    const totalActive = scraperStatus.reduce((sum, s) => sum + s.totalJobs, 0);
+    const overallEmailRate = totalActive > 0 ? Math.round((totalActiveWithEmail / totalActive) * 100) : 0;
 
     // Cron status
     const cronStatus = await Promise.all(
@@ -222,6 +260,13 @@ export async function GET() {
         sending: sendingApps,
         sentTotal,
         sentThisWeek,
+      },
+      quality: {
+        overallEmailRate,
+        deliveryRate,
+        totalBounced,
+        totalSent,
+        totalFailed,
       },
       scrapers: scraperStatus,
       crons: cronStatus,

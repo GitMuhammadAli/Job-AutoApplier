@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { decryptSettingsFields } from "@/lib/encryption";
 import { generateApplicationEmail } from "@/lib/ai-email-generator";
 import { generateCoverLetterFromInput } from "@/lib/ai-cover-letter-generator";
+import { generatePitchFromInput } from "@/lib/ai-pitch-generator";
 import { pickBestResumeWithTier } from "@/lib/matching/resume-matcher";
 import type { GenerateEmailInput } from "@/lib/ai-email-generator";
 
@@ -269,6 +270,65 @@ export async function generateCoverLetterAction(userJobId: string) {
       error instanceof Error
         ? error.message
         : "Failed to generate cover letter",
+    );
+  }
+}
+
+export async function generatePitchAction(userJobId: string) {
+  try {
+    const userId = await getAuthUserId();
+    const { input } = await buildEmailInput(userId, userJobId);
+    const pitch = await generatePitchFromInput(input);
+    revalidatePath(`/jobs/${userJobId}`);
+    return pitch;
+  } catch (error) {
+    console.error("[generatePitchAction]", error);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to generate pitch",
+    );
+  }
+}
+
+export async function generateCoverLetterAndPitchAction(userJobId: string) {
+  try {
+    const userId = await getAuthUserId();
+    const { input, matchedResume } = await buildEmailInput(userId, userJobId);
+
+    const [coverLetter, pitch] = await Promise.all([
+      generateCoverLetterFromInput(input),
+      generatePitchFromInput(input),
+    ]);
+
+    await prisma.userJob.update({
+      where: { id: userJobId },
+      data: { coverLetter },
+    });
+
+    const application = await prisma.jobApplication.findUnique({
+      where: { userJobId },
+    });
+    if (application) {
+      await prisma.jobApplication.update({
+        where: { id: application.id },
+        data: { coverLetter },
+      });
+    }
+
+    await prisma.activity.create({
+      data: {
+        userId,
+        userJobId,
+        type: "COVER_LETTER_GENERATED",
+        description: `Cover letter & pitch generated. Resume: ${matchedResume.name}`,
+      },
+    });
+
+    revalidatePath(`/jobs/${userJobId}`);
+    return { coverLetter, pitch };
+  } catch (error) {
+    console.error("[generateCoverLetterAndPitchAction]", error);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to generate content",
     );
   }
 }

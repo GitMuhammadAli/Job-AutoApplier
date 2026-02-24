@@ -24,7 +24,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { daysAgo } from "@/lib/utils";
-import { saveGlobalJob, dismissGlobalJob } from "@/app/actions/job";
+import { saveGlobalJob, dismissGlobalJob, bulkDismissBelowScore } from "@/app/actions/job";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import type { RecommendedJob, RecommendationResult } from "@/lib/matching/recommendation-engine";
 
 interface Props {
@@ -447,9 +449,18 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
             Fresh
           </span>
         )}
-        {job.companyEmail && (
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-            <Mail className="h-2.5 w-2.5 inline mr-0.5" />Email
+        {job.companyEmail ? (
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+            (job.emailConfidence ?? 0) >= 70
+              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+              : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+          }`}>
+            <Mail className="h-2.5 w-2.5 inline mr-0.5" />
+            {(job.emailConfidence ?? 0) >= 70 ? "Email" : "Email?"}
+          </span>
+        ) : (
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400">
+            No Email
           </span>
         )}
       </div>
@@ -510,6 +521,24 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
 
       {/* Actions */}
       <div className="flex items-center gap-1.5">
+        {(job.applyUrl || job.sourceUrl) && (
+          <button
+            onClick={handleViewExternal}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" /> Apply
+          </button>
+        )}
+
+        {job.companyEmail && (job.emailConfidence ?? 0) >= 70 && (
+          <Link
+            href={`${detailUrl}?apply=true`}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors"
+          >
+            <Mail className="h-3 w-3" /> Email
+          </Link>
+        )}
+
         <button
           onClick={handleSave}
           disabled={saved || saving}
@@ -523,28 +552,12 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
           {saved ? "Saved" : saving ? "..." : "Save"}
         </button>
 
-        <Link
-          href={`${detailUrl}?apply=true`}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-        >
-          <Mail className="h-3 w-3" /> Apply
-        </Link>
-
         <button
           onClick={handleDismiss}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-300 transition-colors"
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-300 transition-colors ml-auto"
         >
           <X className="h-3 w-3" /> Dismiss
         </button>
-
-        {(job.applyUrl || job.sourceUrl) && (
-          <button
-            onClick={handleViewExternal}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors ml-auto"
-          >
-            <ExternalLink className="h-3 w-3" /> View
-          </button>
-        )}
       </div>
     </div>
   );

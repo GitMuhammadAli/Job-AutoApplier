@@ -43,7 +43,6 @@ export async function fetchLinkedIn(
           const ua =
             USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 
-          // Fetch first page
           const page1 = await fetchLinkedInPage(
             keyword,
             location,
@@ -54,9 +53,8 @@ export async function fetchLinkedIn(
           const parsed1 = parseLinkedInHtml(page1, city, seenIds);
           jobs.push(...parsed1);
 
-          // If first page returned results, try page 2
           if (parsed1.length >= 10) {
-            await sleep(500 + Math.random() * 1000);
+            await sleep(400 + Math.random() * 800);
             const page2 = await fetchLinkedInPage(
               keyword,
               location,
@@ -66,6 +64,18 @@ export async function fetchLinkedIn(
             );
             const parsed2 = parseLinkedInHtml(page2, city, seenIds);
             jobs.push(...parsed2);
+
+            if (parsed2.length >= 15) {
+              await sleep(400 + Math.random() * 800);
+              const page3 = await fetchLinkedInPage(
+                keyword,
+                location,
+                50,
+                timeFilter.param,
+                ua,
+              );
+              jobs.push(...parseLinkedInHtml(page3, city, seenIds));
+            }
           }
 
           // Only use 24h filter if it returned results; skip 7d for this keyword+city

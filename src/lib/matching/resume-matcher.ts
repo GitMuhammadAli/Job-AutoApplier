@@ -43,7 +43,7 @@ export async function pickBestResumeWithTier(
   job: JobLike
 ): Promise<ResumeMatchResult | null> {
   const resumes: ResumeRow[] = await prisma.resume.findMany({
-    where: { userId },
+    where: { userId, isDeleted: false },
     select: {
       id: true,
       name: true,

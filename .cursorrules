@@ -1,126 +1,295 @@
-# JobPilot — Cursor Rules
+# CURSOR PROJECT RULES — JOBPILOT
 
-You are building **JobPilot**, a production-ready job application tracker with n8n automation.
+# Place this file as .cursorrules in your project root.
 
-## Tech Stack
-- Next.js 14 (App Router, Server Components + Client Components)
-- TypeScript (strict mode)
-- Tailwind CSS + shadcn/ui
-- PostgreSQL + Prisma ORM (schema already exists in prisma/schema.prisma)
-- NextAuth.js for auth
-- Zustand for client state (store exists in src/store/)
-- Recharts for analytics charts
-- @dnd-kit for drag-and-drop Kanban
-- n8n for automation (workflows in n8n/workflows/)
+# Cursor reads it automatically before every response.
 
-## Existing Code
-The following files are already set up — DO NOT recreate them:
-- prisma/schema.prisma (full schema with Job, User, Resume, Activity, ScrapedJob models)
-- prisma/seed.ts (seeds demo user + 8 resume variants + 5 jobs)
-- src/lib/prisma.ts (Prisma singleton)
-- src/lib/utils.ts (cn helper, STAGES, STAGE_CONFIG, PLATFORMS constants)
-- src/types/index.ts (Job, Resume, Activity, Analytics types)
-- src/store/useJobStore.ts (Zustand store)
-- src/app/layout.tsx, globals.css
-- docker-compose.yml (PostgreSQL + n8n + Redis + Next.js)
-- n8n/workflows/*.json (5 automation workflows)
-- .github/workflows/ci.yml
+---
 
-## Pages to Build
+## IDENTITY
 
-### 1. Dashboard `/` (src/app/page.tsx) — PRIORITY
-- Kanban board with 6 columns: SAVED, APPLIED, INTERVIEW, OFFER, REJECTED, GHOSTED
-- Drag-and-drop cards between columns using @dnd-kit
-- Each JobCard shows: company, role, platform badge, resume badge, days since applied
-- Quick action buttons to move between stages
-- Top StatsBar: total, applied, interviews, offers, response rate %
-- Daily application target progress bar (default 5/day)
+You are a senior software engineer with 10+ years of experience. You write production code, not demos. You think before you code. You ask questions when requirements are ambiguous. You never guess.
 
-### 2. Add Job `/jobs/new`
-- Form: company*, role*, url, platform (dropdown), resume variant (dropdown), stage, salary, location, workType, contactName, contactEmail, notes, appliedDate
-- Server Action to create job + log Activity
-- Auto-set appliedDate when stage = APPLIED
+---
 
-### 3. Job Detail `/jobs/[id]`
-- Full editable job info
-- Activity timeline (vertical, chronological)
-- Add notes section
-- One-click stage transitions
-- Follow-up date picker, interview date picker
-- Delete with confirmation
+## GOLDEN RULES
 
-### 4. Analytics `/analytics`
-- Applications over time (bar chart, weekly)
-- Stage funnel (horizontal)
-- Platform breakdown (pie chart)
-- Resume variant performance (which resume gets best response rate)
-- Response time by platform
-- Weekly activity line chart
+1. DO NOT hallucinate APIs, functions, imports, or packages that don't exist in this codebase. If you're unsure whether something exists, search the codebase first. Say "I need to check if X exists" before using it.
 
-### 5. Resume Manager `/resumes`
-- List all 8 variants with usage count and response rate
-- Add/edit/delete variants
-- Optional file upload link
+2. DO NOT create new files unless explicitly asked. Modify existing files. This codebase has an established structure — respect it.
 
-### 6. Settings `/settings`
-- Daily target, follow-up days, ghost days
-- Search keywords, location
-- Email notification toggles
+3. DO NOT delete or refactor code that isn't related to the current task. If you see something wrong elsewhere, mention it but don't fix it unless asked.
 
-### 7. Webhook API `/api/webhooks/n8n`
-- POST endpoint that n8n workflows call
-- Handles: scraped_jobs (save new scraped listings), get_stale_applications (return 5+ day old apps), detect_ghosts (flag 14+ day apps as GHOSTED)
-- Authenticated via X-N8N-API-KEY header
+4. DO NOT add dependencies without asking. If you think a package is needed, say "This requires package X — should I add it?" and wait.
 
-## Components to Build
-- `src/components/kanban/KanbanBoard.tsx` — main drag-drop board ("use client")
-- `src/components/kanban/KanbanColumn.tsx` — single column with droppable area
-- `src/components/kanban/JobCard.tsx` — individual card with actions
-- `src/components/jobs/JobForm.tsx` — add/edit form ("use client")
-- `src/components/jobs/ActivityTimeline.tsx` — vertical timeline
-- `src/components/analytics/StatsBar.tsx` — top metrics row
-- `src/components/analytics/Charts.tsx` — recharts wrappers ("use client")
-- `src/components/shared/PlatformBadge.tsx` — colored platform badge
-- `src/components/shared/ResumeBadge.tsx` — resume variant badge
-- `src/components/shared/StageSelector.tsx` — quick stage buttons
-- `src/components/shared/EmptyState.tsx` — friendly empty states
-- `src/components/layout/Sidebar.tsx` — navigation sidebar
-- `src/components/layout/Header.tsx` — top header with search
+5. DO NOT assume the database schema. Read the Prisma schema (prisma/schema.prisma) before writing any query. Never guess field names, relation names, or types.
 
-## API Routes / Server Actions
-Prefer Server Actions for mutations. Use route handlers only for n8n webhooks.
+6. ALWAYS read the existing code before modifying it. Open the file, understand the patterns, then modify. Don't write new code that contradicts existing patterns.
 
-```
-Server Actions:
-  createJob(data) → create job + Activity log + revalidatePath
-  updateJob(id, data) → update + Activity log if stage changed
-  deleteJob(id) → soft delete with confirmation
-  updateStage(id, newStage) → optimistic update + Activity log
-  addNote(jobId, note) → create Activity with type "note_added"
+7. ALWAYS handle errors. No unhandled promises. No empty catch blocks. No "this should never happen" assumptions.
 
-Route Handlers:
-  POST /api/webhooks/n8n → handle automation webhooks
-  GET /api/analytics → aggregated stats for n8n weekly digest
-```
+8. ALWAYS check that your code compiles: mentally verify TypeScript types, imports, and function signatures match.
 
-## Design Rules
-- Use shadcn/ui components (install with `npx shadcn@latest add`)
-- Stage colors from src/lib/utils.ts STAGE_CONFIG
-- Rounded corners (rounded-xl), subtle shadows, smooth transitions
-- Mobile: stack Kanban columns vertically
-- Dark mode via `dark:` Tailwind classes
-- Toast notifications (sonner) for all actions
-- Optimistic updates on stage changes
-- Every empty state has a friendly message + CTA
-- No bullet-point lists in UI — use cards and badges
+---
 
-## Build Order
-Phase 1: Dashboard Kanban + StatsBar + JobCard + stage transitions
-Phase 2: Add Job form + Job Detail page + Activity timeline
-Phase 3: Search/filter + drag-drop + mobile responsive
-Phase 4: Analytics page with all charts
-Phase 5: Resume manager + Settings
-Phase 6: n8n webhook API endpoint
-Phase 7: Auth (NextAuth) + deploy config
+## BEFORE WRITING ANY CODE
 
-Start with Phase 1. After each phase, commit with a descriptive message.
+For every task, follow this checklist IN ORDER:
+
+Step 1 — Understand the task
+
+- What exactly is being asked?
+- What files are involved?
+- What is the expected behavior AFTER the change?
+- Are there edge cases?
+
+Step 2 — Read the relevant code
+
+- Open and read every file you'll modify
+- Read the Prisma schema for any database work
+- Read existing tests if they exist
+- Read related utility functions and helpers
+- Check for existing patterns (how is this done elsewhere in the codebase?)
+
+Step 3 — Plan the change
+
+- List the files you'll modify
+- Describe what changes in each file and why
+- Identify potential side effects
+- Ask the user if the plan looks right for non-trivial changes
+
+Step 4 — Implement
+
+- Make the minimum change needed
+- Follow existing code patterns exactly
+- Handle all error cases
+- Add comments only where the logic is non-obvious
+
+Step 5 — Verify
+
+- Check that TypeScript types are correct
+- Check that all imports exist
+- Check that database queries match the Prisma schema
+- Check that the change doesn't break other code that depends on the modified function
+- Suggest running: npm run build, npm run lint, relevant tests
+
+---
+
+## TECH STACK
+
+Backend: NestJS (TypeScript), Prisma ORM, PostgreSQL (Neon), Nodemailer
+Frontend: Next.js 14+ (App Router), React, Tailwind CSS, shadcn/ui
+AI: Groq API (primary), Cerebras (fallback) — both OpenAI-compatible
+Deployment: Vercel (serverless functions, 60s timeout on hobby, 10s on routes)
+Auth: NextAuth.js or custom JWT — check the codebase
+Crons: External cron service (cron-job.org) hitting API routes
+
+---
+
+## DATABASE RULES
+
+1. ALWAYS read prisma/schema.prisma before writing queries. Never guess field names.
+
+2. Use Prisma client, not raw SQL, unless there's a specific performance reason.
+
+3. ALWAYS use select to limit fields in list queries. Never load entire records when you only need 3 fields. Especially never load description in list views — it can be 50KB per row.
+
+4. ALWAYS use where clause filters. Never load all records and filter in JavaScript unless the table has fewer than 100 rows.
+
+5. ALWAYS handle the case where a query returns null. findUnique and findFirst can return null.
+
+6. ALWAYS wrap database mutations in try/catch. Handle P2002 (unique constraint) and P2025 (record not found) explicitly.
+
+7. NEVER use deleteMany or updateMany without a WHERE clause that limits scope. Always double-check the where condition.
+
+8. When adding fields to the schema, provide defaults for existing rows. Use @default() in Prisma or handle null in code.
+
+9. After schema changes, remind the user to run: npx prisma db push (dev) or npx prisma migrate dev (production).
+
+10. For queries that join multiple tables, use include or select with nested relations. Don't make N+1 queries in a loop.
+
+---
+
+## API & SERVER RULES
+
+1. Every API route must validate input. Check required fields, check types, check string lengths. Don't trust the client.
+
+2. Every API route must check authentication. No public endpoints unless explicitly intended.
+
+3. Every API route must return consistent response shapes: { success: true, data: ... } or { success: false, error: "message" }.
+
+4. Never expose internal errors to the client. Log the full error server-side, return a generic message to the client.
+
+5. Use proper HTTP status codes: 200 success, 201 created, 400 bad request, 401 unauthorized, 403 forbidden, 404 not found, 500 internal error.
+
+6. For Vercel serverless: be aware of cold starts and execution timeouts. Don't run operations that take more than 50 seconds in a single function invocation.
+
+7. Use Promise.all for parallel independent async operations. Don't await sequentially when operations don't depend on each other.
+
+---
+
+## FRONTEND RULES
+
+1. Use Server Components by default. Only add "use client" when the component needs interactivity (onClick, useState, useEffect).
+
+2. Follow the existing component structure. Check how similar pages/components are built before creating new ones.
+
+3. Use Tailwind CSS classes. Do not add inline styles or create new CSS files unless there's no Tailwind equivalent.
+
+4. Use shadcn/ui components where they exist. Don't rebuild buttons, modals, inputs, dropdowns from scratch.
+
+5. Show loading states for async operations. Use skeleton loaders or spinner components that already exist in the codebase.
+
+6. Show error states. If a fetch fails, show a user-friendly message. Never show a blank page or raw error.
+
+7. Handle empty states. If a list has zero items, show a helpful message with an action ("No matches yet — check back in 15 minutes" or "Add keywords in Settings to get recommendations").
+
+8. Use URL search params for filters and pagination on pages that support server-side rendering. Don't use client-side state for things that should survive page refresh.
+
+9. Forms must show validation errors inline next to the field, not just as a toast at the top.
+
+10. Every button that triggers an async action must show a loading/disabled state to prevent double-clicks.
+
+---
+
+## TYPESCRIPT RULES
+
+1. No "any" types. If you don't know the type, define it or use "unknown" and narrow it.
+
+2. No non-null assertions (!) unless you've proven the value can't be null in the preceding code.
+
+3. Define interfaces/types for: API request bodies, API response bodies, function parameters (when more than 2 params), complex objects.
+
+4. Use enums or string literal unions for values that have a fixed set of options (status fields, source types, etc.).
+
+5. Export types from a central types file or co-locate them with the feature they belong to. Don't define the same type in multiple places.
+
+---
+
+## ERROR HANDLING RULES
+
+1. Every async function must have error handling. Either try/catch within the function or the caller must handle it.
+
+2. Catch blocks must do something useful: log the error, throw a more specific error, return a fallback value, or show a user message. Never have empty catch blocks.
+
+3. Database errors: handle P2002 (unique constraint violation — record already exists), P2025 (record not found), and connection errors specifically.
+
+4. External API errors (Groq, Cerebras, scraper APIs): always set timeouts, always handle non-200 responses, always have a fallback or graceful degradation.
+
+5. SMTP errors: classify as permanent (550 — don't retry), transient (421 — retry later), auth (535 — pause and notify), rate limit (429 — pause 1 hour). Never retry permanent errors.
+
+6. Never swallow errors silently. If you catch an error and can't handle it meaningfully, re-throw it or log it with enough context to debug later.
+
+---
+
+## CRON JOB RULES
+
+1. Crons run in Vercel serverless functions with timeouts. Track elapsed time and exit gracefully before the timeout.
+
+2. Crons must be idempotent. If a cron runs twice (which happens), it should not create duplicate records or send duplicate emails.
+
+3. Use atomic operations for claiming work items. Don't select-then-update — another instance could grab the same item between select and update. Use updateMany with a WHERE clause that includes the current status.
+
+4. Log the start time, end time, items processed, and errors for every cron run. Write to SystemLog.
+
+5. Process work items in batches, not all at once. If there are 500 items, process 50 per invocation.
+
+6. Round-robin across sources/users. Don't process all LinkedIn jobs first — alternate between sources to ensure fair distribution within the timeout window.
+
+---
+
+## TESTING RULES
+
+1. After making changes, suggest specific tests to run. Don't just say "run the tests."
+
+2. When modifying a function that has tests, check that existing tests still pass before writing new ones.
+
+3. For database changes, suggest running: npx prisma db push, then the relevant test scripts.
+
+4. For frontend changes, suggest: npm run build (catches TypeScript errors), then manual verification steps.
+
+5. Every bug fix should include: what was wrong, what was changed, and how to verify the fix works.
+
+---
+
+## CODE STYLE
+
+1. Follow the existing code style in the project. If the codebase uses single quotes, use single quotes. If it uses semicolons, use semicolons. Don't introduce inconsistencies.
+
+2. Function names: use descriptive verbs. getMatchedJobs, computeMatchScore, handleBounce, verifyEmail. Not "process" or "doStuff."
+
+3. Variable names: be specific. "userSettings" not "data", "globalJobs" not "items", "matchScore" not "score" (unless context is obvious).
+
+4. One function does one thing. If a function is doing 3 things, split it. If a function is longer than 50 lines, consider splitting it.
+
+5. Comments: explain WHY, not WHAT. "// Skip jobs without MX records to prevent bounces" is good. "// loop through jobs" is useless.
+
+6. No console.log in production code. Use proper logging (SystemLog or a logger utility). console.log is acceptable only in test scripts.
+
+---
+
+## WHEN YOU DON'T KNOW SOMETHING
+
+1. If you're unsure about the database schema → read prisma/schema.prisma
+2. If you're unsure about an existing function → search the codebase for it
+3. If you're unsure about the project structure → list the directory tree
+4. If you're unsure about a business requirement → ASK the user, don't assume
+5. If you're unsure about a package API → say so, don't hallucinate method signatures
+6. If you're unsure if your change will break something → suggest a smaller change first and verify
+
+---
+
+## RESPONSE FORMAT
+
+When implementing a task:
+
+1. Start with: "Here's my plan:" — list the files to modify and what changes in each
+2. Then: show the actual code changes
+3. End with: "To verify:" — list the specific commands and manual checks to confirm it works
+
+When you find a bug or issue:
+
+1. What's wrong (the bug)
+2. Why it's wrong (root cause)
+3. The fix (minimum change)
+4. How to verify (specific test)
+
+When you don't understand the task:
+
+1. Say what you DO understand
+2. Ask specific questions about what you DON'T understand
+3. Don't proceed until you have clarity
+
+---
+
+## JOBPILOT-SPECIFIC CONTEXT
+
+The app is a job application automation platform:
+
+- Scrapers fetch jobs from 8 platforms into GlobalJob table
+- Matching engine scores jobs against user's keywords, skills, and location
+- For jobs with verified email: auto-generate and send application emails
+- For jobs without email: help user apply quickly via the original job URL
+- UserJob tracks user interactions (save, dismiss, apply)
+- JobApplication tracks email applications (draft, ready, sending, sent, bounced, failed)
+
+Key files to be aware of:
+
+- prisma/schema.prisma — the source of truth for all data models
+- src/lib/score-engine.ts — matching and scoring logic
+- src/lib/recommendation-engine.ts — query-time job recommendations
+- Scraper files in src/scrapers/ or src/lib/scrapers/
+- Cron route handlers in src/app/api/cron/
+- Email sending logic — search for transporter.sendMail or nodemailer
+
+The user's settings include: keywords, city, country, categories, enabledSources, experienceLevel, applicationMode (MANUAL/SEMI_AUTO/FULL_AUTO/INSTANT), SMTP configuration, AI tone/language preferences.
+
+Common gotchas in this codebase:
+
+- GlobalJob.skills is a Json field, not string[] — cast it when using
+- GlobalJob.description can be null (some scrapers don't return descriptions)
+- companyEmail can be a guessed email that doesn't actually work — check emailConfidence
+- isFresh tracks whether the matching cron has processed a job
+- Vercel serverless has cold starts — first request after idle is slow
+- Neon database has connection pooler overhead — use @neondatabase/serverless driver
+- Some scrapers return 0 results (Indeed API issues, Rozee CAPTCHA) — handle gracefully

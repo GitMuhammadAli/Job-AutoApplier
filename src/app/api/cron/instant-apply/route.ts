@@ -187,7 +187,7 @@ export async function GET(req: NextRequest) {
                 companyUrl: freshJob.companyUrl,
               });
 
-          if (emailResult.email && !freshJob.companyEmail) {
+          if (emailResult.email && !freshJob.companyEmail && emailResult.confidenceScore >= 50) {
             await prisma.globalJob.update({
               where: { id: freshJob.id },
               data: {

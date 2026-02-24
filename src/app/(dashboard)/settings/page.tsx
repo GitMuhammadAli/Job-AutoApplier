@@ -1,7 +1,19 @@
 import { getSettings } from "@/app/actions/settings";
 import { getResumeCount } from "@/app/actions/resume";
-import { SettingsForm } from "@/components/settings/SettingsForm";
-import { Cog } from "lucide-react";
+import nextDynamic from "next/dynamic";
+import { Cog, Loader2 } from "lucide-react";
+
+const SettingsForm = nextDynamic(
+  () => import("@/components/settings/SettingsForm").then((m) => m.SettingsForm),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      </div>
+    ),
+  },
+);
 
 export const dynamic = "force-dynamic";
 
