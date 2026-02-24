@@ -4,17 +4,15 @@ import { Charts } from "@/components/analytics/Charts";
 import { SpeedMetrics } from "@/components/analytics/SpeedMetrics";
 import { WeeklyComparison } from "@/components/analytics/WeeklyComparison";
 import { KeywordEffectiveness } from "@/components/analytics/KeywordEffectiveness";
-import { getJobs } from "@/app/actions/job";
 import { BarChart3, TrendingUp } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
   let analytics: Awaited<ReturnType<typeof getAnalytics>> | null = null;
-  let jobs: Awaited<ReturnType<typeof getJobs>> = [];
 
   try {
-    [analytics, jobs] = await Promise.all([getAnalytics(), getJobs()]);
+    analytics = await getAnalytics();
   } catch (error) {
     console.error("[AnalyticsPage] Failed to load data:", error);
   }
@@ -27,10 +25,8 @@ export default async function AnalyticsPage() {
     );
   }
 
-  const appliedCount = jobs.filter((j) => j.stage !== "SAVED").length;
-  const interviewRate = appliedCount > 0
-    ? Math.round((jobs.filter((j) => j.stage === "INTERVIEW").length / appliedCount) * 100)
-    : 0;
+  const { applied, interviews, offers } = analytics;
+  const interviewRate = applied > 0 ? Math.round(((interviews + offers) / applied) * 100) : 0;
 
   return (
     <div className="space-y-6 animate-slide-up">
@@ -54,7 +50,7 @@ export default async function AnalyticsPage() {
 
       <SpeedMetrics metrics={analytics.speedMetrics} />
 
-      <StatsBar jobs={jobs as any} />
+      <StatsBar analytics={analytics} />
 
       {analytics.weeklyComparison && (
         <WeeklyComparison data={analytics.weeklyComparison} />

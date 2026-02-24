@@ -55,24 +55,71 @@ export async function getAnalytics() {
   try {
     const userId = await getAuthUserId();
 
-    const userJobs = await prisma.userJob.findMany({
-      where: { userId, isDismissed: false },
-      include: {
-        globalJob: {
-          select: { source: true, postedDate: true, firstSeenAt: true },
-        },
-        application: {
-          select: { status: true, sentAt: true, appliedVia: true },
-        },
-      },
-      take: 2000,
-    });
+    const now2 = new Date();
+    const thisWeekStart = new Date(now2);
+    thisWeekStart.setDate(now2.getDate() - now2.getDay());
+    thisWeekStart.setHours(0, 0, 0, 0);
+    const lastWeekStart = new Date(thisWeekStart.getTime() - 7 * 86400000);
 
-    const activities = await prisma.activity.findMany({
-      where: { userId },
-      orderBy: { createdAt: "asc" },
-      take: 5000,
-    });
+    // Single parallel batch for ALL data — was 8+ sequential queries before
+    const [
+      userJobs,
+      activityWeekly,
+      thisWeekApps,
+      lastWeekApps,
+      thisWeekMatches,
+      lastWeekMatches,
+      totalApplications,
+      userSettings,
+    ] = await Promise.all([
+      prisma.userJob.findMany({
+        where: { userId, isDismissed: false },
+        select: {
+          stage: true,
+          matchScore: true,
+          matchReasons: true,
+          isDismissed: true,
+          createdAt: true,
+          globalJob: {
+            select: { source: true, firstSeenAt: true, title: true, skills: true, company: true },
+          },
+          application: {
+            select: { status: true, sentAt: true, appliedVia: true },
+          },
+        },
+        take: 2000,
+      }),
+
+      // Use groupBy for activity counts instead of fetching 5000 raw records
+      prisma.$queryRaw<{ week: string; count: bigint }[]>`
+        SELECT TO_CHAR(DATE_TRUNC('week', "createdAt"), 'IYYY-"W"IW') as week,
+               COUNT(*)::bigint as count
+        FROM "Activity"
+        WHERE "userId" = ${userId}
+          AND "createdAt" > NOW() - INTERVAL '90 days'
+        GROUP BY DATE_TRUNC('week', "createdAt")
+        ORDER BY week DESC
+        LIMIT 12
+      `.catch(() => [] as { week: string; count: bigint }[]),
+
+      prisma.jobApplication.count({
+        where: { userId, createdAt: { gte: thisWeekStart } },
+      }),
+      prisma.jobApplication.count({
+        where: { userId, createdAt: { gte: lastWeekStart, lt: thisWeekStart } },
+      }),
+      prisma.userJob.count({
+        where: { userId, createdAt: { gte: thisWeekStart } },
+      }),
+      prisma.userJob.count({
+        where: { userId, createdAt: { gte: lastWeekStart, lt: thisWeekStart } },
+      }),
+      prisma.jobApplication.count({ where: { userId } }),
+      prisma.userSettings.findUnique({
+        where: { userId },
+        select: { keywords: true },
+      }),
+    ]);
 
     const totalJobs = userJobs.length;
     const saved = userJobs.filter((j) => j.stage === "SAVED").length;
@@ -111,24 +158,16 @@ export async function getAnalytics() {
       sourceMap[src] = (sourceMap[src] || 0) + 1;
     }
     const sourceBreakdown = Object.entries(sourceMap).map(
-      ([source, count]) => ({
-        source: formatSource(source),
-        count,
-      }),
+      ([source, count]) => ({ source: formatSource(source), count }),
     );
 
-    // Weekly activity
-    const weeklyActivity: Record<string, number> = {};
-    for (const a of activities) {
-      const week = getWeekLabel(a.createdAt);
-      weeklyActivity[week] = (weeklyActivity[week] || 0) + 1;
-    }
-    const activityOverTime = Object.entries(weeklyActivity)
-      .map(([week, count]) => ({ week, count }))
+    // Weekly activity from grouped query
+    const activityOverTime = activityWeekly
+      .map((row) => ({ week: row.week, count: Number(row.count) }))
       .sort((a, b) => a.week.localeCompare(b.week))
       .slice(-12);
 
-    // ── Speed Metrics ──
+    // Speed Metrics — reuse userJobs data, no extra query needed
     const sentApps = userJobs.filter(
       (j) => j.application?.status === "SENT" && j.application.sentAt,
     );
@@ -140,12 +179,8 @@ export async function getAnalytics() {
       const sentAt = new Date(job.application!.sentAt!).getTime();
       const firstSeen = new Date(job.globalJob.firstSeenAt).getTime();
       const diffMin = Math.max(0, (sentAt - firstSeen) / 60000);
-
       if (diffMin < 20) fastApplyCount++;
-
-      const dateStr = new Date(job.application!.sentAt!)
-        .toISOString()
-        .split("T")[0];
+      const dateStr = new Date(job.application!.sentAt!).toISOString().split("T")[0];
       speedTimeline.push({ date: dateStr, minutes: Math.round(diffMin) });
     }
 
@@ -154,7 +189,6 @@ export async function getAnalytics() {
       avgApplyMinutes = Math.round(totalMin / sentApps.length);
     }
 
-    // Instant vs manual vs draft breakdown
     const instantCount = sentApps.filter(
       (j) =>
         j.application!.appliedVia === "EMAIL" &&
@@ -206,88 +240,37 @@ export async function getAnalytics() {
     for (const job of userJobs) {
       if (job.matchScore != null) {
         const score = Math.round(job.matchScore);
-        const bucket = scoreBuckets.find(
-          (b) => score >= b.min && score <= b.max,
-        );
+        const bucket = scoreBuckets.find((b) => score >= b.min && score <= b.max);
         if (bucket) bucket.count++;
       }
     }
-    const matchScoreDistribution = scoreBuckets.map(({ range, count }) => ({
-      range,
-      count,
-    }));
+    const matchScoreDistribution = scoreBuckets.map(({ range, count }) => ({ range, count }));
 
-    // ── Response Rate (donut chart) ──
+    // Response Rate (donut chart)
     const responseRateBreakdown = [
       { name: "Interview/Offer", value: interviews + offers },
       { name: "Rejected", value: rejected },
       { name: "Ghosted", value: ghosted },
-      {
-        name: "Awaiting",
-        value: Math.max(
-          0,
-          applied - (interviews + offers) - rejected - ghosted,
-        ),
-      },
+      { name: "Awaiting", value: Math.max(0, applied - (interviews + offers) - rejected - ghosted) },
     ];
 
-    // ── Top Companies Applied To (horizontal bar) ──
-    const sentAppsAll = await prisma.jobApplication.findMany({
-      where: { userId, status: "SENT" },
-      include: {
-        userJob: { include: { globalJob: { select: { company: true } } } },
-      },
-      take: 2000,
-    });
+    // Top Companies — compute from already-loaded sentApps (no extra query)
     const companyCounts: Record<string, number> = {};
-    for (const app of sentAppsAll) {
-      const company = app.userJob.globalJob.company;
-      companyCounts[company] = (companyCounts[company] || 0) + 1;
+    for (const job of sentApps) {
+      companyCounts[job.globalJob.company] = (companyCounts[job.globalJob.company] || 0) + 1;
     }
     const topCompanies = Object.entries(companyCounts)
       .map(([company, count]) => ({ company, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // ── Weekly Comparison ──
-    const now2 = new Date();
-    const thisWeekStart = new Date(now2);
-    thisWeekStart.setDate(now2.getDate() - now2.getDay());
-    thisWeekStart.setHours(0, 0, 0, 0);
-    const lastWeekStart = new Date(thisWeekStart.getTime() - 7 * 86400000);
-
-    const [thisWeekApps, lastWeekApps, thisWeekMatches, lastWeekMatches] =
-      await Promise.all([
-        prisma.jobApplication.count({
-          where: { userId, createdAt: { gte: thisWeekStart } },
-        }),
-        prisma.jobApplication.count({
-          where: {
-            userId,
-            createdAt: { gte: lastWeekStart, lt: thisWeekStart },
-          },
-        }),
-        prisma.userJob.count({
-          where: { userId, createdAt: { gte: thisWeekStart } },
-        }),
-        prisma.userJob.count({
-          where: {
-            userId,
-            createdAt: { gte: lastWeekStart, lt: thisWeekStart },
-          },
-        }),
-      ]);
-
     const weeklyComparison = {
       thisWeek: { applications: thisWeekApps, matches: thisWeekMatches },
       lastWeek: { applications: lastWeekApps, matches: lastWeekMatches },
     };
 
-    // ── Summary Stats ──
-    const totalApplications = await prisma.jobApplication.count({
-      where: { userId },
-    });
-    const totalSent = sentAppsAll.length;
+    // Summary Stats
+    const totalSent = sentApps.length;
     const allScores = userJobs
       .filter((j) => j.matchScore != null)
       .map((j) => j.matchScore!);
@@ -298,50 +281,30 @@ export async function getAnalytics() {
     const responseRatePercent =
       totalSent > 0 ? Math.round(((interviews + offers) / totalSent) * 100) : 0;
 
-    // ── Keyword Effectiveness ──
-    const userSettings = await prisma.userSettings.findUnique({
-      where: { userId },
-      select: { keywords: true },
-    });
+    // Keyword Effectiveness — reuse the SAME userJobs already loaded (was a separate 3000-row query)
     const userKeywords = userSettings?.keywords ?? [];
     const keywordEffectiveness: { keyword: string; matches: number; saves: number; dismisses: number; applied: number }[] = [];
 
     if (userKeywords.length > 0) {
-      const allUserJobs = await prisma.userJob.findMany({
-        where: { userId },
-        select: {
-          matchReasons: true,
-          stage: true,
-          isDismissed: true,
-          globalJob: { select: { title: true, skills: true } },
-        },
-        take: 3000,
-      });
-
       for (const kw of userKeywords) {
         const kwLower = kw.toLowerCase();
-        let matches = 0, saves = 0, dismisses = 0, applied = 0;
+        let matches = 0, saves = 0, dismisses = 0, kwApplied = 0;
 
-        for (const uj of allUserJobs) {
+        for (const uj of userJobs) {
           const titleLower = (uj.globalJob.title || "").toLowerCase();
           const skillsStr = (uj.globalJob.skills as string[] || []).join(" ").toLowerCase();
           const reasonsStr = (typeof uj.matchReasons === "string" ? uj.matchReasons : JSON.stringify(uj.matchReasons ?? "")).toLowerCase();
 
-          const kwInTitle = titleLower.includes(kwLower);
-          const kwInSkills = skillsStr.includes(kwLower);
-          const kwInReasons = reasonsStr.includes(kwLower);
-
-          if (kwInTitle || kwInSkills || kwInReasons) {
+          if (titleLower.includes(kwLower) || skillsStr.includes(kwLower) || reasonsStr.includes(kwLower)) {
             matches++;
             if (uj.isDismissed) dismisses++;
             else if (uj.stage === "SAVED") saves++;
-            else applied++;
+            else kwApplied++;
           }
         }
 
-        keywordEffectiveness.push({ keyword: kw, matches, saves, dismisses, applied });
+        keywordEffectiveness.push({ keyword: kw, matches, saves, dismisses, applied: kwApplied });
       }
-
       keywordEffectiveness.sort((a, b) => b.matches - a.matches);
     }
 

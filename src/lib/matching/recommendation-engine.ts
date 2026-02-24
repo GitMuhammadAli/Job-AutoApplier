@@ -103,7 +103,7 @@ export async function getRecommendedJobs(
 
   // ── STEP 1: Load user profile (parallel queries) ──
 
-  const [settings, resumes, dismissedJobs, userJobMap] = await Promise.all([
+  const [settings, resumes, userJobData] = await Promise.all([
     prisma.userSettings.findUnique({
       where: { userId },
       select: {
@@ -131,10 +131,6 @@ export async function getRecommendedJobs(
       },
     }),
     prisma.userJob.findMany({
-      where: { userId, isDismissed: true },
-      select: { globalJobId: true },
-    }).then((jobs) => new Set(jobs.map((j) => j.globalJobId))),
-    prisma.userJob.findMany({
       where: { userId },
       select: {
         id: true,
@@ -144,7 +140,9 @@ export async function getRecommendedJobs(
         application: { select: { status: true } },
       },
     }).then((jobs) => {
+      const excluded = new Set<string>();
       const map = new Map<string, { userJobId: string; stage: string; applicationStatus: string | null; isDismissed: boolean }>();
+      const ACTED_STAGES = new Set(["APPLIED", "INTERVIEW", "OFFER", "REJECTED", "GHOSTED"]);
       for (const j of jobs) {
         map.set(j.globalJobId, {
           userJobId: j.id,
@@ -152,8 +150,11 @@ export async function getRecommendedJobs(
           applicationStatus: j.application?.status ?? null,
           isDismissed: j.isDismissed,
         });
+        if (j.isDismissed || ACTED_STAGES.has(j.stage) || j.application?.status) {
+          excluded.add(j.globalJobId);
+        }
       }
-      return map;
+      return { excluded, map };
     }),
   ]);
 
@@ -176,14 +177,15 @@ export async function getRecommendedJobs(
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - maxDays);
 
-  const dismissedIds = Array.from(dismissedJobs);
+  const { excluded: excludedJobIds, map: userJobMap } = userJobData;
+  const excludedIds = Array.from(excludedJobIds);
 
   const candidates = await prisma.globalJob.findMany({
     where: {
       isActive: true,
       createdAt: { gte: cutoffDate },
       ...(sourcesFilter ? { source: { in: sourcesFilter } } : {}),
-      ...(dismissedIds.length > 0 ? { id: { notIn: dismissedIds.slice(0, 1000) } } : {}),
+      ...(excludedIds.length > 0 ? { id: { notIn: excludedIds.slice(0, 1000) } } : {}),
     },
     select: {
       id: true,

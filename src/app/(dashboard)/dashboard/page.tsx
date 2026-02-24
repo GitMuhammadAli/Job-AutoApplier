@@ -9,18 +9,16 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [jobsResult, settingsResult] = await Promise.allSettled([
-    getJobs(),
-    getSettings(),
-  ]);
-  const jobs: Awaited<ReturnType<typeof getJobs>> =
-    jobsResult.status === "fulfilled" ? jobsResult.value : [];
-  const settings: Awaited<ReturnType<typeof getSettings>> | null =
-    settingsResult.status === "fulfilled" ? settingsResult.value : null;
-  const settingsLoadError = settingsResult.status === "rejected";
+  const settingsResult = await getSettings().catch(() => null);
+  const settings = settingsResult;
+  const settingsLoadError = !settingsResult;
+
+  const jobs: Awaited<ReturnType<typeof getJobs>> = settingsLoadError
+    ? []
+    : await getJobs(settings).catch(() => []);
 
   if (settingsLoadError) {
-    console.error("[DashboardPage] getSettings failed:", settingsResult.reason);
+    console.error("[DashboardPage] getSettings failed");
     return (
       <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30 p-8 text-center">
         <h3 className="text-base font-bold text-red-800 dark:text-red-200">
