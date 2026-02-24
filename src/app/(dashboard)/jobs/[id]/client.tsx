@@ -99,9 +99,10 @@ interface JobDetailProps {
     activities: ActivityData[];
   };
   resumes?: ResumeOption[];
+  autoApply?: boolean;
 }
 
-export function JobDetailClient({ job, resumes = [] }: JobDetailProps) {
+export function JobDetailClient({ job, resumes = [], autoApply = false }: JobDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [noteText, setNoteText] = useState(job.notes || "");
@@ -425,6 +426,7 @@ export function JobDetailClient({ job, resumes = [] }: JobDetailProps) {
               }}
               application={job.application}
               availableResumes={resumes}
+              autoApply={autoApply}
             />
           </div>
         </div>

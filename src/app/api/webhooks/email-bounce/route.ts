@@ -73,10 +73,9 @@ export async function POST(req: NextRequest) {
         data: { status: "BOUNCED", errorMessage: reason },
       });
 
-      // Clear bad email from GlobalJob
       await prisma.globalJob.update({
         where: { id: application.userJob.globalJobId },
-        data: { companyEmail: null },
+        data: { companyEmail: null, emailConfidence: null, emailSource: null },
       });
 
       // Log activity

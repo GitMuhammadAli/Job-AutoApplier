@@ -79,12 +79,14 @@ interface QuickApplyPanelProps {
   };
   application: ApplicationData | null;
   availableResumes?: ResumeOption[];
+  autoApply?: boolean;
 }
 
 export function QuickApplyPanel({
   userJob,
   application: initialApp,
   availableResumes = [],
+  autoApply = false,
 }: QuickApplyPanelProps) {
   const router = useRouter();
   const [application, setApplication] = useState(initialApp);
@@ -117,8 +119,16 @@ export function QuickApplyPanel({
     initialApp?.recipientEmail || userJob.globalJob.companyEmail || ""
   );
 
-  // Don't auto-generate on mount — let users click "Generate Email" when ready.
-  // Auto-triggering was causing Groq API rate limits and 500 errors.
+  const autoTriggered = useRef(false);
+
+  // Auto-generate when user explicitly clicked "Apply" from recommended page
+  useEffect(() => {
+    if (autoApply && !initialApp && !autoTriggered.current) {
+      autoTriggered.current = true;
+      handleGenerate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoApply]);
 
   // Fetch application mode for send button gating
   useEffect(() => {
