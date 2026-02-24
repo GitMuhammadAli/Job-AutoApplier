@@ -180,6 +180,7 @@ model UserSettings {
   githubUrl                String?
   // Job Preferences
   keywords                 String[]
+  negativeKeywords         String[]
   city                     String?
   country                  String?
   salaryMin                Int?
@@ -234,6 +235,7 @@ model UserSettings {
   bouncePauseHours         Int             @default(24)
   sendingPausedUntil       DateTime?
   smtpVerifiedAt           DateTime?
+  smtpSetupDate            DateTime?
   // Company Blacklist
   blacklistedCompanies     String[]
   // User Tracking

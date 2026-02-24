@@ -113,6 +113,7 @@ interface SettingsFormProps {
     bouncePauseHours?: number | null;
     sendingPausedUntil?: string | Date | null;
     blacklistedCompanies?: string[];
+    negativeKeywords?: string[];
   };
 }
 
@@ -146,6 +147,8 @@ export function SettingsForm({
   // Job Preferences
   const [keywords, setKeywords] = useState<string[]>(s.keywords || []);
   const [keywordInput, setKeywordInput] = useState("");
+  const [negativeKeywords, setNegativeKeywords] = useState<string[]>(s.negativeKeywords || []);
+  const [negKeywordInput, setNegKeywordInput] = useState("");
   const [city, setCity] = useState(s.city || "");
   const [country, setCountry] = useState(s.country || "");
   const [salaryMin, setSalaryMin] = useState(s.salaryMin?.toString() || "");
@@ -293,6 +296,14 @@ export function SettingsForm({
     setKeywordInput("");
   }, [keywordInput, keywords]);
 
+  const addNegKeyword = useCallback(() => {
+    const val = negKeywordInput.trim();
+    if (val && !negativeKeywords.includes(val)) {
+      setNegativeKeywords([...negativeKeywords, val]);
+    }
+    setNegKeywordInput("");
+  }, [negKeywordInput, negativeKeywords]);
+
   const addLanguage = useCallback(() => {
     const val = langInput.trim();
     if (val && !languages.includes(val)) {
@@ -352,6 +363,7 @@ export function SettingsForm({
         portfolioUrl,
         githubUrl,
         keywords,
+        negativeKeywords,
         city,
         country,
         salaryMin: salaryMin ? parseInt(salaryMin) : null,
@@ -692,6 +704,55 @@ export function SettingsForm({
             </p>
           </div>
 
+          <Field
+            label="Negative Keywords (exclude jobs containing these)"
+            hint="Jobs matching these terms will be hidden. E.g. 'wordpress', 'php', 'internship'. Prevents irrelevant results."
+          >
+            <div className="flex gap-2">
+              <Input
+                value={negKeywordInput}
+                onChange={(e) => setNegKeywordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addNegKeyword();
+                  }
+                }}
+                placeholder="wordpress, php, internship..."
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={addNegKeyword}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            {negativeKeywords.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {negativeKeywords.map((kw, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1 rounded-lg bg-red-50 dark:bg-red-900/30 px-2.5 py-1 text-xs font-medium text-red-700 dark:text-red-300 ring-1 ring-red-200/60 dark:ring-red-800/40"
+                  >
+                    {kw}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setNegativeKeywords(negativeKeywords.filter((_, idx) => idx !== i))
+                      }
+                      className="ml-0.5 rounded-full p-0.5 hover:bg-red-200/60 dark:hover:bg-red-800/40 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </Field>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field
               label="City"
@@ -717,8 +778,8 @@ export function SettingsForm({
 
           <div className="grid grid-cols-3 gap-4">
             <Field
-              label="Min Salary"
-              hint="Leave empty to see all salary ranges"
+              label="Min Salary (monthly)"
+              hint="Jobs with salary below this are filtered out. Jobs without salary data still pass through."
             >
               <Input
                 type="number"

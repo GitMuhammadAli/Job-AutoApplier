@@ -4,6 +4,34 @@ import { requireAdmin } from "@/lib/admin";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+const VALID_SCRAPE_SOURCES = [
+  "indeed", "remotive", "arbeitnow", "rozee", "linkedin",
+  "jsearch", "adzuna", "google",
+];
+
+const VALID_CRON_ACTIONS = [
+  "instant-apply", "match-jobs", "match-all-users",
+  "send-scheduled", "send-queued", "notify-matches",
+  "cleanup-stale", "follow-up", "check-follow-ups",
+  "scrape-global",
+];
+
+function cronPath(action: string): string {
+  switch (action) {
+    case "scrape-global": return "/api/cron/scrape-global";
+    case "instant-apply": return "/api/cron/instant-apply";
+    case "match-jobs": return "/api/cron/match-jobs";
+    case "match-all-users": return "/api/cron/match-all-users";
+    case "send-scheduled": return "/api/cron/send-scheduled";
+    case "send-queued": return "/api/cron/send-queued";
+    case "notify-matches": return "/api/cron/notify-matches";
+    case "cleanup-stale": return "/api/cron/cleanup-stale";
+    case "follow-up": return "/api/cron/follow-up";
+    case "check-follow-ups": return "/api/cron/check-follow-ups";
+    default: return "";
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -28,62 +56,51 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (source === "instant-apply") {
+  // Trigger a cron action
+  if (VALID_CRON_ACTIONS.includes(source)) {
+    const path = cronPath(source);
+    if (!path) {
+      return NextResponse.json({ error: `Unknown action: ${source}` }, { status: 400 });
+    }
     try {
-      const res = await fetch(
-        `${baseUrl}/api/cron/instant-apply?secret=${secret}`,
-      );
-      const data = await res.json();
-      return NextResponse.json(data);
+      const res = await fetch(`${baseUrl}${path}?secret=${secret}`);
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return NextResponse.json({ action: source, status: res.status, ...data });
     } catch (err: unknown) {
       return NextResponse.json(
-        {
-          error: "Instant apply trigger failed",
-          details: String(err),
-        },
+        { error: `Trigger failed for ${source}`, details: String(err) },
         { status: 500 },
       );
     }
   }
 
+  // Scrape all sources
   if (source === "all") {
-    const sources = ["indeed", "remotive", "arbeitnow", "rozee", "linkedin"];
-    const results: {
-      source: string;
-      status: number | string;
-      error?: string;
-    }[] = [];
-
-    for (const s of sources) {
+    const results: { source: string; status: number | string; error?: string }[] = [];
+    for (const s of VALID_SCRAPE_SOURCES) {
       try {
-        const res = await fetch(
-          `${baseUrl}/api/cron/scrape/${s}?secret=${secret}`,
-        );
+        const res = await fetch(`${baseUrl}/api/cron/scrape/${s}?secret=${secret}`);
         results.push({ source: s, status: res.status });
       } catch (err: unknown) {
-        results.push({
-          source: s,
-          status: "error",
-          error: String(err),
-        });
+        results.push({ source: s, status: "error", error: String(err) });
       }
     }
     return NextResponse.json({ results });
   }
 
-  try {
-    const res = await fetch(
-      `${baseUrl}/api/cron/scrape/${source}?secret=${secret}`,
-    );
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch (err: unknown) {
-    return NextResponse.json(
-      {
-        error: `Trigger failed for ${source}`,
-        details: String(err),
-      },
-      { status: 500 },
-    );
+  // Scrape single source
+  if (VALID_SCRAPE_SOURCES.includes(source)) {
+    try {
+      const res = await fetch(`${baseUrl}/api/cron/scrape/${source}?secret=${secret}`);
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return NextResponse.json(data);
+    } catch (err: unknown) {
+      return NextResponse.json(
+        { error: `Trigger failed for ${source}`, details: String(err) },
+        { status: 500 },
+      );
+    }
   }
+
+  return NextResponse.json({ error: `Unknown source: ${source}` }, { status: 400 });
 }

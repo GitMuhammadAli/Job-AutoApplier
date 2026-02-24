@@ -62,11 +62,25 @@ export async function getJobs() {
 
     const preferredPlatforms = settings?.preferredPlatforms ?? [];
     const blacklist = (settings?.blacklistedCompanies ?? []).map((c: string) => c.toLowerCase().trim()).filter(Boolean);
+    const userCity = (settings?.city ?? "").toLowerCase().split(",")[0]?.trim();
+    const userCountry = (settings?.country ?? "").toLowerCase().trim();
+    const remoteWords = ["remote", "worldwide", "anywhere", "global", "work from home", "distributed", "wfh", "telecommute"];
+
     const filtered = userJobs.filter((j) => {
       if (!jobMatchesPlatformPreferences(j.globalJob.source, preferredPlatforms)) return false;
       if (blacklist.length > 0) {
         const co = j.globalJob.company.toLowerCase().trim();
         if (blacklist.some((bl: string) => co.includes(bl) || bl.includes(co))) return false;
+      }
+      if (userCity) {
+        const loc = (j.globalJob.location ?? "").toLowerCase();
+        if (loc && loc !== "n/a" && loc !== "not specified") {
+          const inCity = loc.includes(userCity);
+          const isRemote = remoteWords.some((r) => loc.includes(r));
+          const countryOnly = userCountry &&
+            loc.replace(new RegExp(userCountry, "g"), "").replace(/[\s,.\-]+/g, "").length === 0;
+          if (!inCity && !isRemote && !countryOnly) return false;
+        }
       }
       return true;
     });
@@ -345,6 +359,40 @@ export async function createManualJob(rawData: unknown): Promise<{ success: bool
     if (error instanceof z.ZodError) return { success: false, error: error.errors[0].message };
     console.error("[createManualJob] Error:", error);
     return { success: false, error: "Failed to add job. Please try again." };
+  }
+}
+
+// ── Save/Dismiss from recommended page (by GlobalJob ID) ──
+
+export async function saveGlobalJob(globalJobId: string): Promise<{ success: boolean; userJobId?: string; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    const userJob = await prisma.userJob.upsert({
+      where: { userId_globalJobId: { userId, globalJobId } },
+      create: { userId, globalJobId, stage: "SAVED" },
+      update: { isDismissed: false, stage: "SAVED" },
+    });
+    revalidatePath("/recommended");
+    return { success: true, userJobId: userJob.id };
+  } catch (error) {
+    console.error("[saveGlobalJob] Error:", error);
+    return { success: false, error: "Failed to save job" };
+  }
+}
+
+export async function dismissGlobalJob(globalJobId: string, reason?: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    await prisma.userJob.upsert({
+      where: { userId_globalJobId: { userId, globalJobId } },
+      create: { userId, globalJobId, isDismissed: true, dismissReason: reason },
+      update: { isDismissed: true, dismissReason: reason },
+    });
+    revalidatePath("/recommended");
+    return { success: true };
+  } catch (error) {
+    console.error("[dismissGlobalJob] Error:", error);
+    return { success: false, error: "Failed to dismiss job" };
   }
 }
 

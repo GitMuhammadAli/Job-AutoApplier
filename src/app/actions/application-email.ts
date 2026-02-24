@@ -12,6 +12,7 @@ import type { GenerateEmailInput } from "@/lib/ai-email-generator";
 async function buildEmailInput(
   userId: string,
   userJobId: string,
+  overrideResumeId?: string,
 ): Promise<{
   input: GenerateEmailInput;
   matchedResume: { id: string; name: string; tier: string; reason: string };
@@ -30,13 +31,28 @@ async function buildEmailInput(
   if (!settings?.fullName)
     throw new Error("Complete your profile in Settings first");
 
-  const resumeResult = await pickBestResumeWithTier(userId, {
-    title: userJob.globalJob.title,
-    description: userJob.globalJob.description,
-    skills: userJob.globalJob.skills,
-    category: userJob.globalJob.category,
-    location: userJob.globalJob.location,
-  });
+  let resumeResult: Awaited<ReturnType<typeof pickBestResumeWithTier>>;
+
+  if (overrideResumeId) {
+    const resume = await prisma.resume.findFirst({
+      where: { id: overrideResumeId, userId },
+      select: {
+        id: true, name: true, content: true, isDefault: true,
+        fileUrl: true, fileName: true, targetCategories: true,
+        detectedSkills: true, updatedAt: true,
+      },
+    });
+    if (!resume) throw new Error("Selected resume not found");
+    resumeResult = { resume, tier: "fallback" as const, reason: "Manually selected" };
+  } else {
+    resumeResult = await pickBestResumeWithTier(userId, {
+      title: userJob.globalJob.title,
+      description: userJob.globalJob.description,
+      skills: userJob.globalJob.skills,
+      category: userJob.globalJob.category,
+      location: userJob.globalJob.location,
+    });
+  }
 
   if (!resumeResult) throw new Error("Upload at least one resume first");
 
@@ -101,11 +117,11 @@ function isValidEmail(email: string): boolean {
   );
 }
 
-export async function generateApplication(userJobId: string) {
+export async function generateApplication(userJobId: string, resumeId?: string) {
   try {
     const userId = await getAuthUserId();
     const { input, matchedResume, recipientEmail, senderEmail } =
-      await buildEmailInput(userId, userJobId);
+      await buildEmailInput(userId, userJobId, resumeId);
 
     const generated = await generateApplicationEmail(input);
 
@@ -158,8 +174,8 @@ export async function generateApplication(userJobId: string) {
   }
 }
 
-export async function regenerateApplication(userJobId: string) {
-  return generateApplication(userJobId);
+export async function regenerateApplication(userJobId: string, resumeId?: string) {
+  return generateApplication(userJobId, resumeId);
 }
 
 export async function updateApplicationDraft(

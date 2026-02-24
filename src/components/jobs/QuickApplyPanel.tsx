@@ -31,11 +31,16 @@ import {
 } from "lucide-react";
 
 function cleanJsonField(value: string, field: "subject" | "body"): string {
-  if (!value || !value.trimStart().startsWith("{")) return value;
+  if (!value) return value;
+  let cleaned = value
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+  if (!cleaned.startsWith("{")) return value;
   try {
-    const parsed = JSON.parse(value);
-    if (typeof parsed === "object" && parsed !== null) {
-      return (parsed[field] as string) || value;
+    const parsed = JSON.parse(cleaned);
+    if (typeof parsed === "object" && parsed !== null && typeof parsed[field] === "string") {
+      return parsed[field];
     }
   } catch {
     /* not JSON — use as-is */
@@ -54,6 +59,12 @@ interface ApplicationData {
   resume?: { id: string; name: string; fileName: string | null } | null;
 }
 
+interface ResumeOption {
+  id: string;
+  name: string;
+  isDefault: boolean;
+}
+
 interface QuickApplyPanelProps {
   userJob: {
     id: string;
@@ -67,11 +78,13 @@ interface QuickApplyPanelProps {
     };
   };
   application: ApplicationData | null;
+  availableResumes?: ResumeOption[];
 }
 
 export function QuickApplyPanel({
   userJob,
   application: initialApp,
+  availableResumes = [],
 }: QuickApplyPanelProps) {
   const router = useRouter();
   const [application, setApplication] = useState(initialApp);
@@ -82,6 +95,7 @@ export function QuickApplyPanel({
   const [markingApplied, setMarkingApplied] = useState(false);
   const [showPlatforms, setShowPlatforms] = useState(false);
   const [applicationMode, setApplicationMode] = useState<string | null>(null);
+  const [selectedResumeId, setSelectedResumeId] = useState<string>("");
   const [matchInfo, setMatchInfo] = useState<{
     name: string;
     tier: string;
@@ -126,7 +140,8 @@ export function QuickApplyPanel({
   function handleGenerate() {
     startGenerate(async () => {
       try {
-        const result = await generateApplication(userJob.id);
+        const resumeId = selectedResumeId || undefined;
+        const result = await generateApplication(userJob.id, resumeId);
         setApplication(result.application);
         setSubject(cleanJsonField(result.application.subject, "subject"));
         setEmailBody(cleanJsonField(result.application.emailBody, "body"));
@@ -150,7 +165,8 @@ export function QuickApplyPanel({
   function handleRegenerate() {
     startRegenerate(async () => {
       try {
-        const result = await regenerateApplication(userJob.id);
+        const resumeId = selectedResumeId || undefined;
+        const result = await regenerateApplication(userJob.id, resumeId);
         setApplication(result.application);
         setSubject(cleanJsonField(result.application.subject, "subject"));
         setEmailBody(cleanJsonField(result.application.emailBody, "body"));
@@ -315,14 +331,37 @@ export function QuickApplyPanel({
         {userJob.globalJob.title} at {userJob.globalJob.company}
       </p>
 
-      {/* Resume Selected */}
+      {/* Resume Selector */}
+      {availableResumes.length > 1 && (
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400">
+            Resume
+          </Label>
+          <select
+            value={selectedResumeId}
+            onChange={(e) => setSelectedResumeId(e.target.value)}
+            className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">AI picks best match</option>
+            {availableResumes.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}{r.isDefault ? " (default)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* AI Resume Recommendation */}
       {matchInfo && (
         <div className="rounded-lg bg-blue-50 dark:bg-blue-900/30 p-3 ring-1 ring-blue-100 dark:ring-blue-800/40">
           <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs font-semibold text-blue-800 dark:text-blue-200 truncate">
-                Resume: {matchInfo.name}
+                {matchInfo.tier === "fallback" && selectedResumeId
+                  ? `Using: ${matchInfo.name}`
+                  : `AI selected "${matchInfo.name}"`}
               </p>
               <p className="text-[10px] text-blue-600 dark:text-blue-400">
                 {matchInfo.reason}
@@ -545,19 +584,40 @@ export function QuickApplyPanel({
           </div>
         </>
       ) : (
-        <div className="text-center py-6 space-y-3">
-          <AlertCircle className="h-8 w-8 text-slate-200 dark:text-zinc-600 mx-auto" />
-          <p className="text-sm text-slate-500 dark:text-zinc-400">
-            No draft yet. Click below to generate.
-          </p>
-          <Button size="sm" onClick={handleGenerate} disabled={isGenerating}>
-            {isGenerating ? (
-              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-            )}
-            Generate Email
-          </Button>
+        <div className="space-y-4 py-4">
+          {availableResumes.length > 1 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400">
+                Resume
+              </Label>
+              <select
+                value={selectedResumeId}
+                onChange={(e) => setSelectedResumeId(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">AI picks best match</option>
+                {availableResumes.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}{r.isDefault ? " (default)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="text-center space-y-3">
+            <AlertCircle className="h-8 w-8 text-slate-200 dark:text-zinc-600 mx-auto" />
+            <p className="text-sm text-slate-500 dark:text-zinc-400">
+              No draft yet. Click below to generate.
+            </p>
+            <Button size="sm" onClick={handleGenerate} disabled={isGenerating}>
+              {isGenerating ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Generate Email
+            </Button>
+          </div>
         </div>
       )}
 

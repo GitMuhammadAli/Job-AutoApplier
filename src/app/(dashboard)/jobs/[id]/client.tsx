@@ -78,6 +78,12 @@ interface ApplicationData {
   resume?: { id: string; name: string; fileName: string | null } | null;
 }
 
+interface ResumeOption {
+  id: string;
+  name: string;
+  isDefault: boolean;
+}
+
 interface JobDetailProps {
   job: {
     id: string;
@@ -92,9 +98,10 @@ interface JobDetailProps {
     application: ApplicationData | null;
     activities: ActivityData[];
   };
+  resumes?: ResumeOption[];
 }
 
-export function JobDetailClient({ job }: JobDetailProps) {
+export function JobDetailClient({ job, resumes = [] }: JobDetailProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [noteText, setNoteText] = useState(job.notes || "");
@@ -417,6 +424,7 @@ export function JobDetailClient({ job }: JobDetailProps) {
                 },
               }}
               application={job.application}
+              availableResumes={resumes}
             />
           </div>
         </div>

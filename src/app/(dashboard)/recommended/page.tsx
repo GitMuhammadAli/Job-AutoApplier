@@ -1,87 +1,66 @@
 import { getAuthUserId } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { getSettings } from "@/app/actions/settings";
-import {
-  jobMatchesPlatformPreferences,
-  deduplicateUserJobsByLogicalJob,
-} from "@/lib/matching/location-filter";
+import { getRecommendedJobs, type RecommendationOptions } from "@/lib/matching/recommendation-engine";
 import { RecommendedClient } from "./client";
 
 export const dynamic = "force-dynamic";
 
-export default async function RecommendedPage() {
+interface PageProps {
+  searchParams: {
+    source?: string;
+    sort?: string;
+    minScore?: string;
+    page?: string;
+    type?: string;
+    location?: string;
+    email?: string;
+    q?: string;
+  };
+}
+
+export default async function RecommendedPage({ searchParams }: PageProps) {
   const userId = await getAuthUserId();
 
-  const [userJobsResult, settingsResult] = await Promise.allSettled([
-    prisma.userJob.findMany({
-      where: { userId, isDismissed: false },
-      include: {
-        globalJob: {
-          select: {
-            id: true,
-            title: true,
-            company: true,
-            location: true,
-            salary: true,
-            jobType: true,
-            experienceLevel: true,
-            category: true,
-            skills: true,
-            source: true,
-            applyUrl: true,
-            sourceUrl: true,
-            companyEmail: true,
-            description: true,
-            isFresh: true,
-            postedDate: true,
-            firstSeenAt: true,
-            createdAt: true,
-          },
-        },
-        application: {
-          select: { id: true, status: true, sentAt: true },
-        },
-      },
-      orderBy: { matchScore: "desc" },
-      take: 200,
-    }),
-    getSettings(),
-  ]);
+  const options: RecommendationOptions = {
+    page: parseInt(searchParams.page || "1") || 1,
+    pageSize: 50,
+    sortBy: searchParams.sort === "date" ? "date" : "score",
+    minScore: parseInt(searchParams.minScore || "0") || 0,
+    searchQuery: searchParams.q || undefined,
+    hasEmail: searchParams.email === "true",
+    jobType: searchParams.type || undefined,
+  };
 
-  const userJobs =
-    userJobsResult.status === "fulfilled" ? userJobsResult.value : [];
-  const settings =
-    settingsResult.status === "fulfilled" ? settingsResult.value : null;
+  if (searchParams.source) {
+    options.sources = searchParams.source.split(",").filter(Boolean);
+  }
 
-  const blacklist = (settings?.blacklistedCompanies ?? []).map((c: string) => c.toLowerCase().trim()).filter(Boolean);
-
-  const filteredBySettings = userJobs.filter((j) => {
-    if (!jobMatchesPlatformPreferences(j.globalJob.source, settings?.preferredPlatforms)) return false;
-    if (blacklist.length > 0) {
-      const co = j.globalJob.company.toLowerCase().trim();
-      if (blacklist.some((bl: string) => co.includes(bl) || bl.includes(co))) return false;
+  if (searchParams.location) {
+    const loc = searchParams.location as RecommendationOptions["locationFilter"];
+    if (["all", "city", "country", "remote"].includes(loc!)) {
+      options.locationFilter = loc;
     }
-    return true;
-  });
-  const deduped = deduplicateUserJobsByLogicalJob(filteredBySettings);
+  }
 
-  const serialized = deduped.map((j) => ({
-    ...j,
-    createdAt: j.createdAt.toISOString(),
-    updatedAt: j.updatedAt.toISOString(),
-    globalJob: {
-      ...j.globalJob,
-      createdAt: j.globalJob.createdAt.toISOString(),
-      firstSeenAt: j.globalJob.firstSeenAt.toISOString(),
-      postedDate: j.globalJob.postedDate?.toISOString() ?? null,
-    },
-    application: j.application
-      ? {
-          ...j.application,
-          sentAt: j.application.sentAt?.toISOString() ?? null,
-        }
-      : null,
-  }));
+  const result = await getRecommendedJobs(userId, options);
 
-  return <RecommendedClient jobs={serialized as any} />;
+  return (
+    <RecommendedClient
+      jobs={result.jobs}
+      total={result.total}
+      page={result.page}
+      pageSize={result.pageSize}
+      timing={result.timing}
+      sourceCounts={result.sourceCounts}
+      filterBreakdown={result.filterBreakdown}
+      currentFilters={{
+        source: searchParams.source || null,
+        sort: searchParams.sort || "score",
+        minScore: searchParams.minScore || "0",
+        location: searchParams.location || null,
+        type: searchParams.type || null,
+        email: searchParams.email || null,
+        q: searchParams.q || null,
+      }}
+    />
+  );
 }

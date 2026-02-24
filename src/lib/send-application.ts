@@ -10,6 +10,33 @@ interface SendResult {
   messageId?: string;
 }
 
+const PERMANENT_SMTP_CODES = [
+  "550", // Mailbox not found / address rejected
+  "551", // User not local
+  "552", // Exceeded storage allocation
+  "553", // Mailbox name not allowed
+  "554", // Relay access denied / transaction failed
+  "521", // Server does not accept mail
+  "523", // Recipient mailbox full (permanent)
+  "541", // Recipient rejected
+  "556", // Domain does not accept mail
+];
+
+function isPermanentSmtpRejection(errorMsg: string): boolean {
+  const msg = errorMsg.toLowerCase();
+  if (PERMANENT_SMTP_CODES.some((code) => msg.includes(code))) return true;
+  if (msg.includes("relay access denied")) return true;
+  if (msg.includes("address rejected")) return true;
+  if (msg.includes("address not found")) return true;
+  if (msg.includes("recipient rejected")) return true;
+  if (msg.includes("does not exist")) return true;
+  if (msg.includes("user unknown")) return true;
+  if (msg.includes("no such user")) return true;
+  if (msg.includes("mailbox not found")) return true;
+  if (msg.includes("mailbox unavailable")) return true;
+  return false;
+}
+
 export async function sendApplication(
   applicationId: string
 ): Promise<SendResult> {
@@ -139,6 +166,39 @@ export async function sendApplication(
   } catch (err: unknown) {
     const errorMsg =
       err instanceof Error ? err.message : "Unknown send error";
+
+    if (isPermanentSmtpRejection(errorMsg)) {
+      await prisma.$transaction([
+        prisma.jobApplication.update({
+          where: { id: applicationId },
+          data: {
+            status: "BOUNCED",
+            retryCount: (application.retryCount || 0) + 1,
+            errorMessage: errorMsg,
+          },
+        }),
+        prisma.activity.create({
+          data: {
+            userId,
+            userJobId: application.userJobId,
+            type: "APPLICATION_BOUNCED",
+            description: `Email to ${application.recipientEmail} rejected: ${errorMsg}`,
+          },
+        }),
+      ]);
+
+      // Clear the bad email from GlobalJob so it's not reused
+      await prisma.globalJob.update({
+        where: { id: application.userJob.globalJobId },
+        data: { companyEmail: null },
+      }).catch(() => {});
+
+      console.error(
+        `[SendApp] Permanent rejection for ${application.recipientEmail}: ${errorMsg}`
+      );
+      return { success: false, error: errorMsg };
+    }
+
     const currentRetry = (application.retryCount || 0) + 1;
 
     if (currentRetry < 3) {
