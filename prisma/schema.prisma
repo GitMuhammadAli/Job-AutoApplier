@@ -83,8 +83,9 @@ model GlobalJob {
   sourceUrl       String?
   applyUrl        String?
   companyUrl      String?
-  companyEmail      String?
-  emailSource       String?
+  companyEmail        String?
+  emailSource        String?
+  emailConfidence    Int?
   emailContributedBy String?
   isActive          Boolean   @default(true)
   isFresh         Boolean   @default(true)

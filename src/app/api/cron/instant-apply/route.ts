@@ -176,6 +176,7 @@ export async function GET(req: NextRequest) {
             ? {
                 email: freshJob.companyEmail,
                 confidence: "HIGH" as const,
+                confidenceScore: freshJob.emailConfidence ?? 95,
                 method: "cached",
               }
             : await findCompanyEmail({
@@ -189,7 +190,11 @@ export async function GET(req: NextRequest) {
           if (emailResult.email && !freshJob.companyEmail) {
             await prisma.globalJob.update({
               where: { id: freshJob.id },
-              data: { companyEmail: emailResult.email },
+              data: {
+                companyEmail: emailResult.email,
+                emailSource: emailResult.method,
+                emailConfidence: emailResult.confidenceScore,
+              },
             });
           }
 

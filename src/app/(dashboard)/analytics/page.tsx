@@ -3,6 +3,7 @@ import { StatsBar } from "@/components/analytics/StatsBar";
 import { Charts } from "@/components/analytics/Charts";
 import { SpeedMetrics } from "@/components/analytics/SpeedMetrics";
 import { WeeklyComparison } from "@/components/analytics/WeeklyComparison";
+import { KeywordEffectiveness } from "@/components/analytics/KeywordEffectiveness";
 import { getJobs } from "@/app/actions/job";
 import { BarChart3, TrendingUp } from "lucide-react";
 
@@ -57,6 +58,10 @@ export default async function AnalyticsPage() {
 
       {analytics.weeklyComparison && (
         <WeeklyComparison data={analytics.weeklyComparison} />
+      )}
+
+      {analytics.keywordEffectiveness && analytics.keywordEffectiveness.length > 0 && (
+        <KeywordEffectiveness data={analytics.keywordEffectiveness} />
       )}
 
       <Charts

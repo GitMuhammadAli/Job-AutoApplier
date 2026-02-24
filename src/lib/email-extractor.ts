@@ -5,7 +5,19 @@ export type EmailConfidence = "HIGH" | "MEDIUM" | "LOW" | "NONE";
 export interface FindCompanyEmailResult {
   email: string | null;
   confidence: EmailConfidence;
+  confidenceScore: number;
   method: string;
+}
+
+const CONFIDENCE_SCORES: Record<EmailConfidence, number> = {
+  HIGH: 95,
+  MEDIUM: 60,
+  LOW: 20,
+  NONE: 0,
+};
+
+export function getConfidenceScore(confidence: EmailConfidence): number {
+  return CONFIDENCE_SCORES[confidence] ?? 0;
 }
 
 const EMAIL_REGEX = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
@@ -83,6 +95,7 @@ export async function findCompanyEmail(job: {
       return {
         email: (preferred || goodEmails[0]).toLowerCase(),
         confidence: "HIGH",
+        confidenceScore: 95,
         method: "job_description_regex",
       };
     }
@@ -101,6 +114,7 @@ export async function findCompanyEmail(job: {
       return {
         email: `${bestPrefix}@${domain}`,
         confidence: "MEDIUM",
+        confidenceScore: 50,
         method: `pattern_guess_mx_verified (${domain})`,
       };
     }
@@ -129,6 +143,7 @@ export async function findCompanyEmail(job: {
             return {
               email: filtered[0].toLowerCase(),
               confidence: "MEDIUM",
+              confidenceScore: 75,
               method: "careers_page_scrape",
             };
           }
@@ -144,11 +159,12 @@ export async function findCompanyEmail(job: {
     return {
       email: `careers@${domain}`,
       confidence: "LOW",
+      confidenceScore: 20,
       method: "best_guess_unverified",
     };
   }
 
-  return { email: null, confidence: "NONE", method: "none" };
+  return { email: null, confidence: "NONE", confidenceScore: 0, method: "none" };
 }
 
 function isJobBoardDomain(hostname: string): boolean {
