@@ -1,5 +1,5 @@
-import { JobDetailSkeleton } from "@/components/shared/Skeletons";
+import { JobPilotLoader } from "@/components/shared/JobPilotLoader";
 
 export default function JobDetailLoading() {
-  return <JobDetailSkeleton />;
+  return <JobPilotLoader variant="inline" label="Loading job details…" />;
 }

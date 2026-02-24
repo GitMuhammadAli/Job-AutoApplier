@@ -1,9 +1,5 @@
-import { Loader2 } from "lucide-react";
+import { JobPilotLoader } from "@/components/shared/JobPilotLoader";
 
-export default function Loading() {
-  return (
-    <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-    </div>
-  );
+export default function RecommendedLoading() {
+  return <JobPilotLoader label="Finding your matches…" />;
 }

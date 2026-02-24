@@ -1,9 +1,5 @@
-import { KanbanSkeleton } from "@/components/shared/Skeletons";
+import { JobPilotLoader } from "@/components/shared/JobPilotLoader";
 
 export default function DashboardLoading() {
-  return (
-    <div className="animate-slide-up">
-      <KanbanSkeleton />
-    </div>
-  );
+  return <JobPilotLoader label="Loading dashboard…" />;
 }

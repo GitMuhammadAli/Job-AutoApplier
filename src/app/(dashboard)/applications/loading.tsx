@@ -1,5 +1,5 @@
-import { ApplicationsSkeleton } from "@/components/shared/Skeletons";
+import { JobPilotLoader } from "@/components/shared/JobPilotLoader";
 
 export default function ApplicationsLoading() {
-  return <ApplicationsSkeleton />;
+  return <JobPilotLoader label="Loading applications…" />;
 }

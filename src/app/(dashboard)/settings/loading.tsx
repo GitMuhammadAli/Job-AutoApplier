@@ -1,5 +1,5 @@
-import { SettingsSkeleton } from "@/components/shared/Skeletons";
+import { JobPilotLoader } from "@/components/shared/JobPilotLoader";
 
 export default function SettingsLoading() {
-  return <SettingsSkeleton />;
+  return <JobPilotLoader label="Loading settings…" />;
 }
