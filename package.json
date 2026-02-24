@@ -26,6 +26,7 @@
     "test:pipeline": "tsx src/scripts/test-full-pipeline.ts",
     "test:edge": "tsx src/scripts/test-edge-cases.ts",
     "test:all": "tsx src/scripts/run-all-tests.ts",
+    "test:user-plan": "tsx e2e-user-test-plan.ts",
     "fix:resume": "tsx src/scripts/fix-resume-content.ts",
     "postinstall": "prisma generate"
   },

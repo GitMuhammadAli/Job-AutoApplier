@@ -10,7 +10,7 @@ import { chromium } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 
-const BASE_URL = "http://localhost:3002";
+const BASE_URL = "http://localhost:3000";
 const AUTH_DIR = path.join(process.cwd(), ".auth");
 
 async function main() {
