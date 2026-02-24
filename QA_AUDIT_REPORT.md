@@ -116,3 +116,15 @@
 3. **Applications, Resumes, Templates** — Add error fallback UI with retry when data fetch fails.
 4. **ApplicationQueue handleSend** — Parse JSON safely; check `res.ok` before assuming JSON.
 5. **SendingStatusBar, System Health StatBox** — Add dark mode variants.
+
+---
+
+## 10. Fixes Applied Since Audit
+
+| # | Original Issue | Fix Applied | Status |
+|---|---------------|-------------|--------|
+| 8, 9 | No `loading.tsx` for dashboard/analytics pages | All 15 `loading.tsx` files across dashboard and admin panels replaced with custom `JobPilotLoader` component — branded animated loader with contextual labels (e.g. "Finding your matches…", "Loading analytics…"). | **FIXED** |
+| — | No user activity tracking for admin visibility | Added `ActivityTracker` component (heartbeat every 5 min) + `/api/heartbeat` endpoint. Admin dashboard now shows "Recently Active Users" card with online indicators. Admin users page enhanced with sortable columns, online status dots, and joined date. | **NEW FEATURE** |
+| — | AI emails using wrong name from resume | Three-layer fix in `ai-email-generator.ts`: (1) sanitize resume to strip name/contact, (2) CRITICAL prompt rule to use profile name, (3) post-processing `enforceProfileName()` replaces any incorrect name. | **FIXED** |
+| — | Settings page lacks guidance for AI configuration | Added `SuggestionTip` component with contextual inline tips for Full Name (capitalization), Experience Level (penalty warning), Custom System Prompt (example), Preferred Tone (startup suggestion), Custom Closing (example), Default Signature (example), and Categories (count warnings). AI tab has a quick-start guide banner. | **NEW FEATURE** |
+| — | Slow page loads due to inefficient data fetching | Analytics: parallelized 8+ sequential queries into `Promise.all`. Dashboard: eliminated duplicate `getSettings()` calls. Applications: removed redundant `getApplicationCounts()`. Constants: reduced `JOBS_PER_PAGE` and `APPLICATIONS_PER_PAGE` from 500 to 200. | **FIXED** |

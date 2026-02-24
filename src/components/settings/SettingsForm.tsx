@@ -55,6 +55,7 @@ import {
   Info,
   Trash2,
   Settings2,
+  Lightbulb,
 } from "lucide-react";
 
 interface SettingsFormProps {
@@ -493,6 +494,27 @@ export function SettingsForm({
         {/* ══════ TAB 1: Profile ══════ */}
         <TabsContent value="profile" className="space-y-8">
 
+      {/* Profile completeness tip */}
+      {(!fullName || !linkedinUrl || !githubUrl) && (
+        <div className="rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 p-4 ring-1 ring-blue-200/50 dark:ring-blue-800/30">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-blue-100 dark:bg-blue-900/40 p-2">
+              <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-blue-800 dark:text-blue-200 mb-1">
+                Complete your profile for better results
+              </h3>
+              <ul className="text-[11px] text-blue-700 dark:text-blue-300 space-y-0.5">
+                {!fullName && <li>&#x2022; Add your <strong>Full Name</strong> — it appears in every email to recruiters</li>}
+                {!linkedinUrl && <li>&#x2022; Add your <strong>LinkedIn URL</strong> — recruiters check LinkedIn first</li>}
+                {!githubUrl && <li>&#x2022; Add your <strong>GitHub URL</strong> — proves your coding skills</li>}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Personal Info ── */}
       <Section
         icon={<User className="h-4 w-4" />}
@@ -507,9 +529,14 @@ export function SettingsForm({
             <Input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Muhammad Ali"
+              placeholder="Ali Shahid"
               autoComplete="name"
             />
+            {fullName && fullName === fullName.toLowerCase() && (
+              <SuggestionTip>
+                Your name is all lowercase. Capitalize it (e.g. <strong>&quot;{fullName.replace(/\b\w/g, c => c.toUpperCase())}&quot;</strong>) — this is how it appears in emails to recruiters.
+              </SuggestionTip>
+            )}
           </Field>
           <Field
             label="Phone"
@@ -815,7 +842,7 @@ export function SettingsForm({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field
               label="Experience Level"
-              hint="Helps filter out senior roles if you're junior, and vice versa"
+              hint="Helps filter out senior roles if you're junior, and vice versa. A mismatch applies a -15 score penalty."
             >
               <Select
                 value={experienceLevel || undefined}
@@ -832,6 +859,11 @@ export function SettingsForm({
                   ))}
                 </SelectContent>
               </Select>
+              {experienceLevel === "entry" && (
+                <SuggestionTip>
+                  Set to &quot;Entry&quot; — if you have 2+ years of experience, consider changing to <strong>&quot;Mid&quot;</strong>. Entry-level gets a -15 penalty on mid/senior jobs, reducing your matches.
+                </SuggestionTip>
+              )}
             </Field>
             <Field
               label="Education"
@@ -933,10 +965,19 @@ export function SettingsForm({
         title="Job Categories"
         description="Pick the fields you work in. Jobs matching these categories score higher; unrelated ones (e.g. 'Game Development' when you selected 'Frontend') get penalized."
       >
-        <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">
-          Tip: Select 2-5 categories for best results. Too many dilutes matching
-          accuracy.
-        </p>
+        {categories.length === 0 ? (
+          <SuggestionTip>
+            <strong>No categories selected</strong> — the AI won&apos;t know which field you&apos;re in. Pick 2-5 categories (e.g. &quot;Backend Development&quot;, &quot;Full-Stack&quot;) to get relevant matches. Your resume&apos;s target categories should align with these.
+          </SuggestionTip>
+        ) : categories.length > 5 ? (
+          <SuggestionTip>
+            You have <strong>{categories.length} categories</strong> selected. Too many dilutes matching accuracy — the engine can&apos;t tell your focus area. Try narrowing to your top <strong>3-5</strong>.
+          </SuggestionTip>
+        ) : (
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">
+            Tip: Select 2-5 categories for best results. Too many dilutes matching accuracy.
+          </p>
+        )}
         <div className="flex flex-wrap gap-1.5">
           {JOB_CATEGORIES.map((cat) => (
             <ChipToggle
@@ -1434,14 +1475,20 @@ export function SettingsForm({
         <div className="mt-4">
           <Field
             label="Default Signature"
-            hint="Appended to the bottom of every application email. Include your name, title, and contact links."
+            hint="Appended to the bottom of every application email. Your phone, LinkedIn, and GitHub are added automatically below this — don't repeat them here."
           >
             <Textarea
               value={defaultSignature}
               onChange={(e) => setDefaultSignature(e.target.value)}
-              placeholder={"Best regards,\nMuhammad Ali\nlinkedin.com/in/ali"}
+              placeholder={"Best regards,\n" + (fullName || "Your Name")}
               rows={3}
             />
+            {!defaultSignature && fullName && (
+              <SuggestionTip>
+                Without a signature, emails end abruptly. Add a simple sign-off like:<br />
+                <strong className="font-mono text-[10px]">&quot;Best regards,{"\n"}{fullName.replace(/\b\w/g, c => c.toUpperCase())}&quot;</strong>
+              </SuggestionTip>
+            )}
           </Field>
         </div>
       </Section>
@@ -1638,6 +1685,26 @@ export function SettingsForm({
         {/* ══════ TAB 5: AI Settings ══════ */}
         <TabsContent value="ai" className="space-y-8">
 
+      {/* Quick-Start Tips */}
+      <div className="rounded-xl bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-950/30 dark:to-blue-950/30 p-4 ring-1 ring-violet-200/50 dark:ring-violet-800/30">
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg bg-violet-100 dark:bg-violet-900/40 p-2">
+            <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-violet-800 dark:text-violet-200 mb-1">
+              Get better AI emails in 2 minutes
+            </h3>
+            <ol className="text-[11px] text-violet-700 dark:text-violet-300 space-y-0.5 list-decimal list-inside">
+              <li>Set your <strong>Custom System Prompt</strong> — most impactful setting</li>
+              <li>Choose a <strong>Tone</strong> that matches the roles you&apos;re applying to</li>
+              <li>Add a <strong>Signature</strong> &amp; <strong>Closing</strong> for a consistent, professional finish</li>
+              <li>Toggle off links you don&apos;t want shared (LinkedIn, GitHub, Portfolio)</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
       {/* ── AI Customization ── */}
       <Section
         icon={<Sparkles className="h-4 w-4" />}
@@ -1653,13 +1720,18 @@ export function SettingsForm({
             <Textarea
               value={customPrompt}
               onChange={(e) => setCustomPrompt(e.target.value)}
-              placeholder="Always mention my open-source contributions. Reference my Next.js 14 experience. Keep under 200 words."
+              placeholder="Keep emails under 120 words. Never start with &quot;I am writing&quot; or &quot;I am excited&quot;. Focus on Node.js, React, and TypeScript as my core stack."
               rows={4}
               maxLength={2000}
             />
             <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
               {customPrompt.length}/2000
             </p>
+            {!customPrompt && (
+              <SuggestionTip>
+                <strong>This is the most powerful lever for better emails.</strong> Try something like: &quot;Keep emails under 120 words. Never start with &#39;I am writing&#39; or &#39;I am excited&#39;. Open with what I bring to the role. Focus on Node.js, React, and TypeScript as my core stack.&quot;
+              </SuggestionTip>
+            )}
           </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1680,6 +1752,11 @@ export function SettingsForm({
                   ))}
                 </SelectContent>
               </Select>
+              {tone === "professional" && (
+                <SuggestionTip>
+                  &quot;Professional&quot; works well for corporate roles. For startups or creative companies, try <strong>&quot;Enthusiastic&quot;</strong> or <strong>&quot;Conversational&quot;</strong> to sound more human and stand out.
+                </SuggestionTip>
+              )}
             </Field>
             <Field
               label="Email Language"
@@ -1751,9 +1828,14 @@ export function SettingsForm({
             <Input
               value={customClosing}
               onChange={(e) => setCustomClosing(e.target.value)}
-              placeholder="Looking forward to connecting"
+              placeholder="I'd welcome the chance to discuss how I can contribute."
               maxLength={100}
             />
+            {!customClosing && (
+              <SuggestionTip>
+                Set a closing to keep emails consistent. Example: <strong>&quot;I&#39;d welcome the chance to discuss how I can contribute. I&#39;m available for a call at your convenience.&quot;</strong>
+              </SuggestionTip>
+            )}
           </Field>
         </div>
       </Section>
@@ -2147,6 +2229,15 @@ function TagList({
           </button>
         </span>
       ))}
+    </div>
+  );
+}
+
+function SuggestionTip({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50/80 dark:bg-amber-950/20 px-3 py-2 ring-1 ring-amber-200/60 dark:ring-amber-800/30">
+      <Lightbulb className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+      <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">{children}</p>
     </div>
   );
 }

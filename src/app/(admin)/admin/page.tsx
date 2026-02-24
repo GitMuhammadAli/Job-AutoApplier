@@ -28,6 +28,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+interface ActiveUser {
+  id: string;
+  name: string;
+  email: string | null;
+  image: string | null;
+  lastActive: string | null;
+  isOnline: boolean;
+  status: string;
+  mode: string;
+  joinedAt: string;
+}
+
 interface AdminStats {
   users: { total: number; active: number; paused: number; neverOnboarded: number };
   jobs: { active: number; inactive: number; fresh: number; sourceDistribution: Record<string, number> };
@@ -55,6 +67,7 @@ interface AdminStats {
   locks: { name: string; isRunning: boolean; startedAt: string | null; completedAt: string | null }[];
   quotas: Record<string, { used: number; limit: number; period: string }>;
   recentErrors: { message: string; createdAt: string; source: string | null }[];
+  recentlyActiveUsers: ActiveUser[];
 }
 
 export default function AdminDashboard() {
@@ -162,6 +175,69 @@ export default function AdminDashboard() {
         <StatCard icon={<Ban className="h-4 w-4 text-orange-600 dark:text-orange-400" />} label="Bounced" value={stats.applicationsToday.bounced} />
         <StatCard icon={<TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />} label="Total Sent" value={stats.applicationPipeline.sentTotal} />
       </div>
+
+      {/* Recently Active Users */}
+      {stats.recentlyActiveUsers && stats.recentlyActiveUsers.length > 0 && (
+        <div className="rounded-xl bg-white dark:bg-zinc-800 p-5 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
+          <h2 className="text-sm font-bold text-slate-800 dark:text-zinc-100 mb-3 flex items-center gap-2">
+            <Users className="h-4 w-4 text-slate-500 dark:text-zinc-400" />
+            Recently Active Users
+            <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500 ml-auto">
+              {stats.recentlyActiveUsers.filter(u => u.isOnline).length} online now
+            </span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {stats.recentlyActiveUsers.map((user) => (
+              <div
+                key={user.id}
+                className="flex items-center gap-3 rounded-lg p-2.5 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors"
+              >
+                <div className="relative flex-shrink-0">
+                  {user.image ? (
+                    <img src={user.image} alt="" className="h-8 w-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-zinc-700 text-[11px] font-bold text-slate-500 dark:text-zinc-400">
+                      {(user.name || "?").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span
+                    className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-zinc-800 ${
+                      user.isOnline
+                        ? "bg-emerald-500"
+                        : "bg-slate-300 dark:bg-zinc-600"
+                    }`}
+                    title={user.isOnline ? "Online now" : `Last seen ${user.lastActive ? timeAgo(user.lastActive) : "never"}`}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-200 truncate">
+                      {user.name}
+                    </span>
+                    <span
+                      className={`inline-flex rounded-full px-1.5 py-0 text-[8px] font-bold leading-4 ${
+                        user.status === "active"
+                          ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                          : "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+                      }`}
+                    >
+                      {user.mode}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">
+                    {user.isOnline ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">Online now</span>
+                    ) : (
+                      user.lastActive ? timeAgo(user.lastActive) : "Never"
+                    )}
+                    {" · "}joined {timeAgo(user.joinedAt)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Scraper Health */}

@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import FeedbackWidget from "@/components/shared/FeedbackWidget";
+import { ActivityTracker } from "@/components/shared/ActivityTracker";
 
 export default async function DashboardLayout({
   children,
@@ -38,6 +39,7 @@ export default async function DashboardLayout({
         {children}
       </DashboardShell>
       <FeedbackWidget />
+      <ActivityTracker />
     </div>
   );
 }
