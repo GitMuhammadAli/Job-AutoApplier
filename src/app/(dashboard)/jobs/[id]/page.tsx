@@ -7,8 +7,10 @@ export const dynamic = "force-dynamic";
 
 export default async function JobDetailPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams: { apply?: string };
 }) {
   let userId: string;
   try {
@@ -74,5 +76,5 @@ export default async function JobDetailPage({
 
   if (!userJob) notFound();
 
-  return <JobDetailClient job={userJob as any} resumes={userResumes} />;
+  return <JobDetailClient job={userJob as any} resumes={userResumes} autoApply={searchParams.apply === "true"} />;
 }
