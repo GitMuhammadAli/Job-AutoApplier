@@ -1,5 +1,5 @@
-import { AnalyticsSkeleton } from "@/components/shared/Skeletons";
+import { JobPilotLoader } from "@/components/shared/JobPilotLoader";
 
 export default function AnalyticsLoading() {
-  return <AnalyticsSkeleton />;
+  return <JobPilotLoader label="Crunching your data…" />;
 }
