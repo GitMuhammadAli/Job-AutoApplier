@@ -15,6 +15,19 @@ const SCRAPE_SOURCES = [
   "google",
 ];
 
+const CRON_NAMES = [
+  { key: "scrape-global", label: "Scrape Global", type: "scrape" },
+  { key: "match-jobs", label: "Match Jobs", type: "cron" },
+  { key: "match-all-users", label: "Match All Users", type: "cron" },
+  { key: "instant-apply", label: "Instant Apply", type: "apply" },
+  { key: "send-scheduled", label: "Send Scheduled", type: "send" },
+  { key: "send-queued", label: "Send Queued", type: "send" },
+  { key: "notify-matches", label: "Notify Matches", type: "notification" },
+  { key: "cleanup-stale", label: "Cleanup Stale", type: "cron" },
+  { key: "follow-up", label: "Follow Up", type: "follow-up" },
+  { key: "check-follow-ups", label: "Check Follow Ups", type: "follow-up" },
+];
+
 export async function GET() {
   try {
     if (!(await requireAdmin())) {
@@ -26,6 +39,7 @@ export async function GET() {
     startOfDay.setHours(0, 0, 0, 0);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const [
       totalUsers,
@@ -38,7 +52,14 @@ export async function GET() {
       sentToday,
       failedToday,
       bouncedToday,
+      draftApps,
+      readyApps,
+      sendingApps,
+      sentTotal,
       recentErrors,
+      locks,
+      jobsBySource,
+      sentThisWeek,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.userSettings.count({ where: { accountStatus: "active" } }),
@@ -56,16 +77,30 @@ export async function GET() {
       prisma.jobApplication.count({
         where: { status: "BOUNCED", updatedAt: { gte: startOfDay } },
       }),
+      prisma.jobApplication.count({ where: { status: "DRAFT" } }),
+      prisma.jobApplication.count({ where: { status: "READY" } }),
+      prisma.jobApplication.count({ where: { status: "SENDING" } }),
+      prisma.jobApplication.count({ where: { status: "SENT" } }),
       prisma.systemLog.findMany({
         where: { type: "error", createdAt: { gte: dayAgo } },
         orderBy: { createdAt: "desc" },
         take: 20,
       }),
+      prisma.systemLock.findMany(),
+      prisma.globalJob.groupBy({
+        by: ["source"],
+        where: { isActive: true },
+        _count: true,
+      }),
+      prisma.jobApplication.count({
+        where: { status: "SENT", sentAt: { gte: weekAgo } },
+      }),
     ]);
 
+    // Scraper status
     const scraperStatus = await Promise.all(
       SCRAPE_SOURCES.map(async (source) => {
-        const [lastLog, lastError] = await Promise.all([
+        const [lastLog, lastError, totalJobs] = await Promise.all([
           prisma.systemLog.findFirst({
             where: { type: "scrape", source },
             orderBy: { createdAt: "desc" },
@@ -74,20 +109,52 @@ export async function GET() {
             where: { type: "error", source },
             orderBy: { createdAt: "desc" },
           }),
+          prisma.globalJob.count({ where: { source, isActive: true } }),
         ]);
+
+        const meta = (lastLog?.metadata ?? {}) as Record<string, unknown>;
         return {
           source,
           lastRun: lastLog?.createdAt ?? null,
           lastMessage: lastLog?.message ?? null,
-          jobCount: (lastLog?.metadata as Record<string, number>)?.jobs ?? 0,
+          jobCount: (meta.newJobs as number) ?? (meta.jobs as number) ?? 0,
+          updatedCount: (meta.updatedJobs as number) ?? 0,
+          totalJobs,
           isHealthy:
             !!lastLog &&
             (!lastError || lastLog.createdAt > lastError.createdAt),
           lastError: lastError?.message ?? null,
+          lastErrorAt: lastError?.createdAt ?? null,
         };
       }),
     );
 
+    // Cron status
+    const cronStatus = await Promise.all(
+      CRON_NAMES.map(async (cron) => {
+        const lastLog = await prisma.systemLog.findFirst({
+          where: {
+            OR: [
+              { source: cron.key },
+              { type: cron.type, source: cron.key },
+              { message: { contains: cron.key } },
+            ],
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        const lock = locks.find((l) => l.name === cron.key);
+        return {
+          key: cron.key,
+          label: cron.label,
+          lastRun: lastLog?.createdAt ?? null,
+          lastMessage: lastLog?.message ?? null,
+          isRunning: lock?.isRunning ?? false,
+          startedAt: lock?.startedAt ?? null,
+        };
+      }),
+    );
+
+    // Quotas
     const [jsearchUsed, groqUsed, brevoUsed] = await Promise.all([
       prisma.systemLog.count({
         where: {
@@ -108,6 +175,12 @@ export async function GET() {
       }),
     ]);
 
+    // Job distribution
+    const sourceDistribution: Record<string, number> = {};
+    for (const item of jobsBySource) {
+      sourceDistribution[item.source] = item._count;
+    }
+
     return NextResponse.json({
       users: {
         total: totalUsers,
@@ -115,13 +188,32 @@ export async function GET() {
         paused: pausedUsers,
         neverOnboarded,
       },
-      jobs: { active: activeJobs, inactive: inactiveJobs, fresh: freshJobs },
+      jobs: {
+        active: activeJobs,
+        inactive: inactiveJobs,
+        fresh: freshJobs,
+        sourceDistribution,
+      },
       applicationsToday: {
         sent: sentToday,
         failed: failedToday,
         bounced: bouncedToday,
       },
+      applicationPipeline: {
+        draft: draftApps,
+        ready: readyApps,
+        sending: sendingApps,
+        sentTotal,
+        sentThisWeek,
+      },
       scrapers: scraperStatus,
+      crons: cronStatus,
+      locks: locks.map((l) => ({
+        name: l.name,
+        isRunning: l.isRunning,
+        startedAt: l.startedAt,
+        completedAt: l.completedAt,
+      })),
       quotas: {
         jsearch: { used: jsearchUsed, limit: 200, period: "month" },
         groq: { used: groqUsed, limit: 14400, period: "day" },

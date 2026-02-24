@@ -11,7 +11,7 @@ export const MATCH_THRESHOLDS = {
   AUTO_SEND: 65,
 } as const;
 
-interface GlobalJobLike {
+export interface GlobalJobLike {
   title: string;
   company: string;
   location: string | null;
@@ -26,8 +26,9 @@ interface GlobalJobLike {
   firstSeenAt?: Date | null;
 }
 
-interface UserSettingsLike {
+export interface UserSettingsLike {
   keywords: string[];
+  negativeKeywords?: string[];
   city: string | null;
   country: string | null;
   experienceLevel: string | null;
@@ -40,13 +41,13 @@ interface UserSettingsLike {
   blacklistedCompanies?: string[];
 }
 
-interface ResumeLike {
+export interface ResumeLike {
   content: string | null;
   name: string;
   detectedSkills?: string[] | unknown;
 }
 
-interface MatchResult {
+export interface MatchResult {
   score: number;
   reasons: string[];
   bestResumeId: string | null;
@@ -76,7 +77,7 @@ function escapeRegex(str: string): string {
  *  - Smart quotes → ASCII quotes
  *  - HTML entities that slipped past the sanitizer
  */
-function normalizeText(text: string): string {
+export function normalizeText(text: string): string {
   return text
     .toLowerCase()
     .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, "-")
@@ -98,7 +99,7 @@ function normalizeText(text: string): string {
 }
 
 // Complete technology variants map — covers languages, frameworks, databases, cloud, DevOps, etc.
-const COMPOUND_VARIANTS: Record<string, string[]> = {
+export const COMPOUND_VARIANTS: Record<string, string[]> = {
   // ── ROLE / POSITION VARIANTS ──
   "full stack":     ["fullstack", "full-stack", "full stack", "full_stack"],
   "front end":      ["frontend", "front-end", "front end", "front_end"],
@@ -375,7 +376,7 @@ function getKeywordVariants(keyword: string): string[] {
  * Handles compound keyword variants (e.g. "full stack" matches "fullstack").
  * Text should already be normalizeText()'d before calling this.
  */
-function keywordMatchesText(keyword: string, text: string): boolean {
+export function keywordMatchesText(keyword: string, text: string): boolean {
   if (keyword.length <= 1) return false;
 
   const variants = getKeywordVariants(keyword);
@@ -396,16 +397,16 @@ function keywordMatchesText(keyword: string, text: string): boolean {
   return false;
 }
 
-const REMOTE_INDICATORS = [
+export const REMOTE_INDICATORS = [
   "remote", "worldwide", "anywhere", "global", "work from home",
   "distributed", "wfh", "telecommute", "home-based", "home based",
 ];
 
-function isRemoteLocation(locationLower: string): boolean {
+export function isRemoteLocation(locationLower: string): boolean {
   return REMOTE_INDICATORS.some((r) => locationLower.includes(r));
 }
 
-const COUNTRY_CODES: Record<string, string> = {
+export const COUNTRY_CODES: Record<string, string> = {
   pk: "pakistan", pak: "pakistan",
   us: "united states", usa: "united states",
   uk: "united kingdom", gb: "united kingdom", gbr: "united kingdom",
@@ -470,7 +471,7 @@ const COUNTRY_CODES: Record<string, string> = {
   kr: "south korea", kor: "south korea",
 };
 
-function locationMatchesCountryCode(locationLower: string, userCountryLower: string): boolean {
+export function locationMatchesCountryCode(locationLower: string, userCountryLower: string): boolean {
   const parts = locationLower.split(/[\s,]+/).map((p) => p.trim()).filter(Boolean);
   const lastPart = parts[parts.length - 1] ?? "";
   const resolved = COUNTRY_CODES[lastPart];
@@ -482,6 +483,42 @@ function locationMatchesCountryCode(locationLower: string, userCountryLower: str
     }
   }
   return false;
+}
+
+/**
+ * Extract a numeric salary range from a human-readable salary string.
+ * Returns monthly values. Handles K/M suffixes, yearly/hourly conversion.
+ */
+function parseSalaryRange(salary: string): { min: number; max: number } | null {
+  const lower = salary.toLowerCase();
+
+  // Skip strings that are clearly not a salary
+  if (/market competitive|negotiable|competitive|not specified/i.test(lower)) return null;
+
+  const numberPattern = /(\d[\d,]*(?:\.\d+)?)\s*(k|m|lakh|lac|cr)?/gi;
+  const numbers: number[] = [];
+  let match;
+  while ((match = numberPattern.exec(lower)) !== null) {
+    let num = parseFloat(match[1].replace(/,/g, ""));
+    const suffix = (match[2] || "").toLowerCase();
+    if (suffix === "k") num *= 1000;
+    else if (suffix === "m") num *= 1_000_000;
+    else if (suffix === "lakh" || suffix === "lac") num *= 100_000;
+    else if (suffix === "cr") num *= 10_000_000;
+    numbers.push(num);
+  }
+  if (numbers.length === 0) return null;
+
+  const isYearly = /year|annual|p\.a\.|per annum|\/yr/i.test(lower);
+  const isHourly = /hour|\/hr|per hr/i.test(lower);
+
+  let min = Math.min(...numbers);
+  let max = Math.max(...numbers);
+
+  if (isYearly) { min /= 12; max /= 12; }
+  if (isHourly) { min *= 160; max *= 160; }
+
+  return { min: Math.round(min), max: Math.round(max) };
 }
 
 export function computeMatchScore(
@@ -514,6 +551,19 @@ export function computeMatchScore(
     const companyLower = normalizeText(job.company);
     if (blacklist.some((bl) => companyLower.includes(bl) || bl.includes(companyLower))) {
       return { ...REJECT, reasons: ["Blacklisted company"] };
+    }
+  }
+
+  // ════════════════════════════════════════════
+  // HARD FILTER: Negative Keywords — reject if ANY negative keyword matches
+  // ════════════════════════════════════════════
+  const negKeywords = (settings.negativeKeywords ?? []).map((k) => k.toLowerCase().trim()).filter(Boolean);
+  if (negKeywords.length > 0) {
+    const negMatched = negKeywords.filter(
+      (nk) => keywordMatchesText(nk, titleLower) || keywordMatchesText(nk, descLower) || keywordMatchesText(nk, skillsLower)
+    );
+    if (negMatched.length > 0) {
+      return { ...REJECT, reasons: [`Negative keyword: ${negMatched[0]}`] };
     }
   }
 
@@ -594,13 +644,39 @@ export function computeMatchScore(
   if (userCity && locationLower) {
     const isRemote = isRemoteLocation(locationLower);
     const isUserCity = locationLower.includes(userCity);
-    const isCountryOnly = settings.country &&
-      locationLower.includes(settings.country.toLowerCase()) &&
-      locationLower.split(/[\s,]+/).filter(Boolean).length <= 2;
     const unspecified = !locationLower || locationLower === "n/a" || locationLower === "not specified";
+
+    // Country-only: strip country name + its codes, check if nothing remains
+    const isCountryOnly = (() => {
+      if (!settings.country) return false;
+      const cl = settings.country.toLowerCase();
+      let stripped = locationLower.replace(new RegExp(escapeRegex(cl), "g"), "");
+      for (const [code, resolved] of Object.entries(COUNTRY_CODES)) {
+        if (resolved === cl) {
+          stripped = stripped.replace(new RegExp(`\\b${escapeRegex(code)}\\b`, "gi"), "");
+        }
+      }
+      return stripped.replace(/[\s,.\-]+/g, "").length === 0;
+    })();
 
     if (!isRemote && !isUserCity && !isCountryOnly && !unspecified) {
       return { ...REJECT, reasons: ["Wrong location"] };
+    }
+  }
+
+  // ════════════════════════════════════════════
+  // HARD FILTER 6: Salary — reject when job salary is clearly below user minimum
+  // ════════════════════════════════════════════
+  if (settings.salaryMin && job.salary) {
+    const parsed = parseSalaryRange(job.salary);
+    if (parsed && parsed.max > 0 && parsed.max < settings.salaryMin) {
+      return { ...REJECT, reasons: ["Salary below minimum"] };
+    }
+  }
+  if (settings.salaryMax && job.salary) {
+    const parsed = parseSalaryRange(job.salary);
+    if (parsed && parsed.min > 0 && parsed.min > settings.salaryMax) {
+      return { ...REJECT, reasons: ["Salary above maximum"] };
     }
   }
 
@@ -745,7 +821,7 @@ export function computeMatchScore(
     }
   }
 
-  // Factor 6: EXPERIENCE LEVEL MATCH (0-5 points)
+  // Factor 6: EXPERIENCE LEVEL MATCH (+5 for match, -15 for strong mismatch)
   if (settings.experienceLevel) {
     const expLower = settings.experienceLevel.toLowerCase();
     const expKeywords: Record<string, string[]> = {
@@ -754,10 +830,21 @@ export function computeMatchScore(
       senior: ["senior", "lead", "principal", "staff", "5+", "7+", "8+"],
       lead: ["lead", "principal", "staff", "director", "head", "architect", "8+"],
     };
+    const mismatchKeywords: Record<string, string[]> = {
+      entry: ["senior", "lead", "principal", "staff", "director", "head", "architect", "7+", "8+", "10+"],
+      mid: ["principal", "staff", "director", "head", "architect", "8+", "10+", "intern", "graduate"],
+      senior: ["intern", "graduate", "entry", "junior", "fresh", "0-2"],
+      lead: ["intern", "graduate", "entry", "junior", "fresh", "0-2"],
+    };
     const matchers = expKeywords[expLower] || [expLower];
+    const antiMatchers = mismatchKeywords[expLower] || [];
+
     if (matchers.some((kw) => combined.includes(kw))) {
       score += 5;
       reasons.push(`Experience: ${settings.experienceLevel}`);
+    } else if (antiMatchers.some((kw) => combined.includes(kw))) {
+      score = Math.max(score - 15, 0);
+      reasons.push(`Experience mismatch (\u221215)`);
     }
   }
 
@@ -807,4 +894,70 @@ function normalizeDetectedSkills(raw: string[] | unknown): string[] {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.filter((s): s is string => typeof s === "string");
   return [];
+}
+
+/**
+ * Standalone hard filter: does a job's location pass the user's city/country filter?
+ * Returns true if the job should be included, false to exclude.
+ */
+export function locationPassesFilter(
+  jobLocation: string | null,
+  userCity: string | null,
+  userCountry: string | null,
+): boolean {
+  if (!jobLocation?.trim()) return true;
+  const loc = normalizeText(jobLocation);
+  if (!loc || loc === "n/a" || loc === "not specified") return true;
+  if (isRemoteLocation(loc)) return true;
+
+  const city = userCity?.toLowerCase().split(",")[0]?.trim() ?? "";
+  const country = userCountry?.toLowerCase().trim() ?? "";
+
+  if (city) {
+    if (loc.includes(city)) return true;
+    if (country) {
+      const inCountry = loc.includes(country) || locationMatchesCountryCode(loc, country);
+      // Country-only location (e.g. "Pakistan" with no city) — allow
+      if (inCountry) {
+        let stripped = loc.replace(new RegExp(escapeRegex(country), "g"), "");
+        for (const [code, resolved] of Object.entries(COUNTRY_CODES)) {
+          if (resolved === country) {
+            stripped = stripped.replace(new RegExp(`\\b${escapeRegex(code)}\\b`, "gi"), "");
+          }
+        }
+        if (stripped.replace(/[\s,.\-]+/g, "").length === 0) return true;
+      }
+    }
+    return false;
+  }
+
+  if (country) {
+    return loc.includes(country) || locationMatchesCountryCode(loc, country);
+  }
+
+  return true;
+}
+
+/**
+ * Standalone hard filter: does the job match at least 1 user keyword?
+ * Returns the list of matched keywords (empty = fails filter).
+ */
+export function keywordsMatchJob(
+  userKeywords: string[],
+  titleLower: string,
+  descLower: string,
+  skillsLower: string,
+): string[] {
+  const kws = userKeywords.map((k) => k.toLowerCase().trim()).filter(Boolean);
+  return kws.filter(
+    (kw) => keywordMatchesText(kw, titleLower) || keywordMatchesText(kw, descLower) || keywordMatchesText(kw, skillsLower),
+  );
+}
+
+/** Normalize for dedup: strip non-alphanumeric and common suffixes */
+export function normalizeForDedup(text: string | null): string {
+  return (text ?? "")
+    .toLowerCase()
+    .replace(/\b(inc|llc|ltd|corp|gmbh|co|company|pvt|private|limited|\.)\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
 }

@@ -25,6 +25,40 @@ const JOB_BOARD_DOMAINS = [
   "rozee.pk",
   "arbeitnow.com",
   "glassdoor.com",
+  "bebee.com",
+  "itjobsinpakistan.com",
+  "monster.com",
+  "ziprecruiter.com",
+  "careerbuilder.com",
+  "simplyhired.com",
+  "dice.com",
+  "naukri.com",
+  "seek.com",
+  "totaljobs.com",
+  "reed.co.uk",
+  "cwjobs.co.uk",
+  "stepstone.de",
+  "xing.com",
+  "bayt.com",
+  "wuzzuf.net",
+  "mustakbil.com",
+  "jobsdb.com",
+  "jobstreet.com",
+  "jora.com",
+  "adzuna.com",
+  "adzuna.co.uk",
+  "wellfound.com",
+  "angel.co",
+  "hired.com",
+  "builtin.com",
+  "lever.co",
+  "greenhouse.io",
+  "workday.com",
+  "jsearch.com",
+  "google.com",
+  "jooble.org",
+  "neuvoo.com",
+  "talent.com",
 ];
 
 const COMPANY_SUFFIXES =
@@ -77,9 +111,8 @@ export async function findCompanyEmail(job: {
   if (scrapeUrl) {
     try {
       const companyOrigin = new URL(scrapeUrl).origin;
-      const isJobBoard = JOB_BOARD_DOMAINS.some((jb) =>
-        companyOrigin.includes(jb)
-      );
+      const originHost = new URL(companyOrigin).hostname;
+      const isJobBoard = isJobBoardDomain(originHost);
 
       if (!isJobBoard) {
         const response = await fetch(`${companyOrigin}/careers`, {
@@ -118,6 +151,11 @@ export async function findCompanyEmail(job: {
   return { email: null, confidence: "NONE", method: "none" };
 }
 
+function isJobBoardDomain(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace("www.", "");
+  return JOB_BOARD_DOMAINS.some((jb) => h === jb || h.endsWith(`.${jb}`));
+}
+
 function extractDomain(
   company: string,
   url: string | null
@@ -125,7 +163,7 @@ function extractDomain(
   if (url) {
     try {
       const parsed = new URL(url);
-      if (!JOB_BOARD_DOMAINS.some((jb) => parsed.hostname.includes(jb))) {
+      if (!isJobBoardDomain(parsed.hostname)) {
         return parsed.hostname.replace("www.", "");
       }
     } catch {}

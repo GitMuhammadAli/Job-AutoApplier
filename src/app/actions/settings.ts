@@ -25,6 +25,7 @@ const settingsSchema = z.object({
   githubUrl: z.string().url().optional().or(z.literal("")),
   // Job Preferences
   keywords: z.array(keywordSchema).max(LIMITS.MAX_KEYWORDS, `Maximum ${LIMITS.MAX_KEYWORDS} keywords allowed`).default([]),
+  negativeKeywords: z.array(z.string().max(50)).max(50).default([]),
   city: z.string().optional().or(z.literal("")),
   country: z.string().optional().or(z.literal("")),
   salaryMin: z.number().nullable().optional(),
@@ -140,6 +141,17 @@ export async function saveSettings(rawData: unknown): Promise<{ success: boolean
     };
 
     const cleaned = encryptSettingsFields(nulled);
+
+    // Track when SMTP is first configured (for email warmup)
+    if (data.smtpUser && data.smtpPass) {
+      const existing = await prisma.userSettings.findUnique({
+        where: { userId },
+        select: { smtpSetupDate: true, smtpUser: true },
+      });
+      if (!existing?.smtpSetupDate || !existing?.smtpUser) {
+        (cleaned as Record<string, unknown>).smtpSetupDate = new Date();
+      }
+    }
 
     await prisma.userSettings.upsert({
       where: { userId },

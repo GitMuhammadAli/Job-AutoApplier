@@ -15,6 +15,8 @@ interface LimitResult {
     hourCount: number;
     maxPerDay: number;
     maxPerHour: number;
+    warmupDay?: number;
+    warmupTotal?: number;
   };
 }
 
@@ -43,21 +45,28 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
     return { allowed: false, reason: "Account is paused or disabled." };
   }
 
+  // Check 2b: Email warmup — progressive limits for new SMTP accounts
+  const warmupLimits = getWarmupLimits(settings.smtpSetupDate);
+  const effectiveMaxPerDay = Math.min(settings.maxSendsPerDay, warmupLimits.maxPerDay);
+  const effectiveMaxPerHour = Math.min(settings.maxSendsPerHour, warmupLimits.maxPerHour);
+
   const todayStart = startOfDay(now);
 
-  // Check 3: Daily limit
+  // Check 3: Daily limit (respects warmup limits)
   const todayCount = await prisma.jobApplication.count({
     where: { userId, status: "SENT", sentAt: { gte: todayStart } },
   });
-  if (todayCount >= settings.maxSendsPerDay) {
+  if (todayCount >= effectiveMaxPerDay) {
     return {
       allowed: false,
-      reason: `Daily limit reached (${todayCount}/${settings.maxSendsPerDay}). Resets at midnight.`,
+      reason: warmupLimits.isWarmup
+        ? `Email warmup: Day ${warmupLimits.day}/7 — limit ${effectiveMaxPerDay}/day (${todayCount} sent). Full capacity after warmup.`
+        : `Daily limit reached (${todayCount}/${effectiveMaxPerDay}). Resets at midnight.`,
       stats: {
         todayCount,
         hourCount: 0,
-        maxPerDay: settings.maxSendsPerDay,
-        maxPerHour: settings.maxSendsPerHour,
+        maxPerDay: effectiveMaxPerDay,
+        maxPerHour: effectiveMaxPerHour,
       },
     };
   }
@@ -67,15 +76,17 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
   const hourCount = await prisma.jobApplication.count({
     where: { userId, status: "SENT", sentAt: { gte: hourAgo } },
   });
-  if (hourCount >= settings.maxSendsPerHour) {
+  if (hourCount >= effectiveMaxPerHour) {
     return {
       allowed: false,
-      reason: `Hourly limit reached (${hourCount}/${settings.maxSendsPerHour}). Wait a bit.`,
+      reason: warmupLimits.isWarmup
+        ? `Email warmup: Day ${warmupLimits.day}/7 — limit ${effectiveMaxPerHour}/hour. Full capacity after warmup.`
+        : `Hourly limit reached (${hourCount}/${effectiveMaxPerHour}). Wait a bit.`,
       stats: {
         todayCount,
         hourCount,
-        maxPerDay: settings.maxSendsPerDay,
-        maxPerHour: settings.maxSendsPerHour,
+        maxPerDay: effectiveMaxPerDay,
+        maxPerHour: effectiveMaxPerHour,
       },
     };
   }
@@ -97,8 +108,8 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
         stats: {
           todayCount,
           hourCount,
-          maxPerDay: settings.maxSendsPerDay,
-          maxPerHour: settings.maxSendsPerHour,
+          maxPerDay: effectiveMaxPerDay,
+          maxPerHour: effectiveMaxPerHour,
         },
       };
     }
@@ -127,10 +138,41 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
     stats: {
       todayCount,
       hourCount,
-      maxPerDay: settings.maxSendsPerDay,
-      maxPerHour: settings.maxSendsPerHour,
+      maxPerDay: effectiveMaxPerDay,
+      maxPerHour: effectiveMaxPerHour,
+      ...(warmupLimits.isWarmup ? { warmupDay: warmupLimits.day, warmupTotal: 7 } : {}),
     },
   };
+}
+
+/**
+ * Progressive send limits for new SMTP accounts to avoid spam flags.
+ * Day 1-3: max 3/day, 2/hour
+ * Day 4-7: max 8/day, 4/hour
+ * Day 8+:  user's configured limits (no warmup)
+ */
+function getWarmupLimits(smtpSetupDate: Date | null | undefined): {
+  isWarmup: boolean;
+  day: number;
+  maxPerDay: number;
+  maxPerHour: number;
+} {
+  if (!smtpSetupDate) {
+    return { isWarmup: false, day: 0, maxPerDay: Infinity, maxPerHour: Infinity };
+  }
+
+  const daysSinceSetup = Math.floor(
+    (Date.now() - new Date(smtpSetupDate).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const day = daysSinceSetup + 1;
+
+  if (day <= 3) {
+    return { isWarmup: true, day, maxPerDay: 3, maxPerHour: 2 };
+  }
+  if (day <= 7) {
+    return { isWarmup: true, day, maxPerDay: 8, maxPerHour: 4 };
+  }
+  return { isWarmup: false, day, maxPerDay: Infinity, maxPerHour: Infinity };
 }
 
 /** Used by the SendingStatusBar on /applications (server-side) */
