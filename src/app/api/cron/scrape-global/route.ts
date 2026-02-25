@@ -15,6 +15,7 @@ import { fetchRozee } from "@/lib/scrapers/rozee";
 import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
 import { categorizeJob } from "@/lib/job-categorizer";
 import { sendNotificationEmail } from "@/lib/email";
+import { sendAlertWebhook } from "@/lib/webhooks";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 function sanitizeScrapedText(text: string | null): string | null {
@@ -119,6 +120,7 @@ export async function GET(req: NextRequest) {
       .filter((source) => SCRAPERS[source])
       .map(async (source) => {
         const scraperFn = SCRAPERS[source];
+        const sourceStart = Date.now();
         try {
           const jobs = await scraperFn(queries);
           let newCount = 0;
@@ -192,12 +194,19 @@ export async function GET(req: NextRequest) {
             }
           }
 
+          const durationMs = Date.now() - sourceStart;
           await prisma.systemLog.create({
             data: {
               type: "scrape",
               source,
               message: `${source}: ${jobs.length} found, ${newCount} new, ${updatedCount} updated`,
-              metadata: { found: jobs.length, new: newCount, updated: updatedCount },
+              metadata: {
+                found: jobs.length,
+                new: newCount,
+                updated: updatedCount,
+                durationMs,
+                status: "success",
+              },
             },
           });
 
@@ -210,6 +219,7 @@ export async function GET(req: NextRequest) {
           };
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
+          const durationMs = Date.now() - sourceStart;
           console.error(`[Scrape] ${source} failed:`, error);
 
           await prisma.systemLog.create({
@@ -217,6 +227,14 @@ export async function GET(req: NextRequest) {
               type: "error",
               source,
               message: `Scraper ${source} failed: ${errMsg}`,
+              metadata: {
+                status: "failed",
+                errorMessage: errMsg,
+                durationMs,
+                found: 0,
+                new: 0,
+                updated: 0,
+              },
             },
           }).catch(() => {});
 
@@ -241,16 +259,24 @@ export async function GET(req: NextRequest) {
     const timedOut = false;
 
     const failedCount = results.filter((r) => r.status === "failed").length;
-    if (failedCount > sources.length / 2 && process.env.NOTIFICATION_EMAIL) {
-      await sendNotificationEmail({
-        from: `JobPilot <${process.env.NOTIFICATION_EMAIL}>`,
-        to: process.env.NOTIFICATION_EMAIL,
-        subject: `JobPilot Alert: ${failedCount}/${sources.length} scrapers failed`,
-        html: `<p>Failed sources: ${results
-          .filter((r) => r.status === "failed")
-          .map((r) => `${r.source}: ${r.error}`)
-          .join("<br>")}</p>`,
-      }).catch(() => {});
+    const failedSources = results
+      .filter((r) => r.status === "failed")
+      .map((r) => `${r.source}: ${r.error}`);
+    if (failedCount > sources.length / 2) {
+      const alertMsg = `Failed sources: ${failedSources.join("; ")}`;
+      if (process.env.NOTIFICATION_EMAIL) {
+        await sendNotificationEmail({
+          from: `JobPilot <${process.env.NOTIFICATION_EMAIL}>`,
+          to: process.env.NOTIFICATION_EMAIL,
+          subject: `JobPilot Alert: ${failedCount}/${sources.length} scrapers failed`,
+          html: `<p>${alertMsg.replace(/;/g, "<br>")}</p>`,
+        }).catch(() => {});
+      }
+      await sendAlertWebhook({
+        title: `JobPilot: ${failedCount}/${sources.length} scrapers failed`,
+        message: alertMsg,
+        severity: "error",
+      });
     }
 
     // On Hobby plan, this single daily cron also triggers matching and sending

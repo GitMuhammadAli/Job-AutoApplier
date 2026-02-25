@@ -37,7 +37,7 @@ export function Header() {
     <header className="sticky top-0 z-20 border-b border-slate-200/60 dark:border-zinc-700/60 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl">
       <div className="flex h-12 md:h-14 items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-6 min-w-0">
         {/* Spacer for mobile hamburger */}
-        <div className="w-8 md:hidden" />
+        <div className="w-11 md:hidden shrink-0" />
 
         {/* Desktop sidebar open button — visible only when sidebar is collapsed */}
         {collapsed && (

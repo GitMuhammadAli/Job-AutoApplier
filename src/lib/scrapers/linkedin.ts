@@ -1,6 +1,16 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
+import { fetchJSearch } from "./jsearch";
+
+// Configurable selectors via env (comma-separated for fallbacks)
+const SELECTORS = {
+  title: (process.env.LINKEDIN_SELECTOR_TITLE || "base-search-card__title,base-card__title").split(",").map((s) => s.trim()),
+  company: (process.env.LINKEDIN_SELECTOR_COMPANY || "base-search-card__subtitle,base-card__subtitle").split(",").map((s) => s.trim()),
+  location: (process.env.LINKEDIN_SELECTOR_LOCATION || "job-search-card__location,base-search-card__metadata,job-card__location").split(",").map((s) => s.trim()),
+  snippet: (process.env.LINKEDIN_SELECTOR_SNIPPET || "job-search-card__snippet,base-search-card__snippet").split(",").map((s) => s.trim()),
+  cardPatterns: (process.env.LINKEDIN_SELECTOR_CARDS || "base-search-card,job-search-card,base-card,jobs-search__results").split(",").map((s) => s.trim()),
+};
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -92,6 +102,12 @@ export async function fetchLinkedIn(
     }
   }
 
+  if (jobs.length === 0 && process.env.RAPIDAPI_KEY) {
+    console.warn("[LinkedIn] HTML returned 0 jobs — falling back to JSearch");
+    const fallback = await fetchJSearch(queries, 8);
+    return fallback;
+  }
+
   console.error(`[LinkedIn] Total scraped: ${jobs.length} jobs`);
   return jobs;
 }
@@ -129,13 +145,7 @@ function parseLinkedInHtml(
     return [];
   }
 
-  // LinkedIn has changed class names over time — check for multiple patterns
-  const hasCards =
-    html.includes("base-search-card") ||
-    html.includes("job-search-card") ||
-    html.includes("base-card") ||
-    html.includes("jobs-search__results");
-
+  const hasCards = SELECTORS.cardPatterns.some((p) => html.includes(p));
   if (!hasCards) {
     console.warn("[LinkedIn] No recognized card structure in response");
     return [];
@@ -146,17 +156,13 @@ function parseLinkedInHtml(
 
   for (const card of cards.slice(0, 25)) {
     const title =
-      extractAttr(card, "base-search-card__title") ||
-      extractAttr(card, "base-card__title") ||
+      SELECTORS.title.map((c) => extractAttr(card, c)).find(Boolean) ||
       extractTagContent(card, "h3");
     const company =
-      extractAttr(card, "base-search-card__subtitle") ||
-      extractAttr(card, "base-card__subtitle") ||
+      SELECTORS.company.map((c) => extractAttr(card, c)).find(Boolean) ||
       extractHiddenSubtitle(card);
     const location =
-      extractAttr(card, "job-search-card__location") ||
-      extractAttr(card, "base-search-card__metadata") ||
-      extractAttr(card, "job-card__location");
+      SELECTORS.location.map((c) => extractAttr(card, c)).find(Boolean) || null;
     const link = extractHref(card);
     const dateStr = extractDateTime(card);
 
@@ -172,11 +178,8 @@ function parseLinkedInHtml(
     if (seenIds.has(jobId)) continue;
     seenIds.add(jobId);
 
-    // Try to extract any snippet text that might serve as a description
     const snippet =
-      extractAttr(card, "job-search-card__snippet") ||
-      extractAttr(card, "base-search-card__snippet") ||
-      null;
+      SELECTORS.snippet.map((c) => extractAttr(card, c)).find(Boolean) || null;
 
     const cleanTitle = cleanText(title);
     const cleanSnippet = snippet ? cleanText(snippet) : "";
