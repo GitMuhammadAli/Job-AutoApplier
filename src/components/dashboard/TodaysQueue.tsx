@@ -51,14 +51,14 @@ export function TodaysQueue({ autoApply, quickApply, total }: TodaysQueueProps) 
   if (total === 0) return null;
 
   return (
-    <div className="rounded-xl bg-white dark:bg-zinc-800/80 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
+    <div className="rounded-xl bg-white dark:bg-zinc-800/80 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 overflow-hidden min-w-0">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between p-4 text-left"
+        className="flex w-full items-center justify-between p-3 sm:p-4 text-left min-w-0"
       >
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm shrink-0">
             <Target className="h-4 w-4 text-white" />
           </div>
           <div>

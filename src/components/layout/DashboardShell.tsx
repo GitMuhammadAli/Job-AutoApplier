@@ -18,13 +18,13 @@ export function DashboardShell({ sidebar, header, children }: DashboardShellProp
       {sidebar}
       <div
         className={cn(
-          "transition-[padding-left] duration-300 ease-out",
+          "min-w-0 w-full transition-[padding-left] duration-300 ease-out",
           collapsed ? "pl-0" : "md:pl-64"
         )}
       >
         <UpdateBanner />
         {header}
-        <main id="main-content" className="px-4 py-5 md:px-6 md:py-6 max-w-[1400px] mx-auto">
+        <main id="main-content" className="px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 max-w-[1400px] mx-auto min-w-0 overflow-x-hidden">
           {children}
         </main>
       </div>

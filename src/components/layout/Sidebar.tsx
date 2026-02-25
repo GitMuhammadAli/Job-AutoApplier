@@ -65,7 +65,7 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
         variant="ghost"
         size="icon"
         aria-label={mobileOpen ? "Close menu" : "Open menu"}
-        className="fixed top-3 left-3 z-50 md:hidden bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm shadow-sm touch-manipulation focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="fixed top-3 left-3 z-[60] md:hidden bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm shadow-md border border-slate-200/60 dark:border-zinc-700/60 touch-manipulation focus-visible:ring-2 focus-visible:ring-blue-500"
         onClick={() => setMobileOpen(!mobileOpen)}
       >
         {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

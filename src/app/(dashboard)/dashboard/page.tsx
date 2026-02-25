@@ -67,8 +67,8 @@ export default async function DashboardPage() {
       <StatusBanner />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
             Job Pipeline
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-zinc-400">
@@ -76,28 +76,28 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           <Link
             href="/jobs/new"
-            className="flex items-center gap-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 px-3 py-1.5 text-white transition-colors touch-manipulation shadow-sm"
+            className="flex items-center gap-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 px-2.5 sm:px-3 py-1.5 text-white transition-colors touch-manipulation shadow-sm shrink-0"
           >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="text-[11px] font-semibold">Add Job</span>
+            <Plus className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-[10px] sm:text-[11px] font-semibold">Add Job</span>
           </Link>
-          <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1.5 ring-1 ring-blue-100 dark:ring-blue-900/40">
-            <Zap className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-            <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
+          <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-2 sm:px-2.5 py-1.5 ring-1 ring-blue-100 dark:ring-blue-900/40 shrink-0">
+            <Zap className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span className="text-[10px] sm:text-[11px] font-semibold text-blue-700 dark:text-blue-300 tabular-nums truncate max-w-[100px] sm:max-w-none">
               {todayJobs} found today
             </span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 px-2.5 py-1.5" title="We check 8 job sites every hour">
-            <Clock className="h-3.5 w-3.5 text-slate-500 dark:text-zinc-400" />
-            <span className="text-[11px] font-medium text-slate-600 dark:text-zinc-300">
+          <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 px-2 sm:px-2.5 py-1.5 shrink-0" title="We check 8 job sites every hour">
+            <Clock className="h-3.5 w-3.5 text-slate-500 dark:text-zinc-400 shrink-0" />
+            <span className="text-[10px] sm:text-[11px] font-medium text-slate-600 dark:text-zinc-300">
               Auto scan
             </span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 ring-1 ring-emerald-100 dark:ring-emerald-900/40" title="AI generates a personalized email for each matched job">
-            <Mail className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 ring-1 ring-emerald-100 dark:ring-emerald-900/40 shrink-0" title="AI generates a personalized email for each matched job">
+            <Mail className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
               Email per job
             </span>

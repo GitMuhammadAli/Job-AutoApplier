@@ -134,7 +134,7 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none md:grid md:grid-cols-3 md:overflow-x-visible lg:grid-cols-6">
+        <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-4 -mx-1 px-1 snap-x snap-mandatory md:snap-none md:mx-0 md:px-0 md:grid md:grid-cols-3 md:overflow-x-visible lg:grid-cols-6 scrollbar-thin">
           {STAGES.map((stage) => (
             <KanbanColumn
               key={stage}

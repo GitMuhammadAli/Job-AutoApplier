@@ -62,8 +62,13 @@
   * {
     @apply border-border;
   }
+  html {
+    overflow-x: hidden;
+  }
   body {
     @apply bg-background text-foreground antialiased;
+    overflow-x: hidden;
+    min-width: 0;
   }
 }
 
