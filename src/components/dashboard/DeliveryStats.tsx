@@ -47,14 +47,14 @@ export function DeliveryStats({ stats }: DeliveryStatsProps) {
   if (!hasActivity && emailAvailability.total === 0) return null;
 
   return (
-    <div className="rounded-xl bg-white dark:bg-zinc-800/80 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 p-4">
+    <div className="rounded-xl bg-white dark:bg-zinc-800/80 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 p-3 sm:p-4 overflow-hidden min-w-0">
       <h2 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-3 flex items-center gap-1.5">
         <Mail className="h-4 w-4 text-blue-500" />
         Application Stats
         <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500 ml-auto">This week</span>
       </h2>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mb-3">
         <StatCard
           label="Sent"
           value={thisWeek.sent}

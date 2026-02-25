@@ -34,7 +34,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   "Mobile Development (Cross-Platform)": [
     "react native", "flutter", "mobile developer", "mobile engineer", "cross-platform",
   ],
-  Cybersecurity: [
+  "Cybersecurity": [
     "security engineer", "cybersecurity", "penetration", "infosec",
     "security analyst", "soc analyst",
   ],
@@ -42,7 +42,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     "cloud engineer", "cloud architect", "aws engineer", "azure engineer",
     "gcp engineer", "cloud",
   ],
-  "QA / Testing": [
+  "QA / Testing / Automation": [
     "qa engineer", "test engineer", "quality assurance", "sdet",
     "automation tester", "test automation", "selenium", "cypress",
   ],
@@ -52,7 +52,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   "Game Development": [
     "game developer", "game engineer", "unity developer", "unreal", "game programmer",
   ],
-  "Embedded / IoT": [
+  "Embedded Systems / IoT": [
     "embedded", "firmware", "iot engineer", "hardware engineer", "microcontroller",
   ],
   "Database Administration": ["dba", "database admin", "database engineer", "sql developer"],
@@ -60,19 +60,22 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
     "ui/ux", "ux designer", "ui designer", "product designer", "interaction design",
     "figma", "sketch",
   ],
-  "Product Management": ["product manager", "product owner", "program manager"],
-  "Technical Writing": ["technical writer", "documentation", "content developer"],
+  "Product Management (Technical)": ["product manager", "product owner", "program manager", "technical pm"],
+  "Technical Writing": [
+    "technical writer", "documentation", "content developer",
+    "api documentation", "developer docs",
+  ],
   "System Administration": [
     "system admin", "sysadmin", "systems engineer", "it administrator",
   ],
   "Network Engineering": ["network engineer", "network admin", "cisco", "routing"],
-  "ERP / SAP": ["sap consultant", "erp", "sap developer", "oracle erp"],
+  "ERP / SAP Development": ["sap consultant", "erp", "sap developer", "oracle erp"],
   Salesforce: ["salesforce", "sfdc", "apex developer"],
-  "WordPress / CMS": ["wordpress", "drupal", "cms developer"],
-  "E-Commerce": ["shopify", "magento", "woocommerce", "e-commerce developer"],
-  "AR / VR": ["augmented reality", "virtual reality", "ar/vr", "mixed reality"],
-  Robotics: ["robotics", "ros", "robot engineer"],
-  "Compiler / Language": ["compiler", "language design", "llvm", "interpreter"],
+  "CMS / WordPress Development": ["wordpress", "drupal", "cms developer"],
+  "E-commerce Development": ["shopify", "magento", "woocommerce", "e-commerce developer"],
+  "AR / VR Development": ["augmented reality", "virtual reality", "ar/vr", "mixed reality"],
+  "Robotics Engineering": ["robotics", "ros", "robot engineer"],
+  "Compiler / Language Design": ["compiler", "language design", "llvm", "interpreter"],
   "Site Reliability": ["site reliability", "sre", "reliability engineer"],
   "Solutions Architect": [
     "solutions architect", "technical architect", "enterprise architect",
@@ -85,17 +88,50 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   "Software Engineering": [
     "software engineer", "software developer", "programmer", "developer",
   ],
-  // Non-tech categories (for hard-filter to correctly reject for tech users)
-  Sales: ["sales", "account executive", "business development", "sdr", "bdr", "inside sales"],
-  Marketing: ["marketing", "seo", "social media", "growth", "digital marketing"],
-  HR: ["hr", "human resources", "recruiter", "talent acquisition", "people operations"],
-  Finance: ["finance", "accounting", "bookkeeping", "financial analyst", "cfo"],
-  "Customer Support": ["customer support", "customer success", "help desk", "support agent"],
-  Writing: ["copywriter", "content writer", "editor", "freelance writer", "blogger"],
-  Management: ["manager", "director", "vp", "head of", "chief"],
+  // Content & Creative (match JOB_CATEGORIES)
+  "Content Writing": [
+    "content writer", "content writing", "content creator", "blogger",
+    "freelance writer", "editor", "editorial",
+  ],
+  Copywriting: [
+    "copywriter", "copywriting", "copy writer", "creative copy",
+  ],
+  // Marketing & Sales (match JOB_CATEGORIES)
+  Marketing: ["marketing", "brand", "growth", "demand gen"],
+  "Digital Marketing": [
+    "digital marketing", "social media", "ppc", "paid social",
+    "performance marketing", "marketing automation",
+  ],
+  "SEO / Content Marketing": [
+    "seo", "search engine", "content marketing", "organic growth",
+  ],
+  Sales: ["sales rep", "sales representative", "inside sales", "sales manager"],
+  "Business Development": [
+    "business development", "bdr", "sdr", "account executive",
+    "sales development", "bidders", "bidding", "proposal",
+  ],
+  "Account Executive / SDR": [
+    "account executive", "ae", "sdr", "bdr", "closing",
+  ],
+  // Business & Operations (match JOB_CATEGORIES)
+  "HR / Talent Acquisition": [
+    "hr", "human resources", "recruiter", "talent acquisition",
+    "people operations", "hiring",
+  ],
+  "Finance / Accounting": [
+    "finance", "accounting", "bookkeeping", "financial analyst",
+    "cfo", "controller", "accountant",
+  ],
+  "Customer Support": [
+    "customer support", "customer success", "help desk", "support agent",
+    "customer service",
+  ],
+  Operations: ["operations", "logistics", "supply chain", "warehouse", "ops"],
   Legal: ["lawyer", "legal counsel", "paralegal", "compliance"],
-  Operations: ["operations", "logistics", "supply chain", "warehouse"],
-  Education: ["teacher", "tutor", "instructor", "professor", "training"],
+  "Education / Training": [
+    "teacher", "tutor", "instructor", "professor", "training",
+    "educational",
+  ],
 };
 
 export function categorizeJob(title: string, skills: string[], description: string): string {

@@ -35,7 +35,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/60 dark:border-zinc-700/60 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl">
-      <div className="flex h-12 md:h-14 items-center gap-3 px-4 md:px-6">
+      <div className="flex h-12 md:h-14 items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-6 min-w-0">
         {/* Spacer for mobile hamburger */}
         <div className="w-8 md:hidden" />
 
@@ -50,16 +50,16 @@ export function Header() {
           </button>
         )}
 
-        <div className="relative flex-1 md:max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+        <div className="relative flex-1 min-w-0 md:max-w-sm">
+          <Search className="absolute left-2.5 sm:left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 shrink-0" />
           <label htmlFor="search-jobs" className="sr-only">Search jobs</label>
           <Input
             id="search-jobs"
-            placeholder="Search companies, roles&hellip;"
+            placeholder="Search jobs&hellip;"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             autoComplete="off"
-            className="h-8 md:h-9 pl-9 text-sm bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200/60 dark:border-zinc-700/60 rounded-lg focus:bg-white dark:focus:bg-zinc-800 transition-colors"
+            className="h-8 md:h-9 pl-8 sm:pl-9 text-sm bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200/60 dark:border-zinc-700/60 rounded-lg focus:bg-white dark:focus:bg-zinc-800 transition-colors min-w-0"
           />
         </div>
 

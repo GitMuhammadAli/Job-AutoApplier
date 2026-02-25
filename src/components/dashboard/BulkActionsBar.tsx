@@ -25,7 +25,7 @@ export function BulkActionsBar({ jobCount }: { jobCount: number }) {
   if (jobCount < 5) return null;
 
   return (
-    <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
+    <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-2 w-full text-left"
@@ -43,8 +43,8 @@ export function BulkActionsBar({ jobCount }: { jobCount: number }) {
       {expanded && (
         <div className="mt-3 space-y-3">
           {/* Clear old saved jobs */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] text-slate-500 dark:text-zinc-400 min-w-[100px]">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400 w-full sm:w-auto sm:min-w-[100px]">
               <Clock className="h-3 w-3 inline mr-1" />Clear old saved:
             </span>
             {[3, 7, 14, 30].map((days) => (
@@ -63,8 +63,8 @@ export function BulkActionsBar({ jobCount }: { jobCount: number }) {
           </div>
 
           {/* Clear by stage */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] text-slate-500 dark:text-zinc-400 min-w-[100px]">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400 w-full sm:w-auto sm:min-w-[100px]">
               <Trash2 className="h-3 w-3 inline mr-1" />Clear stage:
             </span>
             {[
@@ -86,8 +86,8 @@ export function BulkActionsBar({ jobCount }: { jobCount: number }) {
           </div>
 
           {/* Application bulk actions */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] text-slate-500 dark:text-zinc-400 min-w-[100px]">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400 w-full sm:w-auto sm:min-w-[100px]">
               <FileX className="h-3 w-3 inline mr-1" />Applications:
             </span>
             {(["FAILED", "BOUNCED", "CANCELLED"] as const).map((status) => (
@@ -114,8 +114,8 @@ export function BulkActionsBar({ jobCount }: { jobCount: number }) {
           </div>
 
           {/* Start Fresh */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] text-slate-500 dark:text-zinc-400 min-w-[100px]">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400 w-full sm:w-auto sm:min-w-[100px]">
               <RotateCcw className="h-3 w-3 inline mr-1" />Nuclear:
             </span>
             <Button

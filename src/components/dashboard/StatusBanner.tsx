@@ -72,7 +72,7 @@ export function StatusBanner() {
 
   if (data.scrapeRunning) {
     return (
-      <div className="flex items-center gap-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 px-4 py-2.5 ring-1 ring-blue-200/60 dark:ring-blue-800/40">
+      <div className="flex items-center gap-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 px-3 sm:px-4 py-2.5 ring-1 ring-blue-200/60 dark:ring-blue-800/40">
         <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
         <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
           Fetching new jobs&hellip;
@@ -83,7 +83,7 @@ export function StatusBanner() {
 
   if (data.newJobsCount > 0) {
     return (
-      <div className="flex items-center justify-between rounded-xl bg-violet-50 dark:bg-violet-950/30 px-4 py-2.5 ring-1 ring-violet-200/60 dark:ring-violet-800/40">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 rounded-xl bg-violet-50 dark:bg-violet-950/30 px-3 sm:px-4 py-2.5 ring-1 ring-violet-200/60 dark:ring-violet-800/40">
         <div className="flex items-center gap-2.5">
           <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
           <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
@@ -108,7 +108,7 @@ export function StatusBanner() {
 
   if (hasWarnings) {
     return (
-      <div className="flex items-center justify-between rounded-xl bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5 ring-1 ring-amber-200/60 dark:ring-amber-800/40">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 px-3 sm:px-4 py-2.5 ring-1 ring-amber-200/60 dark:ring-amber-800/40">
         <div className="flex items-center gap-2.5 min-w-0">
           <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
           <span className="text-xs font-medium text-amber-700 dark:text-amber-300 truncate">
@@ -124,8 +124,8 @@ export function StatusBanner() {
     : "Never";
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 dark:bg-zinc-800/50 px-4 py-2.5 ring-1 ring-slate-200/60 dark:ring-zinc-700/60">
-      <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-zinc-400">
+    <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2 rounded-xl bg-slate-50 dark:bg-zinc-800/50 px-3 sm:px-4 py-2.5 ring-1 ring-slate-200/60 dark:ring-zinc-700/60">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[11px] text-slate-500 dark:text-zinc-400 min-w-0">
         <span className="flex items-center gap-1.5">
           <Radio className="h-3 w-3" />
           Last scan: {timeAgo}
@@ -138,7 +138,7 @@ export function StatusBanner() {
       <Button
         size="sm"
         variant="outline"
-        className="h-7 text-[11px] gap-1.5 touch-manipulation"
+        className="h-7 text-[11px] gap-1.5 touch-manipulation shrink-0 self-start sm:self-center"
         onClick={handleScanNow}
         disabled={scanning || scanCooldown > 0}
       >

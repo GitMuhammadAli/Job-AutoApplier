@@ -107,6 +107,7 @@ export const KEYWORD_PRESETS: { group: string; keywords: string[] }[] = [
 ];
 
 export const JOB_CATEGORIES = [
+  // Tech / Engineering
   "Frontend Development",
   "Backend Development",
   "Full Stack Development",
@@ -142,6 +143,24 @@ export const JOB_CATEGORIES = [
   "CMS / WordPress Development",
   "ERP / SAP Development",
   "Accessibility Engineering",
+  // Content & Creative
+  "Content Writing",
+  "Copywriting",
+  // Marketing & Sales
+  "Marketing",
+  "Digital Marketing",
+  "SEO / Content Marketing",
+  "Sales",
+  "Business Development",
+  "Account Executive / SDR",
+  // Business & Operations
+  "HR / Talent Acquisition",
+  "Finance / Accounting",
+  "Customer Support",
+  "Project Management",
+  "Operations",
+  "Legal",
+  "Education / Training",
 ] as const;
 
 export const TONE_OPTIONS = [
