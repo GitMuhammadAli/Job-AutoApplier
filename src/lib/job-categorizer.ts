@@ -91,24 +91,29 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   // Content & Creative (match JOB_CATEGORIES)
   "Content Writing": [
     "content writer", "content writing", "content creator", "blogger",
-    "freelance writer", "editor", "editorial",
+    "freelance writer", "editor", "editorial", "article writer",
+    "blog writing", "creative writing", "proofreader", "content strategist",
   ],
   Copywriting: [
     "copywriter", "copywriting", "copy writer", "creative copy",
+    "ad copy", "marketing copy", "brand copy",
   ],
   // Marketing & Sales (match JOB_CATEGORIES)
-  Marketing: ["marketing", "brand", "growth", "demand gen"],
+  Marketing: ["marketing", "brand", "growth", "demand gen", "brand manager"],
   "Digital Marketing": [
     "digital marketing", "social media", "ppc", "paid social",
-    "performance marketing", "marketing automation",
+    "performance marketing", "marketing automation", "affiliate",
+    "influencer", "community manager", "email marketing",
   ],
   "SEO / Content Marketing": [
     "seo", "search engine", "content marketing", "organic growth",
+    "seo writer", "seo content",
   ],
-  Sales: ["sales rep", "sales representative", "inside sales", "sales manager"],
+  Sales: ["sales rep", "sales representative", "inside sales", "sales manager", "closing"],
   "Business Development": [
     "business development", "bdr", "sdr", "account executive",
     "sales development", "bidders", "bidding", "proposal",
+    "tender", "rfp", "rfq", "proposal writer", "bid writer",
   ],
   "Account Executive / SDR": [
     "account executive", "ae", "sdr", "bdr", "closing",

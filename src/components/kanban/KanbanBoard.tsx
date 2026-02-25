@@ -147,7 +147,7 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
 
         <DragOverlay>
           {activeJob ? (
-            <div className="w-72 rotate-3 opacity-90">
+            <div className="w-[200px] sm:w-72 rotate-3 opacity-90">
               <JobCard
                 job={activeJob}
                 onStageChange={() => {}}

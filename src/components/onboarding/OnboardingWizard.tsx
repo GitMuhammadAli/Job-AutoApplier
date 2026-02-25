@@ -232,7 +232,7 @@ export function OnboardingWizard() {
                   value={keywordInput}
                   onChange={(e) => setKeywordInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
-                  placeholder="React, Node.js, Python…"
+                  placeholder="e.g. React, content writer, marketing, bidders…"
                   autoComplete="off"
                   className="mt-1"
                 />

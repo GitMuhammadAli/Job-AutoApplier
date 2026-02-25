@@ -104,6 +104,62 @@ export const KEYWORD_PRESETS: { group: string; keywords: string[] }[] = [
       "Prisma", "Sequelize", "SQL", "NoSQL",
     ],
   },
+  // Content & Writing
+  {
+    group: "Content Writing",
+    keywords: [
+      "content writer", "content writing", "blogger", "blog writing",
+      "article writer", "copywriter", "editor", "proofreader",
+      "creative writing", "technical writing", "SEO content",
+    ],
+  },
+  {
+    group: "Copywriting & Marketing",
+    keywords: [
+      "copywriter", "copywriting", "marketing", "digital marketing",
+      "social media", "brand", "content marketing", "ad copy",
+      "email marketing", "PPC", "SEO", "growth",
+    ],
+  },
+  // Sales & Business
+  {
+    group: "Sales & Bidding",
+    keywords: [
+      "sales", "bidding", "bidders", "proposal writer",
+      "business development", "BDR", "SDR", "account executive",
+      "inside sales", "tender", "RFP", "RFQ",
+    ],
+  },
+  {
+    group: "Marketing & Growth",
+    keywords: [
+      "marketing", "growth", "demand gen", "performance marketing",
+      "affiliate", "influencer", "community manager",
+      "product marketing", "brand manager",
+    ],
+  },
+  // Business & Operations
+  {
+    group: "HR & Admin",
+    keywords: [
+      "HR", "human resources", "recruiter", "talent acquisition",
+      "admin", "administrator", "office manager",
+    ],
+  },
+  {
+    group: "Finance & Accounting",
+    keywords: [
+      "accountant", "finance", "bookkeeping", "financial analyst",
+      "accounts payable", "accounts receivable", "audit",
+    ],
+  },
+  {
+    group: "Customer Support",
+    keywords: [
+      "customer support", "customer success", "support agent",
+      "help desk", "customer service", "client success",
+    ],
+  },
 ];
 
 export const JOB_CATEGORIES = [
