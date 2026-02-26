@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { getSettings } from "@/app/actions/settings";
 import { getResumeCount } from "@/app/actions/resume";
+import { SettingsSkeleton } from "@/components/shared/Skeletons";
 import nextDynamic from "next/dynamic";
 import { Cog, Loader2 } from "lucide-react";
 
@@ -17,7 +19,31 @@ const SettingsForm = nextDynamic(
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
+export default function SettingsPage() {
+  return (
+    <div className="space-y-5 animate-slide-up">
+      {/* Static header — renders instantly */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 shadow-md shadow-slate-600/20">
+            <Cog className="h-4 w-4 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Settings</h1>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-zinc-400">
+          Configure your profile, job preferences, automation behavior, and AI customization.
+        </p>
+      </div>
+
+      {/* Async data streams in */}
+      <Suspense fallback={<SettingsSkeleton />}>
+        <SettingsContent />
+      </Suspense>
+    </div>
+  );
+}
+
+async function SettingsContent() {
   let settings: Awaited<ReturnType<typeof getSettings>> | null = null;
   let resumeCount = 0;
 
@@ -38,20 +64,5 @@ export default async function SettingsPage() {
     );
   }
 
-  return (
-    <div className="space-y-5 animate-slide-up">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 shadow-md shadow-slate-600/20">
-            <Cog className="h-4 w-4 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Settings</h1>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-zinc-400">
-          Configure your profile, job preferences, automation behavior, and AI customization.
-        </p>
-      </div>
-      <SettingsForm initialSettings={settings} resumeCount={resumeCount} />
-    </div>
-  );
+  return <SettingsForm initialSettings={settings} resumeCount={resumeCount} />;
 }

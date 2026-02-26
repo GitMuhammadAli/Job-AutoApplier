@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
         notificationEmail: true,
         user: { select: { email: true, name: true } },
       },
+      take: 500,
     });
 
     let notified = 0;

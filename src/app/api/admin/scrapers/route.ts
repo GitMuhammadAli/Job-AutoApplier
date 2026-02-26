@@ -45,7 +45,9 @@ export async function GET() {
       }),
     );
 
-    return NextResponse.json(health);
+    return NextResponse.json(health, {
+      headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
+    });
   } catch (error) {
     console.error("[admin/scrapers]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

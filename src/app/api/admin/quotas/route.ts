@@ -52,7 +52,9 @@ export async function GET() {
       }),
     );
 
-    return NextResponse.json(quotas);
+    return NextResponse.json(quotas, {
+      headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
+    });
   } catch (error) {
     console.error("[admin/quotas]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

@@ -16,6 +16,7 @@ import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
 import { categorizeJob } from "@/lib/job-categorizer";
 import { sendNotificationEmail } from "@/lib/email";
 import { sendAlertWebhook } from "@/lib/webhooks";
+import { runScraper, updateRunJobsSaved } from "@/lib/scrapers/scraper-runner";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 function sanitizeScrapedText(text: string | null): string | null {
@@ -47,6 +48,13 @@ const SCRAPERS: Record<string, ScraperFn> = {
   linkedin: (q) => fetchLinkedIn(q),
   rozee: (q) => fetchRozee(q),
   google: (q) => fetchGoogleJobs(q),
+};
+
+// Fallback mapping: when primary fails, try these
+const FALLBACKS: Record<string, { fn: ScraperFn; source: string } | undefined> = {
+  linkedin: process.env.RAPIDAPI_KEY ? { fn: (q) => fetchJSearch(q, 8), source: "jsearch" } : undefined,
+  indeed: process.env.RAPIDAPI_KEY ? { fn: (q) => fetchJSearch(q, 8), source: "jsearch" } : undefined,
+  rozee: process.env.SERPAPI_KEY ? { fn: (q) => fetchGoogleJobs(q), source: "google" } : undefined,
 };
 
 function verifyCronSecret(req: NextRequest): boolean {
@@ -115,138 +123,124 @@ export async function GET(req: NextRequest) {
 
     const startTime = Date.now();
 
-    // Run all scrapers in parallel — each has its own timeout handling
+    // Run all scrapers in parallel via scraper runner (timeout, fallback, run recording)
     const scraperTasks = sources
       .filter((source) => SCRAPERS[source])
       .map(async (source) => {
-        const scraperFn = SCRAPERS[source];
-        const sourceStart = Date.now();
-        try {
-          const jobs = await scraperFn(queries);
-          let newCount = 0;
-          let updatedCount = 0;
+        const fallback = FALLBACKS[source];
+        const runResult = await runScraper({
+          source,
+          fn: SCRAPERS[source],
+          queries,
+          timeoutMs: 45000,
+          fallbackFn: fallback?.fn,
+          fallbackSource: fallback?.source,
+        });
 
-          for (const job of jobs) {
-            try {
-              job.description = sanitizeScrapedText(job.description);
-              job.title = sanitizeScrapedText(job.title) || job.title;
-              job.company = sanitizeScrapedText(job.company) || job.company;
+        // Save jobs to DB
+        let newCount = 0;
+        let updatedCount = 0;
 
-              if (!job.category) {
-                job.category = categorizeJob(
-                  job.title,
-                  job.skills || [],
-                  job.description || "",
-                );
-              }
-
-              const existing = await prisma.globalJob.findUnique({
-                where: {
-                  sourceId_source: { sourceId: job.sourceId, source: job.source },
-                },
-                select: { id: true },
-              });
-
-              if (existing) {
-                await prisma.globalJob.update({
-                  where: { id: existing.id },
-                  data: {
-                    lastSeenAt: new Date(),
-                    isActive: true,
-                    ...(job.description ? { description: job.description } : {}),
-                    ...(job.salary ? { salary: job.salary } : {}),
-                    ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
-                    ...(job.companyEmail
-                      ? { companyEmail: job.companyEmail }
-                      : {}),
-                  },
-                });
-                updatedCount++;
-              } else {
-                await prisma.globalJob.create({
-                  data: {
-                    title: job.title,
-                    company: job.company,
-                    location: job.location,
-                    description: job.description,
-                    salary: job.salary,
-                    jobType: job.jobType,
-                    experienceLevel: job.experienceLevel,
-                    category: job.category,
-                    skills: job.skills,
-                    postedDate: job.postedDate,
-                    source: job.source,
-                    sourceId: job.sourceId,
-                    sourceUrl: job.sourceUrl,
-                    applyUrl: job.applyUrl,
-                    companyUrl: job.companyUrl,
-                    companyEmail: job.companyEmail,
-                    isActive: true,
-                    isFresh: true,
-                    firstSeenAt: new Date(),
-                    lastSeenAt: new Date(),
-                  },
-                });
-                newCount++;
-              }
-            } catch {
-              // skip individual upsert failures
-            }
+        // Sanitize and categorize all jobs first
+        for (const job of runResult.jobs) {
+          job.description = sanitizeScrapedText(job.description);
+          job.title = sanitizeScrapedText(job.title) || job.title;
+          job.company = sanitizeScrapedText(job.company) || job.company;
+          if (!job.category) {
+            job.category = categorizeJob(job.title, job.skills || [], job.description || "");
           }
-
-          const durationMs = Date.now() - sourceStart;
-          await prisma.systemLog.create({
-            data: {
-              type: "scrape",
-              source,
-              message: `${source}: ${jobs.length} found, ${newCount} new, ${updatedCount} updated`,
-              metadata: {
-                found: jobs.length,
-                new: newCount,
-                updated: updatedCount,
-                durationMs,
-                status: "success",
-              },
-            },
-          });
-
-          return {
-            source,
-            found: jobs.length,
-            new: newCount,
-            updated: updatedCount,
-            status: "success" as const,
-          };
-        } catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error);
-          const durationMs = Date.now() - sourceStart;
-          console.error(`[Scrape] ${source} failed:`, error);
-
-          await prisma.systemLog.create({
-            data: {
-              type: "error",
-              source,
-              message: `Scraper ${source} failed: ${errMsg}`,
-              metadata: {
-                status: "failed",
-                errorMessage: errMsg,
-                durationMs,
-                found: 0,
-                new: 0,
-                updated: 0,
-              },
-            },
-          }).catch(() => {});
-
-          return {
-            source,
-            found: 0,
-            new: 0,
-            updated: 0,
-            status: "failed" as const,
-            error: errMsg,
-          };
         }
+
+        // Batch lookup: find all existing jobs in one query instead of N+1
+        const sourceKeys = runResult.jobs.map((j) => ({ sourceId: j.sourceId, source: j.source }));
+        const existingJobs = await prisma.globalJob.findMany({
+          where: {
+            OR: sourceKeys.map((k) => ({ sourceId: k.sourceId, source: k.source })),
+          },
+          select: { id: true, sourceId: true, source: true },
+        });
+        for (const job of runResult.jobs) {
+          try {
+            const existing = existingJobs.find((e) => e.source === job.source && e.sourceId === job.sourceId);
+
+            if (existing) {
+              await prisma.globalJob.update({
+                where: { id: existing.id },
+                data: {
+                  lastSeenAt: new Date(),
+                  isActive: true,
+                  ...(job.description ? { description: job.description } : {}),
+                  ...(job.salary ? { salary: job.salary } : {}),
+                  ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
+                  ...(job.companyEmail
+                    ? { companyEmail: job.companyEmail }
+                    : {}),
+                },
+              });
+              updatedCount++;
+            } else {
+              await prisma.globalJob.create({
+                data: {
+                  title: job.title,
+                  company: job.company,
+                  location: job.location,
+                  description: job.description,
+                  salary: job.salary,
+                  jobType: job.jobType,
+                  experienceLevel: job.experienceLevel,
+                  category: job.category,
+                  skills: job.skills,
+                  postedDate: job.postedDate,
+                  source: job.source,
+                  sourceId: job.sourceId,
+                  sourceUrl: job.sourceUrl,
+                  applyUrl: job.applyUrl,
+                  companyUrl: job.companyUrl,
+                  companyEmail: job.companyEmail,
+                  isActive: true,
+                  isFresh: true,
+                  firstSeenAt: new Date(),
+                  lastSeenAt: new Date(),
+                },
+              });
+              newCount++;
+            }
+          } catch {
+            // skip individual upsert failures
+          }
+        }
+
+        // Update run with saved count
+        await updateRunJobsSaved(runResult.runId, newCount);
+
+        // Log to SystemLog (maintains backward compat)
+        const logStatus = runResult.status === "success" || runResult.status === "partial" ? "success" : "failed";
+        await prisma.systemLog.create({
+          data: {
+            type: logStatus === "success" ? "scrape" : "error",
+            source,
+            message: logStatus === "success"
+              ? `${source}: ${runResult.jobs.length} found, ${newCount} new, ${updatedCount} updated`
+              : `Scraper ${source} ${runResult.status}: ${runResult.errorMessage}`,
+            metadata: {
+              found: runResult.jobs.length,
+              new: newCount,
+              updated: updatedCount,
+              durationMs: runResult.durationMs,
+              status: logStatus,
+              ...(runResult.errorMessage ? { errorMessage: runResult.errorMessage } : {}),
+            },
+          },
+        }).catch(() => {});
+
+        return {
+          source,
+          found: runResult.jobs.length,
+          new: newCount,
+          updated: updatedCount,
+          status: runResult.status,
+          error: runResult.errorMessage,
+        };
       });
 
     const settled = await Promise.allSettled(scraperTasks);
@@ -256,11 +250,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const timedOut = false;
-
-    const failedCount = results.filter((r) => r.status === "failed").length;
+    const failedCount = results.filter((r) => r.status === "failed" || r.status === "timeout").length;
     const failedSources = results
-      .filter((r) => r.status === "failed")
+      .filter((r) => r.status === "failed" || r.status === "timeout")
       .map((r) => `${r.source}: ${r.error}`);
     if (failedCount > sources.length / 2) {
       const alertMsg = `Failed sources: ${failedSources.join("; ")}`;
@@ -319,7 +311,6 @@ export async function GET(req: NextRequest) {
       results,
       totalNew: results.reduce((s, r) => s + r.new, 0),
       totalUpdated: results.reduce((s, r) => s + r.updated, 0),
-      timedOut,
       durationMs: Date.now() - startTime,
       matchResult,
       sendResult,
