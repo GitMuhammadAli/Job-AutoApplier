@@ -1,3 +1,21 @@
 {
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/scrape-global?mode=free&match=true&send=true",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/scrape-global?mode=paid",
+      "schedule": "0 6,18 * * *"
+    },
+    {
+      "path": "/api/cron/match-jobs",
+      "schedule": "30 */3 * * *"
+    },
+    {
+      "path": "/api/cron/notify-matches",
+      "schedule": "0 9 * * *"
+    }
+  ]
 }

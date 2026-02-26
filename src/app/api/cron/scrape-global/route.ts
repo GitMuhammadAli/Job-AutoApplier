@@ -13,6 +13,7 @@ import { fetchAdzuna } from "@/lib/scrapers/adzuna";
 import { fetchLinkedIn } from "@/lib/scrapers/linkedin";
 import { fetchRozee } from "@/lib/scrapers/rozee";
 import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
+import { fetchGoogleHiringPosts } from "@/lib/scrapers/google-hiring-posts";
 import { categorizeJob } from "@/lib/job-categorizer";
 import { sendNotificationEmail } from "@/lib/email";
 import { sendAlertWebhook } from "@/lib/webhooks";
@@ -48,6 +49,7 @@ const SCRAPERS: Record<string, ScraperFn> = {
   linkedin: (q) => fetchLinkedIn(q),
   rozee: (q) => fetchRozee(q),
   google: (q) => fetchGoogleJobs(q),
+  linkedin_posts: (q) => fetchGoogleHiringPosts(q, 3),
 };
 
 // Fallback mapping: when primary fails, try these
@@ -80,7 +82,7 @@ export async function GET(req: NextRequest) {
         sources = await getPriorityPlatforms();
         break;
       case "free":
-        sources = ["indeed", "remotive", "arbeitnow", "linkedin", "rozee"];
+        sources = ["indeed", "remotive", "arbeitnow", "linkedin", "rozee", "linkedin_posts"];
         break;
       case "paid":
         sources = getPaidSourcesToday();
@@ -92,6 +94,7 @@ export async function GET(req: NextRequest) {
           "arbeitnow",
           "linkedin",
           "rozee",
+          "linkedin_posts",
           ...getPaidSourcesToday(),
         ];
         sources = sources.filter((s, i) => sources.indexOf(s) === i);

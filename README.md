@@ -7,7 +7,7 @@ AI-powered job search platform that finds the best jobs across 8 sources, scores
 ## Features
 
 ### Job Discovery & Matching
-- **8 job sources** &mdash; Indeed, Remotive, Arbeitnow, LinkedIn, Rozee, JSearch, Adzuna, Google Jobs
+- **9 job sources + manual** &mdash; Indeed, Remotive, Arbeitnow, LinkedIn Jobs, LinkedIn Posts (via Google), Rozee, JSearch, Adzuna, Google Jobs, plus Quick Add from URL
 - **Scraper boost** &mdash; All scrapers fetch significantly more data: LinkedIn (8×3×2×2), JSearch (6 queries, 3 cities, 2 pages), Indeed (8 queries, 3 cities, 2 pages), Adzuna (8 queries, 3 pages, 50/page, 14 days), Google Jobs (5 queries, 3 cities, daily), Rozee (5 queries, daily), Remotive (200 limit), Arbeitnow (3 pages)
 - **Smart matching** &mdash; 8 hard filters + 7 scoring factors (keyword, category, location, experience, salary, resume-skill overlap, freshness)
 - **Negative keywords** &mdash; exclude irrelevant jobs (e.g., "wordpress", "php", "internship")
@@ -40,6 +40,9 @@ AI-powered job search platform that finds the best jobs across 8 sources, scores
 - **Feedback widget** &mdash; in-app bug reports and suggestions
 - **Activity tracking** &mdash; admin visibility into user engagement
 - **Performance optimized** &mdash; parallel data fetching, settings caching, DB connection pooling, lazy-loaded components
+- **PWA installable** &mdash; add to home screen, share jobs from any app directly to JobPilot
+- **Quick Add from URL** &mdash; paste any job URL (LinkedIn, Indeed, career page) and auto-extract title, company, location, description, email
+- **Stack acronym matching** &mdash; "MERN" automatically matches react, node, mongodb, express keywords (also MEAN, PERN, LAMP, T3, etc.)
 
 ## Getting Started
 

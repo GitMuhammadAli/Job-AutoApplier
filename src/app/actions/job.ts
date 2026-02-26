@@ -265,6 +265,7 @@ const createJobSchema = z.object({
   applyUrl: z.string().url().optional().or(z.literal("")),
   jobType: z.string().optional(),
   notes: z.string().optional(),
+  companyEmail: z.string().email().optional().or(z.literal("")),
 });
 
 function normalizeForMatch(str: string): string {
@@ -318,6 +319,7 @@ export async function createManualJob(rawData: unknown): Promise<{ success: bool
             salary: data.salary || null,
             applyUrl: data.applyUrl || null,
             jobType: data.jobType || null,
+            companyEmail: data.companyEmail || null,
             source: "manual",
             sourceId: `manual-${userId}-${Date.now()}`,
             isActive: true,

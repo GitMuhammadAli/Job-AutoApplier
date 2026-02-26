@@ -13,6 +13,7 @@ import {
   keywordsMatchJob,
   normalizeForDedup,
   isRemoteLocation,
+  expandStackAcronyms,
   type GlobalJobLike,
   type UserSettingsLike,
   type MatchResult,
@@ -272,8 +273,12 @@ export async function getRecommendedJobs(
     const titleLower = normalizeText(job.title);
     const skillsLower = (job.skills ?? []).map((s: string) => normalizeText(s)).join(" ");
 
+    // Expand stack acronyms (e.g. "MERN" in title → also matches react, node, etc.)
+    const stackExtra = expandStackAcronyms(`${titleLower} ${skillsLower}`);
+    const expandedSkills = stackExtra.length > 0 ? `${skillsLower} ${stackExtra.join(" ")}` : skillsLower;
+
     // Try matching with title+skills only (no description)
-    const matchedKw = keywordsMatchJob(userKeywords, titleLower, "", skillsLower);
+    const matchedKw = keywordsMatchJob(userKeywords, titleLower, "", expandedSkills);
 
     if (matchedKw.length > 0) {
       afterKeywords.push({ job, matchedKw });

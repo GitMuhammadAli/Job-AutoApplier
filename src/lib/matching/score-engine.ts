@@ -358,7 +358,41 @@ export const COMPOUND_VARIANTS: Record<string, string[]> = {
   "unity":          ["unity", "unity3d", "unity 3d"],
   "unreal engine":  ["unreal engine", "unreal", "ue5", "ue4"],
   "godot":          ["godot", "godot engine"],
+  // ── TECHNOLOGY STACKS (acronyms that expand to component technologies) ──
+  "mern":           ["mern", "mern stack", "mern developer", "mern-stack"],
+  "mean":           ["mean", "mean stack", "mean developer", "mean-stack"],
+  "mevn":           ["mevn", "mevn stack", "mevn developer", "mevn-stack"],
+  "pern":           ["pern", "pern stack", "pern developer", "pern-stack"],
+  "lamp":           ["lamp", "lamp stack", "lamp-stack"],
+  "lemp":           ["lemp", "lemp stack", "lemp-stack"],
+  "jamstack":       ["jamstack", "jam stack", "jam-stack", "jamstack developer"],
+  "t3 stack":       ["t3 stack", "t3-stack", "t3stack", "create-t3-app"],
 };
+
+// Stack acronym → component technologies (for reverse matching)
+// When job text says "MERN", users with "react" or "node.js" etc. should match
+const STACK_COMPONENTS: Record<string, string[]> = {
+  mern:     ["mongodb", "mongo", "express", "react", "node.js", "nodejs", "node"],
+  mean:     ["mongodb", "mongo", "express", "angular", "node.js", "nodejs", "node"],
+  mevn:     ["mongodb", "mongo", "express", "vue", "vue.js", "node.js", "nodejs", "node"],
+  pern:     ["postgresql", "postgres", "express", "react", "node.js", "nodejs", "node"],
+  lamp:     ["linux", "apache", "mysql", "php"],
+  lemp:     ["linux", "nginx", "mysql", "php"],
+  jamstack: ["javascript", "api", "markup", "next.js", "gatsby"],
+  "t3 stack": ["typescript", "trpc", "tailwind", "next.js", "prisma"],
+};
+
+/** Expand stack acronyms found in job text into component keywords */
+export function expandStackAcronyms(text: string): string[] {
+  const extra: string[] = [];
+  const lower = text.toLowerCase();
+  for (const [stack, components] of Object.entries(STACK_COMPONENTS)) {
+    if (keywordMatchesText(stack, lower)) {
+      extra.push(...components);
+    }
+  }
+  return extra;
+}
 
 function getKeywordVariants(keyword: string): string[] {
   const kw = keyword.toLowerCase().trim();
@@ -569,12 +603,15 @@ export function computeMatchScore(
 
   // ════════════════════════════════════════════
   // HARD FILTER 2: At least 1 keyword MUST match in title, description, or skills
+  // Expands stack acronyms (e.g. "MERN" → react, node, mongodb, express)
   // ════════════════════════════════════════════
   const userKeywords = (settings.keywords ?? []).map((k) => k.toLowerCase().trim()).filter(Boolean);
+  const stackExpanded = expandStackAcronyms(`${titleLower} ${descLower} ${skillsLower}`);
+  const expandedText = stackExpanded.length > 0 ? ` ${stackExpanded.join(" ")}` : "";
   const matchedKeywords = userKeywords.filter(
-    (kw) => keywordMatchesText(kw, titleLower) || keywordMatchesText(kw, descLower) || keywordMatchesText(kw, skillsLower)
+    (kw) => keywordMatchesText(kw, titleLower + expandedText) || keywordMatchesText(kw, descLower + expandedText) || keywordMatchesText(kw, skillsLower + expandedText)
   );
-  const titleKeywords = userKeywords.filter((kw) => keywordMatchesText(kw, titleLower));
+  const titleKeywords = userKeywords.filter((kw) => keywordMatchesText(kw, titleLower + expandedText));
 
   if (userKeywords.length > 0 && matchedKeywords.length === 0) {
     return { ...REJECT, reasons: ["No keyword match"] };
