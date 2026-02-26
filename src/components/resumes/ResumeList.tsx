@@ -34,6 +34,7 @@ import {
   setDefaultResume,
   reExtractResume,
   rephraseResumeContent,
+  getResumeContent,
 } from "@/app/actions/resume";
 import { JOB_CATEGORIES } from "@/constants/categories";
 import {
@@ -253,9 +254,11 @@ export function ResumeList({ resumes }: ResumeListProps) {
     setFileUrl(r.fileUrl ?? "");
   };
 
-  const openContentDialog = (r: ResumeWithStats) => {
+  const openContentDialog = async (r: ResumeWithStats) => {
     setContentDialogId(r.id);
-    setContent(r.content ?? "");
+    setContent(""); // clear while loading
+    const loaded = await getResumeContent(r.id);
+    setContent(loaded ?? "");
   };
 
   const handleReExtract = async (id: string) => {

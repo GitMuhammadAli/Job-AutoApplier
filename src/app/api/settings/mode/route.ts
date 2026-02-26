@@ -14,6 +14,8 @@ export async function GET() {
     return NextResponse.json({
       mode: settings?.applicationMode || "MANUAL",
       status: settings?.accountStatus || "active",
+    }, {
+      headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";

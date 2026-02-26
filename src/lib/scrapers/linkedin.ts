@@ -3,6 +3,13 @@ import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
 import { fetchJSearch } from "./jsearch";
 
+/**
+ * LinkedIn selector changelog:
+ * 2026-02-26: Initial configurable selectors via env vars
+ * When LinkedIn changes CSS classes, update env vars or defaults below.
+ * Pattern: LinkedIn tends to rename base-search-card__X to job-card-X or similar.
+ */
+
 // Configurable selectors via env (comma-separated for fallbacks)
 const SELECTORS = {
   title: (process.env.LINKEDIN_SELECTOR_TITLE || "base-search-card__title,base-card__title").split(",").map((s) => s.trim()),
@@ -102,14 +109,64 @@ export async function fetchLinkedIn(
     }
   }
 
-  if (jobs.length === 0 && process.env.RAPIDAPI_KEY) {
-    console.warn("[LinkedIn] HTML returned 0 jobs — falling back to JSearch");
-    const fallback = await fetchJSearch(queries, 8);
-    return fallback;
+  if (jobs.length === 0) {
+    // Log raw HTML snippet for debugging when scraper returns 0
+    await logLinkedInFailure(queries[0]?.keyword || "unknown");
+
+    if (process.env.RAPIDAPI_KEY) {
+      console.warn("[LinkedIn] HTML returned 0 jobs — falling back to JSearch");
+      const fallback = await fetchJSearch(queries, 8);
+      return fallback;
+    }
   }
 
-  console.error(`[LinkedIn] Total scraped: ${jobs.length} jobs`);
+  console.log(`[LinkedIn] Total scraped: ${jobs.length} jobs`);
   return jobs;
+}
+
+/** Log raw HTML response for debugging when LinkedIn returns 0 results */
+async function logLinkedInFailure(keyword: string) {
+  try {
+    const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+    const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(keyword)}&start=0&f_TPR=r86400&sortBy=DD`;
+    const res = await fetchWithRetry(url, {
+      headers: { "User-Agent": ua, ...ACCEPT_HEADERS },
+    });
+    const html = await res.text();
+    const snippet = html.slice(0, 5000);
+
+    // Determine failure type
+    let failureType = "unknown";
+    if (html.includes("captcha") || html.includes("authwall")) {
+      failureType = "captcha/authwall";
+    } else if (html.includes("base-search-card") || html.includes("job-card")) {
+      failureType = "selectors_mismatch (HTML has cards but selectors don't match)";
+    } else if (res.status >= 400) {
+      failureType = `http_${res.status}`;
+    } else if (html.length < 200) {
+      failureType = "empty_response";
+    }
+
+    console.warn(`[LinkedIn] Failure type: ${failureType}. HTML snippet (first 500 chars): ${snippet.slice(0, 500)}`);
+
+    // Try to log to SystemLog if prisma is available
+    const { prisma } = await import("@/lib/prisma");
+    await prisma.systemLog.create({
+      data: {
+        type: "error",
+        source: "linkedin",
+        message: `LinkedIn scraper returned 0 jobs. Failure type: ${failureType}`,
+        metadata: {
+          failureType,
+          httpStatus: res.status,
+          htmlSnippet: snippet,
+          keyword,
+        },
+      },
+    }).catch(() => {});
+  } catch (e) {
+    console.warn("[LinkedIn] Could not log failure HTML:", e);
+  }
 }
 
 async function fetchLinkedInPage(

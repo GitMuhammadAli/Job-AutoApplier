@@ -70,7 +70,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       status: errors.length > 5 ? "degraded" : "healthy",
       lastScrape: lastScrape
         ? { time: lastScrape.createdAt, message: lastScrape.message }
@@ -97,6 +97,8 @@ export async function GET() {
         time: e.createdAt,
       })),
     });
+    response.headers.set("Cache-Control", "private, max-age=10, stale-while-revalidate=30");
+    return response;
   } catch (error) {
     console.error("System health error:", error);
     return NextResponse.json({ error: "Failed to fetch health" }, { status: 500 });

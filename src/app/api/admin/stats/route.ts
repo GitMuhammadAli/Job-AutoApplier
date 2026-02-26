@@ -97,138 +97,185 @@ export async function GET() {
       }),
     ]);
 
-    // Scraper status with quality metrics
-    const scraperStatus = await Promise.all(
-      SCRAPE_SOURCES.map(async (source) => {
-        const [lastLog, lastError, totalJobs, withEmail, withSkills, recentJobs] = await Promise.all([
-          prisma.systemLog.findFirst({
-            where: { type: "scrape", source },
-            orderBy: { createdAt: "desc" },
-          }),
-          prisma.systemLog.findFirst({
-            where: { type: "error", source },
-            orderBy: { createdAt: "desc" },
-          }),
-          prisma.globalJob.count({ where: { source, isActive: true } }),
-          prisma.globalJob.count({ where: { source, isActive: true, companyEmail: { not: null } } }),
-          prisma.globalJob.count({ where: { source, isActive: true, skills: { isEmpty: false } } }),
-          prisma.globalJob.findMany({
-            where: { source, isActive: true },
-            select: { skills: true, category: true },
-            take: 200,
-            orderBy: { createdAt: "desc" },
-          }),
-        ]);
-
-        const meta = (lastLog?.metadata ?? {}) as Record<string, unknown>;
-        const skillCounts: Record<string, number> = {};
-        const categoryCounts: Record<string, number> = {};
-        for (const job of recentJobs) {
-          for (const skill of job.skills ?? []) {
-            skillCounts[skill] = (skillCounts[skill] || 0) + 1;
-          }
-          if (job.category) {
-            categoryCounts[job.category] = (categoryCounts[job.category] || 0) + 1;
-          }
-        }
-        const topSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count }));
-        const topCategories = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count }));
-
-        return {
-          source,
-          lastRun: lastLog?.createdAt ?? null,
-          lastMessage: lastLog?.message ?? null,
-          jobCount: (meta.newJobs as number) ?? (meta.jobs as number) ?? 0,
-          updatedCount: (meta.updatedJobs as number) ?? 0,
-          totalJobs,
-          withEmail,
-          withSkills,
-          emailRate: totalJobs > 0 ? Math.round((withEmail / totalJobs) * 100) : 0,
-          skillRate: totalJobs > 0 ? Math.round((withSkills / totalJobs) * 100) : 0,
-          topSkills,
-          topCategories,
-          isHealthy:
-            !!lastLog &&
-            (!lastError || lastLog.createdAt > lastError.createdAt),
-          lastError: lastError?.message ?? null,
-          lastErrorAt: lastError?.createdAt ?? null,
-        };
+    // Batch scraper stats: 3 queries instead of 48+
+    const [
+      jobCountsBySource,
+      emailCountsBySource,
+      skillCountsBySource,
+      allScrapeLogs,
+      allErrorLogs,
+      recentJobSamples,
+      totalSent,
+      totalBounced,
+      totalFailed,
+      allCronLogs,
+      recentlyActive,
+      jsearchUsed,
+      groqUsed,
+      brevoUsed,
+    ] = await Promise.all([
+      // Job counts per source (active)
+      prisma.globalJob.groupBy({
+        by: ["source"],
+        where: { isActive: true },
+        _count: true,
       }),
-    );
-
-    // Email delivery stats
-    const [totalSent, totalBounced, totalFailed] = await Promise.all([
+      // Jobs with email per source
+      prisma.globalJob.groupBy({
+        by: ["source"],
+        where: { isActive: true, companyEmail: { not: null } },
+        _count: true,
+      }),
+      // Jobs with skills per source
+      prisma.globalJob.groupBy({
+        by: ["source"],
+        where: { isActive: true, skills: { isEmpty: false } },
+        _count: true,
+      }),
+      // Last scrape log per source (fetch recent, dedupe in JS)
+      prisma.systemLog.findMany({
+        where: { type: "scrape", source: { in: SCRAPE_SOURCES } },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+      // Last error per source
+      prisma.systemLog.findMany({
+        where: { type: "error", source: { in: SCRAPE_SOURCES } },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+      // Recent jobs for skill/category analysis (all sources, single query)
+      prisma.globalJob.findMany({
+        where: { isActive: true, source: { in: SCRAPE_SOURCES } },
+        select: { source: true, skills: true, category: true },
+        take: 500,
+        orderBy: { createdAt: "desc" },
+      }),
+      // Email delivery stats
       prisma.jobApplication.count({ where: { status: "SENT" } }),
       prisma.jobApplication.count({ where: { status: "BOUNCED" } }),
       prisma.jobApplication.count({ where: { status: "FAILED" } }),
-    ]);
-    const deliveryRate = totalSent + totalBounced > 0 ? Math.round((totalSent / (totalSent + totalBounced)) * 100) : 100;
-    const totalActiveWithEmail = scraperStatus.reduce((sum, s) => sum + s.withEmail, 0);
-    const totalActive = scraperStatus.reduce((sum, s) => sum + s.totalJobs, 0);
-    const overallEmailRate = totalActive > 0 ? Math.round((totalActiveWithEmail / totalActive) * 100) : 0;
-
-    // Cron status
-    const cronStatus = await Promise.all(
-      CRON_NAMES.map(async (cron) => {
-        const lastLog = await prisma.systemLog.findFirst({
-          where: {
-            OR: [
-              { source: cron.key },
-              { type: cron.type, source: cron.key },
-              { message: { contains: cron.key } },
-            ],
-          },
-          orderBy: { createdAt: "desc" },
-        });
-        const lock = locks.find((l) => l.name === cron.key);
-        return {
-          key: cron.key,
-          label: cron.label,
-          lastRun: lastLog?.createdAt ?? null,
-          lastMessage: lastLog?.message ?? null,
-          isRunning: lock?.isRunning ?? false,
-          startedAt: lock?.startedAt ?? null,
-        };
-      }),
-    );
-
-    // Recently active users (last 24h)
-    const recentlyActive = await prisma.userSettings.findMany({
-      where: { lastVisitedAt: { gte: dayAgo } },
-      select: {
-        userId: true,
-        fullName: true,
-        lastVisitedAt: true,
-        accountStatus: true,
-        applicationMode: true,
-        user: { select: { name: true, email: true, image: true, createdAt: true } },
-      },
-      orderBy: { lastVisitedAt: "desc" },
-      take: 20,
-    });
-
-    const onlineThreshold = new Date(now.getTime() - 5 * 60 * 1000);
-
-    // Quotas
-    const [jsearchUsed, groqUsed, brevoUsed] = await Promise.all([
-      prisma.systemLog.count({
+      // Cron logs — single batch query for all cron sources
+      prisma.systemLog.findMany({
         where: {
-          type: { in: ["api_usage", "api_call"] },
-          source: "jsearch",
-          createdAt: { gte: startOfMonth },
+          source: { in: CRON_NAMES.map((c) => c.key) },
         },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      }),
+      // Recently active users
+      prisma.userSettings.findMany({
+        where: { lastVisitedAt: { gte: dayAgo } },
+        select: {
+          userId: true,
+          fullName: true,
+          lastVisitedAt: true,
+          accountStatus: true,
+          applicationMode: true,
+          user: { select: { name: true, email: true, image: true, createdAt: true } },
+        },
+        orderBy: { lastVisitedAt: "desc" },
+        take: 20,
+      }),
+      // Quotas
+      prisma.systemLog.count({
+        where: { type: { in: ["api_usage", "api_call"] }, source: "jsearch", createdAt: { gte: startOfMonth } },
       }),
       prisma.systemLog.count({
-        where: {
-          type: { in: ["api_usage", "api_call"] },
-          source: "groq",
-          createdAt: { gte: startOfDay },
-        },
+        where: { type: { in: ["api_usage", "api_call"] }, source: "groq", createdAt: { gte: startOfDay } },
       }),
       prisma.activity.count({
         where: { type: "NOTIFICATION_SENT", createdAt: { gte: startOfDay } },
       }),
     ]);
+
+    // Build lookup maps from batch results
+    const jobCountMap = new Map(jobCountsBySource.map((r) => [r.source, r._count]));
+    const emailCountMap = new Map(emailCountsBySource.map((r) => [r.source, r._count]));
+    const skillCountMap = new Map(skillCountsBySource.map((r) => [r.source, r._count]));
+
+    // Dedupe logs to get last per source
+    const lastLogBySource = new Map<string, typeof allScrapeLogs[0]>();
+    for (const log of allScrapeLogs) {
+      if (log.source && !lastLogBySource.has(log.source)) {
+        lastLogBySource.set(log.source, log);
+      }
+    }
+    const lastErrorBySource = new Map<string, typeof allErrorLogs[0]>();
+    for (const log of allErrorLogs) {
+      if (log.source && !lastErrorBySource.has(log.source)) {
+        lastErrorBySource.set(log.source, log);
+      }
+    }
+
+    // Build skill/category maps per source from sampled jobs
+    const scraperStatus = SCRAPE_SOURCES.map((source) => {
+      const totalJobs = jobCountMap.get(source) ?? 0;
+      const withEmail = emailCountMap.get(source) ?? 0;
+      const withSkills = skillCountMap.get(source) ?? 0;
+      const lastLog = lastLogBySource.get(source);
+      const lastError = lastErrorBySource.get(source);
+      const meta = (lastLog?.metadata ?? {}) as Record<string, unknown>;
+
+      const sourceJobs = recentJobSamples.filter((j) => j.source === source);
+      const skillCounts: Record<string, number> = {};
+      const categoryCounts: Record<string, number> = {};
+      for (const job of sourceJobs) {
+        for (const skill of job.skills ?? []) {
+          skillCounts[skill] = (skillCounts[skill] || 0) + 1;
+        }
+        if (job.category) {
+          categoryCounts[job.category] = (categoryCounts[job.category] || 0) + 1;
+        }
+      }
+      const topSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count }));
+      const topCategories = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count }));
+
+      return {
+        source,
+        lastRun: lastLog?.createdAt ?? null,
+        lastMessage: lastLog?.message ?? null,
+        jobCount: (meta.newJobs as number) ?? (meta.jobs as number) ?? 0,
+        updatedCount: (meta.updatedJobs as number) ?? 0,
+        totalJobs,
+        withEmail,
+        withSkills,
+        emailRate: totalJobs > 0 ? Math.round((withEmail / totalJobs) * 100) : 0,
+        skillRate: totalJobs > 0 ? Math.round((withSkills / totalJobs) * 100) : 0,
+        topSkills,
+        topCategories,
+        isHealthy: !!lastLog && (!lastError || lastLog.createdAt > lastError.createdAt),
+        lastError: lastError?.message ?? null,
+        lastErrorAt: lastError?.createdAt ?? null,
+      };
+    });
+
+    const deliveryRate = totalSent + totalBounced > 0 ? Math.round((totalSent / (totalSent + totalBounced)) * 100) : 100;
+    const totalActiveWithEmail = scraperStatus.reduce((sum, s) => sum + s.withEmail, 0);
+    const totalActive = scraperStatus.reduce((sum, s) => sum + s.totalJobs, 0);
+    const overallEmailRate = totalActive > 0 ? Math.round((totalActiveWithEmail / totalActive) * 100) : 0;
+
+    // Cron status — dedupe from batch query
+    const lastCronLogBySource = new Map<string, typeof allCronLogs[0]>();
+    for (const log of allCronLogs) {
+      if (log.source && !lastCronLogBySource.has(log.source)) {
+        lastCronLogBySource.set(log.source, log);
+      }
+    }
+    const cronStatus = CRON_NAMES.map((cron) => {
+      const lastLog = lastCronLogBySource.get(cron.key);
+      const lock = locks.find((l) => l.name === cron.key);
+      return {
+        key: cron.key,
+        label: cron.label,
+        lastRun: lastLog?.createdAt ?? null,
+        lastMessage: lastLog?.message ?? null,
+        isRunning: lock?.isRunning ?? false,
+        startedAt: lock?.startedAt ?? null,
+      };
+    });
+
+    const onlineThreshold = new Date(now.getTime() - 5 * 60 * 1000);
 
     // Job distribution
     const sourceDistribution: Record<string, number> = {};
@@ -236,7 +283,7 @@ export async function GET() {
       sourceDistribution[item.source] = item._count;
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       users: {
         total: totalUsers,
         active: activeUsers,
@@ -298,6 +345,8 @@ export async function GET() {
         joinedAt: s.user.createdAt,
       })),
     });
+    response.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
+    return response;
   } catch (error) {
     console.error("[admin/stats]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

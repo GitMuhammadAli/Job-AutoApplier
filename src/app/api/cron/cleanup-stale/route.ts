@@ -76,12 +76,49 @@ export async function GET(req: NextRequest) {
       where: { createdAt: { lt: logCutoff } },
     });
 
+    // Delete very old inactive jobs (90 days) with no UserJob references
+    const oldInactiveCutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const oldInactiveJobs = await prisma.globalJob.findMany({
+      where: {
+        isActive: false,
+        createdAt: { lt: oldInactiveCutoff },
+        userJobs: { none: {} },
+      },
+      select: { id: true },
+      take: 1000,
+    });
+    let deletedOldJobs = 0;
+    if (oldInactiveJobs.length > 0) {
+      const result = await prisma.globalJob.deleteMany({
+        where: { id: { in: oldInactiveJobs.map((j) => j.id) } },
+      });
+      deletedOldJobs = result.count;
+    }
+
+    // Prune old ScraperRun records (keep last 30 days)
+    let prunedRuns = 0;
+    try {
+      const runResult = await prisma.scraperRun.deleteMany({
+        where: { startedAt: { lt: logCutoff } },
+      });
+      prunedRuns = runResult.count;
+    } catch {
+      // ScraperRun table may not exist yet
+    }
+
     await prisma.systemLog.create({
       data: {
         type: "cron",
         source: "cleanup-stale",
-        message: `Marked ${totalMarkedInactive} stale jobs inactive, recovered ${stuckRecovered.count} stuck sends, pruned ${prunedLogs.count} old logs`,
-        metadata: { markedInactive: totalMarkedInactive, perSource, stuckRecovered: stuckRecovered.count, prunedLogs: prunedLogs.count },
+        message: `Marked ${totalMarkedInactive} inactive, deleted ${deletedOldJobs} old jobs, recovered ${stuckRecovered.count} stuck, pruned ${prunedLogs.count} logs + ${prunedRuns} runs`,
+        metadata: {
+          markedInactive: totalMarkedInactive,
+          perSource,
+          deletedOldJobs,
+          stuckRecovered: stuckRecovered.count,
+          prunedLogs: prunedLogs.count,
+          prunedRuns,
+        },
       },
     });
 
@@ -89,7 +126,10 @@ export async function GET(req: NextRequest) {
       success: true,
       markedInactive: totalMarkedInactive,
       perSource,
+      deletedOldJobs,
       stuckRecovered: stuckRecovered.count,
+      prunedLogs: prunedLogs.count,
+      prunedRuns,
     });
   } catch (error) {
     console.error("[CleanupStale] Error:", error);

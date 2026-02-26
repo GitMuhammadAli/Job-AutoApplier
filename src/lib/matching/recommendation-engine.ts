@@ -181,7 +181,8 @@ export async function getRecommendedJobs(
   const { excluded: excludedJobIds, map: userJobMap } = userJobData;
   const excludedIds = Array.from(excludedJobIds);
 
-  const candidates = await prisma.globalJob.findMany({
+  // Stage 1: Light query — load candidates WITHOUT description (~100KB vs ~10MB)
+  const candidatesLight = await prisma.globalJob.findMany({
     where: {
       isActive: true,
       createdAt: { gte: cutoffDate },
@@ -193,7 +194,6 @@ export async function getRecommendedJobs(
       title: true,
       company: true,
       location: true,
-      description: true,
       salary: true,
       jobType: true,
       experienceLevel: true,
@@ -215,11 +215,14 @@ export async function getRecommendedJobs(
   });
   const sqlMs = Date.now() - sqlStart;
 
+  // Augmented candidate type: description loaded lazily in Stage 2
+  type Candidate = (typeof candidatesLight)[0] & { description: string | null };
+  const candidates: Candidate[] = candidatesLight.map((c) => ({ ...c, description: null }));
+
   // ── STEP 3 & 4: Hard filters (JS) ──
 
   const filterStart = Date.now();
-  const afterLocation: typeof candidates = [];
-  const afterKeywords: Array<{ job: (typeof candidates)[0]; matchedKw: string[] }> = [];
+  const afterLocation: Candidate[] = [];
 
   for (const job of candidates) {
     // Blacklist filter
@@ -245,16 +248,15 @@ export async function getRecommendedJobs(
     afterLocation.push(job);
   }
 
-  // Negative keyword hard filter
+  // Negative keyword hard filter — check title+skills first (no description needed)
   const negKeywords = (settings.negativeKeywords ?? []).map((k: string) => k.toLowerCase().trim()).filter(Boolean);
-  const afterNegFilter: typeof afterLocation = [];
+  const afterNegFilter: Candidate[] = [];
   if (negKeywords.length > 0) {
     for (const job of afterLocation) {
       const titleLower = normalizeText(job.title);
-      const descLower = normalizeText(job.description || "");
       const skillsLower = (job.skills ?? []).map((s: string) => normalizeText(s)).join(" ");
       const negMatch = negKeywords.some(
-        (nk: string) => keywordMatchesText(nk, titleLower) || keywordMatchesText(nk, descLower) || keywordMatchesText(nk, skillsLower)
+        (nk: string) => keywordMatchesText(nk, titleLower) || keywordMatchesText(nk, skillsLower)
       );
       if (!negMatch) afterNegFilter.push(job);
     }
@@ -262,26 +264,88 @@ export async function getRecommendedJobs(
     afterNegFilter.push(...afterLocation);
   }
 
-  // Keyword hard filter
+  // Keyword matching — first pass with title+skills only
+  const afterKeywords: Array<{ job: Candidate; matchedKw: string[] }> = [];
+  const needDescription: Candidate[] = []; // jobs that didn't match on title+skills alone
+
   for (const job of afterNegFilter) {
     const titleLower = normalizeText(job.title);
-    const descLower = normalizeText(job.description || "");
     const skillsLower = (job.skills ?? []).map((s: string) => normalizeText(s)).join(" ");
 
-    const matchedKw = keywordsMatchJob(userKeywords, titleLower, descLower, skillsLower);
+    // Try matching with title+skills only (no description)
+    const matchedKw = keywordsMatchJob(userKeywords, titleLower, "", skillsLower);
 
-    // Search query override: if provided, job passes if it matches the search query OR keywords
-    if (matchedKw.length === 0 && searchQuery) {
+    if (matchedKw.length > 0) {
+      afterKeywords.push({ job, matchedKw });
+      continue;
+    }
+
+    // Search query override — try with title+skills first
+    if (searchQuery) {
       const searchLower = normalizeText(searchQuery);
-      const combined = `${titleLower} ${descLower} ${skillsLower} ${normalizeText(job.company)}`;
+      const combined = `${titleLower} ${skillsLower} ${normalizeText(job.company)}`;
       if (keywordMatchesText(searchLower, combined) || combined.includes(searchLower)) {
         afterKeywords.push({ job, matchedKw: [searchQuery] });
         continue;
       }
     }
 
-    if (matchedKw.length === 0) continue;
-    afterKeywords.push({ job, matchedKw });
+    // No match on title+skills — this job needs description to determine
+    needDescription.push(job);
+  }
+
+  // Stage 2: Load descriptions ONLY for borderline jobs that didn't match on title+skills
+  if (needDescription.length > 0) {
+    const descriptionIds = needDescription.map((j) => j.id);
+    const descriptions = await prisma.globalJob.findMany({
+      where: { id: { in: descriptionIds } },
+      select: { id: true, description: true },
+    });
+    const descMap = new Map(descriptions.map((d) => [d.id, d.description]));
+
+    // Merge descriptions back into candidates
+    for (const job of needDescription) {
+      job.description = descMap.get(job.id) ?? null;
+    }
+
+    // Re-check negative keywords with description for borderline jobs
+    const afterDescNegFilter: Candidate[] = [];
+    if (negKeywords.length > 0) {
+      for (const job of needDescription) {
+        const titleLower = normalizeText(job.title);
+        const descLower = normalizeText(job.description || "");
+        const skillsLower = (job.skills ?? []).map((s: string) => normalizeText(s)).join(" ");
+        const negMatch = negKeywords.some(
+          (nk: string) => keywordMatchesText(nk, titleLower) || keywordMatchesText(nk, descLower) || keywordMatchesText(nk, skillsLower)
+        );
+        if (!negMatch) afterDescNegFilter.push(job);
+      }
+    } else {
+      afterDescNegFilter.push(...needDescription);
+    }
+
+    // Now match with full description
+    for (const job of afterDescNegFilter) {
+      const titleLower = normalizeText(job.title);
+      const descLower = normalizeText(job.description || "");
+      const skillsLower = (job.skills ?? []).map((s: string) => normalizeText(s)).join(" ");
+
+      const matchedKw = keywordsMatchJob(userKeywords, titleLower, descLower, skillsLower);
+
+      if (matchedKw.length > 0) {
+        afterKeywords.push({ job, matchedKw });
+        continue;
+      }
+
+      // Search query override with description
+      if (searchQuery) {
+        const searchLower = normalizeText(searchQuery);
+        const combined = `${titleLower} ${descLower} ${skillsLower} ${normalizeText(job.company)}`;
+        if (keywordMatchesText(searchLower, combined) || combined.includes(searchLower)) {
+          afterKeywords.push({ job, matchedKw: [searchQuery] });
+        }
+      }
+    }
   }
   const filterMs = Date.now() - filterStart;
 
@@ -311,7 +375,7 @@ export async function getRecommendedJobs(
   }));
 
   type ScoredJob = {
-    job: (typeof candidates)[0];
+    job: Candidate;
     result: MatchResult;
     matchedKw: string[];
   };
@@ -451,7 +515,7 @@ export async function getRecommendedJobs(
     },
     sourceCounts,
     filterBreakdown: {
-      sqlCandidates: candidates.length,
+      sqlCandidates: candidatesLight.length,
       afterLocation: afterLocation.length,
       afterKeywords: afterKeywords.length,
       afterDedup: deduped.length,

@@ -98,6 +98,7 @@ model GlobalJob {
 
   @@unique([sourceId, source])
   @@index([source])
+  @@index([source, isActive])
   @@index([category])
   @@index([isActive, createdAt])
   @@index([isFresh, isActive])
@@ -378,6 +379,25 @@ model SystemLog {
 
   @@index([type, createdAt])
   @@index([source, createdAt])
+  @@index([type, source])
+}
+
+// ── SCRAPER RUN ──
+
+model ScraperRun {
+  id           String   @id @default(cuid())
+  source       String
+  status       String   @default("running") // running, success, partial, failed, timeout
+  jobsFound    Int      @default(0)
+  jobsSaved    Int      @default(0)
+  errorMessage String?  @db.Text
+  durationMs   Int?
+  query        String?
+  startedAt    DateTime @default(now())
+  completedAt  DateTime?
+
+  @@index([source, startedAt])
+  @@index([status, startedAt])
 }
 
 // ── USER FEEDBACK ──

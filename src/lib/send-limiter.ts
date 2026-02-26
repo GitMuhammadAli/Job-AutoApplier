@@ -85,11 +85,26 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
   const effectiveMaxPerHour = Math.min(settings.maxSendsPerHour, warmupLimits.maxPerHour, providerLimits.maxPerHour);
 
   const todayStart = startOfDay(now);
+  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+  // Run all limit checks in parallel (all independent queries)
+  const [todayCount, hourCount, lastSent, todayBounces] = await Promise.all([
+    prisma.jobApplication.count({
+      where: { userId, status: "SENT", sentAt: { gte: todayStart } },
+    }),
+    prisma.jobApplication.count({
+      where: { userId, status: "SENT", sentAt: { gte: hourAgo } },
+    }),
+    prisma.jobApplication.findFirst({
+      where: { userId, status: "SENT" },
+      orderBy: { sentAt: "desc" },
+    }),
+    prisma.jobApplication.count({
+      where: { userId, status: "BOUNCED", updatedAt: { gte: todayStart } },
+    }),
+  ]);
 
   // Check 3: Daily limit (respects warmup limits)
-  const todayCount = await prisma.jobApplication.count({
-    where: { userId, status: "SENT", sentAt: { gte: todayStart } },
-  });
   if (todayCount >= effectiveMaxPerDay) {
     return {
       allowed: false,
@@ -106,10 +121,6 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
   }
 
   // Check 4: Hourly limit
-  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-  const hourCount = await prisma.jobApplication.count({
-    where: { userId, status: "SENT", sentAt: { gte: hourAgo } },
-  });
   if (hourCount >= effectiveMaxPerHour) {
     return {
       allowed: false,
@@ -126,10 +137,6 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
   }
 
   // Check 5: Minimum delay between sends
-  const lastSent = await prisma.jobApplication.findFirst({
-    where: { userId, status: "SENT" },
-    orderBy: { sentAt: "desc" },
-  });
   if (lastSent?.sentAt) {
     const elapsedSeconds =
       (now.getTime() - lastSent.sentAt.getTime()) / 1000;
@@ -150,9 +157,6 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
   }
 
   // Check 6: Bounce auto-pause (3 bounces today)
-  const todayBounces = await prisma.jobApplication.count({
-    where: { userId, status: "BOUNCED", updatedAt: { gte: todayStart } },
-  });
   if (todayBounces >= 3) {
     const pauseUntil = new Date(
       now.getTime() + settings.bouncePauseHours * 60 * 60 * 1000
