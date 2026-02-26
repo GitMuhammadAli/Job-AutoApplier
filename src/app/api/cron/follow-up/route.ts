@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { LIMITS, TIMEOUTS } from "@/lib/constants";
+import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
+import { handleRouteError } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
-
-function verifyCronSecret(req: NextRequest): boolean {
-  if (!process.env.CRON_SECRET) return false;
-  const secret =
-    req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
-  return secret === process.env.CRON_SECRET;
-}
+export const maxDuration = 10;
 
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   const startTime = Date.now();
@@ -93,10 +86,6 @@ export async function GET(req: NextRequest) {
       followUps: processed,
     });
   } catch (error) {
-    console.error("[FollowUp] Cron error:", error);
-    return NextResponse.json(
-      { error: "Follow-up failed", details: String(error) },
-      { status: 500 },
-    );
+    return handleRouteError("FollowUp", error, "Follow-up failed");
   }
 }

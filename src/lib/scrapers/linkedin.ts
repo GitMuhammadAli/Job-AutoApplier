@@ -163,7 +163,7 @@ async function logLinkedInFailure(keyword: string) {
           keyword,
         },
       },
-    }).catch(() => {});
+    }).catch((logErr) => console.warn("[LinkedIn] Failed to write failure log:", logErr));
   } catch (e) {
     console.warn("[LinkedIn] Could not log failure HTML:", e);
   }

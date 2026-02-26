@@ -209,7 +209,7 @@ export interface SendNotificationEmailResult {
 export async function sendNotificationEmail(
   options: SendNotificationEmailOptions,
 ): Promise<SendNotificationEmailResult> {
-  const transporter = getBrevoTransporter();
+  const transporter = getSystemTransporter();
   try {
     const info = await withRetry(() =>
       transporter.sendMail({

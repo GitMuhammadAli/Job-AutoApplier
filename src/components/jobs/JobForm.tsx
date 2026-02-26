@@ -83,7 +83,7 @@ export function JobForm() {
       const filled = [data.title, data.company, data.location].filter(Boolean).length;
       toast.success(`Extracted ${filled} fields from URL`);
     } catch {
-      toast.error("Failed to fetch URL. Check the link and try again.");
+      toast.error("Failed to fetch URL, check the link and try again");
     } finally {
       setIsExtracting(false);
     }

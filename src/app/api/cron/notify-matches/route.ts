@@ -6,22 +6,15 @@ import {
   recordNotification,
 } from "@/lib/notification-limiter";
 import { decryptField } from "@/lib/encryption";
+import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
+import { handleRouteError } from "@/lib/api-response";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
-
-function verifyCronSecret(req: NextRequest): boolean {
-  if (!process.env.CRON_SECRET) return false;
-  const secret =
-    req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
-  return secret === process.env.CRON_SECRET;
-}
+export const maxDuration = 10;
 
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   try {
@@ -116,10 +109,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ success: true, usersNotified: notified });
   } catch (error) {
-    console.error("Notify matches error:", error);
-    return NextResponse.json(
-      { error: "Notification failed", details: String(error) },
-      { status: 500 },
-    );
+    return handleRouteError("NotifyMatches", error, "Notification failed");
   }
 }

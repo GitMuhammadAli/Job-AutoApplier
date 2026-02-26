@@ -15,22 +15,16 @@ import { generateWithGroq } from "@/lib/groq";
 import { acquireLock, releaseLock, isLockHeld } from "@/lib/system-lock";
 import { canSendNow } from "@/lib/send-limiter";
 import { LIMITS, TIMEOUTS } from "@/lib/constants";
+import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
+import { handleRouteError } from "@/lib/api-response";
+import { checkNotificationLimit as sharedCheckNotificationLimit, logNotificationSent } from "@/lib/notification-limiter";
 
-export const maxDuration = 60;
+export const maxDuration = 10;
 export const dynamic = "force-dynamic";
-
-function verifyCronSecret(req: NextRequest): boolean {
-  if (!process.env.CRON_SECRET) return false;
-  const secret =
-    req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
-  return secret === process.env.CRON_SECRET;
-}
 
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   if (await isLockHeld("scrape-global")) {
@@ -135,6 +129,21 @@ export async function GET(req: NextRequest) {
         settings.timezone &&
         !isDuringPeakHours(settings.timezone);
 
+      // Enforce maxAutoApplyPerDay
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayAutoApplied = isFullAuto
+        ? await prisma.jobApplication.count({
+            where: {
+              userId,
+              status: "SENT",
+              sentAt: { gte: todayStart },
+              appliedVia: "EMAIL",
+            },
+          })
+        : 0;
+      const maxAutoPerDay = settings.maxAutoApplyPerDay ?? 10;
+
       let appliedCount = 0;
       let draftedCount = 0;
 
@@ -234,19 +243,24 @@ export async function GET(req: NextRequest) {
             }
           }
 
+          // C3 fix: Don't auto-send if no recipient email — downgrade to draft
+          if (!emailResult.email?.trim() && appStatus === "READY") {
+            appStatus = "DRAFT";
+          }
+
           const application = await prisma.jobApplication.create({
             data: {
               userJobId: userJob.id,
               userId,
               senderEmail,
-              recipientEmail: emailResult.email || "",
+              recipientEmail: emailResult.email?.trim() || "",
               subject: emailContent.subject,
               emailBody: emailContent.body,
               coverLetter: emailContent.coverLetter,
               resumeId: bestResume?.id,
               status: appStatus,
-              appliedVia: emailResult.email ? "EMAIL" : "MANUAL",
-              scheduledSendAt,
+              appliedVia: emailResult.email?.trim() ? "EMAIL" : "MANUAL",
+              scheduledSendAt: appStatus === "DRAFT" ? null : scheduledSendAt,
               emailConfidence: emailResult.confidence,
             },
           });
@@ -256,13 +270,18 @@ export async function GET(req: NextRequest) {
 
           // Attempt immediate send for FULL_AUTO + instant + no delay
           if (appStatus === "READY" && !scheduledSendAt && isFullAuto) {
-            const limitCheck = await canSendNow(userId);
-            if (limitCheck.allowed) {
-              const sendResult = await sendApplication(application.id);
-              if (sendResult.success) {
-                appliedCount++;
-                stats.sent++;
-                await new Promise((r) => setTimeout(r, TIMEOUTS.INSTANT_APPLY_DELAY_MS));
+            if (appliedCount + todayAutoApplied >= maxAutoPerDay) {
+              // Hit daily auto-apply cap — leave as READY for send-queued cron
+              stats.skipped++;
+            } else {
+              const limitCheck = await canSendNow(userId);
+              if (limitCheck.allowed) {
+                const sendResult = await sendApplication(application.id);
+                if (sendResult.success) {
+                  appliedCount++;
+                  stats.sent++;
+                  await new Promise((r) => setTimeout(r, TIMEOUTS.INSTANT_APPLY_DELAY_MS));
+                }
               }
             }
           }
@@ -291,10 +310,7 @@ export async function GET(req: NextRequest) {
         (appliedCount > 0 || draftedCount > 0) &&
         settings.emailNotifications
       ) {
-        const shouldNotify = await checkNotificationLimit(
-          userId,
-          settings.notificationFrequency,
-        );
+        const shouldNotify = await sharedCheckNotificationLimit(userId);
         if (shouldNotify) {
           const notifEmail = settings.notificationEmail || settings.user.email;
           if (notifEmail) {
@@ -309,17 +325,21 @@ export async function GET(req: NextRequest) {
                   draftedCount,
                 ),
               });
-            } catch {}
+              await logNotificationSent(userId, `InstantApply: ${appliedCount} applied, ${draftedCount} drafted`);
+            } catch (err) { console.warn("[InstantApply] Notification email failed:", err); }
           }
         }
       }
     }
 
-    // Mark all fresh jobs as processed
-    await prisma.globalJob.updateMany({
-      where: { isFresh: true },
-      data: { isFresh: false },
-    });
+    // Mark only the jobs we actually fetched in this batch as processed
+    const freshJobIds = freshJobs.map((j) => j.id);
+    if (freshJobIds.length > 0) {
+      await prisma.globalJob.updateMany({
+        where: { id: { in: freshJobIds } },
+        data: { isFresh: false },
+      });
+    }
 
     await prisma.systemLog.create({
       data: {
@@ -335,38 +355,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, ...stats });
   } catch (error) {
     await releaseLock("instant-apply");
-    console.error("Instant apply error:", error);
-    return NextResponse.json(
-      { error: "Instant apply failed", details: String(error) },
-      { status: 500 },
-    );
+    return handleRouteError("InstantApply", error, "Instant apply failed");
   }
-}
-
-async function checkNotificationLimit(
-  userId: string,
-  frequency: string | null,
-): Promise<boolean> {
-  const freq = frequency || "hourly";
-  if (freq === "off") return false;
-
-  const windowMs =
-    freq === "realtime"
-      ? 5 * 60 * 1000
-      : freq === "daily"
-        ? 24 * 60 * 60 * 1000
-        : 60 * 60 * 1000;
-  const maxPerWindow = freq === "daily" ? 3 : freq === "hourly" ? 1 : 10;
-
-  const recent = await prisma.activity.count({
-    where: {
-      userId,
-      type: "NOTIFICATION_SENT",
-      createdAt: { gte: new Date(Date.now() - windowMs) },
-    },
-  });
-
-  return recent < maxPerWindow;
 }
 
 function isDuringPeakHours(timezone: string): boolean {
@@ -512,7 +502,7 @@ Resume: ${bestResume?.content?.substring(0, 1000) || "Not available"}`;
       `Job: ${job.title} at ${job.company}. Skills: ${job.skills?.join(", ")}.\nCandidate: ${settings.fullName}, ${settings.keywords?.join(", ")}.\nResume: ${bestResume?.content?.substring(0, 500) || "N/A"}`,
       { temperature: 0.7, max_tokens: 400 },
     );
-  } catch {}
+  } catch (err) { console.warn("[InstantApply] Cover letter generation failed:", err); }
 
   return { subject: parsed.subject, body: parsed.body, coverLetter };
 }
@@ -525,7 +515,7 @@ function buildNotificationHTML(
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXTAUTH_URL ||
-    "https://jobpilot.vercel.app";
+    "https://job-auto-applier-three.vercel.app";
   return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
     <h1 style="font-size:22px;color:#1e293b;">Hi ${name}!</h1>
     ${applied > 0 ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;margin:12px 0;color:#166534;"><strong>${applied} applications sent instantly</strong></div>` : ""}

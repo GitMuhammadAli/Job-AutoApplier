@@ -518,6 +518,8 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
                   emailConfidence: g.emailConfidence,
                   emailSource: g.emailSource,
                   location: g.location,
+                  applyUrl: g.applyUrl,
+                  sourceUrl: g.sourceUrl,
                 },
               }}
               application={job.application}

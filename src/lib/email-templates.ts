@@ -1,3 +1,12 @@
+function esc(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function resolveAppUrl(): string {
   const candidates = [process.env.NEXT_PUBLIC_APP_URL, process.env.NEXTAUTH_URL];
   for (const url of candidates) {
@@ -53,23 +62,23 @@ export function newJobsNotificationTemplate(
       const scoreColor = j.matchScore >= 70 ? "#059669" : j.matchScore >= 40 ? "#d97706" : "#6b7280";
       return `<tr>
         <td style="padding:12px;border-bottom:1px solid #f1f5f9">
-          <div style="font-weight:600;color:#1e293b">${j.title}</div>
-          <div style="font-size:12px;color:#64748b;margin-top:2px">${j.company}${j.location ? ` · ${j.location}` : ""}</div>
-          ${j.salary ? `<div style="font-size:12px;color:#059669;margin-top:2px">${j.salary}</div>` : ""}
-          ${(j.matchReasons ?? []).length > 0 ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">${(j.matchReasons ?? []).slice(0, 3).join(" · ")}</div>` : ""}
+          <div style="font-weight:600;color:#1e293b">${esc(j.title)}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px">${esc(j.company)}${j.location ? ` · ${esc(j.location)}` : ""}</div>
+          ${j.salary ? `<div style="font-size:12px;color:#059669;margin-top:2px">${esc(j.salary)}</div>` : ""}
+          ${(j.matchReasons ?? []).length > 0 ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">${(j.matchReasons ?? []).slice(0, 3).map(r => esc(r)).join(" · ")}</div>` : ""}
         </td>
         <td style="padding:12px;border-bottom:1px solid #f1f5f9;text-align:center;vertical-align:middle">
           <span style="font-weight:700;color:${scoreColor};font-size:16px">${Math.round(j.matchScore)}%</span>
         </td>
         <td style="padding:12px;border-bottom:1px solid #f1f5f9;text-align:center;vertical-align:middle">
-          ${j.applyUrl ? `<a href="${j.applyUrl}" style="display:inline-block;padding:6px 14px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600">Apply</a>` : `<span style="color:#94a3b8;font-size:12px">${j.source}</span>`}
+          ${j.applyUrl ? `<a href="${esc(j.applyUrl)}" style="display:inline-block;padding:6px 14px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600">Apply</a>` : `<span style="color:#94a3b8;font-size:12px">${esc(j.source)}</span>`}
         </td>
       </tr>`;
     })
     .join("");
 
   const body = `
-    <p style="color:#475569;font-size:14px;margin:0 0 16px">Hi ${userName}, we found <strong>${jobs.length}</strong> new job${jobs.length > 1 ? "s" : ""} matching your profile:</p>
+    <p style="color:#475569;font-size:14px;margin:0 0 16px">Hi ${esc(userName)}, we found <strong>${jobs.length}</strong> new job${jobs.length > 1 ? "s" : ""} matching your profile:</p>
     <table style="width:100%;border-collapse:collapse">
       <thead>
         <tr style="background:#f8fafc">
@@ -99,15 +108,15 @@ export function autoApplySummaryTemplate(
     .map(
       (a) =>
         `<tr>
-          <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#1e293b">${a.title}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b">${a.company}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#94a3b8">${a.sentAt}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#1e293b">${esc(a.title)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#64748b">${esc(a.company)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#94a3b8">${esc(a.sentAt)}</td>
         </tr>`
     )
     .join("");
 
   const body = `
-    <p style="color:#475569;font-size:14px;margin:0 0 16px">Hi ${userName}, here's your auto-apply summary:</p>
+    <p style="color:#475569;font-size:14px;margin:0 0 16px">Hi ${esc(userName)}, here's your auto-apply summary:</p>
     <div style="display:flex;gap:16px;margin-bottom:16px">
       <div style="flex:1;background:#ecfdf5;border-radius:8px;padding:12px;text-align:center">
         <div style="font-size:24px;font-weight:700;color:#059669">${applied.length}</div>
@@ -147,8 +156,8 @@ export function followUpReminderTemplate(
       (j) =>
         `<tr>
           <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9">
-            <div style="font-weight:600;color:#1e293b;font-size:13px">${j.title}</div>
-            <div style="font-size:12px;color:#64748b">${j.company}</div>
+            <div style="font-weight:600;color:#1e293b;font-size:13px">${esc(j.title)}</div>
+            <div style="font-size:12px;color:#64748b">${esc(j.company)}</div>
           </td>
           <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#d97706">${j.daysSince} days ago</td>
           <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center">
@@ -159,7 +168,7 @@ export function followUpReminderTemplate(
     .join("");
 
   const body = `
-    <p style="color:#475569;font-size:14px;margin:0 0 16px">Hi ${userName}, these applications might benefit from a follow-up:</p>
+    <p style="color:#475569;font-size:14px;margin:0 0 16px">Hi ${esc(userName)}, these applications might benefit from a follow-up:</p>
     <table style="width:100%;border-collapse:collapse">
       <thead>
         <tr style="background:#f8fafc">
@@ -179,7 +188,7 @@ export function followUpReminderTemplate(
 
 export function welcomeEmailTemplate(userName: string): { subject: string; html: string } {
   const body = `
-    <p style="color:#475569;font-size:14px;margin:0 0 16px">Hi ${userName}, welcome to <strong>JobPilot</strong>!</p>
+    <p style="color:#475569;font-size:14px;margin:0 0 16px">Hi ${esc(userName)}, welcome to <strong>JobPilot</strong>!</p>
     <p style="color:#64748b;font-size:13px;line-height:1.6;margin:0 0 16px">
       Your account is set up. Here's what happens next:
     </p>
@@ -205,11 +214,11 @@ export function bounceAlertTemplate(
   reason: string
 ): { subject: string; html: string } {
   const body = `
-    <p style="color:#475569;font-size:14px;margin:0 0 16px">Hi ${userName},</p>
+    <p style="color:#475569;font-size:14px;margin:0 0 16px">Hi ${esc(userName)},</p>
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin-bottom:16px">
       <p style="color:#991b1b;font-size:13px;margin:0 0 8px;font-weight:600">Email Bounce Detected</p>
-      <p style="color:#7f1d1d;font-size:12px;margin:0 0 4px"><strong>To:</strong> ${bouncedEmail}</p>
-      <p style="color:#7f1d1d;font-size:12px;margin:0"><strong>Reason:</strong> ${reason}</p>
+      <p style="color:#7f1d1d;font-size:12px;margin:0 0 4px"><strong>To:</strong> ${esc(bouncedEmail)}</p>
+      <p style="color:#7f1d1d;font-size:12px;margin:0"><strong>Reason:</strong> ${esc(reason)}</p>
     </div>
     <p style="color:#64748b;font-size:13px;line-height:1.6;margin:0 0 16px">
       Auto-sending has been paused for 24 hours to protect your email reputation.

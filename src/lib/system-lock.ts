@@ -22,7 +22,7 @@ export async function releaseLock(name: string): Promise<void> {
   await prisma.systemLock.update({
     where: { name },
     data: { isRunning: false, completedAt: new Date() },
-  }).catch(() => {});
+  }).catch((err) => console.error(`[SystemLock] Failed to release lock '${name}':`, err));
 }
 
 export async function isLockHeld(name: string): Promise<boolean> {

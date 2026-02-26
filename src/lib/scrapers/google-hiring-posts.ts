@@ -6,76 +6,155 @@ import { categorizeJob } from "@/lib/job-categorizer";
  * Google Hiring Posts Scraper
  *
  * Finds informal job postings from LinkedIn posts, Twitter, and Facebook
- * that are indexed by Google. Uses SerpAPI regular search (not Google Jobs).
+ * that are indexed by Google. Catches jobs posted as social media posts
+ * rather than formal job listings — critical in markets like Pakistan
+ * where 30-40% of hiring happens via LinkedIn posts.
  *
- * These catch 30-40% of jobs in markets like Pakistan where hiring happens
- * via social media posts rather than formal job listings.
+ * Data sources (in priority order):
+ * 1. Google Custom Search API (free: 100 queries/day, set GOOGLE_CSE_KEY + GOOGLE_CSE_ID)
+ * 2. SerpAPI (paid fallback, set SERPAPI_KEY)
+ *
+ * Setup for free Google CSE:
+ * 1. Go to https://programmablesearchengine.google.com → create engine
+ * 2. Set "Sites to search" = linkedin.com/posts/*
+ * 3. Copy the Search Engine ID → GOOGLE_CSE_ID
+ * 4. Go to Google Cloud Console → APIs → enable "Custom Search API"
+ * 5. Create API key → GOOGLE_CSE_KEY
  */
 
-const SITE_QUERIES = [
-  'site:linkedin.com/posts "hiring"',
-  'site:linkedin.com/posts "we are hiring"',
-  'site:linkedin.com/posts "looking for"',
+const HIRING_TERMS = [
+  '"hiring"',
+  '"we are hiring"',
+  '"looking for"',
+  '"join our team"',
+  '"job opening"',
 ];
+
+interface SearchResult {
+  title?: string;
+  link?: string;
+  snippet?: string;
+  date?: string;
+}
+
+/**
+ * Fetch results from Google Custom Search API (free tier: 100/day).
+ * Restricted to linkedin.com/posts via the CSE configuration.
+ */
+async function fetchGoogleCSE(
+  query: string,
+): Promise<SearchResult[]> {
+  const key = process.env.GOOGLE_CSE_KEY;
+  const cx = process.env.GOOGLE_CSE_ID;
+  if (!key || !cx) return [];
+
+  const url = `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=10&dateRestrict=d3&sort=date`;
+
+  const res = await fetchWithRetry(url);
+  if (!res.ok) {
+    if (res.status === 429) {
+      console.warn("[GoogleHiringPosts] CSE daily quota exhausted");
+    } else {
+      console.warn(`[GoogleHiringPosts] CSE HTTP ${res.status}`);
+    }
+    return [];
+  }
+
+  const data = await res.json();
+  const items = data?.items || [];
+
+  return items.map((item: { title?: string; link?: string; snippet?: string; pagemap?: { metatags?: Array<{ "article:published_time"?: string }> } }) => ({
+    title: item.title || undefined,
+    link: item.link || undefined,
+    snippet: item.snippet || undefined,
+    date: item.pagemap?.metatags?.[0]?.["article:published_time"] || undefined,
+  }));
+}
+
+/**
+ * Fetch results from SerpAPI (paid fallback).
+ */
+async function fetchSerpAPI(
+  query: string,
+): Promise<SearchResult[]> {
+  const key = process.env.SERPAPI_KEY;
+  if (!key) return [];
+
+  const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&num=20&tbs=qdr:d3&api_key=${key}`;
+
+  const res = await fetchWithRetry(url);
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  return (data?.organic_results || []) as SearchResult[];
+}
 
 export async function fetchGoogleHiringPosts(
   queries: SearchQuery[],
-  maxQueries = 3,
+  maxQueries = 4,
 ): Promise<ScrapedJob[]> {
-  const key = process.env.SERPAPI_KEY;
-  if (!key) return [];
+  const hasCSE = !!(process.env.GOOGLE_CSE_KEY && process.env.GOOGLE_CSE_ID);
+  const hasSerpAPI = !!process.env.SERPAPI_KEY;
+
+  if (!hasCSE && !hasSerpAPI) {
+    console.warn("[GoogleHiringPosts] No API key configured (set GOOGLE_CSE_KEY+GOOGLE_CSE_ID or SERPAPI_KEY)");
+    return [];
+  }
 
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
-  // Build search queries from user keywords + cities
+  // Build search pairs from user keywords + cities
   const searchPairs: Array<{ keyword: string; city: string }> = [];
-  for (const q of queries.slice(0, 3)) {
+  for (const q of queries.slice(0, 4)) {
     for (const city of q.cities.slice(0, 2)) {
       if (city.toLowerCase() === "remote") continue;
       searchPairs.push({ keyword: q.keyword, city });
     }
   }
 
-  // Limit total API calls to stay within quota
   const pairs = searchPairs.slice(0, maxQueries);
+  let cseExhausted = false;
 
-  for (const { keyword, city } of pairs) {
-    for (const siteQuery of SITE_QUERIES.slice(0, 1)) {
-      try {
-        const q = `${siteQuery} "${city}" "${keyword}"`;
-        const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&num=20&tbs=qdr:d&api_key=${key}`;
+  for (let i = 0; i < pairs.length; i++) {
+    const { keyword, city } = pairs[i];
+    // Rotate through hiring terms to cast a wider net
+    const term = HIRING_TERMS[i % HIRING_TERMS.length];
+    const query = `site:linkedin.com/posts ${term} "${city}" "${keyword}"`;
 
-        const res = await fetchWithRetry(url);
-        if (!res.ok) continue;
+    try {
+      let results: SearchResult[] = [];
 
-        const data = await res.json();
-        const results = data?.organic_results || [];
-
-        for (const r of results) {
-          const parsed = parseHiringPost(r, city, seen);
-          if (parsed) jobs.push(parsed);
+      // Try Google CSE first (free), fall back to SerpAPI
+      if (hasCSE && !cseExhausted) {
+        results = await fetchGoogleCSE(query);
+        if (results.length === 0 && hasSerpAPI) {
+          // CSE might be exhausted or returned nothing — try SerpAPI
+          results = await fetchSerpAPI(query);
+          if (results.length > 0) cseExhausted = true; // CSE is likely at quota
         }
-      } catch (err) {
-        console.warn(
-          `[GoogleHiringPosts] Failed for "${keyword}" in "${city}":`,
-          err,
-        );
+      } else if (hasSerpAPI) {
+        results = await fetchSerpAPI(query);
       }
+
+      for (const r of results) {
+        const parsed = parseHiringPost(r, city, seen);
+        if (parsed) jobs.push(parsed);
+      }
+    } catch (err) {
+      console.warn(
+        `[GoogleHiringPosts] Failed for "${keyword}" in "${city}":`,
+        err,
+      );
     }
   }
 
-  console.log(`[GoogleHiringPosts] Total found: ${jobs.length} hiring posts`);
+  console.log(`[GoogleHiringPosts] Total found: ${jobs.length} hiring posts (source: ${hasCSE ? "CSE" : "SerpAPI"})`);
   return jobs;
 }
 
 function parseHiringPost(
-  result: {
-    title?: string;
-    link?: string;
-    snippet?: string;
-    date?: string;
-  },
+  result: SearchResult,
   fallbackCity: string,
   seen: Set<string>,
 ): ScrapedJob | null {
@@ -87,6 +166,9 @@ function parseHiringPost(
   const combined = `${titleLower} ${snippetLower}`;
   const hiringSignals = ["hiring", "we are hiring", "looking for", "join our team", "job opening", "vacancy", "position open"];
   if (!hiringSignals.some((s) => combined.includes(s))) return null;
+
+  // Only keep linkedin.com/posts links
+  if (!result.link.includes("linkedin.com/posts")) return null;
 
   // Parse company and job title from result title
   // LinkedIn format: "CompanyName on LinkedIn: 🚀 We Are Hiring – Junior MERN Developer"
@@ -143,7 +225,7 @@ function parsePostTitle(rawTitle: string): { company: string; title: string } {
     postText = postText
       .replace(/[^\x00-\x7F]/g, " ")
       .replace(/\s+/g, " ")
-      .replace(/^(we are hiring|hiring|now hiring|job alert|job opening)\s*[-:]\s*/i, "")
+      .replace(/^(we are hiring|hiring|now hiring|job alert|job opening)\s*[-:–]\s*/i, "")
       .replace(/^[-:!]\s*/, "")
       .trim();
 

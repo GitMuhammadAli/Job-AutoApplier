@@ -157,18 +157,23 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
   }
 
   // Check 6: Bounce auto-pause (3 bounces today)
+  // Only set pause if we haven't already paused today — prevents re-triggering after expiry
   if (todayBounces >= 3) {
-    const pauseUntil = new Date(
-      now.getTime() + settings.bouncePauseHours * 60 * 60 * 1000
-    );
-    await prisma.userSettings.update({
-      where: { userId },
-      data: { sendingPausedUntil: pauseUntil },
-    });
-    return {
-      allowed: false,
-      reason: `3 bounces today. Sending paused for ${settings.bouncePauseHours}h to protect your email reputation.`,
-    };
+    const alreadyPausedToday = settings.sendingPausedUntil && settings.sendingPausedUntil > todayStart;
+    if (!alreadyPausedToday) {
+      const pauseUntil = new Date(
+        now.getTime() + settings.bouncePauseHours * 60 * 60 * 1000
+      );
+      await prisma.userSettings.update({
+        where: { userId },
+        data: { sendingPausedUntil: pauseUntil },
+      });
+      return {
+        allowed: false,
+        reason: `3 bounces today. Sending paused for ${settings.bouncePauseHours}h to protect your email reputation.`,
+      };
+    }
+    // Pause was already set today and has expired — allow sending to resume
   }
 
   return {

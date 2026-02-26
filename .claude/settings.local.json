@@ -5,7 +5,12 @@
       "Bash(xargs grep -l \"useState\\\\|useEffect\")",
       "Bash(cat /c/Ali/Pro/JobApplier/src/app/\\\\\\(dashboard\\\\\\)/jobs/[id]/loading.tsx)",
       "Bash(npx next build)",
-      "Bash(ls -la /c/Ali/Pro/JobApplier/src/app/\\\\\\(dashboard\\\\\\)/recommended/)"
+      "Bash(ls -la /c/Ali/Pro/JobApplier/src/app/\\\\\\(dashboard\\\\\\)/recommended/)",
+      "Bash(xargs wc -l)",
+      "Bash(grep -rE \"your-|change-this|TODO|FIXME|HACK\" /c/Ali/Pro/JobApplier/.env*)",
+      "Bash(xargs grep -l \"require\\\\|eval\\\\|Function\")",
+      "Read(//c/Ali/Pro/JobApplier/**)",
+      "Bash(done)"
     ]
   }
 }

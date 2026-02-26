@@ -22,6 +22,13 @@ const BOUNCE_EVENTS = new Set([
   "spam",
 ]);
 
+// Only these events indicate permanently invalid addresses
+const HARD_BOUNCE_EVENTS = new Set([
+  "hard_bounce",
+  "blocked",
+  "spam",
+]);
+
 function verifyBrevoSignature(req: NextRequest, rawBody: string): boolean {
   const webhookSecret = process.env.BREVO_WEBHOOK_SECRET;
   if (!webhookSecret) return false; // reject when secret not configured
@@ -67,34 +74,53 @@ export async function POST(req: NextRequest) {
     });
 
     if (application) {
-      // Mark application as BOUNCED
-      await prisma.jobApplication.update({
-        where: { id: application.id },
-        data: { status: "BOUNCED", errorMessage: reason },
-      });
+      const isHardBounce = !eventType || HARD_BOUNCE_EVENTS.has(eventType);
 
-      await prisma.globalJob.update({
-        where: { id: application.userJob.globalJobId },
-        data: { companyEmail: null, emailConfidence: null, emailSource: null },
-      });
+      // Soft bounce: re-queue for retry. Hard bounce: mark permanently failed.
+      if (isHardBounce) {
+        await prisma.jobApplication.update({
+          where: { id: application.id },
+          data: { status: "BOUNCED", errorMessage: reason },
+        });
+
+        // Only clear company email on hard bounces (permanent failures)
+        await prisma.globalJob.update({
+          where: { id: application.userJob.globalJobId },
+          data: { companyEmail: null, emailConfidence: null, emailSource: null },
+        });
+      } else {
+        // Soft bounce — re-queue if under retry limit, otherwise fail
+        const retries = (application.retryCount || 0) + 1;
+        if (retries < 3) {
+          await prisma.jobApplication.update({
+            where: { id: application.id },
+            data: { status: "READY", retryCount: retries, errorMessage: `Soft bounce (attempt ${retries}/3): ${reason}` },
+          });
+        } else {
+          await prisma.jobApplication.update({
+            where: { id: application.id },
+            data: { status: "FAILED", retryCount: retries, errorMessage: `Soft bounce failed after 3 attempts: ${reason}` },
+          });
+        }
+      }
 
       // Log activity
       await prisma.activity.create({
         data: {
           userId: application.userId,
           userJobId: application.userJobId,
-          type: "APPLICATION_BOUNCED",
-          description: `Email to ${email} bounced (${eventType || "unknown"})`,
+          type: isHardBounce ? "APPLICATION_BOUNCED" : "APPLICATION_FAILED",
+          description: `Email to ${email} ${isHardBounce ? "bounced" : "soft-bounced"} (${eventType || "unknown"})`,
         },
       });
 
-      // Send bounce notification to user
+      // Send bounce notification to user (only for hard bounces)
       const settings = decryptSettingsFields(
         await prisma.userSettings.findUnique({
           where: { userId: application.userId },
         }),
       );
-      if (settings?.emailNotifications) {
+      if (isHardBounce && settings?.emailNotifications) {
         try {
           const template = bounceAlertTemplate(
             settings.fullName || "there",
@@ -137,7 +163,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ processed: true });
   } catch (error) {
-    console.error("Email bounce webhook error:", error);
-    return NextResponse.json({ received: true }, { status: 200 });
+    console.error("[BounceWebhook] Error:", error);
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }

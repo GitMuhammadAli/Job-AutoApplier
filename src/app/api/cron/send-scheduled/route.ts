@@ -2,41 +2,49 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendApplication } from "@/lib/send-application";
 import { canSendNow } from "@/lib/send-limiter";
-import { LIMITS, TIMEOUTS } from "@/lib/constants";
+import { LIMITS, TIMEOUTS, STUCK_SENDING_TIMEOUT_MS } from "@/lib/constants";
+import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
+import { handleRouteError } from "@/lib/api-response";
 
-export const maxDuration = 60;
+export const maxDuration = 10;
 export const dynamic = "force-dynamic";
 
-function verifyCronSecret(req: NextRequest): boolean {
-  if (!process.env.CRON_SECRET) return false;
-  const secret =
-    req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
-  return secret === process.env.CRON_SECRET;
-}
+const LOCK_TTL_MS = 10 * 60 * 1000; // 10 minutes — auto-expire stale locks
 
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   const startTime = Date.now();
 
   try {
+    // Try to acquire lock — separate from send-queued (C1 fix)
+    const staleCutoff = new Date(Date.now() - LOCK_TTL_MS);
     const acquired = await prisma.$queryRaw<{ name: string }[]>`
       INSERT INTO "SystemLock" ("name", "isRunning", "startedAt")
-      VALUES ('send-applications', true, now())
+      VALUES ('send-scheduled', true, now())
       ON CONFLICT ("name") DO UPDATE SET "isRunning" = true, "startedAt" = now()
       WHERE "SystemLock"."isRunning" = false
+         OR "SystemLock"."startedAt" < ${staleCutoff}
       RETURNING "name"
     `;
     if (acquired.length === 0) {
       return NextResponse.json({
         skipped: true,
-        reason: "Another send cron is running",
+        reason: "Another send-scheduled is running",
       });
     }
+
+    // Dead letter recovery: unstick SENDING apps older than 10 min (C2 fix)
+    const stuckCutoff = new Date(Date.now() - STUCK_SENDING_TIMEOUT_MS);
+    const stuckRecovered = await prisma.jobApplication.updateMany({
+      where: {
+        status: "SENDING",
+        updatedAt: { lt: stuckCutoff },
+      },
+      data: { status: "FAILED", errorMessage: "Stuck in SENDING state — recovered by send-scheduled" },
+    });
 
     const readyApps = await prisma.jobApplication.findMany({
       where: {
@@ -76,7 +84,7 @@ export async function GET(req: NextRequest) {
     }
 
     await prisma.systemLock.update({
-      where: { name: "send-applications" },
+      where: { name: "send-scheduled" },
       data: { isRunning: false, completedAt: new Date() },
     });
 
@@ -84,7 +92,7 @@ export async function GET(req: NextRequest) {
       data: {
         type: "send",
         source: "send-scheduled",
-        message: `Processed ${readyApps.length}: ${sent} sent, ${failed} failed, ${skipped} skipped (limit)`,
+        message: `Processed ${readyApps.length}: ${sent} sent, ${failed} failed, ${skipped} skipped${stuckRecovered.count > 0 ? `, ${stuckRecovered.count} stuck recovered` : ""}`,
       },
     });
 
@@ -94,19 +102,16 @@ export async function GET(req: NextRequest) {
       sent,
       failed,
       skipped,
+      stuckRecovered: stuckRecovered.count,
     });
   } catch (error) {
     await prisma.systemLock
       .update({
-        where: { name: "send-applications" },
+        where: { name: "send-scheduled" },
         data: { isRunning: false, completedAt: new Date() },
       })
-      .catch(() => {});
+      .catch((lockErr) => console.error("[SendScheduled] Failed to release lock:", lockErr));
 
-    console.error("[SendScheduled] Error:", error);
-    return NextResponse.json(
-      { error: "Send scheduled failed", details: String(error) },
-      { status: 500 },
-    );
+    return handleRouteError("SendScheduled", error, "Send scheduled failed");
   }
 }

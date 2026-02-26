@@ -1,4 +1,4 @@
-import { sendEmail } from "./sender";
+import { sendNotificationEmail } from "@/lib/email";
 import { newJobsNotificationTemplate } from "@/lib/email-templates";
 
 interface JobNotification {
@@ -21,7 +21,7 @@ export async function sendJobMatchNotification(
 
   const { subject, html } = newJobsNotificationTemplate(userName, jobs);
 
-  await sendEmail({
+  await sendNotificationEmail({
     from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
     to: recipientEmail,
     subject,

@@ -18,6 +18,8 @@ import { categorizeJob } from "@/lib/job-categorizer";
 import { sendNotificationEmail } from "@/lib/email";
 import { sendAlertWebhook } from "@/lib/webhooks";
 import { runScraper, updateRunJobsSaved } from "@/lib/scrapers/scraper-runner";
+import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
+import { handleRouteError } from "@/lib/api-response";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 function sanitizeScrapedText(text: string | null): string | null {
@@ -35,7 +37,7 @@ function sanitizeScrapedText(text: string | null): string | null {
     .trim();
 }
 
-export const maxDuration = 60;
+export const maxDuration = 10;
 export const dynamic = "force-dynamic";
 
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;
@@ -59,18 +61,9 @@ const FALLBACKS: Record<string, { fn: ScraperFn; source: string } | undefined> =
   rozee: process.env.SERPAPI_KEY ? { fn: (q) => fetchGoogleJobs(q), source: "google" } : undefined,
 };
 
-function verifyCronSecret(req: NextRequest): boolean {
-  if (!process.env.CRON_SECRET) return false;
-  const secret =
-    req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
-  return secret === process.env.CRON_SECRET;
-}
-
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   const mode = req.nextUrl.searchParams.get("mode") || "all";
@@ -234,7 +227,7 @@ export async function GET(req: NextRequest) {
               ...(runResult.errorMessage ? { errorMessage: runResult.errorMessage } : {}),
             },
           },
-        }).catch(() => {});
+        }).catch((logErr) => console.error(`[ScrapeGlobal] Failed to write log for ${source}:`, logErr));
 
         return {
           source,
@@ -265,7 +258,7 @@ export async function GET(req: NextRequest) {
           to: process.env.NOTIFICATION_EMAIL,
           subject: `JobPilot Alert: ${failedCount}/${sources.length} scrapers failed`,
           html: `<p>${alertMsg.replace(/;/g, "<br>")}</p>`,
-        }).catch(() => {});
+        }).catch((emailErr) => console.error("[ScrapeGlobal] Failed to send alert email:", emailErr));
       }
       await sendAlertWebhook({
         title: `JobPilot: ${failedCount}/${sources.length} scrapers failed`,
@@ -319,10 +312,6 @@ export async function GET(req: NextRequest) {
       sendResult,
     });
   } catch (error) {
-    console.error("Scrape global error:", error);
-    return NextResponse.json(
-      { error: "Scrape failed", details: String(error) },
-      { status: 500 },
-    );
+    return handleRouteError("ScrapeGlobal", error, "Scrape failed");
   }
 }

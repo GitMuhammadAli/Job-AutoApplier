@@ -99,7 +99,7 @@ export async function GET() {
         title: `JobPilot: ${brokenCount} scraper(s) broken`,
         message: brokenSources,
         severity: "error",
-      }).catch(() => {});
+      }).catch((err) => console.error("[Health] Failed to send alert webhook:", err));
     }
 
     // Return non-200 if broken (for UptimeRobot)

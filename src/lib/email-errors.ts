@@ -85,7 +85,16 @@ export function classifyError(error: unknown): ClassifiedError {
   const raw = error instanceof Error ? error.message : String(error);
   const msg = raw.toLowerCase();
 
+  // Extract numeric SMTP response code from nodemailer error object if available
+  const responseCode =
+    error && typeof error === "object" && "responseCode" in error
+      ? (error as { responseCode?: number }).responseCode
+      : undefined;
+
   // Auth errors — not retryable, user needs to fix credentials
+  if (responseCode === 535 || responseCode === 534) {
+    return { type: "auth", retryable: false, message: raw, code: String(responseCode) };
+  }
   if (AUTH_PHRASES.some((p) => msg.includes(p))) {
     return { type: "auth", retryable: false, message: raw };
   }
@@ -95,8 +104,11 @@ export function classifyError(error: unknown): ClassifiedError {
     return { type: "rate_limit", retryable: true, message: raw };
   }
 
-  // Permanent SMTP rejection — bad address, never retry
-  const matchedCode = PERMANENT_CODES.find((code) => msg.includes(code));
+  // Permanent SMTP rejection — use responseCode first, then word-boundary match
+  if (responseCode && PERMANENT_CODES.includes(String(responseCode))) {
+    return { type: "permanent", retryable: false, message: raw, code: String(responseCode) };
+  }
+  const matchedCode = PERMANENT_CODES.find((code) => new RegExp(`\\b${code}\\b`).test(msg));
   if (matchedCode) {
     return { type: "permanent", retryable: false, message: raw, code: matchedCode };
   }
@@ -109,7 +121,10 @@ export function classifyError(error: unknown): ClassifiedError {
     return { type: "network", retryable: true, message: raw };
   }
 
-  // SMTP 4xx are transient
+  // SMTP 4xx are transient (use responseCode or regex with word boundaries)
+  if (responseCode && responseCode >= 400 && responseCode < 500) {
+    return { type: "transient", retryable: true, message: raw, code: String(responseCode) };
+  }
   if (/\b4[0-9]{2}\b/.test(msg)) {
     return { type: "transient", retryable: true, message: raw };
   }

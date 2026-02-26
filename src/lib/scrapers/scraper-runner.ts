@@ -150,7 +150,7 @@ export async function updateRunJobsSaved(runId: string, jobsSaved: number) {
   await prisma.scraperRun.update({
     where: { id: runId },
     data: { jobsSaved },
-  }).catch(() => {});
+  }).catch((e) => console.warn("[ScraperRunner] Failed to update jobsSaved:", e));
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

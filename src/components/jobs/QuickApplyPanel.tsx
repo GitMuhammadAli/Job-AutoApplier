@@ -28,6 +28,7 @@ import {
   ArrowRight,
   Star,
   ChevronDown,
+  ExternalLink,
 } from "lucide-react";
 
 function cleanJsonField(value: string, field: "subject" | "body"): string {
@@ -77,6 +78,8 @@ interface QuickApplyPanelProps {
       emailConfidence: number | null;
       emailSource: string | null;
       location: string | null;
+      applyUrl: string | null;
+      sourceUrl: string | null;
     };
   };
   application: ApplicationData | null;
@@ -167,7 +170,7 @@ export function QuickApplyPanel({
         setRecipientEmail(result.application.recipientEmail);
         setMatchInfo(result.matchedResume);
         setGenerateError(null);
-        toast.success(`Draft ready! Resume: ${result.matchedResume.name}`);
+        toast.success(`Draft ready, resume: ${result.matchedResume.name}`);
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Generation failed";
         let displayMsg: string;
@@ -195,9 +198,9 @@ export function QuickApplyPanel({
         setCoverLetter(result.application.coverLetter || "");
         setRecipientEmail(result.application.recipientEmail);
         setMatchInfo(result.matchedResume);
-        toast.success("New version generated!");
+        toast.success("New version generated");
       } catch {
-        toast.error("Regeneration failed. Try again.");
+        toast.error("Regeneration failed, please try again");
       }
     });
   }
@@ -222,7 +225,7 @@ export function QuickApplyPanel({
     try {
       const cl = await generateCoverLetterAction(userJob.id);
       setCoverLetter(cl);
-      toast.success("Cover letter generated!");
+      toast.success("Cover letter generated");
       router.refresh();
     } catch (error) {
       toast.error(
@@ -236,7 +239,7 @@ export function QuickApplyPanel({
     setMarkingApplied(true);
     try {
       await markAsManuallyApplied(userJob.id, { platform });
-      toast.success("Marked as applied!");
+      toast.success("Marked as applied");
       setShowPlatforms(false);
       router.refresh();
     } catch (error) {
@@ -265,14 +268,14 @@ export function QuickApplyPanel({
 
         if (data.success) {
           toast.success(
-            `Application sent to ${recipientEmail || application!.recipientEmail}!`
+            `Application sent to ${recipientEmail || application!.recipientEmail}`
           );
           router.refresh();
         } else {
           toast.error(data.error || "Send failed");
         }
       } catch {
-        toast.error("Network error. Try again.");
+        toast.error("Network error, please try again");
       }
     });
   }
@@ -381,18 +384,29 @@ export function QuickApplyPanel({
             </div>
           )
         ) : (
-          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-2.5 ring-1 ring-red-200 dark:ring-red-800/40">
+          <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 p-2.5 ring-1 ring-amber-200 dark:ring-amber-800/40 space-y-2">
             <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+              <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-red-700 dark:text-red-300">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
                   No email found
                 </p>
-                <p className="text-[10px] text-red-600 dark:text-red-400 mt-0.5">
-                  No company email was found in the job listing. You can enter one manually after generating the draft, or use &quot;Copy All&quot; to apply via the job platform.
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                  No company email was found. Enter one manually after generating the draft, or apply directly on the platform.
                 </p>
               </div>
             </div>
+            {(userJob.globalJob.applyUrl || userJob.globalJob.sourceUrl) && (
+              <a
+                href={userJob.globalJob.applyUrl || userJob.globalJob.sourceUrl || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 w-full rounded-md bg-amber-100 dark:bg-amber-900/40 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Open Job Listing
+              </a>
+            )}
           </div>
         )
       )}

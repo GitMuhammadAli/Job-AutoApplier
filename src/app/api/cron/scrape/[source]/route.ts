@@ -10,9 +10,11 @@ import { fetchAdzuna } from "@/lib/scrapers/adzuna";
 import { fetchLinkedIn } from "@/lib/scrapers/linkedin";
 import { fetchRozee } from "@/lib/scrapers/rozee";
 import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
+import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
+import { handleRouteError } from "@/lib/api-response";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
-export const maxDuration = 60;
+export const maxDuration = 10;
 export const dynamic = "force-dynamic";
 
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;
@@ -28,21 +30,12 @@ const SCRAPERS: Record<string, ScraperFn> = {
   google: (q) => fetchGoogleJobs(q),
 };
 
-function verifyCronSecret(req: NextRequest): boolean {
-  if (!process.env.CRON_SECRET) return false;
-  const secret =
-    req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
-  return secret === process.env.CRON_SECRET;
-}
-
 export async function GET(
   req: NextRequest,
   { params }: { params: { source: string } },
 ) {
   if (!verifyCronSecret(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   const source = params.source;
@@ -85,10 +78,6 @@ export async function GET(
       ...result,
     });
   } catch (error) {
-    console.error(`[Scrape/${source}] error:`, error);
-    return NextResponse.json(
-      { error: `Scrape ${source} failed`, details: String(error) },
-      { status: 500 },
-    );
+    return handleRouteError(`Scrape/${source}`, error, `Scrape ${source} failed`);
   }
 }

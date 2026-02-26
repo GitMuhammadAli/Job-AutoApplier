@@ -1,4 +1,4 @@
-import { sendEmail } from "@/lib/email/sender";
+import { sendNotificationEmail } from "@/lib/email";
 import { newJobsNotificationTemplate } from "@/lib/email-templates";
 import { checkNotificationLimit, recordNotification } from "@/lib/notification-limiter";
 
@@ -31,7 +31,7 @@ export async function sendNewJobsNotification(
 
   const { subject, html } = newJobsNotificationTemplate(userName, goodMatches);
 
-  const result = await sendEmail({
+  const result = await sendNotificationEmail({
     from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
     to: email,
     subject,

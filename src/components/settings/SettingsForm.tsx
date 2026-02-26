@@ -1239,7 +1239,7 @@ export function SettingsForm({
                   });
                   const data = await res.json();
                   if (data.success) {
-                    toast.success("Test email sent! Check your inbox.");
+                    toast.success("Test email sent, check your inbox");
                   } else {
                     toast.error(data.hint || data.error || "Test failed");
                   }
@@ -1985,9 +1985,9 @@ export function SettingsForm({
               a.download = `jobpilot-export-${new Date().toISOString().split("T")[0]}.zip`;
               a.click();
               URL.revokeObjectURL(url);
-              toast.success("Export downloaded!");
+              toast.success("Export downloaded");
             } catch {
-              toast.error("Export failed. Try again.");
+              toast.error("Export failed, please try again");
             }
           }}
           className="gap-2"
@@ -2041,14 +2041,14 @@ function DeleteAccountSection() {
     try {
       const result = await deleteAccount();
       if (result.success) {
-        toast.success("Account deleted. Goodbye!");
+        toast.success("Account deleted");
         signOut({ callbackUrl: "/login" });
       } else {
-        toast.error(result.error || "Failed to delete account.");
+        toast.error(result.error || "Failed to delete account");
         setStep("confirm");
       }
     } catch {
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Something went wrong, please try again");
       setStep("confirm");
     }
   };

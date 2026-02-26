@@ -58,7 +58,10 @@ export async function sendAlertWebhook(payload: AlertPayload): Promise<void> {
     );
   }
 
-  if (promises.length > 0) {
-    await Promise.allSettled(promises);
+  if (promises.length === 0) {
+    console.debug("[Webhook] No webhook URLs configured — skipping alert:", payload.title);
+    return;
   }
+
+  await Promise.allSettled(promises);
 }

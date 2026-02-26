@@ -25,14 +25,14 @@ export async function checkDuplicate(
   userId: string,
   globalJob: { company: string; title: string; id: string },
 ): Promise<DuplicateResult> {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const normCompany = normalizeCompany(globalJob.company);
 
   const recentApps = await prisma.jobApplication.findMany({
     where: {
       userId,
       status: { in: ["SENT", "SENDING", "READY"] },
-      sentAt: { gte: sevenDaysAgo },
+      sentAt: { gte: thirtyDaysAgo },
     },
     include: {
       userJob: {

@@ -4,27 +4,20 @@ import {
   computeMatchScore,
   MATCH_THRESHOLDS,
 } from "@/lib/matching/score-engine";
-import { sendEmail } from "@/lib/email/sender";
+import { sendNotificationEmail } from "@/lib/email";
 import { newJobsNotificationTemplate } from "@/lib/email-templates";
 import { decryptSettingsFields } from "@/lib/encryption";
 import { buildExistingJobKeys, isDuplicateByKey } from "@/lib/matching/location-filter";
 import { LIMITS, TIMEOUTS } from "@/lib/constants";
+import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
+import { handleRouteError } from "@/lib/api-response";
 
-export const maxDuration = 60;
+export const maxDuration = 10;
 export const dynamic = "force-dynamic";
-
-function verifyCronSecret(req: NextRequest): boolean {
-  if (!process.env.CRON_SECRET) return false;
-  const secret =
-    req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
-  return secret === process.env.CRON_SECRET;
-}
 
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   const startTime = Date.now();
@@ -158,13 +151,13 @@ export async function GET(req: NextRequest) {
               settings.user.name || "there",
               goodMatches.slice(0, LIMITS.NOTIFICATION_JOBS),
             );
-            await sendEmail({
+            await sendNotificationEmail({
               from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
               to: notifEmail,
               subject,
               html,
             });
-          } catch {}
+          } catch (err) { console.warn("[MatchAllUsers] Notification email failed:", err); }
         }
       }
 
@@ -190,10 +183,6 @@ export async function GET(req: NextRequest) {
       perUser: results,
     });
   } catch (error) {
-    console.error("[MatchAllUsers] Error:", error);
-    return NextResponse.json(
-      { error: "Match failed", details: String(error) },
-      { status: 500 },
-    );
+    return handleRouteError("MatchAllUsers", error, "Match failed");
   }
 }

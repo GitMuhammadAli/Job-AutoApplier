@@ -1,4 +1,4 @@
-import { getTransporterForUser } from "./email";
+import { getTransporterForUser, formatCoverLetterHtml } from "./email";
 import { prisma } from "./prisma";
 import { canSendNow } from "./send-limiter";
 import { checkDuplicate } from "./duplicate-checker";
@@ -62,6 +62,7 @@ export async function sendApplication(
   }
 
   // Prepare resume attachment
+  let resumeAttached = false;
   const attachments: Array<{
     filename: string;
     content: Buffer;
@@ -69,7 +70,9 @@ export async function sendApplication(
   }> = [];
   if (application.resume?.fileUrl) {
     try {
-      const response = await fetch(application.resume.fileUrl);
+      const response = await fetch(application.resume.fileUrl, {
+        signal: AbortSignal.timeout(8000), // C5: keep under 10s Hobby limit
+      });
       if (response.ok) {
         const buffer = Buffer.from(await response.arrayBuffer());
         const rawName = application.resume.fileName || application.resume.name;
@@ -79,12 +82,15 @@ export async function sendApplication(
           content: buffer,
           contentType: "application/pdf",
         });
+        resumeAttached = true;
       } else {
         console.error(`[SendApp] Resume download HTTP ${response.status} for ${application.resume.id}`);
       }
     } catch (err) {
       console.error(`[SendApp] Failed to download resume ${application.resume.id}:`, err);
     }
+  } else {
+    resumeAttached = true; // No resume to attach — not a failure
   }
 
   // Atomic claim: only one caller can transition DRAFT/READY → SENDING
@@ -103,12 +109,28 @@ export async function sendApplication(
     const cleanSubject = cleanJsonField(application.subject, "subject");
     const cleanBody = cleanJsonField(application.emailBody, "body");
 
+    // H1+H2: Validate email fields before sending
+    if (!cleanSubject.trim()) {
+      await prisma.jobApplication.update({
+        where: { id: applicationId },
+        data: { status: "DRAFT", errorMessage: "Empty subject line" },
+      });
+      return { success: false, error: "Empty subject line — cannot send" };
+    }
+    if (!cleanBody.trim()) {
+      await prisma.jobApplication.update({
+        where: { id: applicationId },
+        data: { status: "DRAFT", errorMessage: "Empty email body" },
+      });
+      return { success: false, error: "Empty email body — cannot send" };
+    }
+
     const result = await transporter.sendMail({
       from: `${settings.fullName || "JobPilot User"} <${settings.applicationEmail || settings.smtpUser}>`,
       to: application.recipientEmail,
       subject: cleanSubject,
       text: cleanBody,
-      headers: { "X-Mailer": undefined as unknown as string },
+      html: formatCoverLetterHtml(cleanBody),
       attachments: attachments.map((a) => ({
         filename: a.filename,
         content: a.content,
@@ -116,11 +138,16 @@ export async function sendApplication(
       })),
     });
 
-    // Success
+    // Success — C4: track resume attachment failure as warning
     await prisma.$transaction([
       prisma.jobApplication.update({
         where: { id: applicationId },
-        data: { status: "SENT", sentAt: new Date(), retryCount: 0 },
+        data: {
+          status: "SENT",
+          sentAt: new Date(),
+          retryCount: 0,
+          ...(resumeAttached ? {} : { errorMessage: "Warning: Resume failed to attach — email sent without it" }),
+        },
       }),
       prisma.userJob.update({
         where: { id: application.userJobId },
@@ -163,7 +190,7 @@ export async function sendApplication(
       await prisma.globalJob.update({
         where: { id: application.userJob.globalJobId },
         data: { companyEmail: null, emailConfidence: null, emailSource: null },
-      }).catch(() => {});
+      }).catch((err) => console.error("[SendApp] Failed to clear bounced email from GlobalJob:", err));
 
       console.error(
         `[SendApp] Permanent rejection for ${application.recipientEmail}: ${classified.message}`

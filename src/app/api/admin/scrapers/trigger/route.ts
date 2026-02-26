@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 10;
 
 const VALID_SCRAPE_SOURCES = [
   "indeed", "remotive", "arbeitnow", "rozee", "linkedin",
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Unknown action: ${source}` }, { status: 400 });
     }
     try {
-      const res = await fetch(`${baseUrl}${path}?secret=${secret}`);
+      const res = await fetch(`${baseUrl}${path}`, { headers: { authorization: `Bearer ${secret}` } });
       const data = await res.json().catch(() => ({ status: res.status }));
       return NextResponse.json({ action: source, status: res.status, ...data });
     } catch (err: unknown) {
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     const results: { source: string; status: number | string; error?: string }[] = [];
     for (const s of VALID_SCRAPE_SOURCES) {
       try {
-        const res = await fetch(`${baseUrl}/api/cron/scrape/${s}?secret=${secret}`);
+        const res = await fetch(`${baseUrl}/api/cron/scrape/${s}`, { headers: { authorization: `Bearer ${secret}` } });
         results.push({ source: s, status: res.status });
       } catch (err: unknown) {
         results.push({ source: s, status: "error", error: String(err) });
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   // Scrape single source
   if (VALID_SCRAPE_SOURCES.includes(source)) {
     try {
-      const res = await fetch(`${baseUrl}/api/cron/scrape/${source}?secret=${secret}`);
+      const res = await fetch(`${baseUrl}/api/cron/scrape/${source}`, { headers: { authorization: `Bearer ${secret}` } });
       const data = await res.json().catch(() => ({ status: res.status }));
       return NextResponse.json(data);
     } catch (err: unknown) {

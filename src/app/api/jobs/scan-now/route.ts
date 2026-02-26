@@ -19,7 +19,7 @@ import { LIMITS } from "@/lib/constants";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 10;
 
 export async function POST() {
   try {

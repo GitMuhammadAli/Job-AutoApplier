@@ -95,7 +95,7 @@ export async function findCompanyEmail(job: {
       return {
         email: (preferred || goodEmails[0]).toLowerCase(),
         confidence: "HIGH",
-        confidenceScore: 95,
+        confidenceScore: CONFIDENCE_SCORES.HIGH,
         method: "job_description_regex",
       };
     }
@@ -132,7 +132,7 @@ export async function findCompanyEmail(job: {
                 return {
                   email: (hrEmail || filtered[0]).toLowerCase(),
                   confidence: "MEDIUM",
-                  confidenceScore: 75,
+                  confidenceScore: CONFIDENCE_SCORES.MEDIUM,
                   method: `scraped_from_${page.slice(1)}_page`,
                 };
               }
@@ -158,7 +158,7 @@ export async function findCompanyEmail(job: {
       return {
         email: `careers@${domain}`,
         confidence: "LOW",
-        confidenceScore: 30,
+        confidenceScore: CONFIDENCE_SCORES.LOW,
         method: `pattern_guess_mx_verified (${domain})`,
       };
     }

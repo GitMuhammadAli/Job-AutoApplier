@@ -3,32 +3,30 @@ import { prisma } from "@/lib/prisma";
 import { sendApplication } from "@/lib/send-application";
 import { canSendNow } from "@/lib/send-limiter";
 import { LIMITS, TIMEOUTS, STUCK_SENDING_TIMEOUT_MS } from "@/lib/constants";
+import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
+import { handleRouteError } from "@/lib/api-response";
 
-export const maxDuration = 60;
+export const maxDuration = 10;
 export const dynamic = "force-dynamic";
 
-function verifyCronSecret(req: NextRequest): boolean {
-  if (!process.env.CRON_SECRET) return false;
-  const secret =
-    req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
-  return secret === process.env.CRON_SECRET;
-}
+const LOCK_TTL_MS = 10 * 60 * 1000; // 10 minutes — auto-expire stale locks
 
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   const startTime = Date.now();
 
   try {
+    // Try to acquire lock — also steal stale locks older than 10 minutes
+    const staleCutoff = new Date(Date.now() - LOCK_TTL_MS);
     const acquired = await prisma.$queryRaw<{ name: string }[]>`
       INSERT INTO "SystemLock" ("name", "isRunning", "startedAt")
-      VALUES ('send-applications', true, now())
+      VALUES ('send-queued', true, now())
       ON CONFLICT ("name") DO UPDATE SET "isRunning" = true, "startedAt" = now()
       WHERE "SystemLock"."isRunning" = false
+         OR "SystemLock"."startedAt" < ${staleCutoff}
       RETURNING "name"
     `;
     if (acquired.length === 0) {
@@ -86,7 +84,7 @@ export async function GET(req: NextRequest) {
     }
 
     await prisma.systemLock.update({
-      where: { name: "send-applications" },
+      where: { name: "send-queued" },
       data: { isRunning: false, completedAt: new Date() },
     });
 
@@ -109,15 +107,11 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     await prisma.systemLock
       .update({
-        where: { name: "send-applications" },
+        where: { name: "send-queued" },
         data: { isRunning: false, completedAt: new Date() },
       })
-      .catch(() => {});
+      .catch((lockErr) => console.error("[SendQueued] Failed to release lock:", lockErr));
 
-    console.error("[SendQueued] Error:", error);
-    return NextResponse.json(
-      { error: "Send failed", details: String(error) },
-      { status: 500 },
-    );
+    return handleRouteError("SendQueued", error, "Send failed");
   }
 }
