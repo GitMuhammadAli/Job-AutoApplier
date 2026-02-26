@@ -4,7 +4,8 @@
       "Bash(npx prisma db push)",
       "Bash(xargs grep -l \"useState\\\\|useEffect\")",
       "Bash(cat /c/Ali/Pro/JobApplier/src/app/\\\\\\(dashboard\\\\\\)/jobs/[id]/loading.tsx)",
-      "Bash(npx next build)"
+      "Bash(npx next build)",
+      "Bash(ls -la /c/Ali/Pro/JobApplier/src/app/\\\\\\(dashboard\\\\\\)/recommended/)"
     ]
   }
 }

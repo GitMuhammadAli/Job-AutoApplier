@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { daysAgo } from "@/lib/utils";
-import { saveGlobalJob, dismissGlobalJob, bulkDismissBelowScore } from "@/app/actions/job";
+import { saveGlobalJob, dismissGlobalJob, undismissGlobalJob, bulkDismissBelowScore } from "@/app/actions/job";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { RecommendedJob, RecommendationResult } from "@/lib/matching/recommendation-engine";
@@ -166,17 +166,55 @@ export function RecommendedClient({
   const sortedSources = useMemo(() => Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]), [sourceCounts]);
   const visibleJobs = useMemo(() => jobs.filter((j) => !dismissedIds.has(j.id)), [jobs, dismissedIds]);
 
-  const handleDismiss = useCallback((id: string) => {
+  const handleDismiss = useCallback(async (id: string) => {
+    const job = jobs.find((j) => j.id === id);
     setDismissedIds((prev) => {
       const next = new Set(Array.from(prev));
       next.add(id);
       return next;
     });
-    dismissGlobalJob(id);
-  }, []);
+    const result = await dismissGlobalJob(id);
+    if (!result.success) {
+      setDismissedIds((prev) => {
+        const next = new Set(Array.from(prev));
+        next.delete(id);
+        return next;
+      });
+      toast.error(result.error || "Failed to dismiss job");
+      return;
+    }
+    toast("Job dismissed", {
+      description: job ? `${job.title} at ${job.company}` : undefined,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          setDismissedIds((prev) => {
+            const next = new Set(Array.from(prev));
+            next.delete(id);
+            return next;
+          });
+          await undismissGlobalJob(id);
+        },
+      },
+      duration: 5000,
+    });
+  }, [jobs]);
+
+  const hasActiveFilters = useMemo(() => {
+    return !!(currentFilters.source || currentFilters.q || currentFilters.email === "true" ||
+      (currentFilters.minScore && currentFilters.minScore !== "0") ||
+      currentFilters.location || currentFilters.type);
+  }, [currentFilters]);
+
+  const resetAllFilters = useCallback(() => {
+    setSearchInput("");
+    startTransition(() => {
+      router.push("/recommended");
+    });
+  }, [router]);
 
   return (
-    <div className={`space-y-4 ${isPending ? "opacity-70 pointer-events-none" : ""}`}>
+    <div className={`space-y-4 transition-opacity duration-200 ${isPending ? "opacity-60 pointer-events-none" : ""}`}>
       {/* Stats bar */}
       <div className="flex items-center justify-between text-xs">
         <p className="text-slate-500 dark:text-zinc-400">
@@ -326,9 +364,17 @@ export function RecommendedClient({
         <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/60 p-8 md:p-12 text-center">
           <Briefcase className="h-10 w-10 text-slate-300 dark:text-zinc-600 mx-auto mb-3" />
           <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-200">No jobs match your filters</h3>
-          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1 mb-4">
             Try adjusting your search, lowering the score threshold, or changing location filter.
           </p>
+          {hasActiveFilters && (
+            <button
+              onClick={resetAllFilters}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-900/40 hover:bg-blue-100 dark:hover:bg-blue-950/60 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" /> Reset all filters
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -368,9 +414,10 @@ export function RecommendedClient({
   );
 }
 
-const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob; onDismiss: (id: string) => void }) {
+const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob; onDismiss: (id: string) => Promise<void> | void }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(!!job.userJobId);
+  const [dismissing, setDismissing] = useState(false);
 
   const days = daysAgo(job.postedDate ?? null);
   const score = job.matchScore;
@@ -384,14 +431,22 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
     setSaving(true);
     const result = await saveGlobalJob(job.id);
     setSaving(false);
-    if (result.success) setSaved(true);
+    if (result.success) {
+      setSaved(true);
+      toast.success("Job saved to your board");
+    } else {
+      toast.error(result.error || "Failed to save job");
+    }
   }, [saved, saving, job.id]);
 
-  const handleDismiss = useCallback((e: React.MouseEvent) => {
+  const handleDismiss = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onDismiss(job.id);
-  }, [onDismiss, job.id]);
+    if (dismissing) return;
+    setDismissing(true);
+    await onDismiss(job.id);
+    setDismissing(false);
+  }, [onDismiss, job.id, dismissing]);
 
   const handleViewExternal = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -513,11 +568,11 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
         {(job.applyUrl || job.sourceUrl) && (
           <button
             onClick={handleViewExternal}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors touch-manipulation"
           >
             <ExternalLink className="h-3 w-3" /> Apply
           </button>
@@ -526,7 +581,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         {job.companyEmail && (job.emailConfidence ?? 0) >= 70 && (
           <Link
             href={`${detailUrl}?apply=true`}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors"
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 active:bg-emerald-300 transition-colors touch-manipulation"
           >
             <Mail className="h-3 w-3" /> Email
           </Link>
@@ -535,10 +590,10 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         <button
           onClick={handleSave}
           disabled={saved || saving}
-          className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${
+          className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors touch-manipulation ${
             saved
               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-              : "bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300 hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 dark:hover:text-blue-300"
+              : "bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300 hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 dark:hover:text-blue-300 active:bg-blue-200"
           }`}
         >
           <Bookmark className="h-3 w-3" />
@@ -547,9 +602,10 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
 
         <button
           onClick={handleDismiss}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-300 transition-colors ml-auto"
+          disabled={dismissing}
+          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-300 active:bg-red-200 transition-colors touch-manipulation ml-auto disabled:opacity-50"
         >
-          <X className="h-3 w-3" /> Dismiss
+          <X className="h-3 w-3" /> {dismissing ? "..." : "Dismiss"}
         </button>
       </div>
     </div>

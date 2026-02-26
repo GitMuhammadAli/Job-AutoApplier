@@ -396,6 +396,21 @@ export async function dismissGlobalJob(globalJobId: string, reason?: string): Pr
   }
 }
 
+export async function undismissGlobalJob(globalJobId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    await prisma.userJob.updateMany({
+      where: { userId, globalJobId },
+      data: { isDismissed: false, dismissReason: null },
+    });
+    revalidatePath("/recommended");
+    return { success: true };
+  } catch (error) {
+    console.error("[undismissGlobalJob] Error:", error);
+    return { success: false, error: "Failed to restore job" };
+  }
+}
+
 // ── Bulk actions ──
 
 export async function bulkDismissJobs(userJobIds: string[]): Promise<{ success: boolean; count: number; error?: string }> {
