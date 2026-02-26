@@ -24,7 +24,7 @@ export function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) 
   return (
     <div
       className={cn(
-        "flex w-[260px] min-w-[260px] sm:w-[280px] sm:min-w-[280px] flex-shrink-0 snap-center flex-col rounded-xl bg-white/60 dark:bg-zinc-900/60 ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-all duration-200 md:w-full md:min-w-0 md:snap-align-none",
+        "flex w-[200px] min-w-[200px] sm:w-[260px] sm:min-w-[260px] flex-shrink-0 snap-center flex-col rounded-xl bg-white/60 dark:bg-zinc-900/60 ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-all duration-200 md:w-full md:min-w-0 md:snap-align-none",
         isOver && "ring-2 bg-white dark:bg-zinc-900 shadow-md scale-[1.01]",
         isOver && config.ring
       )}

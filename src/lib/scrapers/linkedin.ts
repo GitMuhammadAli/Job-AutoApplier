@@ -1,6 +1,23 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
+import { fetchJSearch } from "./jsearch";
+
+/**
+ * LinkedIn selector changelog:
+ * 2026-02-26: Initial configurable selectors via env vars
+ * When LinkedIn changes CSS classes, update env vars or defaults below.
+ * Pattern: LinkedIn tends to rename base-search-card__X to job-card-X or similar.
+ */
+
+// Configurable selectors via env (comma-separated for fallbacks)
+const SELECTORS = {
+  title: (process.env.LINKEDIN_SELECTOR_TITLE || "base-search-card__title,base-card__title").split(",").map((s) => s.trim()),
+  company: (process.env.LINKEDIN_SELECTOR_COMPANY || "base-search-card__subtitle,base-card__subtitle").split(",").map((s) => s.trim()),
+  location: (process.env.LINKEDIN_SELECTOR_LOCATION || "job-search-card__location,base-search-card__metadata,job-card__location").split(",").map((s) => s.trim()),
+  snippet: (process.env.LINKEDIN_SELECTOR_SNIPPET || "job-search-card__snippet,base-search-card__snippet").split(",").map((s) => s.trim()),
+  cardPatterns: (process.env.LINKEDIN_SELECTOR_CARDS || "base-search-card,job-search-card,base-card,jobs-search__results").split(",").map((s) => s.trim()),
+};
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -92,8 +109,64 @@ export async function fetchLinkedIn(
     }
   }
 
-  console.error(`[LinkedIn] Total scraped: ${jobs.length} jobs`);
+  if (jobs.length === 0) {
+    // Log raw HTML snippet for debugging when scraper returns 0
+    await logLinkedInFailure(queries[0]?.keyword || "unknown");
+
+    if (process.env.RAPIDAPI_KEY) {
+      console.warn("[LinkedIn] HTML returned 0 jobs — falling back to JSearch");
+      const fallback = await fetchJSearch(queries, 8);
+      return fallback;
+    }
+  }
+
+  console.log(`[LinkedIn] Total scraped: ${jobs.length} jobs`);
   return jobs;
+}
+
+/** Log raw HTML response for debugging when LinkedIn returns 0 results */
+async function logLinkedInFailure(keyword: string) {
+  try {
+    const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+    const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(keyword)}&start=0&f_TPR=r86400&sortBy=DD`;
+    const res = await fetchWithRetry(url, {
+      headers: { "User-Agent": ua, ...ACCEPT_HEADERS },
+    });
+    const html = await res.text();
+    const snippet = html.slice(0, 5000);
+
+    // Determine failure type
+    let failureType = "unknown";
+    if (html.includes("captcha") || html.includes("authwall")) {
+      failureType = "captcha/authwall";
+    } else if (html.includes("base-search-card") || html.includes("job-card")) {
+      failureType = "selectors_mismatch (HTML has cards but selectors don't match)";
+    } else if (res.status >= 400) {
+      failureType = `http_${res.status}`;
+    } else if (html.length < 200) {
+      failureType = "empty_response";
+    }
+
+    console.warn(`[LinkedIn] Failure type: ${failureType}. HTML snippet (first 500 chars): ${snippet.slice(0, 500)}`);
+
+    // Try to log to SystemLog if prisma is available
+    const { prisma } = await import("@/lib/prisma");
+    await prisma.systemLog.create({
+      data: {
+        type: "error",
+        source: "linkedin",
+        message: `LinkedIn scraper returned 0 jobs. Failure type: ${failureType}`,
+        metadata: {
+          failureType,
+          httpStatus: res.status,
+          htmlSnippet: snippet,
+          keyword,
+        },
+      },
+    }).catch(() => {});
+  } catch (e) {
+    console.warn("[LinkedIn] Could not log failure HTML:", e);
+  }
 }
 
 async function fetchLinkedInPage(
@@ -129,13 +202,7 @@ function parseLinkedInHtml(
     return [];
   }
 
-  // LinkedIn has changed class names over time — check for multiple patterns
-  const hasCards =
-    html.includes("base-search-card") ||
-    html.includes("job-search-card") ||
-    html.includes("base-card") ||
-    html.includes("jobs-search__results");
-
+  const hasCards = SELECTORS.cardPatterns.some((p) => html.includes(p));
   if (!hasCards) {
     console.warn("[LinkedIn] No recognized card structure in response");
     return [];
@@ -146,17 +213,13 @@ function parseLinkedInHtml(
 
   for (const card of cards.slice(0, 25)) {
     const title =
-      extractAttr(card, "base-search-card__title") ||
-      extractAttr(card, "base-card__title") ||
+      SELECTORS.title.map((c) => extractAttr(card, c)).find(Boolean) ||
       extractTagContent(card, "h3");
     const company =
-      extractAttr(card, "base-search-card__subtitle") ||
-      extractAttr(card, "base-card__subtitle") ||
+      SELECTORS.company.map((c) => extractAttr(card, c)).find(Boolean) ||
       extractHiddenSubtitle(card);
     const location =
-      extractAttr(card, "job-search-card__location") ||
-      extractAttr(card, "base-search-card__metadata") ||
-      extractAttr(card, "job-card__location");
+      SELECTORS.location.map((c) => extractAttr(card, c)).find(Boolean) || null;
     const link = extractHref(card);
     const dateStr = extractDateTime(card);
 
@@ -172,11 +235,8 @@ function parseLinkedInHtml(
     if (seenIds.has(jobId)) continue;
     seenIds.add(jobId);
 
-    // Try to extract any snippet text that might serve as a description
     const snippet =
-      extractAttr(card, "job-search-card__snippet") ||
-      extractAttr(card, "base-search-card__snippet") ||
-      null;
+      SELECTORS.snippet.map((c) => extractAttr(card, c)).find(Boolean) || null;
 
     const cleanTitle = cleanText(title);
     const cleanSnippet = snippet ? cleanText(snippet) : "";

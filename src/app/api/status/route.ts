@@ -70,6 +70,8 @@ export async function GET() {
       recentAutoApply: lastApply?.metadata ?? null,
       warnings: recentWarnings.map((w) => w.message),
       nextScrapeIn,
+    }, {
+      headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=25" },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";

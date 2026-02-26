@@ -23,7 +23,7 @@ export async function GET() {
     const responseRate =
       applied > 0 ? Math.round(((interviews + offers) / applied) * 100) : 0;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       totalJobs,
       applied,
       interviews,
@@ -32,6 +32,8 @@ export async function GET() {
       ghosted,
       responseRate,
     });
+    response.headers.set("Cache-Control", "private, max-age=60, stale-while-revalidate=120");
+    return response;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     if (message === "Not authenticated") {

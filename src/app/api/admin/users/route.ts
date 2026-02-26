@@ -1,19 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     if (!(await requireAdmin())) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const take = Math.min(parseInt(req.nextUrl.searchParams.get("limit") || "100", 10), 500);
+    const skip = parseInt(req.nextUrl.searchParams.get("offset") || "0", 10);
+
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
     const users = await prisma.user.findMany({
+      take,
+      skip,
       include: {
         settings: {
           select: {

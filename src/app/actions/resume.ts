@@ -28,14 +28,32 @@ export async function getResumesWithStats() {
   try {
     const userId = await getAuthUserId();
 
-    const resumes = await prisma.resume.findMany({
-      where: { userId, isDeleted: false },
-      include: {
-        _count: { select: { applications: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: LIMITS.RESUMES_PER_PAGE,
-    });
+    const [resumes, withContent] = await Promise.all([
+      prisma.resume.findMany({
+        where: { userId, isDeleted: false },
+        select: {
+          id: true,
+          userId: true,
+          name: true,
+          fileName: true,
+          fileUrl: true,
+          fileType: true,
+          isDefault: true,
+          targetCategories: true,
+          detectedSkills: true,
+          createdAt: true,
+          _count: { select: { applications: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: LIMITS.RESUMES_PER_PAGE,
+      }),
+      // Lightweight query: just get IDs of resumes that have content (no text loaded)
+      prisma.resume.findMany({
+        where: { userId, isDeleted: false, content: { not: null } },
+        select: { id: true },
+      }),
+    ]);
+    const hasContentSet = new Set(withContent.map((r) => r.id));
 
     return resumes.map((r) => ({
       id: r.id,
@@ -43,7 +61,9 @@ export async function getResumesWithStats() {
       fileName: r.fileName,
       fileUrl: r.fileUrl,
       fileType: r.fileType,
-      content: r.content,
+      // Full content excluded from list for performance (10KB+ per resume).
+      // Truthiness preserved via hasContentSet; full text loaded on demand via getResumeContent().
+      content: hasContentSet.has(r.id) ? "[has-content]" : null,
       isDefault: r.isDefault,
       userId: r.userId,
       createdAt: r.createdAt.toISOString(),
@@ -54,6 +74,15 @@ export async function getResumesWithStats() {
     console.error("[getResumesWithStats]", error);
     throw new Error("Failed to load resumes");
   }
+}
+
+export async function getResumeContent(resumeId: string): Promise<string | null> {
+  const userId = await getAuthUserId();
+  const resume = await prisma.resume.findFirst({
+    where: { id: resumeId, userId, isDeleted: false },
+    select: { content: true },
+  });
+  return resume?.content ?? null;
 }
 
 export async function createResume(

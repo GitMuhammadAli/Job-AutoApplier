@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
         salaryMax: true,
         minMatchScoreForAutoApply: true,
       },
+      take: 500,
     });
 
     if (users.length === 0) {

@@ -19,12 +19,12 @@ export function DashboardShell({ sidebar, header, children }: DashboardShellProp
       <div
         className={cn(
           "min-w-0 w-full transition-[padding-left] duration-300 ease-out",
-          collapsed ? "pl-0" : "md:pl-64"
+          collapsed ? "pl-12 md:pl-0" : "pl-0 md:pl-64"
         )}
       >
         <UpdateBanner />
         {header}
-        <main id="main-content" className="px-3 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 max-w-[1400px] mx-auto min-w-0 overflow-x-hidden">
+        <main id="main-content" className="px-2 py-3 sm:px-4 sm:py-5 md:px-6 md:py-6 max-w-[1400px] mx-auto min-w-0 overflow-x-hidden">
           {children}
         </main>
       </div>

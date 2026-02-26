@@ -176,24 +176,17 @@ export function RecommendedClient({
   }, []);
 
   return (
-    <div className={`space-y-4 animate-slide-up ${isPending ? "opacity-70 pointer-events-none" : ""}`}>
-      {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-            Recommended Jobs
-          </h1>
-          <p className="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
-            Matched from {filterBreakdown.sqlCandidates.toLocaleString()} candidates in {timing.totalMs}ms
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1.5 ring-1 ring-blue-100 dark:ring-blue-900/40">
-            <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-            <span className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
-              {total} job{total !== 1 ? "s" : ""}
-            </span>
-          </div>
+    <div className={`space-y-4 ${isPending ? "opacity-70 pointer-events-none" : ""}`}>
+      {/* Stats bar */}
+      <div className="flex items-center justify-between text-xs">
+        <p className="text-slate-500 dark:text-zinc-400">
+          Matched from {filterBreakdown.sqlCandidates.toLocaleString()} candidates in {timing.totalMs}ms
+        </p>
+        <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1.5 ring-1 ring-blue-100 dark:ring-blue-900/40">
+          <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+          <span className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
+            {total} job{total !== 1 ? "s" : ""}
+          </span>
         </div>
       </div>
 
@@ -338,7 +331,7 @@ export function RecommendedClient({
           </p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visibleJobs.map((job) => (
             <JobCard
               key={job.id}

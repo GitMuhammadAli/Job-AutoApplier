@@ -1,4 +1,5 @@
 import { generateWithGroq } from "./groq";
+import { generateTemplateEmail } from "./ai-fallback";
 import { z } from "zod";
 
 function sanitizeForPrompt(text: string): string {
@@ -84,6 +85,39 @@ export interface GeneratedEmail {
 }
 
 export async function generateApplicationEmail(
+  input: GenerateEmailInput
+): Promise<GeneratedEmail> {
+  try {
+    return await generateApplicationEmailWithAI(input);
+  } catch (err) {
+    console.warn("[AI Email] All AI providers failed, using template fallback:", err instanceof Error ? err.message : err);
+    const sourceName = input.job.source
+      ? { indeed: "Indeed", linkedin: "LinkedIn", remotive: "Remotive", arbeitnow: "Arbeitnow", adzuna: "Adzuna", rozee: "Rozee.pk", jsearch: "JSearch", google: "Google Jobs" }[input.job.source.toLowerCase()] || input.job.source
+      : null;
+    const template = generateTemplateEmail({
+      jobTitle: input.job.title,
+      company: input.job.company,
+      candidateName: input.profile.fullName,
+      skills: input.resume.detectedSkills,
+      source: sourceName,
+    });
+
+    let body = template.body;
+    // Append signature and contact info
+    const sig = input.settings.defaultSignature ?? "";
+    if (sig) body += "\n\n" + sig;
+    const contactLines: string[] = [];
+    if (input.profile.phone) contactLines.push(`Phone: ${input.profile.phone}`);
+    if (input.profile.includeLinkedin && input.profile.linkedinUrl) contactLines.push(`LinkedIn: ${input.profile.linkedinUrl}`);
+    if (input.profile.includeGithub && input.profile.githubUrl) contactLines.push(`GitHub: ${input.profile.githubUrl}`);
+    if (input.profile.includePortfolio && input.profile.portfolioUrl) contactLines.push(`Portfolio: ${input.profile.portfolioUrl}`);
+    if (contactLines.length > 0) body += "\n\n" + contactLines.join("\n");
+
+    return { subject: template.subject, body, coverLetter: null };
+  }
+}
+
+async function generateApplicationEmailWithAI(
   input: GenerateEmailInput
 ): Promise<GeneratedEmail> {
   const systemParts: string[] = [];
