@@ -435,6 +435,24 @@ export default function AdminDashboard() {
                   <Trash2 className="h-3 w-3" /> {a.label}
                 </Button>
               ))}
+              <Button size="sm" variant="outline" disabled={!!triggeringSource}
+                className="h-7 text-[11px] gap-1 border-white/10 text-orange-400 hover:bg-orange-500/10 bg-white/[0.03]"
+                onClick={async () => {
+                  setTriggeringSource("cleanup-emails");
+                  try {
+                    const res = await fetch("/api/admin/cleanup-emails", { method: "POST" });
+                    const data = await res.json();
+                    if (data.success) {
+                      toast.success(`Cleaned ${data.globalJobsEmailsCleared} guessed GlobalJob emails, ${data.draftEmailsCleared} draft recipients, ${data.readyDowngradedToDraft} READY→DRAFT`);
+                    } else {
+                      toast.error(data.error || "Failed");
+                    }
+                    setTimeout(fetchStats, 2000);
+                  } catch { toast.error("Failed"); }
+                  setTriggeringSource(null);
+                }}>
+                <Mail className="h-3 w-3" /> Cleanup Guessed Emails
+              </Button>
             </div>
           </div>
         </div>
