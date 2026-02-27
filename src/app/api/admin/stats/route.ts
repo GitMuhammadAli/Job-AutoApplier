@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { decryptField } from "@/lib/encryption";
 
 export const dynamic = "force-dynamic";
 
@@ -15,17 +16,31 @@ const SCRAPE_SOURCES = [
   "google",
 ];
 
-const CRON_NAMES = [
-  { key: "scrape-global", label: "Scrape Global", type: "scrape" },
-  { key: "match-jobs", label: "Match Jobs", type: "cron" },
-  { key: "match-all-users", label: "Match All Users", type: "cron" },
-  { key: "instant-apply", label: "Instant Apply", type: "apply" },
-  { key: "send-scheduled", label: "Send Scheduled", type: "send" },
-  { key: "send-queued", label: "Send Queued", type: "send" },
-  { key: "notify-matches", label: "Notify Matches", type: "notification" },
-  { key: "cleanup-stale", label: "Cleanup Stale", type: "cron" },
-  { key: "follow-up", label: "Follow Up", type: "follow-up" },
-  { key: "check-follow-ups", label: "Check Follow Ups", type: "follow-up" },
+const CRON_NAMES: { key: string; label: string; category: string }[] = [
+  // Scrapers
+  { key: "scrape-global", label: "Scrape Global", category: "scraper" },
+  { key: "scrape-indeed", label: "Scrape Indeed", category: "scraper" },
+  { key: "scrape-remotive", label: "Scrape Remotive", category: "scraper" },
+  { key: "scrape-arbeitnow", label: "Scrape Arbeitnow", category: "scraper" },
+  { key: "scrape-linkedin", label: "Scrape LinkedIn", category: "scraper" },
+  { key: "scrape-rozee", label: "Scrape Rozee", category: "scraper" },
+  { key: "scrape-jsearch", label: "Scrape JSearch", category: "scraper" },
+  { key: "scrape-adzuna", label: "Scrape Adzuna", category: "scraper" },
+  { key: "scrape-google", label: "Scrape Google", category: "scraper" },
+  // Matching
+  { key: "match-jobs", label: "Match Jobs", category: "matching" },
+  { key: "match-all-users", label: "Match All Users", category: "matching" },
+  // Application
+  { key: "instant-apply", label: "Instant Apply", category: "application" },
+  { key: "send-scheduled", label: "Send Scheduled", category: "application" },
+  { key: "send-queued", label: "Send Queued", category: "application" },
+  // Notification
+  { key: "notify-matches", label: "Notify Matches", category: "notification" },
+  // Follow-up
+  { key: "follow-up", label: "Follow Up", category: "followup" },
+  { key: "check-follow-ups", label: "Check Follow Ups", category: "followup" },
+  // Maintenance
+  { key: "cleanup-stale", label: "Cleanup Stale", category: "maintenance" },
 ];
 
 export async function GET() {
@@ -155,13 +170,14 @@ export async function GET() {
       prisma.jobApplication.count({ where: { status: "SENT" } }),
       prisma.jobApplication.count({ where: { status: "BOUNCED" } }),
       prisma.jobApplication.count({ where: { status: "FAILED" } }),
-      // Cron logs — single batch query for all cron sources
+      // Cron logs — fetch cron-run tracker entries for all crons
       prisma.systemLog.findMany({
         where: {
+          type: "cron-run",
           source: { in: CRON_NAMES.map((c) => c.key) },
         },
         orderBy: { createdAt: "desc" },
-        take: 100,
+        take: 200,
       }),
       // Recently active users
       prisma.userSettings.findMany({
@@ -255,21 +271,40 @@ export async function GET() {
     const totalActive = scraperStatus.reduce((sum, s) => sum + s.totalJobs, 0);
     const overallEmailRate = totalActive > 0 ? Math.round((totalActiveWithEmail / totalActive) * 100) : 0;
 
-    // Cron status — dedupe from batch query
+    // Cron status — dedupe from batch query, extract tracker metadata
     const lastCronLogBySource = new Map<string, typeof allCronLogs[0]>();
+    const recentCronsBySource = new Map<string, typeof allCronLogs>();
     for (const log of allCronLogs) {
-      if (log.source && !lastCronLogBySource.has(log.source)) {
+      if (!log.source) continue;
+      if (!lastCronLogBySource.has(log.source)) {
         lastCronLogBySource.set(log.source, log);
       }
+      const list = recentCronsBySource.get(log.source) || [];
+      if (list.length < 5) list.push(log); // keep last 5 runs
+      recentCronsBySource.set(log.source, list);
     }
     const cronStatus = CRON_NAMES.map((cron) => {
       const lastLog = lastCronLogBySource.get(cron.key);
       const lock = locks.find((l) => l.name === cron.key);
+      const meta = (lastLog?.metadata ?? {}) as Record<string, unknown>;
+      const recentRuns = recentCronsBySource.get(cron.key) || [];
+      const avgDurationMs = recentRuns.length > 0
+        ? Math.round(recentRuns.reduce((sum, r) => sum + ((r.metadata as Record<string, unknown>)?.durationMs as number || 0), 0) / recentRuns.length)
+        : null;
+      const recentFailures = recentRuns.filter((r) => (r.metadata as Record<string, unknown>)?.status === "error").length;
+
       return {
         key: cron.key,
         label: cron.label,
+        category: cron.category,
         lastRun: lastLog?.createdAt ?? null,
         lastMessage: lastLog?.message ?? null,
+        lastStatus: (meta.status as string) ?? null,
+        lastDurationMs: (meta.durationMs as number) ?? null,
+        lastProcessed: (meta.processed as number) ?? null,
+        lastFailed: (meta.failed as number) ?? null,
+        avgDurationMs,
+        recentFailures,
         isRunning: lock?.isRunning ?? false,
         startedAt: lock?.startedAt ?? null,
       };
@@ -335,7 +370,7 @@ export async function GET() {
       })),
       recentlyActiveUsers: recentlyActive.map((s) => ({
         id: s.userId,
-        name: s.fullName || s.user.name || s.user.email || "Unknown",
+        name: decryptField(s.fullName, "fullName") || s.user.name || s.user.email || "Unknown",
         email: s.user.email,
         image: s.user.image,
         lastActive: s.lastVisitedAt,

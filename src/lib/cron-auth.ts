@@ -1,22 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
+import { prisma } from "@/lib/prisma";
+
+let _cronSecretMissing = false;
 
 /**
  * Verify the cron secret from request headers or query params.
  * Supports: Authorization Bearer, x-cron-secret header, or ?secret= query param.
- * Query param is needed for cron-job.org which sends secret in the URL.
+ * Uses timing-safe comparison to prevent timing attacks.
  */
 export function verifyCronSecret(req: NextRequest): boolean {
-  if (!process.env.CRON_SECRET) return false;
+  const expected = process.env.CRON_SECRET;
+  if (!expected) {
+    console.error("[CronAuth] CRON_SECRET env var is not set — all cron requests will be rejected");
+    _cronSecretMissing = true;
+    return false;
+  }
+  _cronSecretMissing = false;
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
     req.headers.get("x-cron-secret") ||
     req.nextUrl.searchParams.get("secret");
-  return secret === process.env.CRON_SECRET;
+  if (!secret) return false;
+  try {
+    const a = Buffer.from(secret);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Standard 401 response for unauthorized cron requests.
+ * Writes to SystemLog when CRON_SECRET is missing so admin panel can surface the issue.
  */
 export function unauthorizedResponse(): NextResponse {
+  if (_cronSecretMissing) {
+    prisma.systemLog.create({
+      data: {
+        type: "cron-run",
+        source: "cron-auth",
+        message: "[ERR] CRON_SECRET env var is not set — all crons are blocked",
+        metadata: { status: "error", errorMessage: "CRON_SECRET missing" },
+      },
+    }).catch(() => {});
+  }
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }

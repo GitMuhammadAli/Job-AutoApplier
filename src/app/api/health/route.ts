@@ -1,12 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getScraperHealthStatus } from "@/lib/scrapers/scraper-runner";
 import { sendAlertWebhook } from "@/lib/webhooks";
 
 export const dynamic = "force-dynamic";
 
-/** Public health check endpoint for monitoring (UptimeRobot, etc.) */
-export async function GET() {
+/** M8: Health check — requires CRON_SECRET or returns minimal status only */
+export async function GET(req: NextRequest) {
+  const secret = process.env.CRON_SECRET;
+  const provided = req.nextUrl.searchParams.get("secret") || req.headers.get("x-cron-secret");
+  const isAuthorized = secret && provided === secret;
+
+  // Unauthenticated: return minimal ping response (no infrastructure details)
+  if (!isAuthorized) {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      return NextResponse.json({ status: "ok" });
+    } catch {
+      return NextResponse.json({ status: "error" }, { status: 503 });
+    }
+  }
   try {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const todayStart = new Date();

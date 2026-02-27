@@ -44,13 +44,17 @@ export async function fetchLinkedIn(
   const jobs: ScrapedJob[] = [];
   const seenIds = new Set<string>();
 
-  // Reduced from 8 → 3 queries, 3 → 2 cities to fit in 10s
-  const querySlice = queries.slice(0, 3);
+  const MAX_QUERIES = 3;
+  const MAX_CITIES = 2;
+  if (queries.length > MAX_QUERIES) {
+    console.log(`[LinkedIn] Truncating ${queries.length} queries to ${MAX_QUERIES} (dropped: ${queries.slice(MAX_QUERIES).map(q => q.keyword).join(", ")})`);
+  }
+  const querySlice = queries.slice(0, MAX_QUERIES);
 
   for (const q of querySlice) {
     if (Date.now() >= deadline) break;
 
-    for (const city of q.cities.slice(0, 2)) {
+    for (const city of q.cities.slice(0, MAX_CITIES)) {
       if (Date.now() >= deadline) break;
 
       try {
@@ -73,64 +77,20 @@ export async function fetchLinkedIn(
     }
   }
 
-  if (jobs.length === 0 && Date.now() < deadline - 2000) {
-    // Log raw HTML snippet for debugging when scraper returns 0
-    await logLinkedInFailure(queries[0]?.keyword || "unknown", deadline);
+  if (jobs.length === 0) {
+    // Don't waste time on debug fetch — just log and try fallback
+    console.warn(`[LinkedIn] Returned 0 jobs for ${querySlice.length} queries in ${Date.now() - startTime}ms`);
 
-    if (process.env.RAPIDAPI_KEY && Date.now() < deadline - 2000) {
-      console.warn("[LinkedIn] HTML returned 0 jobs — falling back to JSearch");
-      const fallback = await fetchJSearch(queries, 3);
-      return fallback;
+    // Only attempt JSearch fallback if enough time budget remains
+    const remaining = deadline - Date.now();
+    if (process.env.RAPIDAPI_KEY && remaining > 3000) {
+      console.warn(`[LinkedIn] Falling back to JSearch (${remaining}ms remaining)`);
+      return fetchJSearch(queries, 2);
     }
   }
 
-  console.log(`[LinkedIn] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
+  console.debug(`[LinkedIn] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
   return jobs;
-}
-
-/** Log raw HTML response for debugging when LinkedIn returns 0 results */
-async function logLinkedInFailure(keyword: string, deadline: number) {
-  try {
-    const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-    const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(keyword)}&start=0&f_TPR=r86400&sortBy=DD`;
-    const res = await fetchWithRetry(url, {
-      headers: { "User-Agent": ua, ...ACCEPT_HEADERS },
-    }, 1, deadline);
-    const html = await res.text();
-    const snippet = html.slice(0, 5000);
-
-    // Determine failure type
-    let failureType = "unknown";
-    if (html.includes("captcha") || html.includes("authwall")) {
-      failureType = "captcha/authwall";
-    } else if (html.includes("base-search-card") || html.includes("job-card")) {
-      failureType = "selectors_mismatch (HTML has cards but selectors don't match)";
-    } else if (res.status >= 400) {
-      failureType = `http_${res.status}`;
-    } else if (html.length < 200) {
-      failureType = "empty_response";
-    }
-
-    console.warn(`[LinkedIn] Failure type: ${failureType}. HTML snippet (first 500 chars): ${snippet.slice(0, 500)}`);
-
-    // Try to log to SystemLog if prisma is available
-    const { prisma } = await import("@/lib/prisma");
-    await prisma.systemLog.create({
-      data: {
-        type: "error",
-        source: "linkedin",
-        message: `LinkedIn scraper returned 0 jobs. Failure type: ${failureType}`,
-        metadata: {
-          failureType,
-          httpStatus: res.status,
-          htmlSnippet: snippet,
-          keyword,
-        },
-      },
-    }).catch((logErr) => console.warn("[LinkedIn] Failed to write failure log:", logErr));
-  } catch (e) {
-    console.warn("[LinkedIn] Could not log failure HTML:", e);
-  }
 }
 
 async function fetchLinkedInPage(

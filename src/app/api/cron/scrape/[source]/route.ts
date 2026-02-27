@@ -12,6 +12,7 @@ import { fetchRozee } from "@/lib/scrapers/rozee";
 import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
+import { createCronTracker } from "@/lib/cron-tracker";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 export const maxDuration = 10;
@@ -39,6 +40,7 @@ export async function GET(
   }
 
   const { source } = await params;
+  const tracker = createCronTracker(`scrape-${source}`);
   const scraperFn = SCRAPERS[source];
 
   if (!scraperFn) {
@@ -72,12 +74,15 @@ export async function GET(
       },
     });
 
+    await tracker.success({ processed: result.newCount, metadata: { updated: result.updatedCount } });
+
     return NextResponse.json({
       success: true,
       source,
       ...result,
     });
   } catch (error) {
+    await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError(`Scrape/${source}`, error, `Scrape ${source} failed`);
   }
 }

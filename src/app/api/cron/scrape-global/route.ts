@@ -15,11 +15,13 @@ import { fetchRozee } from "@/lib/scrapers/rozee";
 import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
 import { fetchGoogleHiringPosts } from "@/lib/scrapers/google-hiring-posts";
 import { categorizeJob } from "@/lib/job-categorizer";
+import { TIMEOUTS } from "@/lib/constants";
 import { sendNotificationEmail } from "@/lib/email";
 import { sendAlertWebhook } from "@/lib/webhooks";
 import { runScraper, updateRunJobsSaved } from "@/lib/scrapers/scraper-runner";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
+import { createCronTracker } from "@/lib/cron-tracker";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 function sanitizeScrapedText(text: string | null): string | null {
@@ -43,7 +45,7 @@ export const dynamic = "force-dynamic";
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;
 
 const SCRAPERS: Record<string, ScraperFn> = {
-  jsearch: (q) => fetchJSearch(q, 8),
+  jsearch: (q) => fetchJSearch(q),
   indeed: (q) => fetchIndeed(q),
   remotive: (q) => fetchRemotive(q),
   arbeitnow: () => fetchArbeitnow(),
@@ -56,8 +58,8 @@ const SCRAPERS: Record<string, ScraperFn> = {
 
 // Fallback mapping: when primary fails, try these
 const FALLBACKS: Record<string, { fn: ScraperFn; source: string } | undefined> = {
-  linkedin: process.env.RAPIDAPI_KEY ? { fn: (q) => fetchJSearch(q, 8), source: "jsearch" } : undefined,
-  indeed: process.env.RAPIDAPI_KEY ? { fn: (q) => fetchJSearch(q, 8), source: "jsearch" } : undefined,
+  linkedin: process.env.RAPIDAPI_KEY ? { fn: (q) => fetchJSearch(q, 3), source: "jsearch" } : undefined,
+  indeed: process.env.RAPIDAPI_KEY ? { fn: (q) => fetchJSearch(q, 3), source: "jsearch" } : undefined,
   rozee: process.env.SERPAPI_KEY ? { fn: (q) => fetchGoogleJobs(q), source: "google" } : undefined,
 };
 
@@ -67,6 +69,7 @@ export async function GET(req: NextRequest) {
   }
 
   const mode = req.nextUrl.searchParams.get("mode") || "all";
+  const tracker = createCronTracker("scrape-global");
 
   try {
     let sources: string[];
@@ -128,7 +131,7 @@ export async function GET(req: NextRequest) {
           source,
           fn: SCRAPERS[source],
           queries,
-          timeoutMs: 45000,
+          timeoutMs: TIMEOUTS.SCRAPER_DEADLINE_MS,
           fallbackFn: fallback?.fn,
           fallbackSource: fallback?.source,
         });
@@ -147,36 +150,28 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Batch lookup: find all existing jobs in one query instead of N+1
-        const sourceKeys = runResult.jobs.map((j) => ({ sourceId: j.sourceId, source: j.source }));
-        const existingJobs = await prisma.globalJob.findMany({
-          where: {
-            OR: sourceKeys.map((k) => ({ sourceId: k.sourceId, source: k.source })),
-          },
-          select: { id: true, sourceId: true, source: true },
-        });
-        for (const job of runResult.jobs) {
-          try {
-            const existing = existingJobs.find((e) => e.source === job.source && e.sourceId === job.sourceId);
+        // Batch lookup + batch write (same pattern as scrape-source.ts)
+        if (runResult.jobs.length > 0) {
+          const sourceKeys = runResult.jobs.map((j) => ({ sourceId: j.sourceId, source: j.source }));
+          const existingJobs = await prisma.globalJob.findMany({
+            where: { OR: sourceKeys.map((k) => ({ sourceId: k.sourceId, source: k.source })) },
+            select: { id: true, sourceId: true, source: true },
+          });
+          const existingSet = new Set(existingJobs.map((e) => `${e.source}:${e.sourceId}`));
+          const existingIdMap = new Map(existingJobs.map((e) => [`${e.source}:${e.sourceId}`, e.id] as const));
 
-            if (existing) {
-              await prisma.globalJob.update({
-                where: { id: existing.id },
-                data: {
-                  lastSeenAt: new Date(),
-                  isActive: true,
-                  ...(job.description ? { description: job.description } : {}),
-                  ...(job.salary ? { salary: job.salary } : {}),
-                  ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
-                  ...(job.companyEmail
-                    ? { companyEmail: job.companyEmail }
-                    : {}),
-                },
-              });
-              updatedCount++;
-            } else {
-              await prisma.globalJob.create({
-                data: {
+          const newJobs = runResult.jobs.filter((j) => !existingSet.has(`${j.source}:${j.sourceId}`));
+          const existingIds = runResult.jobs
+            .filter((j) => existingSet.has(`${j.source}:${j.sourceId}`))
+            .map((j) => existingIdMap.get(`${j.source}:${j.sourceId}`))
+            .filter((id): id is string => !!id);
+
+          // Batch create new jobs
+          if (newJobs.length > 0) {
+            const now = new Date();
+            try {
+              const result = await prisma.globalJob.createMany({
+                data: newJobs.map((job) => ({
                   title: job.title,
                   company: job.company,
                   location: job.location,
@@ -195,14 +190,28 @@ export async function GET(req: NextRequest) {
                   companyEmail: job.companyEmail,
                   isActive: true,
                   isFresh: true,
-                  firstSeenAt: new Date(),
-                  lastSeenAt: new Date(),
-                },
+                  firstSeenAt: now,
+                  lastSeenAt: now,
+                })),
+                skipDuplicates: true,
               });
-              newCount++;
+              newCount = result.count;
+            } catch (err) {
+              console.warn(`[ScrapeGlobal] Batch create failed for ${source}:`, err);
             }
-          } catch {
-            // skip individual upsert failures
+          }
+
+          // Batch update existing jobs
+          if (existingIds.length > 0) {
+            try {
+              const result = await prisma.globalJob.updateMany({
+                where: { id: { in: existingIds } },
+                data: { lastSeenAt: new Date(), isActive: true },
+              });
+              updatedCount = result.count;
+            } catch (err) {
+              console.warn(`[ScrapeGlobal] Batch update failed for ${source}:`, err);
+            }
           }
         }
 
@@ -267,7 +276,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // On Hobby plan, this single daily cron also triggers matching and sending
+    // Fire-and-forget: trigger downstream crons without waiting for their response.
+    // On Hobby plan (10s limit), scraping often consumes 7-8s, leaving no budget
+    // to await downstream responses. By not awaiting, the fetch initiates the
+    // Vercel function invocation which then runs independently.
     const shouldMatch = req.nextUrl.searchParams.get("match") === "true";
     const shouldSend = req.nextUrl.searchParams.get("send") === "true";
 
@@ -276,42 +288,47 @@ export async function GET(req: NextRequest) {
 
     if (shouldMatch) {
       try {
-        const matchUrl = new URL(
-          "/api/cron/match-all-users",
-          req.nextUrl.origin,
-        );
-        const response = await fetch(matchUrl.toString(), {
+        const matchUrl = new URL("/api/cron/match-all-users", req.nextUrl.origin);
+        fetch(matchUrl.toString(), {
           headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+        }).catch((e) => {
+          console.error("[ScrapeGlobal] Fire-and-forget match-all-users failed:", e);
         });
-        matchResult = response.ok ? "triggered" : `failed: ${response.status}`;
+        matchResult = "triggered (fire-and-forget)";
       } catch (e) {
-        matchResult = `failed: ${e instanceof Error ? e.message : String(e)}`;
+        matchResult = `failed to dispatch: ${e instanceof Error ? e.message : String(e)}`;
       }
     }
 
     if (shouldSend) {
       try {
         const sendUrl = new URL("/api/cron/send-queued", req.nextUrl.origin);
-        const response = await fetch(sendUrl.toString(), {
+        fetch(sendUrl.toString(), {
           headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+        }).catch((e) => {
+          console.error("[ScrapeGlobal] Fire-and-forget send-queued failed:", e);
         });
-        sendResult = response.ok ? "triggered" : `failed: ${response.status}`;
+        sendResult = "triggered (fire-and-forget)";
       } catch (e) {
-        sendResult = `failed: ${e instanceof Error ? e.message : String(e)}`;
+        sendResult = `failed to dispatch: ${e instanceof Error ? e.message : String(e)}`;
       }
     }
+
+    const totalNew = results.reduce((s, r) => s + r.new, 0);
+    await tracker.success({ processed: totalNew, failed: failedCount, metadata: { mode, sources: results.length } });
 
     return NextResponse.json({
       success: true,
       mode,
       results,
-      totalNew: results.reduce((s, r) => s + r.new, 0),
+      totalNew,
       totalUpdated: results.reduce((s, r) => s + r.updated, 0),
       durationMs: Date.now() - startTime,
       matchResult,
       sendResult,
     });
   } catch (error) {
+    await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError("ScrapeGlobal", error, "Scrape failed");
   }
 }

@@ -5,10 +5,11 @@ import {
   checkNotificationLimit,
   recordNotification,
 } from "@/lib/notification-limiter";
-import { decryptField } from "@/lib/encryption";
+import { decryptSettingsFields, hasDecryptionFailure } from "@/lib/encryption";
 import { TIMEOUTS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
+import { createCronTracker } from "@/lib/cron-tracker";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -17,6 +18,8 @@ export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
     return unauthorizedResponse();
   }
+
+  const tracker = createCronTracker("notify-matches");
 
   try {
     // Get all users with email notifications enabled
@@ -37,9 +40,14 @@ export async function GET(req: NextRequest) {
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
-    for (const user of users) {
+    for (const rawUser of users) {
       if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
-      const email = decryptField(user.notificationEmail) || user.user.email;
+      const user = decryptSettingsFields(rawUser);
+      if (hasDecryptionFailure(user as Record<string, unknown>, "notificationEmail")) {
+        console.warn(`[NotifyMatches] Skipping user ${rawUser.userId}: notificationEmail decryption failed`);
+        continue;
+      }
+      const email = user.notificationEmail || user.user.email;
       if (!email) continue;
 
       // Find the last notification time for this user to avoid re-notifying
@@ -92,10 +100,11 @@ export async function GET(req: NextRequest) {
       }));
 
       try {
+        const displayName = user.fullName || user.user.name || "there";
         await sendJobMatchNotification(
           email,
           jobNotifications,
-          decryptField(user.fullName) || user.user.name || "there",
+          displayName,
         );
         await recordNotification(
           user.userId,
@@ -116,8 +125,11 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    await tracker.success({ processed: notified, metadata: { totalUsers: users.length } });
+
     return NextResponse.json({ success: true, usersNotified: notified });
   } catch (error) {
+    await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError("NotifyMatches", error, "Notification failed");
   }
 }

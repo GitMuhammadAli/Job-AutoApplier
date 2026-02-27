@@ -24,7 +24,8 @@ function startOfDay(date: Date, timezone?: string | null): Date {
       const offsetMatch = offsetFormatter.format(date).match(/GMT([+-]\d+(?::\d+)?)/);
       if (offsetMatch) {
         const [h, m = "0"] = offsetMatch[1].split(":");
-        const offsetMs = (parseInt(h) * 60 + parseInt(m)) * 60 * 1000;
+        const sign = parseInt(h) < 0 ? -1 : 1;
+        const offsetMs = (parseInt(h) * 60 + sign * parseInt(m)) * 60 * 1000;
         return new Date(userMidnight.getTime() - offsetMs);
       }
     } catch {
@@ -232,7 +233,9 @@ function getWarmupLimits(smtpSetupDate: Date | null | undefined): {
   maxPerHour: number;
 } {
   if (!smtpSetupDate) {
-    return { isWarmup: false, day: 0, maxPerDay: Infinity, maxPerHour: Infinity };
+    // H5: No setup date means unknown account age — use conservative day-1 limits
+    // rather than Infinity which bypasses warmup entirely
+    return { isWarmup: true, day: 1, maxPerDay: 3, maxPerHour: 2 };
   }
 
   const daysSinceSetup = Math.floor(

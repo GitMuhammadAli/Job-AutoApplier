@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { STALE_DAYS } from "@/lib/constants";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 export interface ScraperRunResult {
@@ -25,13 +26,16 @@ interface RunScraperOptions {
 }
 
 export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunResult> {
-  const { source, fn, queries, timeoutMs = 45000, fallbackFn, fallbackSource } = opts;
+  const { source, fn, queries, timeoutMs = 8000, fallbackFn, fallbackSource } = opts;
   const startedAt = new Date();
 
   // Create a run record
   const run = await prisma.scraperRun.create({
     data: { source, status: "running", startedAt },
-  }).catch(() => null);
+  }).catch((err) => {
+    console.error(`[ScraperRunner] Failed to create ScraperRun for ${source}:`, err instanceof Error ? err.message : err);
+    return null;
+  });
   const runId = run?.id ?? "unknown";
 
   try {
@@ -39,9 +43,13 @@ export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunRes
     const durationMs = Date.now() - startedAt.getTime();
 
     if (jobs.length === 0 && fallbackFn) {
-      // Primary returned 0 — try fallback with remaining time budget
       const elapsed = Date.now() - startedAt.getTime();
-      const remainingMs = Math.max(timeoutMs - elapsed, 5000);
+      const remainingMs = timeoutMs - elapsed;
+      if (remainingMs < 1000) {
+        console.warn(`[ScraperRunner] ${source} returned 0 jobs, no time for fallback (${remainingMs}ms left)`);
+        await updateRun(runId, { status: "failed", jobsFound: 0, durationMs: elapsed, errorMessage: "Primary returned 0, insufficient time for fallback" });
+        return { source, jobs: [], status: "failed", durationMs: elapsed, runId, errorMessage: "Primary returned 0, no time for fallback" };
+      }
       console.warn(`[ScraperRunner] ${source} returned 0 jobs, trying fallback ${fallbackSource || "unknown"} (${remainingMs}ms remaining)`);
       try {
         const fallbackJobs = await withTimeout(fallbackFn(queries), remainingMs);
@@ -94,9 +102,9 @@ export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunRes
     const status = isTimeout ? "timeout" : "failed";
 
     // Try fallback on error with remaining time budget
-    if (fallbackFn) {
+    if (fallbackFn && timeoutMs - durationMs >= 1000) {
       try {
-        const remainingMs = Math.max(timeoutMs - durationMs, 5000);
+        const remainingMs = timeoutMs - durationMs;
         console.warn(`[ScraperRunner] ${source} failed, trying fallback ${fallbackSource || "unknown"} (${remainingMs}ms remaining)`);
         const fallbackJobs = await withTimeout(fallbackFn(queries), remainingMs);
         const totalDuration = Date.now() - startedAt.getTime();
@@ -114,8 +122,8 @@ export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunRes
           runId,
           errorMessage: `Primary ${status}, used fallback ${fallbackSource}`,
         };
-      } catch {
-        // Fallback also failed, fall through
+      } catch (fallbackErr) {
+        console.warn(`[ScraperRunner] Fallback ${fallbackSource || "unknown"} also failed:`, fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
       }
     }
 
@@ -201,7 +209,10 @@ export async function getScraperHealthStatus(): Promise<Record<string, {
     recentRuns: Array<{ status: string; jobsFound: number; startedAt: Date }>;
   }> = {};
 
-  const allSources = ["linkedin", "indeed", "jsearch", "google", "remotive", "arbeitnow", "adzuna", "rozee"];
+  // A6: Derive sources dynamically from DB records + STALE_DAYS config instead of hardcoded list
+  const configuredSources = Object.keys(STALE_DAYS).filter(s => s !== "default" && s !== "manual");
+  const dbSources = Object.keys(bySource);
+  const allSources = Array.from(new Set([...configuredSources, ...dbSources]));
 
   for (const source of allSources) {
     const runs = bySource[source] || [];

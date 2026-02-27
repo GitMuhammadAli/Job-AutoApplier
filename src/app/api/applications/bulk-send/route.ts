@@ -3,11 +3,14 @@ import { getAuthUserId } from "@/lib/auth";
 import { sendApplication } from "@/lib/send-application";
 import { checkReadiness } from "@/lib/readiness-checker";
 import { prisma } from "@/lib/prisma";
+import { TIMEOUTS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 10;
 
 export async function POST(req: NextRequest) {
   try {
+    const startTime = Date.now();
     const userId = await getAuthUserId();
     const { applicationIds } = (await req.json()) as {
       applicationIds: string[];
@@ -20,7 +23,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const ids = applicationIds.slice(0, 10);
+    // Cap at 3 per request to stay within 10s Vercel limit
+    const ids = applicationIds.slice(0, 3);
 
     const applications = await prisma.jobApplication.findMany({
       where: {
@@ -45,10 +49,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const settings = await prisma.userSettings.findUnique({
-      where: { userId },
-    });
-
     const results: {
       id: string;
       success: boolean;
@@ -56,6 +56,11 @@ export async function POST(req: NextRequest) {
     }[] = [];
 
     for (let i = 0; i < applications.length; i++) {
+      if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) {
+        // Approaching Vercel 10s limit — stop and return partial results
+        break;
+      }
+
       const app = applications[i];
       const result = await sendApplication(app.id);
       results.push({
@@ -66,13 +71,6 @@ export async function POST(req: NextRequest) {
 
       if (!result.success && result.error?.includes("limit")) {
         break;
-      }
-
-      // Brief delay between sends (capped to prevent timeout, default 2s)
-      if (i < applications.length - 1) {
-        const delaySec = settings?.sendDelaySeconds ?? 2;
-        const delay = Math.min(delaySec * 1000, 5000);
-        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 

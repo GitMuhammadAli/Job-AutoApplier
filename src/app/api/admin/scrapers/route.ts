@@ -12,7 +12,7 @@ const SOURCES = [
   "rozee",
   "jsearch",
   "adzuna",
-  "serpapi",
+  "google",
 ];
 
 export async function GET() {

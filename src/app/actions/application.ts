@@ -39,7 +39,9 @@ export async function getApplications() {
 
     for (const app of applications) {
       const job = app.userJob.globalJob;
-      const key = `${job.title.toLowerCase().trim()}::${job.company.toLowerCase().trim()}`;
+      // Include source to distinguish the same role scraped from multiple platforms,
+      // but collapse true duplicates (same source + same title + same company)
+      const key = `${job.title.toLowerCase().trim()}::${job.company.toLowerCase().trim()}::${job.source}`;
 
       const existing = seen.get(key);
       if (!existing) {
@@ -173,6 +175,16 @@ export async function markApplicationReady(applicationId: string): Promise<{ suc
     });
     if (!app) return { success: false, error: "Application not found" };
 
+    if (!app.recipientEmail?.trim()) {
+      return { success: false, error: "Recipient email is required before marking ready" };
+    }
+    if (!app.subject?.trim()) {
+      return { success: false, error: "Subject is required before marking ready" };
+    }
+    if (!app.emailBody?.trim()) {
+      return { success: false, error: "Email body is required before marking ready" };
+    }
+
     await prisma.jobApplication.update({
       where: { id: applicationId },
       data: { status: "READY", retryCount: 0 },
@@ -239,7 +251,14 @@ export async function bulkMarkReady(applicationIds: string[]) {
     }
 
     const count = await prisma.jobApplication.updateMany({
-      where: { id: { in: applicationIds }, userId, status: "DRAFT" },
+      where: {
+        id: { in: applicationIds },
+        userId,
+        status: "DRAFT",
+        recipientEmail: { not: "" },
+        subject: { not: "" },
+        emailBody: { not: "" },
+      },
       data: { status: "READY" },
     });
 

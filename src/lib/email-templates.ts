@@ -14,10 +14,21 @@ function resolveAppUrl(): string {
       return url.replace(/\/+$/, "");
     }
   }
-  return "https://job-auto-applier-three.vercel.app";
+  return process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "https://localhost:3000";
 }
 
-const APP_URL = resolveAppUrl();
+let _cachedAppUrl: string | null = null;
+export function getAppUrl(): string {
+  if (!_cachedAppUrl || _cachedAppUrl === "https://localhost:3000") {
+    _cachedAppUrl = resolveAppUrl();
+  }
+  return _cachedAppUrl;
+}
+
+/** @deprecated Use getAppUrl() for lazy evaluation */
+const APP_URL = "LAZY";
 
 function layout(title: string, body: string): string {
   return `<!DOCTYPE html>
@@ -32,9 +43,9 @@ function layout(title: string, body: string): string {
     ${body}
   </div>
   <div style="padding:16px 20px;border-top:1px solid #f1f5f9;text-align:center">
-    <a href="${APP_URL}" style="color:#64748b;font-size:11px;text-decoration:none">JobPilot</a>
+    <a href="${getAppUrl()}" style="color:#64748b;font-size:11px;text-decoration:none">JobPilot</a>
     <span style="color:#cbd5e1;margin:0 8px">·</span>
-    <a href="${APP_URL}/settings" style="color:#64748b;font-size:11px;text-decoration:none">Manage Notifications</a>
+    <a href="${getAppUrl()}/settings" style="color:#64748b;font-size:11px;text-decoration:none">Manage Notifications</a>
   </div>
 </div>
 </body>
@@ -90,7 +101,7 @@ export function newJobsNotificationTemplate(
       <tbody>${rows}</tbody>
     </table>
     <div style="text-align:center;margin-top:20px">
-      <a href="${APP_URL}" style="display:inline-block;padding:10px 24px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">View All Jobs</a>
+      <a href="${getAppUrl()}" style="display:inline-block;padding:10px 24px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">View All Jobs</a>
     </div>`;
 
   return {
@@ -138,7 +149,7 @@ export function autoApplySummaryTemplate(
       <tbody>${rows}</tbody>
     </table>
     <div style="text-align:center;margin-top:20px">
-      <a href="${APP_URL}/applications" style="display:inline-block;padding:10px 24px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">View Applications</a>
+      <a href="${getAppUrl()}/applications" style="display:inline-block;padding:10px 24px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">View Applications</a>
     </div>`;
 
   return {
@@ -161,7 +172,7 @@ export function followUpReminderTemplate(
           </td>
           <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#d97706">${j.daysSince} days ago</td>
           <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center">
-            <a href="${APP_URL}/jobs/${j.userJobId}" style="display:inline-block;padding:6px 14px;background:#f59e0b;color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600">Follow Up</a>
+            <a href="${getAppUrl()}/jobs/${j.userJobId}" style="display:inline-block;padding:6px 14px;background:#f59e0b;color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600">Follow Up</a>
           </td>
         </tr>`
     )
@@ -199,7 +210,7 @@ export function welcomeEmailTemplate(userName: string): { subject: string; html:
       <li>You review, edit, and send (or let AI auto-apply)</li>
     </ol>
     <div style="text-align:center;margin-top:20px">
-      <a href="${APP_URL}" style="display:inline-block;padding:12px 28px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">Go to Dashboard</a>
+      <a href="${getAppUrl()}" style="display:inline-block;padding:12px 28px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">Go to Dashboard</a>
     </div>`;
 
   return {
@@ -225,7 +236,7 @@ export function bounceAlertTemplate(
       Please check the email address and resume sending from Settings when ready.
     </p>
     <div style="text-align:center;margin-top:20px">
-      <a href="${APP_URL}/settings" style="display:inline-block;padding:10px 24px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">Review Settings</a>
+      <a href="${getAppUrl()}/settings" style="display:inline-block;padding:10px 24px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">Review Settings</a>
     </div>`;
 
   return {

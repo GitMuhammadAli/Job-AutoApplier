@@ -21,10 +21,10 @@ export const LIMITS = {
   MATCH_BATCH: 500,
   /** Max users processed per cron cycle */
   USERS_BATCH: 500,
-  /** Max applications to send per cron run (queued) */
-  SEND_QUEUED_BATCH: 20,
-  /** Max applications to send per cron run (scheduled) */
-  SEND_SCHEDULED_BATCH: 50,
+  /** Max applications to send per cron run (queued) — kept low for 10s Vercel limit (~2s per send) */
+  SEND_QUEUED_BATCH: 3,
+  /** Max applications to send per cron run (scheduled) — kept low for 10s Vercel limit (~2s per send) */
+  SEND_SCHEDULED_BATCH: 3,
   /** Max follow-up candidates per cron run */
   FOLLOW_UP_BATCH: 200,
   /** Max notification jobs per user digest */
@@ -88,6 +88,7 @@ export const STALE_DAYS: Record<string, number> = {
   rozee: 14,
   jsearch: 14,
   google: 14,
+  linkedin_posts: 7,
   manual: 30,
   default: 7,
 } as const;
@@ -108,3 +109,12 @@ export const BANNED_KEYWORDS = [
 ] as const;
 
 export const STUCK_SENDING_TIMEOUT_MS = 10 * 60 * 1000;
+
+export const FOLLOW_UP = {
+  /** Days after APPLIED before marking as GHOSTED */
+  GHOSTED_AFTER_DAYS: 14,
+  /** Days after APPLIED/last follow-up before sending follow-up */
+  FOLLOW_UP_AFTER_DAYS: 7,
+  /** Max number of follow-ups per application */
+  MAX_FOLLOW_UPS: 2,
+} as const;

@@ -461,6 +461,7 @@ export function ApplicationQueue({
     setBulkProgress({ current: 0, total: apps.length, label: "Sending" });
     let sent = 0;
     let failed = 0;
+    let rateLimited = 0;
     try {
       for (let i = 0; i < apps.length; i++) {
         setBulkProgress({ current: i, total: apps.length, label: "Sending" });
@@ -469,14 +470,24 @@ export function ApplicationQueue({
             method: "POST",
           });
           const data = await res.json().catch(() => ({ success: false }));
-          if (res.ok && data.success) sent++;
-          else failed++;
+          if (res.ok && data.success) {
+            sent++;
+          } else if (data.error?.includes("Wait") || data.error?.includes("rate") || data.error?.includes("limit") || res.status === 429) {
+            rateLimited++;
+          } else {
+            failed++;
+          }
         } catch {
           failed++;
+        }
+        const isLast = i === apps.length - 1;
+        if (!isLast) {
+          await new Promise((r) => setTimeout(r, 3000));
         }
       }
       setBulkProgress({ current: apps.length, total: apps.length, label: "Sending" });
       if (sent > 0) toast.success(`${sent} application(s) sent!`);
+      if (rateLimited > 0) toast.info(`${rateLimited} queued — will be sent by the next cron cycle`);
       if (failed > 0) toast.error(`${failed} failed to send`);
       setSelectedIds(new Set());
       router.refresh();
@@ -765,6 +776,8 @@ export function ApplicationQueue({
   );
 }
 
+const PAGE_SIZE = 20;
+
 function ApplicationList({
   applications,
   selectedIds,
@@ -780,6 +793,14 @@ function ApplicationList({
   onRefresh: () => void;
   allSelected: boolean;
 }) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  const visibleApps = useMemo(
+    () => applications.slice(0, visibleCount),
+    [applications, visibleCount],
+  );
+  const hasMore = visibleCount < applications.length;
+
   if (applications.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/50 py-12 text-center space-y-3">
@@ -813,9 +834,12 @@ function ApplicationList({
           )}
           {allSelected ? "Deselect all" : "Select all"}
         </button>
+        <span className="text-[10px] text-slate-400 dark:text-zinc-500 ml-auto">
+          Showing {visibleApps.length} of {applications.length}
+        </span>
       </div>
       <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
-        {applications.map((app) => (
+        {visibleApps.map((app) => (
           <ApplicationCard
             key={app.id}
             app={app}
@@ -825,6 +849,18 @@ function ApplicationList({
           />
         ))}
       </div>
+      {hasMore && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+            className="text-xs"
+          >
+            Show more ({applications.length - visibleCount} remaining)
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

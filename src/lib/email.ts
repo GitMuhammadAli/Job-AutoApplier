@@ -113,15 +113,23 @@ export function getTransporterForUser(settings: EmailSettings): Transporter {
 let systemTransporter: Transporter | null = null;
 
 export function getSystemTransporter(): Transporter {
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!user || !pass) {
+    console.warn("[Email] SMTP_USER or SMTP_PASS not configured — system emails will fail");
+    // Don't cache a broken transporter — re-check env vars on every call
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
+      port: parseInt(process.env.SMTP_PORT || "587", 10),
+      secure: false,
+    });
+  }
   if (!systemTransporter) {
     systemTransporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
       port: parseInt(process.env.SMTP_PORT || "587", 10),
       secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+      auth: { user, pass },
     });
   }
   return systemTransporter;

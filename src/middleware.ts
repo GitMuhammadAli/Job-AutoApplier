@@ -65,6 +65,11 @@ export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   if (path.startsWith("/api/cron") || path.startsWith("/api/webhooks")) {
+    const ip = getClientIp(req);
+    const result = isRateLimited(`cron:${ip}`, { max: 30, windowMs: 60_000 });
+    if (result.limited) {
+      return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+    }
     return NextResponse.next();
   }
 

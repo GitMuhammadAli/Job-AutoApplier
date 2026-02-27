@@ -183,7 +183,9 @@ function extractDomain(
       if (!isJobBoardDomain(parsed.hostname)) {
         return parsed.hostname.replace("www.", "");
       }
-    } catch {}
+    } catch {
+      // Invalid URL — fall through to domain guess
+    }
   }
 
   const cleaned = company

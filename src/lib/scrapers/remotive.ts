@@ -25,12 +25,18 @@ export async function fetchRemotive(queries: SearchQuery[]): Promise<ScrapedJob[
 
       const isRelevant =
         queries.length === 0 ||
-        keywordArr.some(
-          (kw) =>
-            titleLower.includes(kw) ||
-            descLower.includes(kw) ||
-            tagsLower.some((t: string) => t.includes(kw))
-        );
+        keywordArr.some((kw) => {
+          const pattern = kw.length <= 3
+            ? new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i")
+            : null;
+          const matchesText = (text: string) =>
+            pattern ? pattern.test(text) : text.includes(kw);
+          return (
+            matchesText(titleLower) ||
+            matchesText(descLower) ||
+            tagsLower.some((t: string) => matchesText(t))
+          );
+        });
 
       if (!isRelevant) continue;
 

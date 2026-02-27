@@ -46,12 +46,24 @@ function isRemoteLocation(location: string | null): boolean {
   return REMOTE_INDICATORS.some((r) => loc.includes(r));
 }
 
+const CITY_TO_COUNTRY: Record<string, string> = {
+  lahore: "pakistan", karachi: "pakistan", islamabad: "pakistan", rawalpindi: "pakistan",
+  faisalabad: "pakistan", multan: "pakistan", peshawar: "pakistan", quetta: "pakistan",
+  sialkot: "pakistan", gujranwala: "pakistan", hyderabad: "pakistan",
+};
+
 function matchesCountry(locationLower: string, countryLower: string): boolean {
   if (locationLower.includes(countryLower)) return true;
   const parts = locationLower.split(/[\s,]+/).map((p) => p.trim()).filter(Boolean);
-  const lastPart = parts[parts.length - 1] ?? "";
-  const resolved = COUNTRY_CODE_MAP[lastPart];
-  return resolved === countryLower;
+  for (const part of parts) {
+    const resolved = COUNTRY_CODE_MAP[part];
+    if (resolved === countryLower) return true;
+  }
+  // Check well-known city names (handles "Berlin, Europe" or bare "Berlin")
+  for (const [city, country] of Object.entries(CITY_TO_COUNTRY)) {
+    if (locationLower.includes(city) && country === countryLower) return true;
+  }
+  return false;
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
+import { TIMEOUTS } from "@/lib/constants";
 
 /**
  * Google Hiring Posts Scraper
@@ -93,6 +94,8 @@ export async function fetchGoogleHiringPosts(
   queries: SearchQuery[],
   maxQueries = 4,
 ): Promise<ScrapedJob[]> {
+  const startTime = Date.now();
+  const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;
   const hasCSE = !!(process.env.GOOGLE_CSE_KEY && process.env.GOOGLE_CSE_ID);
   const hasSerpAPI = !!process.env.SERPAPI_KEY;
 
@@ -104,10 +107,14 @@ export async function fetchGoogleHiringPosts(
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
-  // Build search pairs from user keywords + cities
+  const MAX_QUERIES = 4;
+  const MAX_CITIES = 2;
+  if (queries.length > MAX_QUERIES) {
+    console.log(`[HiringPosts] Truncating ${queries.length} queries to ${MAX_QUERIES} (dropped: ${queries.slice(MAX_QUERIES).map(q => q.keyword).join(", ")})`);
+  }
   const searchPairs: Array<{ keyword: string; city: string }> = [];
-  for (const q of queries.slice(0, 4)) {
-    for (const city of q.cities.slice(0, 2)) {
+  for (const q of queries.slice(0, MAX_QUERIES)) {
+    for (const city of q.cities.slice(0, MAX_CITIES)) {
       if (city.toLowerCase() === "remote") continue;
       searchPairs.push({ keyword: q.keyword, city });
     }
@@ -117,6 +124,8 @@ export async function fetchGoogleHiringPosts(
   let cseExhausted = false;
 
   for (let i = 0; i < pairs.length; i++) {
+    if (Date.now() >= deadline) break;
+
     const { keyword, city } = pairs[i];
     // Rotate through hiring terms to cast a wider net
     const term = HIRING_TERMS[i % HIRING_TERMS.length];
@@ -128,7 +137,7 @@ export async function fetchGoogleHiringPosts(
       // Try Google CSE first (free), fall back to SerpAPI
       if (hasCSE && !cseExhausted) {
         results = await fetchGoogleCSE(query);
-        if (results.length === 0 && hasSerpAPI) {
+        if (results.length === 0 && hasSerpAPI && Date.now() < deadline) {
           // CSE might be exhausted or returned nothing — try SerpAPI
           results = await fetchSerpAPI(query);
           if (results.length > 0) cseExhausted = true; // CSE is likely at quota
@@ -149,7 +158,7 @@ export async function fetchGoogleHiringPosts(
     }
   }
 
-  console.log(`[GoogleHiringPosts] Total found: ${jobs.length} hiring posts (source: ${hasCSE ? "CSE" : "SerpAPI"})`);
+  console.debug(`[GoogleHiringPosts] Total found: ${jobs.length} hiring posts in ${Date.now() - startTime}ms`);
   return jobs;
 }
 

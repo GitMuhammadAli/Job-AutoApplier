@@ -68,7 +68,8 @@ export async function generateWithGroq(
 
       if (!response.ok) {
         const errText = await response.text().catch(() => "Unknown error");
-        throw new Error(`AI service error (${response.status}). Try again.`);
+        console.error(`[Groq] Non-retryable error ${response.status}:`, errText);
+        throw new Error(`AI service error (${response.status}): ${errText.slice(0, 200)}`);
       }
 
       const data = await response.json();

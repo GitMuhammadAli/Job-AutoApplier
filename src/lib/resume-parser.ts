@@ -35,7 +35,7 @@ export async function extractTextFromPDF(
   // ── Attempt 1: unpdf (serverless-optimized, no canvas/worker deps) ──
   try {
     const text = await withTimeout(extractWithUnpdf(buffer), timeout, "unpdf");
-    console.log(`[resume-parser] unpdf: ${text.length} chars`);
+    console.debug(`[resume-parser] unpdf: ${text.length} chars`);
     if (text.length >= 20) {
       return { text, quality: assessQuality(text) };
     }
@@ -47,7 +47,7 @@ export async function extractTextFromPDF(
   // ── Attempt 2: pdf-parse v2 (bundles its own pdfjs-dist) ──
   try {
     const text = await withTimeout(extractWithPdfParse(buffer), timeout, "pdf-parse");
-    console.log(`[resume-parser] pdf-parse: ${text.length} chars`);
+    console.debug(`[resume-parser] pdf-parse: ${text.length} chars`);
     if (text.length >= 20) {
       return { text, quality: assessQuality(text) };
     }
@@ -59,7 +59,7 @@ export async function extractTextFromPDF(
   // ── Attempt 3: pdfjs-dist direct (works locally, may fail on serverless) ──
   try {
     const text = await withTimeout(extractWithPdfjs(buffer), timeout, "pdfjs-dist");
-    console.log(`[resume-parser] pdfjs-dist: ${text.length} chars`);
+    console.debug(`[resume-parser] pdfjs-dist: ${text.length} chars`);
     if (text.length >= 20) {
       return { text, quality: assessQuality(text) };
     }

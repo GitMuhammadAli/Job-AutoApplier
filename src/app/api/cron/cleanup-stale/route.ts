@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { STALE_DAYS, STUCK_SENDING_TIMEOUT_MS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
+import { createCronTracker } from "@/lib/cron-tracker";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
     return unauthorizedResponse();
   }
+
+  const tracker = createCronTracker("cleanup-stale");
 
   try {
     const now = new Date();
@@ -83,7 +86,10 @@ export async function GET(req: NextRequest) {
     let deletedOldJobs = 0;
     if (oldInactiveJobs.length > 0) {
       const result = await prisma.globalJob.deleteMany({
-        where: { id: { in: oldInactiveJobs.map((j) => j.id) } },
+        where: {
+          id: { in: oldInactiveJobs.map((j) => j.id) },
+          userJobs: { none: {} },
+        },
       });
       deletedOldJobs = result.count;
     }
@@ -115,6 +121,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    await tracker.success({ processed: totalMarkedInactive, metadata: { deletedOldJobs, stuckRecovered: stuckRecovered.count, prunedLogs: prunedLogs.count, prunedRuns } });
+
     return NextResponse.json({
       success: true,
       markedInactive: totalMarkedInactive,
@@ -125,6 +133,7 @@ export async function GET(req: NextRequest) {
       prunedRuns,
     });
   } catch (error) {
+    await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError("CleanupStale", error, "Cleanup failed");
   }
 }

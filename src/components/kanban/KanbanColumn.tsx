@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { STAGE_CONFIG } from "@/lib/utils";
@@ -14,7 +15,7 @@ interface KanbanColumnProps {
   onStageChange: (jobId: string, newStage: JobStage, oldStage: JobStage) => void;
 }
 
-export function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) {
+export const KanbanColumn = memo(function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage,
   });
@@ -63,4 +64,4 @@ export function KanbanColumn({ stage, jobs, onStageChange }: KanbanColumnProps) 
       </div>
     </div>
   );
-}
+});

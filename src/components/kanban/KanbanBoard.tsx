@@ -25,7 +25,11 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
-  const { jobs, setJobs, filter, search, updateJobStage } = useJobStore();
+  const jobs = useJobStore((s) => s.jobs);
+  const setJobs = useJobStore((s) => s.setJobs);
+  const filter = useJobStore((s) => s.filter);
+  const search = useJobStore((s) => s.search);
+  const updateJobStage = useJobStore((s) => s.updateJobStage);
   const [activeJob, setActiveJob] = useState<UserJobWithGlobal | null>(null);
   const pendingMoves = React.useRef(new Set<string>());
 

@@ -139,10 +139,10 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   ],
 };
 
-export function categorizeJob(title: string, skills: string[], description: string): string {
+export function categorizeJob(title: string, skills: string[], description: string): string | null {
   const text = `${title} ${skills.join(" ")} ${description.substring(0, 800)}`.toLowerCase();
 
-  let bestCategory = "Software Engineering";
+  let bestCategory: string | null = null;
   let bestScore = 0;
 
   for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
@@ -150,7 +150,6 @@ export function categorizeJob(title: string, skills: string[], description: stri
     for (const kw of keywords) {
       if (text.includes(kw)) score++;
     }
-    // Give extra weight if keyword appears in the title
     const titleLower = title.toLowerCase();
     for (const kw of keywords) {
       if (titleLower.includes(kw)) score += 2;

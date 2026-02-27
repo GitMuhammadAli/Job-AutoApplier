@@ -1,20 +1,23 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Instrument_Serif, DM_Sans } from "next/font/google";
 import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { LogoBar } from "@/components/landing/LogoBar";
-import { ProblemSolution } from "@/components/landing/ProblemSolution";
-import { Features } from "@/components/landing/Features";
-import { HowItWorks } from "@/components/landing/HowItWorks";
-import { Modes } from "@/components/landing/Modes";
-import { Safety } from "@/components/landing/Safety";
-import { Pakistan } from "@/components/landing/Pakistan";
-import { Stats } from "@/components/landing/Stats";
-import { Testimonials } from "@/components/landing/Testimonials";
-import { FAQSection } from "@/components/landing/FAQ";
-import { CTA } from "@/components/landing/CTA";
-import { Footer } from "@/components/landing/Footer";
+
+// Below-fold sections: lazy loaded for faster initial paint
+const ProblemSolution = dynamic(() => import("@/components/landing/ProblemSolution").then(m => ({ default: m.ProblemSolution })));
+const Features = dynamic(() => import("@/components/landing/Features").then(m => ({ default: m.Features })));
+const HowItWorks = dynamic(() => import("@/components/landing/HowItWorks").then(m => ({ default: m.HowItWorks })));
+const Modes = dynamic(() => import("@/components/landing/Modes").then(m => ({ default: m.Modes })));
+const Safety = dynamic(() => import("@/components/landing/Safety").then(m => ({ default: m.Safety })));
+const Pakistan = dynamic(() => import("@/components/landing/Pakistan").then(m => ({ default: m.Pakistan })));
+const Stats = dynamic(() => import("@/components/landing/Stats").then(m => ({ default: m.Stats })));
+const Testimonials = dynamic(() => import("@/components/landing/Testimonials").then(m => ({ default: m.Testimonials })));
+const FAQSection = dynamic(() => import("@/components/landing/FAQ").then(m => ({ default: m.FAQSection })));
+const CTA = dynamic(() => import("@/components/landing/CTA").then(m => ({ default: m.CTA })));
+const Footer = dynamic(() => import("@/components/landing/Footer").then(m => ({ default: m.Footer })));
 
 const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],

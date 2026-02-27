@@ -100,7 +100,10 @@ export async function getAnalytics() {
         GROUP BY DATE_TRUNC('week', "createdAt")
         ORDER BY week DESC
         LIMIT 12
-      `.catch(() => [] as { week: string; count: bigint }[]),
+      `.catch((err) => {
+        console.error("[getAnalytics] Activity weekly query failed:", err instanceof Error ? err.message : err);
+        return [] as { week: string; count: bigint }[];
+      }),
 
       prisma.jobApplication.count({
         where: { userId, createdAt: { gte: thisWeekStart } },

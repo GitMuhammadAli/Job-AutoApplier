@@ -2,7 +2,7 @@ import { getTransporterForUser, formatCoverLetterHtml } from "./email";
 import { prisma } from "./prisma";
 import { canSendNow } from "./send-limiter";
 import { checkDuplicate } from "./duplicate-checker";
-import { decryptSettingsFields } from "./encryption";
+import { decryptSettingsFields, hasDecryptionFailure } from "./encryption";
 import { classifyError } from "./email-errors";
 
 interface SendResult {
@@ -36,6 +36,14 @@ export async function sendApplication(
   if (!rawSettings) return { success: false, error: "Settings not found" };
   const settings = decryptSettingsFields(rawSettings);
 
+  if (hasDecryptionFailure(settings as Record<string, unknown>, "smtpPass", "smtpUser", "applicationEmail")) {
+    await prisma.jobApplication.update({
+      where: { id: applicationId },
+      data: { status: "FAILED", errorMessage: "SMTP credentials could not be decrypted — re-save your settings" },
+    });
+    return { success: false, error: "SMTP credentials decryption failed — re-save settings" };
+  }
+
   // Rate limiting
   const limitCheck = await canSendNow(userId);
   if (!limitCheck.allowed) {
@@ -45,10 +53,14 @@ export async function sendApplication(
   // Duplicate check
   const dupeCheck = await checkDuplicate(userId, application.userJob.globalJob);
   if (dupeCheck.isDuplicate) {
-    await prisma.jobApplication.update({
-      where: { id: applicationId },
-      data: { status: "DRAFT" },
-    });
+    // C6: Only revert if currently READY (preserve DRAFT state, log the reversion)
+    if (application.status === "READY") {
+      await prisma.jobApplication.update({
+        where: { id: applicationId },
+        data: { status: "DRAFT", errorMessage: `Duplicate detected: ${dupeCheck.reason}` },
+      });
+    }
+    console.warn(`[SendApp] Duplicate detected for ${applicationId}: ${dupeCheck.reason}`);
     return { success: false, error: dupeCheck.reason };
   }
 
@@ -71,7 +83,7 @@ export async function sendApplication(
   if (application.resume?.fileUrl) {
     try {
       const response = await fetch(application.resume.fileUrl, {
-        signal: AbortSignal.timeout(8000), // C5: keep under 10s Hobby limit
+        signal: AbortSignal.timeout(5000),
       });
       if (response.ok) {
         const buffer = Buffer.from(await response.arrayBuffer());
@@ -89,8 +101,15 @@ export async function sendApplication(
     } catch (err) {
       console.error(`[SendApp] Failed to download resume ${application.resume.id}:`, err);
     }
+    if (!resumeAttached) {
+      await prisma.jobApplication.update({
+        where: { id: applicationId },
+        data: { status: "READY", errorMessage: "Resume download failed — will retry" },
+      });
+      return { success: false, error: "Resume download failed — will retry on next cron run" };
+    }
   } else {
-    resumeAttached = true; // No resume to attach — not a failure
+    resumeAttached = true;
   }
 
   // Atomic claim: only one caller can transition DRAFT/READY → SENDING
@@ -106,8 +125,20 @@ export async function sendApplication(
       return { success: false, error: "Already sending or sent" };
     }
 
-    const cleanSubject = cleanJsonField(application.subject, "subject");
-    const cleanBody = cleanJsonField(application.emailBody, "body");
+    let cleanSubject: string;
+    let cleanBody: string;
+    try {
+      cleanSubject = cleanJsonField(application.subject, "subject");
+      cleanBody = cleanJsonField(application.emailBody, "body");
+    } catch (parseErr) {
+      // C2: If field cleaning throws, revert SENDING → FAILED (don't leave stuck)
+      await prisma.jobApplication.update({
+        where: { id: applicationId },
+        data: { status: "FAILED", errorMessage: "Failed to parse email fields" },
+      });
+      console.error(`[SendApp] cleanJsonField threw for ${applicationId}:`, parseErr);
+      return { success: false, error: "Failed to parse email fields" };
+    }
 
     // H1+H2: Validate email fields before sending
     if (!cleanSubject.trim()) {
@@ -125,8 +156,17 @@ export async function sendApplication(
       return { success: false, error: "Empty email body — cannot send" };
     }
 
+    const senderAddr = settings.applicationEmail || settings.smtpUser;
+    if (!senderAddr) {
+      await prisma.jobApplication.update({
+        where: { id: applicationId },
+        data: { status: "FAILED", errorMessage: "No sender email configured — check SMTP settings" },
+      });
+      return { success: false, error: "No sender email configured" };
+    }
+
     const result = await transporter.sendMail({
-      from: `${settings.fullName || "JobPilot User"} <${settings.applicationEmail || settings.smtpUser}>`,
+      from: `${settings.fullName || "JobPilot User"} <${senderAddr}>`,
       to: application.recipientEmail,
       subject: cleanSubject,
       text: cleanBody,
@@ -146,6 +186,8 @@ export async function sendApplication(
           status: "SENT",
           sentAt: new Date(),
           retryCount: 0,
+          // H6: Clear scheduled time on success so it doesn't get re-sent
+          scheduledSendAt: null,
           ...(resumeAttached ? {} : { errorMessage: "Warning: Resume failed to attach — email sent without it" }),
         },
       }),
@@ -158,7 +200,8 @@ export async function sendApplication(
           userId,
           userJobId: application.userJobId,
           type: "APPLICATION_SENT",
-          description: `Email sent to ${application.recipientEmail} via ${settings.emailProvider || "smtp"}`,
+          // M11: Avoid logging full recipient email (PII) — mask it
+          description: `Email sent via ${settings.emailProvider || "smtp"}`,
         },
       }),
     ]);
@@ -175,6 +218,7 @@ export async function sendApplication(
             status: "BOUNCED",
             retryCount: (application.retryCount || 0) + 1,
             errorMessage: classified.message,
+            scheduledSendAt: null,
           },
         }),
         prisma.activity.create({
@@ -182,7 +226,7 @@ export async function sendApplication(
             userId,
             userJobId: application.userJobId,
             type: "APPLICATION_BOUNCED",
-            description: `Email to ${application.recipientEmail} rejected: ${classified.message}`,
+            description: `Email rejected: ${classified.message}`,
           },
         }),
       ]);
@@ -205,6 +249,7 @@ export async function sendApplication(
           status: "FAILED",
           retryCount: (application.retryCount || 0) + 1,
           errorMessage: `Auth error: ${classified.message}`,
+          scheduledSendAt: null,
         },
       });
       console.error(`[SendApp] Auth failure: ${classified.message}`);
@@ -240,6 +285,7 @@ export async function sendApplication(
             status: "FAILED",
             retryCount: currentRetry,
             errorMessage: classified.message,
+            scheduledSendAt: null,
           },
         }),
         prisma.activity.create({

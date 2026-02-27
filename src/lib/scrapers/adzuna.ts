@@ -33,7 +33,11 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
-  for (const q of queries.slice(0, 3)) {
+  const MAX_QUERIES = 3;
+  if (queries.length > MAX_QUERIES) {
+    console.log(`[Adzuna] Truncating ${queries.length} queries to ${MAX_QUERIES} (dropped: ${queries.slice(MAX_QUERIES).map(q => q.keyword).join(", ")})`);
+  }
+  for (const q of queries.slice(0, MAX_QUERIES)) {
     if (Date.now() >= deadline) break;
 
     try {
@@ -79,7 +83,7 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
     }
   }
 
-  console.log(`[Adzuna] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
+  console.debug(`[Adzuna] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
   return jobs;
 }
 

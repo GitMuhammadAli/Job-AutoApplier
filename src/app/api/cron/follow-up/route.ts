@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { LIMITS, TIMEOUTS } from "@/lib/constants";
+import { LIMITS, TIMEOUTS, FOLLOW_UP } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
+import { createCronTracker } from "@/lib/cron-tracker";
 import { sendNotificationEmail, getNotificationFrom } from "@/lib/email";
 import { followUpReminderTemplate } from "@/lib/email-templates";
-import { decryptSettingsFields } from "@/lib/encryption";
+import { decryptSettingsFields, hasDecryptionFailure } from "@/lib/encryption";
 import { checkNotificationLimit, logNotificationSent } from "@/lib/notification-limiter";
 
 export const dynamic = "force-dynamic";
@@ -16,19 +17,21 @@ export async function GET(req: NextRequest) {
     return unauthorizedResponse();
   }
 
+  const tracker = createCronTracker("follow-up");
   const startTime = Date.now();
 
   try {
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    // M7: Use constants instead of magic numbers
+    const ghostedCutoff = new Date();
+    ghostedCutoff.setDate(ghostedCutoff.getDate() - FOLLOW_UP.GHOSTED_AFTER_DAYS);
 
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const followUpCutoff = new Date();
+    followUpCutoff.setDate(followUpCutoff.getDate() - FOLLOW_UP.FOLLOW_UP_AFTER_DAYS);
 
     const ghosted = await prisma.userJob.updateMany({
       where: {
         stage: "APPLIED",
-        updatedAt: { lt: fourteenDaysAgo },
+        updatedAt: { lt: ghostedCutoff },
       },
       data: { stage: "GHOSTED" },
     });
@@ -36,11 +39,11 @@ export async function GET(req: NextRequest) {
     const needsFollowUp = await prisma.userJob.findMany({
       where: {
         stage: "APPLIED",
-        followUpCount: { lt: 2 },
-        updatedAt: { lt: sevenDaysAgo },
+        followUpCount: { lt: FOLLOW_UP.MAX_FOLLOW_UPS },
+        updatedAt: { lt: followUpCutoff },
         OR: [
           { lastFollowUpAt: null },
-          { lastFollowUpAt: { lt: sevenDaysAgo } },
+          { lastFollowUpAt: { lt: followUpCutoff } },
         ],
       },
       select: {
@@ -97,6 +100,7 @@ export async function GET(req: NextRequest) {
         const rawSettings = await prisma.userSettings.findUnique({ where: { userId }, include: { user: { select: { email: true, name: true } } } });
         if (!rawSettings?.emailNotifications) continue;
         const settings = decryptSettingsFields(rawSettings);
+        if (hasDecryptionFailure(settings as Record<string, unknown>, "notificationEmail")) continue;
         const notifEmail = settings.notificationEmail || settings.user.email;
         if (!notifEmail) continue;
 
@@ -124,12 +128,15 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    await tracker.success({ processed, metadata: { ghosted: ghosted.count } });
+
     return NextResponse.json({
       success: true,
       ghosted: ghosted.count,
       followUps: processed,
     });
   } catch (error) {
+    await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError("FollowUp", error, "Follow-up failed");
   }
 }

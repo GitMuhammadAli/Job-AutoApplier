@@ -8,6 +8,7 @@ import { buildExistingJobKeys, isDuplicateByKey } from "@/lib/matching/location-
 import { LIMITS, TIMEOUTS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
+import { createCronTracker } from "@/lib/cron-tracker";
 
 export const maxDuration = 10;
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export async function GET(req: NextRequest) {
     return unauthorizedResponse();
   }
 
+  const tracker = createCronTracker("match-jobs");
   const startTime = Date.now();
 
   try {
@@ -127,8 +129,11 @@ export async function GET(req: NextRequest) {
             },
           });
           userMatched++;
-        } catch {
-          // Skip duplicate constraint violations
+        } catch (err) {
+          const isPrismaUnique = typeof err === "object" && err !== null && (err as Record<string, unknown>).code === "P2002";
+          if (!isPrismaUnique) {
+            console.error(`[MatchJobs] Unexpected error creating UserJob for user ${user.userId}, job ${job.id}:`, err);
+          }
         }
       }
 
@@ -145,6 +150,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    await tracker.success({ processed: totalMatched, metadata: { users: users.length, recentJobs: recentJobs.length } });
+
     return NextResponse.json({
       success: true,
       users: users.length,
@@ -153,6 +160,7 @@ export async function GET(req: NextRequest) {
       perUser: userStats,
     });
   } catch (error) {
+    await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError("MatchJobs", error, "Match failed");
   }
 }

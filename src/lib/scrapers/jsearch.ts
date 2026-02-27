@@ -76,7 +76,7 @@ export async function fetchJSearch(
     }
   }
 
-  console.log(`[JSearch] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
+  console.debug(`[JSearch] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
   return jobs;
 }
 

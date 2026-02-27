@@ -26,11 +26,16 @@ async function buildEmailInput(
   });
   if (!userJob) throw new Error("Job not found");
 
-  const settings = decryptSettingsFields(
-    await prisma.userSettings.findUnique({ where: { userId } }),
-  );
-  if (!settings?.fullName)
-    throw new Error("Complete your profile in Settings first");
+  const rawSettings = await prisma.userSettings.findUnique({ where: { userId } });
+  if (!rawSettings) throw new Error("Complete your profile in Settings first");
+  const settings = decryptSettingsFields(rawSettings);
+  if (!settings.fullName) {
+    throw new Error(
+      rawSettings.fullName
+        ? "Could not decrypt your profile data — contact support or re-save your settings"
+        : "Complete your profile in Settings first"
+    );
+  }
 
   let resumeResult: Awaited<ReturnType<typeof pickBestResumeWithTier>>;
 

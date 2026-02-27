@@ -140,9 +140,10 @@ export async function updateResume(
     };
 
     if (data.isDefault) {
+      // C5: Use transaction to atomically clear all defaults + set new one (prevents race condition)
       await prisma.$transaction([
         prisma.resume.updateMany({
-          where: { userId, isDefault: true },
+          where: { userId, isDefault: true, id: { not: id } },
           data: { isDefault: false },
         }),
         prisma.resume.update({ where: { id }, data: updateData }),

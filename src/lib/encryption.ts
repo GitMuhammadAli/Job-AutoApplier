@@ -36,13 +36,14 @@ export function encryptField(value: string | null | undefined): string | null {
   return encrypt(value);
 }
 
-export function decryptField(value: string | null | undefined): string | null {
+export function decryptField(value: string | null | undefined, fieldName?: string): string | null {
   if (!value) return null;
   if (!isEncrypted(value)) return value;
   try {
     return decrypt(value);
-  } catch {
-    return value;
+  } catch (err) {
+    console.error(`[Encryption] Decryption failed${fieldName ? ` for '${fieldName}'` : ""} — returning null. ENCRYPTION_KEY may have been rotated. Re-save the field in Settings to re-encrypt.`, err instanceof Error ? err.message : err);
+    return null;
   }
 }
 
@@ -83,13 +84,44 @@ export function encryptSettingsFields<T extends Record<string, any>>(data: T): T
  * Safe to call on already-decrypted data (no-ops on plaintext).
  * Accepts null/undefined and returns them as-is.
  */
-export function decryptSettingsFields<T extends Record<string, any>>(data: T | null | undefined): T {
-  if (!data) return data as unknown as T;
+export function decryptSettingsFields<T extends Record<string, any>>(data: T): T;
+export function decryptSettingsFields<T extends Record<string, any>>(data: T | null | undefined): T | null;
+export function decryptSettingsFields<T extends Record<string, any>>(data: T | null | undefined): T | null {
+  if (!data) return null;
   const result = { ...data } as Record<string, unknown>;
+  const failedFields: string[] = [];
   for (const field of PII_FIELDS) {
     if (field in result && typeof result[field] === "string") {
-      result[field] = decryptField(result[field] as string);
+      const raw = result[field] as string;
+      const decrypted = decryptField(raw);
+      if (decrypted === null && isEncrypted(raw)) {
+        failedFields.push(field);
+      }
+      result[field] = decrypted;
     }
   }
+  if (failedFields.length > 0) {
+    (result as Record<string, unknown>)._decryptionFailures = failedFields;
+    console.error(`[Encryption] Failed to decrypt fields: ${failedFields.join(", ")}. ENCRYPTION_KEY may have been rotated.`);
+  }
   return result as T;
+}
+
+/**
+ * Returns the list of fields that failed decryption, or empty array if all succeeded.
+ * Use after decryptSettingsFields() to detect broken encryption vs "field not set".
+ */
+export function getDecryptionFailures(data: Record<string, unknown>): string[] {
+  return (data?._decryptionFailures as string[]) ?? [];
+}
+
+/**
+ * Returns true if any of the specified fields failed decryption.
+ * Shorthand for checking critical fields like SMTP credentials.
+ */
+export function hasDecryptionFailure(data: Record<string, unknown>, ...fields: string[]): boolean {
+  const failures = getDecryptionFailures(data);
+  if (failures.length === 0) return false;
+  if (fields.length === 0) return true;
+  return fields.some(f => failures.includes(f));
 }

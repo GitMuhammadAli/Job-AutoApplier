@@ -65,7 +65,6 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    // Delete in FK-safe order within a transaction
     await prisma.$transaction([
       prisma.activity.deleteMany({ where: { userId: id } }),
       prisma.jobApplication.deleteMany({ where: { userId: id } }),
@@ -75,12 +74,9 @@ export async function DELETE(
       prisma.userFeedback.deleteMany({ where: { userId: id } }),
       prisma.session.deleteMany({ where: { userId: id } }),
       prisma.account.deleteMany({ where: { userId: id } }),
+      prisma.userSettings.deleteMany({ where: { userId: id } }),
+      prisma.user.delete({ where: { id } }),
     ]);
-    // UserSettings + User (settings has no cascade from user side in some setups)
-    await prisma.userSettings
-      .delete({ where: { userId: id } })
-      .catch(() => {});
-    await prisma.user.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -7,20 +7,25 @@ import { prisma } from "@/lib/prisma";
 export async function acquireLock(name: string, timeoutMs = 10 * 60 * 1000): Promise<boolean> {
   const staleThreshold = new Date(Date.now() - timeoutMs);
 
-  const result = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
-    `INSERT INTO "SystemLock" ("name", "isRunning", "startedAt")
-     VALUES ($1, true, NOW())
-     ON CONFLICT ("name") DO UPDATE
-       SET "isRunning" = true, "startedAt" = NOW()
-       WHERE "SystemLock"."isRunning" = false
-          OR "SystemLock"."startedAt" IS NULL
-          OR "SystemLock"."startedAt" < $2
-     RETURNING "name"`,
-    name,
-    staleThreshold,
-  );
+  try {
+    const result = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
+      `INSERT INTO "SystemLock" ("name", "isRunning", "startedAt")
+       VALUES ($1, true, NOW())
+       ON CONFLICT ("name") DO UPDATE
+         SET "isRunning" = true, "startedAt" = NOW()
+         WHERE "SystemLock"."isRunning" = false
+            OR "SystemLock"."startedAt" IS NULL
+            OR "SystemLock"."startedAt" < $2
+       RETURNING "name"`,
+      name,
+      staleThreshold,
+    );
 
-  return result.length > 0;
+    return result.length > 0;
+  } catch (err) {
+    console.error(`[SystemLock] Failed to acquire lock '${name}':`, err instanceof Error ? err.message : err);
+    return false;
+  }
 }
 
 export async function releaseLock(name: string): Promise<void> {

@@ -6,11 +6,13 @@ import {
 } from "@/lib/matching/score-engine";
 import { sendNotificationEmail, getNotificationFrom } from "@/lib/email";
 import { newJobsNotificationTemplate } from "@/lib/email-templates";
-import { decryptSettingsFields } from "@/lib/encryption";
+import { decryptSettingsFields, hasDecryptionFailure } from "@/lib/encryption";
 import { buildExistingJobKeys, isDuplicateByKey } from "@/lib/matching/location-filter";
 import { LIMITS, TIMEOUTS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
+import { createCronTracker } from "@/lib/cron-tracker";
+import { acquireLock, releaseLock } from "@/lib/system-lock";
 
 export const maxDuration = 10;
 export const dynamic = "force-dynamic";
@@ -18,6 +20,14 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
     return unauthorizedResponse();
+  }
+
+  const tracker = createCronTracker("match-all-users");
+
+  const locked = await acquireLock("match-all-users");
+  if (!locked) {
+    await tracker.skipped("Another match-all-users is running");
+    return NextResponse.json({ skipped: true, reason: "Another match-all-users is running" });
   }
 
   const startTime = Date.now();
@@ -137,13 +147,16 @@ export async function GET(req: NextRequest) {
             source: job.source,
             matchReasons: match.reasons,
           });
-        } catch {
-          // Duplicate constraint
+        } catch (err) {
+          const isPrismaUnique = typeof err === "object" && err !== null && (err as Record<string, unknown>).code === "P2002";
+          if (!isPrismaUnique) {
+            console.error(`[MatchAllUsers] Unexpected error creating UserJob for user ${userId}, job ${job.id}:`, err);
+          }
         }
       }
 
       const goodMatches = matchedJobDetails.filter((j) => j.matchScore >= 50);
-      if (goodMatches.length > 0 && settings.emailNotifications) {
+      if (goodMatches.length > 0 && settings.emailNotifications && !hasDecryptionFailure(settings as Record<string, unknown>, "notificationEmail")) {
         const notifEmail = settings.notificationEmail || settings.user.email;
         if (notifEmail) {
           try {
@@ -177,6 +190,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    await tracker.success({ processed: totalMatched, metadata: { users: users.length, availableJobs: unmatchedJobs.length } });
+
     return NextResponse.json({
       success: true,
       users: users.length,
@@ -185,6 +200,9 @@ export async function GET(req: NextRequest) {
       perUser: results,
     });
   } catch (error) {
+    await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError("MatchAllUsers", error, "Match failed");
+  } finally {
+    await releaseLock("match-all-users").catch(() => {});
   }
 }

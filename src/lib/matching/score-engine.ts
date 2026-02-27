@@ -838,8 +838,9 @@ export function computeMatchScore(
       locationLower.includes(countryLower) ||
       locationMatchesCountryCode(locationLower, countryLower)
     );
-    const remoteMatch = isRemoteLocation(locationLower) &&
-      (settings.workType ?? []).includes("remote");
+    const workTypes = settings.workType ?? [];
+    const isRemote = isRemoteLocation(locationLower);
+    const remoteMatch = isRemote && workTypes.includes("remote");
 
     if (cityMatch) {
       score += 10;
@@ -852,6 +853,9 @@ export function computeMatchScore(
       reasons.push(`Country: ${settings.country}`);
     } else if (!locationLower || locationLower === "n/a" || locationLower === "not specified") {
       // Unknown location — no bonus but no penalty either
+    } else if (isRemote) {
+      // Remote is universally accessible — never penalize it.
+      // If workType is set but doesn't include "remote", treat as neutral (0 points).
     } else {
       score = Math.max(score - 15, 0);
       reasons.push("Location mismatch (\u221215)");
@@ -876,10 +880,14 @@ export function computeMatchScore(
     const matchers = expKeywords[expLower] || [expLower];
     const antiMatchers = mismatchKeywords[expLower] || [];
 
-    if (matchers.some((kw) => combined.includes(kw))) {
+    const matchesWord = (kw: string, text: string) => {
+      if (/^\d/.test(kw)) return text.includes(kw);
+      return new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text);
+    };
+    if (matchers.some((kw) => matchesWord(kw, combined))) {
       score += 5;
       reasons.push(`Experience: ${settings.experienceLevel}`);
-    } else if (antiMatchers.some((kw) => combined.includes(kw))) {
+    } else if (antiMatchers.some((kw) => matchesWord(kw, combined))) {
       score = Math.max(score - 15, 0);
       reasons.push(`Experience mismatch (\u221215)`);
     }
@@ -962,7 +970,7 @@ export function locationPassesFilter(
             stripped = stripped.replace(new RegExp(`\\b${escapeRegex(code)}\\b`, "gi"), "");
           }
         }
-        if (stripped.replace(/[\s,.\-]+/g, "").length === 0) return true;
+        if (stripped.replace(/[\s,.()-]+/g, "").length === 0) return true;
       }
     }
     return false;

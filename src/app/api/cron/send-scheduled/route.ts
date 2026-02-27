@@ -5,6 +5,7 @@ import { canSendNow } from "@/lib/send-limiter";
 import { LIMITS, TIMEOUTS, STUCK_SENDING_TIMEOUT_MS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
+import { createCronTracker } from "@/lib/cron-tracker";
 
 export const maxDuration = 10;
 export const dynamic = "force-dynamic";
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
     return unauthorizedResponse();
   }
 
+  const tracker = createCronTracker("send-scheduled");
   const startTime = Date.now();
 
   try {
@@ -80,7 +82,10 @@ export async function GET(req: NextRequest) {
         console.error(`[SendScheduled] Error sending app ${app.id}:`, err);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, TIMEOUTS.INTER_SEND_DELAY_MS));
+      const isLast = readyApps.indexOf(app) === readyApps.length - 1;
+      if (!isLast) {
+        await new Promise((resolve) => setTimeout(resolve, TIMEOUTS.INTER_SEND_DELAY_MS));
+      }
     }
 
     await prisma.systemLock.update({
@@ -95,6 +100,8 @@ export async function GET(req: NextRequest) {
         message: `Processed ${readyApps.length}: ${sent} sent, ${failed} failed, ${skipped} skipped${stuckRecovered.count > 0 ? `, ${stuckRecovered.count} stuck recovered` : ""}`,
       },
     });
+
+    await tracker.success({ processed: sent, failed, metadata: { skipped, stuckRecovered: stuckRecovered.count } });
 
     return NextResponse.json({
       success: true,
@@ -112,6 +119,7 @@ export async function GET(req: NextRequest) {
       })
       .catch((lockErr) => console.error("[SendScheduled] Failed to release lock:", lockErr));
 
+    await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError("SendScheduled", error, "Send scheduled failed");
   }
 }

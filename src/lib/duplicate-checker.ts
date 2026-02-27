@@ -31,7 +31,8 @@ export async function checkDuplicate(
   const recentApps = await prisma.jobApplication.findMany({
     where: {
       userId,
-      status: { in: ["SENT", "SENDING", "READY", "DRAFT"] },
+      // H8: Only active/successful statuses block — BOUNCED/FAILED shouldn't prevent re-applying
+      status: { in: ["SENT", "SENDING", "READY"] },
       OR: [
         { sentAt: { gte: thirtyDaysAgo } },
         { sentAt: null, createdAt: { gte: thirtyDaysAgo } },
@@ -67,12 +68,11 @@ export async function checkDuplicate(
       normNew.includes(normExisting) ||
       normExisting.includes(normNew)
     ) {
-      const daysAgo = app.sentAt
-        ? Math.floor((Date.now() - app.sentAt.getTime()) / 86400000)
-        : 0;
+      const referenceDate = app.sentAt || app.createdAt;
+      const daysAgo = Math.floor((Date.now() - referenceDate.getTime()) / 86400000);
       return {
         isDuplicate: true,
-        reason: `Similar role at ${globalJob.company} applied ${daysAgo} days ago`,
+        reason: `Similar role at ${globalJob.company} ${app.sentAt ? "applied" : "queued"} ${daysAgo} days ago`,
       };
     }
   }

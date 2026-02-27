@@ -21,7 +21,7 @@ export async function fetchWithRetry(
 
     try {
       // Use the shorter of per-call timeout or remaining deadline
-      const remaining = deadline ? Math.max(deadline - Date.now(), 2000) : perCallTimeout;
+      const remaining = deadline ? Math.max(deadline - Date.now(), 100) : perCallTimeout;
       const timeout = Math.min(perCallTimeout, remaining);
 
       const res = await fetch(url, {

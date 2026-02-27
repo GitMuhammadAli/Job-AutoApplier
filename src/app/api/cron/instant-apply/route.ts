@@ -10,13 +10,15 @@ import { isDuplicateApplication } from "@/lib/duplicate-checker";
 import { buildExistingJobKeys, isDuplicateByKey } from "@/lib/matching/location-filter";
 import { sendApplication } from "@/lib/send-application";
 import { sendNotificationEmail, getNotificationFrom } from "@/lib/email";
-import { decryptSettingsFields } from "@/lib/encryption";
+import { decryptSettingsFields, hasDecryptionFailure } from "@/lib/encryption";
 import { generateWithGroq } from "@/lib/groq";
 import { acquireLock, releaseLock, isLockHeld } from "@/lib/system-lock";
 import { canSendNow } from "@/lib/send-limiter";
 import { LIMITS, TIMEOUTS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
+import { createCronTracker } from "@/lib/cron-tracker";
+import { getAppUrl } from "@/lib/email-templates";
 import { checkNotificationLimit as sharedCheckNotificationLimit, logNotificationSent } from "@/lib/notification-limiter";
 
 export const maxDuration = 10;
@@ -27,12 +29,16 @@ export async function GET(req: NextRequest) {
     return unauthorizedResponse();
   }
 
+  const tracker = createCronTracker("instant-apply");
+
   if (await isLockHeld("scrape-global")) {
+    await tracker.skipped("Scrape still running");
     return NextResponse.json({ skipped: true, reason: "Scrape still running" });
   }
 
   const locked = await acquireLock("instant-apply");
   if (!locked) {
+    await tracker.skipped("Another instant-apply is running");
     return NextResponse.json({
       skipped: true,
       reason: "Another instant-apply is running",
@@ -96,6 +102,10 @@ export async function GET(req: NextRequest) {
 
     for (const rawSettings of allSettings) {
       const settings = decryptSettingsFields(rawSettings);
+      if (hasDecryptionFailure(settings as Record<string, unknown>, "fullName", "smtpPass", "smtpUser", "applicationEmail")) {
+        console.warn(`[InstantApply] Skipping user ${rawSettings.userId}: critical fields failed decryption`);
+        continue;
+      }
       const userId = settings.userId;
       const resumes = await prisma.resume.findMany({
         where: { userId, isDeleted: false },
@@ -104,7 +114,8 @@ export async function GET(req: NextRequest) {
 
       if (resumes.length === 0) continue;
 
-      if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
+      // H6: Use a tighter soft limit (6s) to leave room for final DB writes (isFresh update + systemLog)
+      if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS - 2000) break;
 
       const existingUserJobs = await prisma.userJob.findMany({
         where: { userId },
@@ -212,8 +223,14 @@ export async function GET(req: NextRequest) {
             settings,
             bestResume,
           );
+          // C2: Guard against empty sender email
           const senderEmail =
             settings.applicationEmail || settings.user.email || "";
+          if (!senderEmail.trim()) {
+            console.warn(`[InstantApply] Skipping job ${freshJob.id} for user ${userId}: no sender email configured`);
+            stats.skipped++;
+            continue;
+          }
 
           // Determine status based on mode + confidence + score
           let appStatus: "DRAFT" | "READY" = "DRAFT";
@@ -232,10 +249,11 @@ export async function GET(req: NextRequest) {
               });
               if (isDupe) {
                 appStatus = "DRAFT";
-              } else if ((settings.instantApplyDelay || 0) > 0) {
+              // H4: Use consistent delay value (default 5 min)
+              } else if ((settings.instantApplyDelay ?? 5) > 0) {
                 appStatus = "READY";
                 scheduledSendAt = new Date(
-                  Date.now() + (settings.instantApplyDelay || 5) * 60 * 1000,
+                  Date.now() + (settings.instantApplyDelay ?? 5) * 60 * 1000,
                 );
               } else {
                 appStatus = "READY";
@@ -290,11 +308,8 @@ export async function GET(req: NextRequest) {
             data: {
               userId,
               userJobId: userJob.id,
-              type:
-                appStatus === "DRAFT"
-                  ? "APPLICATION_PREPARED"
-                  : "APPLICATION_SENT",
-              description: `Auto: ${freshJob.title} at ${freshJob.company} (${match.score}%, ${emailResult.confidence})`,
+              type: "APPLICATION_PREPARED",
+              description: `Auto: ${freshJob.title} at ${freshJob.company} (${match.score}%, ${emailResult.confidence}${appStatus === "READY" ? ", queued" : ""})`,
             },
           });
         } catch (err) {
@@ -334,7 +349,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Mark only the jobs we actually fetched in this batch as processed
+    // C3: Mark ALL fetched jobs as processed — even unmatched ones should not be re-processed.
+    // Previously this was flagged as a bug, but it's correct: isFresh means "not yet seen by
+    // instant-apply", not "matched by at least one user". Unmatched jobs should also lose freshness.
     const freshJobIds = freshJobs.map((j) => j.id);
     if (freshJobIds.length > 0) {
       await prisma.globalJob.updateMany({
@@ -353,10 +370,12 @@ export async function GET(req: NextRequest) {
     });
 
     await releaseLock("instant-apply");
+    await tracker.success({ processed: stats.sent, failed: stats.skipped, metadata: { matched: stats.matched, drafted: stats.drafted, freshJobs: stats.freshJobs } });
 
     return NextResponse.json({ success: true, ...stats });
   } catch (error) {
     await releaseLock("instant-apply");
+    await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError("InstantApply", error, "Instant apply failed");
   }
 }
@@ -514,10 +533,7 @@ function buildNotificationHTML(
   applied: number,
   drafted: number,
 ): string {
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXTAUTH_URL ||
-    "https://job-auto-applier-three.vercel.app";
+  const appUrl = getAppUrl();
   return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
     <h1 style="font-size:22px;color:#1e293b;">Hi ${name.replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" })[c] || c)}!</h1>
     ${applied > 0 ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;margin:12px 0;color:#166534;"><strong>${applied} applications sent instantly</strong></div>` : ""}

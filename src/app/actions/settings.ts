@@ -104,7 +104,7 @@ function getCachedSettingsFn(userId: string) {
   return unstable_cache(
     () => _fetchSettings(userId),
     [`user-settings-${userId}`],
-    { revalidate: 300, tags: [`settings-${userId}`] },
+    { revalidate: 60, tags: [`settings-${userId}`] },
   )();
 }
 
@@ -131,7 +131,7 @@ export async function getSettingsLite() {
       fullName: true,
     },
   });
-  if (!settings) return settings;
+  if (!settings) return null;
   // Decrypt PII fields (fullName is AES-encrypted)
   return decryptSettingsFields(settings);
 }
@@ -184,7 +184,9 @@ export async function saveSettings(rawData: unknown): Promise<{ success: boolean
         where: { userId },
         select: { smtpSetupDate: true, smtpUser: true },
       });
-      if (!existing?.smtpSetupDate || !existing?.smtpUser) {
+      // A3: Reset smtpSetupDate when provider/user changes (warmup restart)
+      const providerChanged = existing?.smtpUser && decryptSettingsFields(existing as Record<string, any>)?.smtpUser !== data.smtpUser;
+      if (!existing?.smtpSetupDate || !existing?.smtpUser || providerChanged) {
         (cleaned as Record<string, unknown>).smtpSetupDate = new Date();
       }
     }

@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   PanelLeftClose,
   Sparkles,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const TOOLS_NAV = [
   { href: "/resumes", label: "Resumes", icon: FileText, desc: "CV variants" },
   { href: "/templates", label: "Templates", icon: Mail, desc: "Email templates" },
   { href: "/analytics", label: "Analytics", icon: BarChart3, desc: "Insights" },
+  { href: "/system-health", label: "Health", icon: Activity, desc: "System status" },
 ];
 
 const BOTTOM_NAV = [

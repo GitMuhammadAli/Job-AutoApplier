@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Search, SlidersHorizontal, ChevronDown, PanelLeftOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useJobStore } from "@/store/useJobStore";
@@ -12,10 +13,17 @@ import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { PauseToggle } from "@/components/shared/PauseToggle";
 
 export function Header() {
-  const { search, setSearch, filter, setFilter } = useJobStore();
+  const search = useJobStore((s) => s.search);
+  const setSearch = useJobStore((s) => s.setSearch);
+  const filter = useJobStore((s) => s.filter);
+  const setFilter = useJobStore((s) => s.setFilter);
   const { collapsed, toggle } = useSidebarStore();
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [accountStatus, setAccountStatus] = useState<string | null>(null);
+  const pathname = usePathname();
+
+  // UX: Only show stage filters on the Dashboard page (they don't apply elsewhere)
+  const showStageFilters = pathname === "/dashboard";
 
   useEffect(() => {
     fetch("/api/settings/mode")
@@ -23,7 +31,7 @@ export function Header() {
       .then((data) => {
         if (data?.status) setAccountStatus(data.status);
       })
-      .catch(() => {});
+      .catch((err) => console.warn("[Header] Failed to fetch account status:", err));
   }, []);
 
   const filterOptions: Array<{ value: JobStage | "ALL"; label: string }> = [
@@ -63,20 +71,22 @@ export function Header() {
           />
         </div>
 
-        <button
-          onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
-          aria-label="Toggle filters"
-          aria-expanded={mobileFilterOpen}
-          className="md:hidden flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-zinc-300 touch-manipulation focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
-        >
-          <SlidersHorizontal className="h-3 w-3" />
-          {activeLabel}
-          <ChevronDown className={cn("h-3 w-3 transition-transform", mobileFilterOpen && "rotate-180")} />
-        </button>
+        {showStageFilters && (
+          <button
+            onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
+            aria-label="Toggle filters"
+            aria-expanded={mobileFilterOpen}
+            className="md:hidden flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-zinc-300 touch-manipulation focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+          >
+            <SlidersHorizontal className="h-3 w-3" />
+            {activeLabel}
+            <ChevronDown className={cn("h-3 w-3 transition-transform", mobileFilterOpen && "rotate-180")} />
+          </button>
+        )}
 
-        <div className="hidden md:block h-6 w-px bg-slate-200 dark:bg-zinc-700" />
+        {showStageFilters && <div className="hidden md:block h-6 w-px bg-slate-200 dark:bg-zinc-700" />}
 
-        <div className="hidden md:flex items-center gap-1">
+        {showStageFilters && <div className="hidden md:flex items-center gap-1">
           <SlidersHorizontal className="h-3.5 w-3.5 text-slate-400 mr-1" />
           {filterOptions.map((opt) => {
             const isActive = filter === opt.value;
@@ -99,7 +109,7 @@ export function Header() {
               </button>
             );
           })}
-        </div>
+        </div>}
 
         <div className="ml-auto flex items-center gap-2">
           {accountStatus && (
@@ -111,7 +121,7 @@ export function Header() {
         </div>
       </div>
 
-      {mobileFilterOpen && (
+      {showStageFilters && mobileFilterOpen && (
         <div className="md:hidden border-t border-slate-100 dark:border-zinc-700 px-4 py-2 flex flex-wrap gap-1.5 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm">
           {filterOptions.map((opt) => {
             const isActive = filter === opt.value;
