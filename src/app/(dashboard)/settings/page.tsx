@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { getSettings } from "@/app/actions/settings";
-import { getResumeCount } from "@/app/actions/resume";
+import { getResumeCount, getResumeSkills } from "@/app/actions/resume";
 import { SettingsSkeleton } from "@/components/shared/Skeletons";
 import nextDynamic from "next/dynamic";
 import { Cog, Loader2 } from "lucide-react";
@@ -46,11 +46,13 @@ export default function SettingsPage() {
 async function SettingsContent() {
   let settings: Awaited<ReturnType<typeof getSettings>> | null = null;
   let resumeCount = 0;
+  let resumeSkills: { skills: string[]; resumeNames: string[] } = { skills: [], resumeNames: [] };
 
   try {
-    [settings, resumeCount] = await Promise.all([
+    [settings, resumeCount, resumeSkills] = await Promise.all([
       getSettings(),
       getResumeCount().catch(() => 0),
+      getResumeSkills().catch(() => ({ skills: [], resumeNames: [] })),
     ]);
   } catch (error) {
     console.error("[SettingsPage] Failed to load settings:", error);
@@ -64,5 +66,12 @@ async function SettingsContent() {
     );
   }
 
-  return <SettingsForm initialSettings={settings} resumeCount={resumeCount} />;
+  return (
+    <SettingsForm
+      initialSettings={settings}
+      resumeCount={resumeCount}
+      resumeSkills={resumeSkills.skills}
+      resumeNames={resumeSkills.resumeNames}
+    />
+  );
 }

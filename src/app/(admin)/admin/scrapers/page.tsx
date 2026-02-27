@@ -21,19 +21,12 @@ import {
   Trash2,
   Search,
   Users,
+  Activity,
+  Circle,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-
-interface StatsData {
-  users: { total: number; active: number; paused: number; neverOnboarded: number };
-  jobs: { active: number; inactive: number; fresh: number; sourceDistribution: Record<string, number> };
-  applicationsToday: { sent: number; failed: number; bounced: number };
-  applicationPipeline: { draft: number; ready: number; sending: number; sentTotal: number; sentThisWeek: number };
-  quality: { overallEmailRate: number; deliveryRate: number; totalBounced: number; totalSent: number; totalFailed: number };
-  quotas: Record<string, { used: number; limit: number; period: string }>;
-  recentErrors: { message: string; createdAt: string; source: string }[];
-}
 
 interface ScraperInfo {
   source: string;
@@ -63,13 +56,23 @@ interface CronInfo {
   startedAt: string | null;
 }
 
-const CATEGORY_CONFIG: Record<string, { label: string; icon: typeof Globe; color: string }> = {
-  scraper: { label: "Scrapers", icon: Search, color: "blue" },
-  matching: { label: "Matching", icon: Users, color: "violet" },
-  application: { label: "Applications", icon: Mail, color: "emerald" },
-  notification: { label: "Notifications", icon: Bell, color: "amber" },
-  followup: { label: "Follow-ups", icon: MessageSquare, color: "cyan" },
-  maintenance: { label: "Maintenance", icon: Trash2, color: "slate" },
+interface StatsData {
+  users: { total: number; active: number; paused: number; neverOnboarded: number };
+  jobs: { active: number; inactive: number; fresh: number; sourceDistribution: Record<string, number> };
+  applicationsToday: { sent: number; failed: number; bounced: number };
+  applicationPipeline: { draft: number; ready: number; sending: number; sentTotal: number; sentThisWeek: number };
+  quality: { overallEmailRate: number; deliveryRate: number; totalBounced: number; totalSent: number; totalFailed: number };
+  quotas: Record<string, { used: number; limit: number; period: string }>;
+  recentErrors: { message: string; createdAt: string; source: string }[];
+}
+
+const CATEGORY_CONFIG: Record<string, { label: string; icon: typeof Globe; accent: string }> = {
+  scraper: { label: "Scrapers", icon: Search, accent: "blue" },
+  matching: { label: "Matching", icon: Users, accent: "violet" },
+  application: { label: "Applications", icon: Mail, accent: "emerald" },
+  notification: { label: "Notifications", icon: Bell, accent: "amber" },
+  followup: { label: "Follow-ups", icon: MessageSquare, accent: "cyan" },
+  maintenance: { label: "Maintenance", icon: Trash2, accent: "slate" },
 };
 
 export default function AdminScrapersPage() {
@@ -114,7 +117,7 @@ export default function AdminScrapersPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Triggered ${source}: ${data.results ? `${data.results.length} sources` : JSON.stringify(data).slice(0, 60)}`);
+        toast.success(`Triggered ${source}`);
         setTimeout(fetchData, 5000);
       } else {
         toast.error(data.error || "Trigger failed");
@@ -130,7 +133,6 @@ export default function AdminScrapersPage() {
   const healthyCrons = crons.filter((c) => c.lastStatus === "success" || c.lastStatus === "skipped").length;
   const runningCrons = crons.filter((c) => c.isRunning).length;
 
-  // Group crons by category
   const cronsByCategory = crons.reduce<Record<string, CronInfo[]>>((acc, c) => {
     const cat = c.category || "other";
     if (!acc[cat]) acc[cat] = [];
@@ -140,90 +142,105 @@ export default function AdminScrapersPage() {
 
   if (loading && scrapers.length === 0) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400 dark:text-zinc-500" />
+      <div className="flex items-center justify-center py-32">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+          <span className="text-xs text-slate-500">Loading monitoring data...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-6xl">
-      {/* Header */}
+    <div className="space-y-6">
+      {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-zinc-100">Cron System</h1>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-            {healthyCrons}/{crons.length} crons healthy &middot; {healthyScrapers}/{scrapers.length} scrapers healthy &middot; {totalJobs.toLocaleString()} active jobs
-            {runningCrons > 0 && <span className="text-amber-500"> &middot; {runningCrons} running</span>}
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-blue-400" />
+            <h1 className="text-lg font-bold text-white tracking-tight">System Monitoring</h1>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+            <span className="flex items-center gap-1">
+              <Circle className={`h-1.5 w-1.5 fill-current ${healthyCrons > crons.length / 2 ? "text-emerald-400" : "text-red-400"}`} />
+              {healthyCrons}/{crons.length} crons
+            </span>
+            <span className="text-slate-700">/</span>
+            <span className="flex items-center gap-1">
+              <Circle className={`h-1.5 w-1.5 fill-current ${healthyScrapers > scrapers.length / 2 ? "text-emerald-400" : "text-amber-400"}`} />
+              {healthyScrapers}/{scrapers.length} scrapers
+            </span>
+            <span className="text-slate-700">/</span>
+            <span>{totalJobs.toLocaleString()} jobs</span>
+            {runningCrons > 0 && (
+              <>
+                <span className="text-slate-700">/</span>
+                <span className="text-amber-400 flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  {runningCrons} running
+                </span>
+              </>
+            )}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={fetchData} disabled={loading} className="gap-1.5">
+          <Button size="sm" variant="outline" onClick={fetchData} disabled={loading}
+            className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Refresh
           </Button>
-          <Button size="sm" onClick={() => handleTrigger("all")} disabled={!!triggeringSource} className="gap-1.5">
+          <Button size="sm" onClick={() => handleTrigger("all")} disabled={!!triggeringSource}
+            className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-lg shadow-blue-600/20">
             {triggeringSource === "all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
             Scrape All
           </Button>
-          <Button size="sm" variant="outline" onClick={() => handleTrigger("scrape-global")} disabled={!!triggeringSource} className="gap-1.5">
+          <Button size="sm" variant="outline" onClick={() => handleTrigger("scrape-global")} disabled={!!triggeringSource}
+            className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
             {triggeringSource === "scrape-global" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
             Global Scrape
           </Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* KPI Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <SummaryCard icon={CheckCircle2} value={healthyCrons} label="Crons OK" color="emerald" />
-        <SummaryCard icon={XCircle} value={crons.length - healthyCrons} label="Crons Failing" color="red" />
-        <SummaryCard icon={Database} value={totalJobs.toLocaleString()} label="Active Jobs" color="blue" />
-        <SummaryCard icon={BarChart3} value={crons.length} label="Total Crons" color="violet" />
+        <KpiCard value={healthyCrons} label="Crons OK" icon={CheckCircle2} accent="emerald" />
+        <KpiCard value={crons.length - healthyCrons} label="Crons Down" icon={XCircle} accent="red" />
+        <KpiCard value={totalJobs.toLocaleString()} label="Active Jobs" icon={Database} accent="blue" />
+        <KpiCard value={crons.length} label="Total Crons" icon={BarChart3} accent="violet" />
       </div>
 
-      {/* Scraper Source Cards */}
+      {/* System Health Overview */}
+      {stats && <HealthPanel stats={stats} />}
+
+      {/* Job Sources Grid */}
       <div>
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-3 flex items-center gap-1.5">
-          <Search className="h-4 w-4" /> Job Sources ({scrapers.length})
-        </h2>
+        <SectionHeader icon={Search} label="Job Sources" count={scrapers.length} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {scrapers.map((s) => (
-            <div
-              key={s.source}
-              className={`rounded-xl bg-white dark:bg-zinc-800 p-3 shadow-sm ring-1 transition-colors ${
-                s.isHealthy ? "ring-slate-100/80 dark:ring-zinc-700/60" : "ring-red-200/80 dark:ring-red-800/40"
+            <div key={s.source}
+              className={`rounded-xl p-3.5 ring-1 transition-all ${
+                s.isHealthy
+                  ? "bg-white/[0.02] ring-white/[0.06] hover:ring-white/[0.12]"
+                  : "bg-red-500/[0.03] ring-red-500/20 hover:ring-red-500/30"
               }`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-bold text-slate-800 dark:text-zinc-100 capitalize">{s.source}</h3>
-                <StatusBadge healthy={s.isHealthy} />
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-bold text-white capitalize">{s.source}</h3>
+                <StatusPill healthy={s.isHealthy} />
               </div>
-              <div className="space-y-1 text-[10px] mb-2">
-                <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-zinc-400"><Clock className="h-2.5 w-2.5 inline mr-0.5" />Last</span>
-                  <span className="text-slate-700 dark:text-zinc-200 font-medium">{s.lastRun ? timeAgo(s.lastRun) : "Never"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-zinc-400"><TrendingUp className="h-2.5 w-2.5 inline mr-0.5" />New</span>
-                  <span className="text-slate-700 dark:text-zinc-200 font-medium tabular-nums">{s.jobCount}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-zinc-400"><Database className="h-2.5 w-2.5 inline mr-0.5" />Total</span>
-                  <span className="text-slate-700 dark:text-zinc-200 font-bold tabular-nums">{s.totalJobs.toLocaleString()}</span>
-                </div>
+              <div className="space-y-1.5 text-[10px] mb-3">
+                <MetricRow icon={Clock} label="Last" value={s.lastRun ? timeAgo(s.lastRun) : "Never"} />
+                <MetricRow icon={TrendingUp} label="New" value={String(s.jobCount)} />
+                <MetricRow icon={Database} label="Total" value={s.totalJobs.toLocaleString()} bold />
               </div>
               {s.lastError && !s.isHealthy && (
-                <div className="rounded bg-red-50 dark:bg-red-900/20 p-1.5 text-[9px] text-red-600 dark:text-red-300 truncate mb-2">
-                  <AlertTriangle className="h-2.5 w-2.5 inline mr-0.5" />{s.lastError}
+                <div className="rounded-lg bg-red-500/10 p-2 text-[9px] text-red-300 truncate mb-3 ring-1 ring-red-500/20">
+                  <AlertTriangle className="h-2.5 w-2.5 inline mr-1" />{s.lastError}
                 </div>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full gap-1 text-[10px] h-7"
-                disabled={!!triggeringSource}
-                onClick={() => handleTrigger(s.source)}
-              >
+              <Button size="sm" variant="outline" disabled={!!triggeringSource} onClick={() => handleTrigger(s.source)}
+                className="w-full gap-1 text-[10px] h-7 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
                 {triggeringSource === s.source ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Zap className="h-2.5 w-2.5" />}
                 {triggeringSource === s.source ? "Running..." : "Trigger"}
               </Button>
@@ -236,12 +253,9 @@ export default function AdminScrapersPage() {
       {Object.entries(CATEGORY_CONFIG).map(([catKey, catConfig]) => {
         const catCrons = cronsByCategory[catKey];
         if (!catCrons || catCrons.length === 0) return null;
-        const CatIcon = catConfig.icon;
         return (
           <div key={catKey}>
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-3 flex items-center gap-1.5">
-              <CatIcon className="h-4 w-4" /> {catConfig.label} ({catCrons.length})
-            </h2>
+            <SectionHeader icon={catConfig.icon} label={catConfig.label} count={catCrons.length} />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {catCrons.map((c) => (
                 <CronCard key={c.key} cron={c} triggeringSource={triggeringSource} onTrigger={handleTrigger} />
@@ -254,37 +268,55 @@ export default function AdminScrapersPage() {
   );
 }
 
-function SummaryCard({ icon: Icon, value, label, color }: { icon: typeof CheckCircle2; value: string | number; label: string; color: string }) {
-  const colors: Record<string, string> = {
-    emerald: "bg-emerald-50 dark:bg-emerald-900/20 ring-emerald-100/50 dark:ring-emerald-800/40 text-emerald-600 dark:text-emerald-400",
-    red: "bg-red-50 dark:bg-red-900/20 ring-red-100/50 dark:ring-red-800/40 text-red-600 dark:text-red-400",
-    blue: "bg-blue-50 dark:bg-blue-900/20 ring-blue-100/50 dark:ring-blue-800/40 text-blue-600 dark:text-blue-400",
-    violet: "bg-violet-50 dark:bg-violet-900/20 ring-violet-100/50 dark:ring-violet-800/40 text-violet-600 dark:text-violet-400",
+/* ── Shared Components ────────────────────────────────────────────────── */
+
+function KpiCard({ value, label, icon: Icon, accent }: { value: string | number; label: string; icon: typeof CheckCircle2; accent: string }) {
+  const styles: Record<string, { bg: string; text: string; icon: string }> = {
+    emerald: { bg: "bg-emerald-500/[0.08] ring-emerald-500/20", text: "text-emerald-400", icon: "text-emerald-500" },
+    red:     { bg: "bg-red-500/[0.08] ring-red-500/20", text: "text-red-400", icon: "text-red-500" },
+    blue:    { bg: "bg-blue-500/[0.08] ring-blue-500/20", text: "text-blue-400", icon: "text-blue-500" },
+    violet:  { bg: "bg-violet-500/[0.08] ring-violet-500/20", text: "text-violet-400", icon: "text-violet-500" },
   };
-  const textColors: Record<string, string> = {
-    emerald: "text-emerald-800 dark:text-emerald-200",
-    red: "text-red-800 dark:text-red-200",
-    blue: "text-blue-800 dark:text-blue-200",
-    violet: "text-violet-800 dark:text-violet-200",
-  };
+  const s = styles[accent] || styles.blue;
   return (
-    <div className={`rounded-xl p-3 ring-1 ${colors[color]}`}>
-      <div className="flex items-center gap-1.5 mb-1"><Icon className="h-4 w-4" /></div>
-      <div className={`text-lg font-bold tabular-nums ${textColors[color]}`}>{value}</div>
-      <div className="text-[10px]">{label}</div>
+    <div className={`rounded-xl p-3.5 ring-1 ${s.bg}`}>
+      <Icon className={`h-4 w-4 ${s.icon} mb-1.5`} />
+      <div className={`text-xl font-bold tabular-nums ${s.text}`}>{value}</div>
+      <div className="text-[10px] text-slate-500">{label}</div>
     </div>
   );
 }
 
-function StatusBadge({ healthy }: { healthy: boolean }) {
+function SectionHeader({ icon: Icon, label, count }: { icon: typeof Globe; label: string; count: number }) {
+  return (
+    <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <Icon className="h-3.5 w-3.5 text-slate-500" />
+      {label}
+      <span className="text-slate-600">({count})</span>
+    </h2>
+  );
+}
+
+function StatusPill({ healthy }: { healthy: boolean }) {
   return healthy ? (
-    <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300">
-      <CheckCircle2 className="h-2.5 w-2.5" /> OK
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400 ring-1 ring-emerald-500/20">
+      <Circle className="h-1.5 w-1.5 fill-emerald-400" /> OK
     </span>
   ) : (
-    <span className="inline-flex items-center gap-0.5 rounded-full bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 text-[9px] font-semibold text-red-700 dark:text-red-300">
-      <XCircle className="h-2.5 w-2.5" /> Err
+    <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-bold text-red-400 ring-1 ring-red-500/20">
+      <Circle className="h-1.5 w-1.5 fill-red-400" /> ERR
     </span>
+  );
+}
+
+function MetricRow({ icon: Icon, label, value, bold }: { icon: typeof Clock; label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex justify-between items-center">
+      <span className="text-slate-500 flex items-center gap-1">
+        <Icon className="h-2.5 w-2.5" />{label}
+      </span>
+      <span className={`text-slate-300 tabular-nums ${bold ? "font-bold" : "font-medium"}`}>{value}</span>
+    </div>
   );
 }
 
@@ -296,85 +328,211 @@ function CronCard({ cron: c, triggeringSource, onTrigger }: { cron: CronInfo; tr
     ? c.key.replace("scrape-", "")
     : c.key;
 
+  const ringColor = isError
+    ? "ring-red-500/20 bg-red-500/[0.03]"
+    : isStale
+    ? "ring-amber-500/15 bg-amber-500/[0.02]"
+    : "ring-white/[0.06] bg-white/[0.02]";
+
   return (
-    <div className={`rounded-xl bg-white dark:bg-zinc-800 p-3 shadow-sm ring-1 transition-colors ${
-      isError ? "ring-red-200/80 dark:ring-red-800/40" : isStale ? "ring-amber-200/80 dark:ring-amber-800/40" : "ring-slate-100/80 dark:ring-zinc-700/60"
-    }`}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-bold text-slate-800 dark:text-zinc-100">{c.label}</h3>
-        <div className="flex items-center gap-1">
+    <div className={`rounded-xl p-3.5 ring-1 transition-all hover:ring-white/[0.12] ${ringColor}`}>
+      <div className="flex items-center justify-between mb-2.5">
+        <h3 className="text-xs font-bold text-white">{c.label}</h3>
+        <div className="flex items-center gap-1.5">
           {c.isRunning && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:text-amber-300">
-              <Play className="h-2.5 w-2.5" /> Running
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-400 ring-1 ring-amber-500/20">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" /> Running
             </span>
           )}
           {isOk && !c.isRunning && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="h-2.5 w-2.5" /> {c.lastStatus === "skipped" ? "Skip" : "OK"}
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400 ring-1 ring-emerald-500/20">
+              <Circle className="h-1.5 w-1.5 fill-emerald-400" /> {c.lastStatus === "skipped" ? "Skip" : "OK"}
             </span>
           )}
           {isError && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 text-[9px] font-semibold text-red-700 dark:text-red-300">
-              <XCircle className="h-2.5 w-2.5" /> Err
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-bold text-red-400 ring-1 ring-red-500/20">
+              <Circle className="h-1.5 w-1.5 fill-red-400" /> Err
             </span>
           )}
           {isStale && !c.isRunning && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-slate-100 dark:bg-zinc-700 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500 dark:text-zinc-400">
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-500/10 px-2 py-0.5 text-[9px] font-bold text-slate-400 ring-1 ring-slate-500/20">
               <Clock className="h-2.5 w-2.5" /> Never
             </span>
           )}
         </div>
       </div>
 
-      <div className="space-y-1 text-[10px] mb-2">
-        <div className="flex justify-between">
-          <span className="text-slate-500 dark:text-zinc-400"><Clock className="h-2.5 w-2.5 inline mr-0.5" />Last run</span>
-          <span className="text-slate-700 dark:text-zinc-200 font-medium">{c.lastRun ? timeAgo(c.lastRun) : "Never"}</span>
-        </div>
+      <div className="space-y-1.5 text-[10px] mb-2.5">
+        <MetricRow icon={Clock} label="Last run" value={c.lastRun ? timeAgo(c.lastRun) : "Never"} />
         {c.lastDurationMs != null && (
-          <div className="flex justify-between">
-            <span className="text-slate-500 dark:text-zinc-400"><Timer className="h-2.5 w-2.5 inline mr-0.5" />Duration</span>
-            <span className="text-slate-700 dark:text-zinc-200 font-medium tabular-nums">{formatDuration(c.lastDurationMs)}</span>
-          </div>
+          <MetricRow icon={Timer} label="Duration" value={formatDuration(c.lastDurationMs)} />
         )}
         {c.lastProcessed != null && (
-          <div className="flex justify-between">
-            <span className="text-slate-500 dark:text-zinc-400"><TrendingUp className="h-2.5 w-2.5 inline mr-0.5" />Processed</span>
-            <span className="text-slate-700 dark:text-zinc-200 font-medium tabular-nums">
-              {c.lastProcessed}{c.lastFailed ? ` (${c.lastFailed} failed)` : ""}
-            </span>
-          </div>
+          <MetricRow icon={TrendingUp} label="Processed" value={`${c.lastProcessed}${c.lastFailed ? ` (${c.lastFailed} err)` : ""}`} />
         )}
         {c.avgDurationMs != null && (
-          <div className="flex justify-between">
-            <span className="text-slate-500 dark:text-zinc-400"><BarChart3 className="h-2.5 w-2.5 inline mr-0.5" />Avg</span>
-            <span className="text-slate-700 dark:text-zinc-200 font-medium tabular-nums">{formatDuration(c.avgDurationMs)}</span>
-          </div>
+          <MetricRow icon={BarChart3} label="Avg" value={formatDuration(c.avgDurationMs)} />
         )}
         {c.recentFailures > 0 && (
-          <div className="flex justify-between">
-            <span className="text-red-500 dark:text-red-400"><AlertTriangle className="h-2.5 w-2.5 inline mr-0.5" />Recent errors</span>
-            <span className="text-red-600 dark:text-red-300 font-bold tabular-nums">{c.recentFailures}/5</span>
+          <div className="flex justify-between items-center">
+            <span className="text-red-400 flex items-center gap-1">
+              <AlertTriangle className="h-2.5 w-2.5" />Recent errors
+            </span>
+            <span className="text-red-300 font-bold tabular-nums">{c.recentFailures}/5</span>
           </div>
         )}
       </div>
 
       {c.lastMessage && (
-        <div className="rounded bg-slate-50 dark:bg-zinc-700/50 p-1.5 text-[9px] text-slate-500 dark:text-zinc-400 truncate mb-2" title={c.lastMessage}>
+        <div className="rounded-lg bg-white/[0.03] p-2 text-[9px] text-slate-500 truncate mb-2.5 ring-1 ring-white/[0.04]" title={c.lastMessage}>
           {c.lastMessage}
         </div>
       )}
 
-      <Button
-        size="sm"
-        variant={isError ? "default" : "outline"}
-        className="w-full gap-1 text-[10px] h-7"
-        disabled={!!triggeringSource || c.isRunning}
-        onClick={() => onTrigger(triggerId)}
-      >
+      <Button size="sm" variant="outline" disabled={!!triggeringSource || c.isRunning} onClick={() => onTrigger(triggerId)}
+        className={`w-full gap-1 text-[10px] h-7 border-white/10 ${
+          isError
+            ? "bg-red-500/10 text-red-300 hover:bg-red-500/20"
+            : "bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white"
+        }`}>
         {triggeringSource === triggerId ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Zap className="h-2.5 w-2.5" />}
         {triggeringSource === triggerId ? "Running..." : c.isRunning ? "In Progress" : "Trigger"}
       </Button>
+    </div>
+  );
+}
+
+function HealthPanel({ stats }: { stats: StatsData }) {
+  const { users, jobs, applicationsToday, applicationPipeline, quality, quotas, recentErrors } = stats;
+
+  return (
+    <div className="space-y-3">
+      {/* Row 1 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <HealthCard title="Users" icon={Users} accent="violet">
+          <StatGrid>
+            <StatItem label="Total" value={users.total} />
+            <StatItem label="Active" value={users.active} accent="emerald" />
+            <StatItem label="Paused" value={users.paused} accent="amber" />
+            <StatItem label="Not onboarded" value={users.neverOnboarded} />
+          </StatGrid>
+        </HealthCard>
+
+        <HealthCard title="Jobs" icon={Database} accent="blue">
+          <StatGrid>
+            <StatItem label="Active" value={jobs.active.toLocaleString()} accent="emerald" />
+            <StatItem label="Inactive" value={jobs.inactive.toLocaleString()} />
+            <StatItem label="Fresh" value={jobs.fresh} accent="blue" />
+            <StatItem label="Sources" value={Object.keys(jobs.sourceDistribution).length} />
+          </StatGrid>
+        </HealthCard>
+
+        <HealthCard title="Today" icon={Mail} accent="emerald">
+          <StatGrid>
+            <StatItem label="Sent" value={applicationsToday.sent} accent="emerald" />
+            <StatItem label="Failed" value={applicationsToday.failed} accent="red" />
+            <StatItem label="Bounced" value={applicationsToday.bounced} accent="amber" />
+            <StatItem label="This week" value={applicationPipeline.sentThisWeek} accent="blue" />
+          </StatGrid>
+        </HealthCard>
+      </div>
+
+      {/* Row 2 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <HealthCard title="Pipeline" icon={TrendingUp} accent="cyan">
+          <StatGrid>
+            <StatItem label="Drafts" value={applicationPipeline.draft} />
+            <StatItem label="Ready" value={applicationPipeline.ready} accent="blue" />
+            <StatItem label="Sending" value={applicationPipeline.sending} accent="amber" />
+            <StatItem label="Sent total" value={applicationPipeline.sentTotal} accent="emerald" />
+          </StatGrid>
+        </HealthCard>
+
+        <HealthCard title="Email Quality" icon={CheckCircle2} accent="emerald">
+          <StatGrid>
+            <StatItem label="Delivery" value={`${quality.deliveryRate}%`} accent={quality.deliveryRate >= 90 ? "emerald" : "red"} />
+            <StatItem label="Coverage" value={`${quality.overallEmailRate}%`} />
+            <StatItem label="Bounced" value={quality.totalBounced} accent={quality.totalBounced > 0 ? "red" : "emerald"} />
+            <StatItem label="Failed" value={quality.totalFailed} accent={quality.totalFailed > 0 ? "red" : "emerald"} />
+          </StatGrid>
+        </HealthCard>
+
+        <HealthCard title="API Quotas" icon={AlertTriangle} accent="amber">
+          <div className="space-y-2.5">
+            {Object.entries(quotas).map(([name, q]) => {
+              const pct = q.limit > 0 ? Math.round((q.used / q.limit) * 100) : 0;
+              const color = pct >= 90 ? "bg-red-500" : pct >= 60 ? "bg-amber-500" : "bg-emerald-500";
+              return (
+                <div key={name}>
+                  <div className="flex justify-between mb-0.5 text-[10px]">
+                    <span className="text-slate-400 capitalize">{name}</span>
+                    <span className="text-slate-300 tabular-nums font-medium">
+                      {q.used}/{q.limit > 9999 ? `${(q.limit / 1000).toFixed(1)}K` : q.limit}
+                      <span className="text-slate-600 ml-1">/{q.period}</span>
+                    </span>
+                  </div>
+                  <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                    <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </HealthCard>
+      </div>
+
+      {/* Recent Errors */}
+      {recentErrors.length > 0 && (
+        <div className="rounded-xl p-4 ring-1 ring-red-500/15 bg-red-500/[0.03]">
+          <div className="flex items-center gap-2 mb-3">
+            <XCircle className="h-3.5 w-3.5 text-red-400" />
+            <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Errors (24h)</span>
+            <span className="ml-auto text-[10px] text-red-400 font-bold tabular-nums">{recentErrors.length}</span>
+          </div>
+          <div className="space-y-1.5 max-h-32 overflow-y-auto">
+            {recentErrors.slice(0, 8).map((e, i) => (
+              <div key={i} className="flex items-start gap-2 text-[10px]">
+                <ChevronRight className="h-3 w-3 text-red-500/50 shrink-0 mt-0.5" />
+                <span className="text-slate-600 shrink-0 tabular-nums w-14">{timeAgo(e.createdAt)}</span>
+                <span className="text-amber-400 font-medium shrink-0 capitalize w-16 truncate">{e.source}</span>
+                <span className="text-slate-400 truncate" title={e.message}>{e.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HealthCard({ title, icon: Icon, accent, children }: { title: string; icon: typeof Users; accent: string; children: React.ReactNode }) {
+  const iconColors: Record<string, string> = {
+    violet: "text-violet-400", blue: "text-blue-400", emerald: "text-emerald-400",
+    cyan: "text-cyan-400", amber: "text-amber-400", red: "text-red-400",
+  };
+  return (
+    <div className="rounded-xl p-4 ring-1 ring-white/[0.06] bg-white/[0.02]">
+      <div className="flex items-center gap-2 mb-3">
+        <Icon className={`h-3.5 w-3.5 ${iconColors[accent] || "text-slate-400"}`} />
+        <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function StatGrid({ children }: { children: React.ReactNode }) {
+  return <div className="grid grid-cols-2 gap-x-4 gap-y-2">{children}</div>;
+}
+
+function StatItem({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
+  const colors: Record<string, string> = {
+    emerald: "text-emerald-400", red: "text-red-400", amber: "text-amber-400", blue: "text-blue-400",
+  };
+  return (
+    <div>
+      <div className={`text-sm font-bold tabular-nums ${colors[accent || ""] || "text-white"}`}>{value}</div>
+      <div className="text-[10px] text-slate-500">{label}</div>
     </div>
   );
 }

@@ -56,10 +56,14 @@ import {
   Trash2,
   Settings2,
   Lightbulb,
+  FileText,
+  Download,
 } from "lucide-react";
 
 interface SettingsFormProps {
   resumeCount?: number;
+  resumeSkills?: string[];
+  resumeNames?: string[];
   initialSettings: {
     fullName?: string | null;
     phone?: string | null;
@@ -134,6 +138,8 @@ const RISK_COLORS: Record<string, string> = {
 export function SettingsForm({
   initialSettings,
   resumeCount = 0,
+  resumeSkills = [],
+  resumeNames = [],
 }: SettingsFormProps) {
   const s = initialSettings;
   const [saving, setSaving] = useState(false);
@@ -735,6 +741,16 @@ export function SettingsForm({
               selected
             </p>
           </div>
+
+          {/* Resume Skills Sync */}
+          {resumeSkills.length > 0 && (
+            <ResumeSkillSync
+              resumeSkills={resumeSkills}
+              resumeNames={resumeNames}
+              keywords={keywords}
+              setKeywords={setKeywords}
+            />
+          )}
 
           <Field
             label="Negative Keywords (exclude jobs containing these)"
@@ -2252,6 +2268,106 @@ function SuggestionTip({ children }: { children: React.ReactNode }) {
     <div className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50/80 dark:bg-amber-950/20 px-3 py-2 ring-1 ring-amber-200/60 dark:ring-amber-800/30">
       <Lightbulb className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
       <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">{children}</p>
+    </div>
+  );
+}
+
+function ResumeSkillSync({
+  resumeSkills,
+  resumeNames,
+  keywords,
+  setKeywords,
+}: {
+  resumeSkills: string[];
+  resumeNames: string[];
+  keywords: string[];
+  setKeywords: (kws: string[]) => void;
+}) {
+  const newSkills = resumeSkills.filter(
+    (s) => !keywords.some((k) => k.toLowerCase() === s.toLowerCase()),
+  );
+  const alreadyAdded = resumeSkills.filter((s) =>
+    keywords.some((k) => k.toLowerCase() === s.toLowerCase()),
+  );
+
+  const handleAddAll = () => {
+    if (newSkills.length === 0) return;
+    setKeywords(Array.from(new Set([...keywords, ...newSkills])));
+  };
+
+  const handleToggleSkill = (skill: string) => {
+    const exists = keywords.some((k) => k.toLowerCase() === skill.toLowerCase());
+    if (exists) {
+      setKeywords(keywords.filter((k) => k.toLowerCase() !== skill.toLowerCase()));
+    } else {
+      setKeywords([...keywords, skill]);
+    }
+  };
+
+  return (
+    <div className="rounded-xl bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-950/30 dark:to-blue-950/30 p-4 ring-1 ring-violet-200/50 dark:ring-violet-800/30">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className="rounded-lg bg-violet-100 dark:bg-violet-900/40 p-1.5">
+            <FileText className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-violet-800 dark:text-violet-200">
+              Skills from your Resume
+            </h3>
+            <p className="text-[10px] text-violet-600 dark:text-violet-400">
+              {resumeSkills.length} skills detected from {resumeNames.length === 1 ? resumeNames[0] : `${resumeNames.length} resumes`}
+            </p>
+          </div>
+        </div>
+        {newSkills.length > 0 && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleAddAll}
+            className="gap-1 text-[11px] h-7 bg-violet-600 hover:bg-violet-500 text-white"
+          >
+            <Download className="h-3 w-3" />
+            Add All ({newSkills.length})
+          </Button>
+        )}
+      </div>
+
+      {newSkills.length === 0 && (
+        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mb-2">
+          <Check className="h-3 w-3" />
+          All resume skills are already in your keywords
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-1.5">
+        {resumeSkills.map((skill) => {
+          const isAdded = alreadyAdded.some(
+            (a) => a.toLowerCase() === skill.toLowerCase(),
+          );
+          return (
+            <button
+              key={skill}
+              type="button"
+              onClick={() => handleToggleSkill(skill)}
+              className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-all touch-manipulation ${
+                isAdded
+                  ? "bg-violet-600 text-white ring-1 ring-violet-500"
+                  : "bg-white dark:bg-zinc-800 text-violet-700 dark:text-violet-300 ring-1 ring-violet-200 dark:ring-violet-700 hover:ring-violet-400 dark:hover:ring-violet-500"
+              }`}
+            >
+              {isAdded && <Check className="h-2.5 w-2.5 inline mr-0.5 -mt-0.5" />}
+              {skill}
+            </button>
+          );
+        })}
+      </div>
+
+      {newSkills.length > 0 && (
+        <p className="text-[10px] text-violet-500 dark:text-violet-400 mt-2">
+          Click individual skills to add/remove, or use &ldquo;Add All&rdquo; to sync everything at once. Remember to save settings after.
+        </p>
+      )}
     </div>
   );
 }

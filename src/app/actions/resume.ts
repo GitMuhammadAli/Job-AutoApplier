@@ -25,6 +25,30 @@ export async function getResumeCount(): Promise<number> {
   }
 }
 
+export async function getResumeSkills(): Promise<{ skills: string[]; resumeNames: string[] }> {
+  try {
+    const userId = await getAuthUserId();
+    const resumes = await prisma.resume.findMany({
+      where: { userId, isDeleted: false },
+      select: { name: true, detectedSkills: true },
+      orderBy: { isDefault: "desc" },
+    });
+
+    const skillSet = new Set<string>();
+    const resumeNames: string[] = [];
+    for (const r of resumes) {
+      if (r.detectedSkills.length > 0) {
+        resumeNames.push(r.name);
+        for (const s of r.detectedSkills) skillSet.add(s);
+      }
+    }
+    return { skills: Array.from(skillSet).sort(), resumeNames };
+  } catch (error) {
+    console.error("[getResumeSkills]", error);
+    return { skills: [], resumeNames: [] };
+  }
+}
+
 export async function getResumesWithStats() {
   try {
     const userId = await getAuthUserId();
