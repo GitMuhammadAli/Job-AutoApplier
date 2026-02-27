@@ -31,8 +31,11 @@ export async function checkDuplicate(
   const recentApps = await prisma.jobApplication.findMany({
     where: {
       userId,
-      status: { in: ["SENT", "SENDING", "READY"] },
-      sentAt: { gte: thirtyDaysAgo },
+      status: { in: ["SENT", "SENDING", "READY", "DRAFT"] },
+      OR: [
+        { sentAt: { gte: thirtyDaysAgo } },
+        { sentAt: null, createdAt: { gte: thirtyDaysAgo } },
+      ],
     },
     include: {
       userJob: {

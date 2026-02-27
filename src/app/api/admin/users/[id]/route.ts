@@ -65,11 +65,18 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    await prisma.activity.deleteMany({ where: { userId: id } });
-    await prisma.jobApplication.deleteMany({ where: { userId: id } });
-    await prisma.userJob.deleteMany({ where: { userId: id } });
-    await prisma.resume.deleteMany({ where: { userId: id } });
-    await prisma.emailTemplate.deleteMany({ where: { userId: id } });
+    // Delete in FK-safe order within a transaction
+    await prisma.$transaction([
+      prisma.activity.deleteMany({ where: { userId: id } }),
+      prisma.jobApplication.deleteMany({ where: { userId: id } }),
+      prisma.userJob.deleteMany({ where: { userId: id } }),
+      prisma.resume.deleteMany({ where: { userId: id } }),
+      prisma.emailTemplate.deleteMany({ where: { userId: id } }),
+      prisma.userFeedback.deleteMany({ where: { userId: id } }),
+      prisma.session.deleteMany({ where: { userId: id } }),
+      prisma.account.deleteMany({ where: { userId: id } }),
+    ]);
+    // UserSettings + User (settings has no cascade from user side in some setups)
     await prisma.userSettings
       .delete({ where: { userId: id } })
       .catch(() => {});

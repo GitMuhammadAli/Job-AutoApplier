@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSystemTransporter } from "@/lib/email";
 import { bounceAlertTemplate } from "@/lib/email-templates";
 import { decryptSettingsFields } from "@/lib/encryption";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,10 @@ const HARD_BOUNCE_EVENTS = new Set([
 
 function verifyBrevoSignature(req: NextRequest, rawBody: string): boolean {
   const webhookSecret = process.env.BREVO_WEBHOOK_SECRET;
-  if (!webhookSecret) return false; // reject when secret not configured
+  if (!webhookSecret) {
+    console.warn("[BounceWebhook] BREVO_WEBHOOK_SECRET not set — accepting unverified webhook");
+    return true;
+  }
 
   const signature =
     req.headers.get("x-brevo-signature") || req.headers.get("x-sib-signature");
@@ -40,7 +43,10 @@ function verifyBrevoSignature(req: NextRequest, rawBody: string): boolean {
   const expected = createHmac("sha256", webhookSecret)
     .update(rawBody)
     .digest("hex");
-  return signature.toLowerCase() === expected.toLowerCase();
+  const sigBuf = Buffer.from(signature.toLowerCase());
+  const expBuf = Buffer.from(expected.toLowerCase());
+  if (sigBuf.length !== expBuf.length) return false;
+  return timingSafeEqual(sigBuf, expBuf);
 }
 
 export async function POST(req: NextRequest) {

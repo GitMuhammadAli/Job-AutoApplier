@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// NOTE: In-memory rate limiting is per-instance on Vercel serverless.
+// Each cold start gets a fresh Map, so limits are best-effort, not strict.
+// For production-grade rate limiting, use Vercel KV or Upstash Redis.
 const rateLimitMap = new Map<
   string,
   { count: number; resetTime: number }
@@ -46,17 +49,19 @@ function isRateLimited(
   return { limited: false };
 }
 
-if (typeof globalThis !== "undefined") {
-  const cleanup = () => {
-    const now = Date.now();
-    rateLimitMap.forEach((val, key) => {
-      if (now > val.resetTime) rateLimitMap.delete(key);
-    });
-  };
-  setInterval(cleanup, 300_000);
+// Inline cleanup on each request instead of setInterval (which leaks in serverless)
+let lastCleanup = 0;
+function cleanupStaleEntries() {
+  const now = Date.now();
+  if (now - lastCleanup < 60_000) return; // max once per minute
+  lastCleanup = now;
+  rateLimitMap.forEach((val, key) => {
+    if (now > val.resetTime) rateLimitMap.delete(key);
+  });
 }
 
 export function middleware(req: NextRequest) {
+  cleanupStaleEntries();
   const path = req.nextUrl.pathname;
 
   if (path.startsWith("/api/cron") || path.startsWith("/api/webhooks")) {

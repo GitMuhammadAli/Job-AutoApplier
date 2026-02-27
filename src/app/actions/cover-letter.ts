@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { decryptSettingsFields } from "@/lib/encryption";
-import { TIMEOUTS } from "@/lib/constants";
+import { generateWithGroq } from "@/lib/groq";
+import { pickBestResumeWithTier } from "@/lib/matching/resume-matcher";
 
 export async function generateCoverLetter(userJobId: string) {
   try {
@@ -20,15 +21,18 @@ export async function generateCoverLetter(userJobId: string) {
       await prisma.userSettings.findUnique({ where: { userId } }),
     );
 
-    const resumes = await prisma.resume.findMany({
-      where: { userId, isDeleted: false },
-      select: { name: true, content: true },
-      take: 50,
-    });
-
-    const bestResume = resumes.find((r) => r.content) || resumes[0];
-
+    // Use smart resume matching instead of naive first-with-content
     const job = userJob.globalJob;
+    const resumeResult = await pickBestResumeWithTier(userId, {
+      title: job.title,
+      description: job.description,
+      skills: job.skills,
+      category: job.category,
+      location: job.location,
+    }, settings?.resumeMatchMode);
+
+    const bestResume = resumeResult?.resume ?? null;
+
     const tone = settings?.preferredTone || "professional";
     const lang = settings?.emailLanguage || "English";
     const customPrompt = settings?.customSystemPrompt || "";
@@ -77,61 +81,30 @@ ${links.length > 0 ? `Links: ${links.join(" | ")}` : ""}
 Sign off with: ${closing}
 Applicant name: ${name}`;
 
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        "GROQ_API_KEY not configured. Add it in Vercel env vars.",
-      );
-    }
+    const coverLetter = await generateWithGroq(systemPrompt, userPrompt, {
+      temperature: 0.7,
+      max_tokens: 800,
+    });
 
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.7,
-          max_tokens: 800,
-        }),
-        signal: AbortSignal.timeout(TIMEOUTS.AI_TIMEOUT_MS),
-      },
-    );
-
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`AI generation failed: ${err}`);
-    }
-
-    const data = await response.json();
-    const coverLetter = data.choices?.[0]?.message?.content?.trim();
-
-    if (!coverLetter) throw new Error("Empty response from AI");
+    if (!coverLetter?.trim()) throw new Error("Empty response from AI");
 
     await prisma.$transaction([
       prisma.userJob.update({
         where: { id: userJobId },
-        data: { coverLetter },
+        data: { coverLetter: coverLetter.trim() },
       }),
       prisma.activity.create({
         data: {
           userJobId,
           userId,
           type: "COVER_LETTER_GENERATED",
-          description: `Cover letter generated (${tone} tone, ${lang})`,
+          description: `Cover letter generated (${tone} tone, ${lang})${bestResume ? `. Resume: ${bestResume.name}` : ""}`,
         },
       }),
     ]);
 
     revalidatePath(`/jobs/${userJobId}`);
-    return coverLetter;
+    return coverLetter.trim();
   } catch (error) {
     console.error("[generateCoverLetter]", error);
     throw new Error(

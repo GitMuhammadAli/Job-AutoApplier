@@ -192,6 +192,10 @@ function extractDomain(
     .replace(/[^a-z0-9]/g, "")
     .trim();
 
-  if (cleaned.length >= 2) return `${cleaned}.com`;
+  // M2: Only guess .com for names that look like plausible domain prefixes
+  // Skip if too short, too long, or contains no vowels (likely abbreviation or non-Latin)
+  if (cleaned.length >= 3 && cleaned.length <= 30 && /[aeiou]/.test(cleaned)) {
+    return `${cleaned}.com`;
+  }
   return null;
 }

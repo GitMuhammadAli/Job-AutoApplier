@@ -127,24 +127,17 @@ export function getSystemTransporter(): Transporter {
   return systemTransporter;
 }
 
-export interface SendApplicationEmailOptions {
-  from: string;
-  to: string;
-  subject: string;
-  html: string;
-  text?: string;
-  replyTo?: string;
-  attachments?: Array<{
-    filename: string;
-    content: string | Buffer;
-    contentType?: string;
-  }>;
-}
-
-export interface SendApplicationEmailResult {
-  success: boolean;
-  messageId?: string;
-  error?: string;
+/**
+ * Returns the notification "from" address, or null if no valid sender is configured.
+ * Avoids falling back to a non-existent domain that would cause silent delivery failures.
+ */
+export function getNotificationFrom(): string | null {
+  const email = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
+  if (!email) {
+    console.warn("[Email] No NOTIFICATION_EMAIL or SMTP_USER configured — cannot send notifications");
+    return null;
+  }
+  return `JobPilot <${email}>`;
 }
 
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
@@ -160,35 +153,6 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
     }
   }
   throw lastError;
-}
-
-export async function sendApplicationEmail(
-  options: SendApplicationEmailOptions,
-  transporter: Transporter,
-): Promise<SendApplicationEmailResult> {
-  try {
-    const info = await withRetry(() =>
-      transporter.sendMail({
-        from: options.from,
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-        text: options.text,
-        replyTo: options.replyTo,
-        attachments: options.attachments?.map((a) => ({
-          filename: a.filename,
-          content: a.content,
-          contentType: a.contentType,
-        })),
-      }),
-    );
-    return { success: true, messageId: info.messageId };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Unknown email error",
-    };
-  }
 }
 
 export interface SendNotificationEmailOptions {

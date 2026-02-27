@@ -1,20 +1,27 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
+import { TIMEOUTS } from "@/lib/constants";
 
 export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const key = process.env.SERPAPI_KEY;
   if (!key) return [];
 
+  const startTime = Date.now();
+  const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
-  for (const q of queries.slice(0, 5)) {
-    for (const city of q.cities.slice(0, 3)) {
+  for (const q of queries.slice(0, 3)) {
+    if (Date.now() >= deadline) break;
+
+    for (const city of q.cities.slice(0, 2)) {
+      if (Date.now() >= deadline) break;
+
       try {
         const query = encodeURIComponent(`${q.keyword} jobs ${city || ""}`);
         const url = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&api_key=${key}`;
 
-        const res = await fetchWithRetry(url);
+        const res = await fetchWithRetry(url, undefined, 2, deadline);
         if (!res.ok) continue;
 
         const data = await res.json();
@@ -52,11 +59,13 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
           });
         }
       } catch (err) {
+        if (err instanceof Error && err.message === "SCRAPER_DEADLINE") break;
         console.warn(`[GoogleJobs] Failed for "${q.keyword}" in "${city}":`, err);
       }
     }
   }
 
+  console.log(`[GoogleJobs] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
   return jobs;
 }
 

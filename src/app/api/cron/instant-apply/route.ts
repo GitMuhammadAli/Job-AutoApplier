@@ -9,7 +9,7 @@ import { findCompanyEmail } from "@/lib/email-extractor";
 import { isDuplicateApplication } from "@/lib/duplicate-checker";
 import { buildExistingJobKeys, isDuplicateByKey } from "@/lib/matching/location-filter";
 import { sendApplication } from "@/lib/send-application";
-import { sendNotificationEmail } from "@/lib/email";
+import { sendNotificationEmail, getNotificationFrom } from "@/lib/email";
 import { decryptSettingsFields } from "@/lib/encryption";
 import { generateWithGroq } from "@/lib/groq";
 import { acquireLock, releaseLock, isLockHeld } from "@/lib/system-lock";
@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
       );
 
       const isFullAuto =
-        settings.applicationMode === "FULL_AUTO" &&
+        (settings.applicationMode === "FULL_AUTO" || settings.applicationMode === "INSTANT") &&
         settings.autoApplyEnabled &&
         settings.instantApplyEnabled;
 
@@ -178,7 +178,7 @@ export async function GET(req: NextRequest) {
 
           if (match.score < MATCH_THRESHOLDS.AUTO_DRAFT) continue;
 
-          const bestResume = await pickBestResume(userId, freshJob);
+          const bestResume = await pickBestResume(userId, freshJob, settings.resumeMatchMode);
 
           // Find or use cached company email
           let emailResult = freshJob.companyEmail
@@ -315,10 +315,12 @@ export async function GET(req: NextRequest) {
           const notifEmail = settings.notificationEmail || settings.user.email;
           if (notifEmail) {
             try {
+              const notifFrom = getNotificationFrom();
+              if (!notifFrom) continue;
               await sendNotificationEmail({
-                from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
+                from: notifFrom,
                 to: notifEmail,
-                subject: `JobPilot: ${appliedCount > 0 ? `${appliedCount} instant-applied` : ""}${appliedCount > 0 && draftedCount > 0 ? " | " : ""}${draftedCount > 0 ? `${draftedCount} drafts ready` : ""}`,
+                subject: `JobPilot: ${[appliedCount > 0 ? `${appliedCount} instant-applied` : "", draftedCount > 0 ? `${draftedCount} drafts ready` : ""].filter(Boolean).join(" | ") || "Application update"}`,
                 html: buildNotificationHTML(
                   settings.user.name || "there",
                   appliedCount,
@@ -517,7 +519,7 @@ function buildNotificationHTML(
     process.env.NEXTAUTH_URL ||
     "https://job-auto-applier-three.vercel.app";
   return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-    <h1 style="font-size:22px;color:#1e293b;">Hi ${name}!</h1>
+    <h1 style="font-size:22px;color:#1e293b;">Hi ${name.replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" })[c] || c)}!</h1>
     ${applied > 0 ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;margin:12px 0;color:#166534;"><strong>${applied} applications sent instantly</strong></div>` : ""}
     ${drafted > 0 ? `<div style="background:#fef3c7;padding:12px 16px;border-radius:8px;margin:12px 0;color:#92400e;"><strong>${drafted} applications drafted</strong> — review and send when ready</div>` : ""}
     <div style="margin-top:20px;text-align:center;">

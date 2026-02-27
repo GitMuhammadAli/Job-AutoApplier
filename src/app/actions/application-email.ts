@@ -52,7 +52,7 @@ async function buildEmailInput(
       skills: userJob.globalJob.skills,
       category: userJob.globalJob.category,
       location: userJob.globalJob.location,
-    });
+    }, settings.resumeMatchMode);
   }
 
   if (!resumeResult) throw new Error("Upload at least one resume first");
@@ -113,9 +113,9 @@ async function buildEmailInput(
 }
 
 function isValidEmail(email: string): boolean {
-  return (
-    typeof email === "string" && email.includes("@") && email.includes(".")
-  );
+  if (typeof email !== "string") return false;
+  // RFC 5322 simplified: local@domain.tld
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
 
 export async function generateApplication(userJobId: string, resumeId?: string) {

@@ -6,12 +6,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const userId = await getAuthUserId();
     const resume = await prisma.resume.findFirst({
-      where: { id: params.id, userId, isDeleted: false },
+      where: { id, userId, isDeleted: false },
       select: { fileUrl: true, fileName: true, fileType: true },
     });
 

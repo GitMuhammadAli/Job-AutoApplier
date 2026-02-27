@@ -131,7 +131,9 @@ export async function getSettingsLite() {
       fullName: true,
     },
   });
-  return settings;
+  if (!settings) return settings;
+  // Decrypt PII fields (fullName is AES-encrypted)
+  return decryptSettingsFields(settings);
 }
 
 export async function saveSettings(rawData: unknown): Promise<{ success: boolean; error?: string }> {

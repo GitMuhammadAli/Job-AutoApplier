@@ -78,7 +78,7 @@ export async function getJobs(preloadedSettings?: Awaited<ReturnType<typeof getS
           const inCity = loc.includes(userCity);
           const isRemote = remoteWords.some((r) => loc.includes(r));
           const countryOnly = userCountry &&
-            loc.replace(new RegExp(userCountry, "g"), "").replace(/[\s,.\-]+/g, "").length === 0;
+            loc.split(userCountry).join("").replace(/[\s,.\-]+/g, "").length === 0;
           if (!inCity && !isRemote && !countryOnly) return false;
         }
       }
@@ -440,7 +440,8 @@ export async function bulkDeleteOldJobs(olderThanDays: number): Promise<{ succes
     const userId = await getAuthUserId();
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
 
-    const result = await prisma.userJob.updateMany({
+    // updateMany doesn't support relation filters, so find IDs first
+    const candidates = await prisma.userJob.findMany({
       where: {
         userId,
         isDismissed: false,
@@ -448,6 +449,15 @@ export async function bulkDeleteOldJobs(olderThanDays: number): Promise<{ succes
         createdAt: { lt: cutoff },
         application: null,
       },
+      select: { id: true },
+    });
+
+    if (candidates.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    const result = await prisma.userJob.updateMany({
+      where: { id: { in: candidates.map((c) => c.id) } },
       data: { isDismissed: true, dismissReason: `Auto-cleared: older than ${olderThanDays} days` },
     });
 
@@ -486,20 +496,39 @@ export async function bulkDismissGlobalJobs(
   if (globalJobIds.length > 500) return { success: false, count: 0, error: "Max 500 at once" };
   try {
     const userId = await getAuthUserId();
-    let count = 0;
 
-    for (const globalJobId of globalJobIds) {
-      await prisma.userJob.upsert({
-        where: { userId_globalJobId: { userId, globalJobId } },
-        create: { userId, globalJobId, isDismissed: true, dismissReason: "Bulk dismissed" },
-        update: { isDismissed: true, dismissReason: "Bulk dismissed" },
+    // Update existing userJob rows in one query
+    const updated = await prisma.userJob.updateMany({
+      where: { userId, globalJobId: { in: globalJobIds } },
+      data: { isDismissed: true, dismissReason: "Bulk dismissed" },
+    });
+
+    // Find which globalJobIds don't have a userJob yet
+    const existing = await prisma.userJob.findMany({
+      where: { userId, globalJobId: { in: globalJobIds } },
+      select: { globalJobId: true },
+    });
+    const existingSet = new Set(existing.map((e) => e.globalJobId));
+    const missing = globalJobIds.filter((id) => !existingSet.has(id));
+
+    // Batch-create missing ones
+    let created = 0;
+    if (missing.length > 0) {
+      const result = await prisma.userJob.createMany({
+        data: missing.map((globalJobId) => ({
+          userId,
+          globalJobId,
+          isDismissed: true,
+          dismissReason: "Bulk dismissed",
+        })),
+        skipDuplicates: true,
       });
-      count++;
+      created = result.count;
     }
 
     revalidatePath("/recommended");
     revalidatePath("/dashboard");
-    return { success: true, count };
+    return { success: true, count: updated.count + created };
   } catch (error) {
     console.error("[bulkDismissGlobalJobs] Error:", error);
     return { success: false, count: 0, error: "Failed to bulk dismiss" };
@@ -514,13 +543,23 @@ export async function bulkDismissBelowScore(
   try {
     const userId = await getAuthUserId();
 
-    const result = await prisma.userJob.updateMany({
+    // updateMany doesn't support relation filters, so find IDs first
+    const candidates = await prisma.userJob.findMany({
       where: {
         userId,
         isDismissed: false,
         matchScore: { lt: maxScore },
         application: null,
       },
+      select: { id: true },
+    });
+
+    if (candidates.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    const result = await prisma.userJob.updateMany({
+      where: { id: { in: candidates.map((c) => c.id) } },
       data: { isDismissed: true, dismissReason: `Score below ${maxScore}` },
     });
 
@@ -533,26 +572,6 @@ export async function bulkDismissBelowScore(
   }
 }
 
-// ── Start Fresh (nuclear option) ──
-
-export async function startFresh(): Promise<{ success: boolean; count: number; error?: string }> {
-  try {
-    const userId = await getAuthUserId();
-
-    const [appResult, jobResult] = await prisma.$transaction([
-      prisma.jobApplication.deleteMany({ where: { userId } }),
-      prisma.userJob.deleteMany({ where: { userId } }),
-    ]);
-
-    revalidatePath("/dashboard");
-    revalidatePath("/recommended");
-    revalidatePath("/applications");
-    return { success: true, count: jobResult.count };
-  } catch (error) {
-    console.error("[startFresh] Error:", error);
-    return { success: false, count: 0, error: "Failed to start fresh" };
-  }
-}
 
 // ── Today's Queue (top 10 new jobs for quick daily application) ──
 
@@ -605,7 +624,7 @@ export async function getTodaysQueue() {
     return { autoApply, quickApply, total: autoApply.length + quickApply.length };
   } catch (error) {
     console.error("[getTodaysQueue] Error:", error);
-    return { autoApply: [], quickApply: [], total: 0 };
+    throw new Error("Failed to load today's queue");
   }
 }
 

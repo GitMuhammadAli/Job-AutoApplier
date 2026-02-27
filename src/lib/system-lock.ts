@@ -1,21 +1,26 @@
 import { prisma } from "@/lib/prisma";
 
+/**
+ * Atomic lock acquisition using raw SQL INSERT ON CONFLICT.
+ * Prevents TOCTOU race where two callers both read isRunning=false and both acquire.
+ */
 export async function acquireLock(name: string, timeoutMs = 10 * 60 * 1000): Promise<boolean> {
-  const lock = await prisma.systemLock.findUnique({ where: { name } });
+  const staleThreshold = new Date(Date.now() - timeoutMs);
 
-  if (lock?.isRunning && lock.startedAt) {
-    const elapsed = Date.now() - lock.startedAt.getTime();
-    if (elapsed < timeoutMs) return false;
-    // Stale lock — process probably crashed, steal it
-  }
+  const result = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
+    `INSERT INTO "SystemLock" ("name", "isRunning", "startedAt")
+     VALUES ($1, true, NOW())
+     ON CONFLICT ("name") DO UPDATE
+       SET "isRunning" = true, "startedAt" = NOW()
+       WHERE "SystemLock"."isRunning" = false
+          OR "SystemLock"."startedAt" IS NULL
+          OR "SystemLock"."startedAt" < $2
+     RETURNING "name"`,
+    name,
+    staleThreshold,
+  );
 
-  await prisma.systemLock.upsert({
-    where: { name },
-    update: { isRunning: true, startedAt: new Date() },
-    create: { name, isRunning: true, startedAt: new Date() },
-  });
-
-  return true;
+  return result.length > 0;
 }
 
 export async function releaseLock(name: string): Promise<void> {

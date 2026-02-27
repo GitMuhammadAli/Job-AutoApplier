@@ -177,7 +177,9 @@ export async function getAnalytics() {
 
     for (const job of sentApps) {
       const sentAt = new Date(job.application!.sentAt!).getTime();
-      const firstSeen = new Date(job.globalJob.firstSeenAt).getTime();
+      const firstSeenRaw = job.globalJob.firstSeenAt;
+      if (!firstSeenRaw) continue;
+      const firstSeen = new Date(firstSeenRaw).getTime();
       const diffMin = Math.max(0, (sentAt - firstSeen) / 60000);
       if (diffMin < 20) fastApplyCount++;
       const dateStr = new Date(job.application!.sentAt!).toISOString().split("T")[0];
@@ -192,6 +194,7 @@ export async function getAnalytics() {
     const instantCount = sentApps.filter(
       (j) =>
         j.application!.appliedVia === "EMAIL" &&
+        j.globalJob.firstSeenAt &&
         new Date(j.application!.sentAt!).getTime() -
           new Date(j.globalJob.firstSeenAt).getTime() <
           20 * 60000,
@@ -343,7 +346,7 @@ export async function getAnalytics() {
     };
   } catch (error) {
     console.error("[getAnalytics] Error:", error);
-    return EMPTY_ANALYTICS;
+    throw new Error("Failed to load analytics");
   }
 }
 

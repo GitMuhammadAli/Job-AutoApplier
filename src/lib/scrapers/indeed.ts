@@ -1,31 +1,42 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
+import { TIMEOUTS } from "@/lib/constants";
 
 /**
  * Fetches Indeed jobs via JSearch (RapidAPI) — filters by publisher "Indeed".
  * Indeed's own RSS feed is deprecated and blocked; JSearch aggregates Indeed
  * listings through Google for Jobs, giving us reliable access.
+ *
+ * Time-budget aware for Vercel 10s limit.
  */
 export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const key = process.env.RAPIDAPI_KEY;
   if (!key) return [];
 
+  const startTime = Date.now();
+  const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
-  for (const q of queries.slice(0, 8)) {
-    for (const city of q.cities.slice(0, 3)) {
+  for (const q of queries.slice(0, 4)) {
+    if (Date.now() >= deadline) break;
+
+    for (const city of q.cities.slice(0, 2)) {
+      if (Date.now() >= deadline) break;
+
       try {
         const query = `${q.keyword} jobs in ${city}`;
         const res = await fetchWithRetry(
-          `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=2&date_posted=week`,
+          `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=1&date_posted=week`,
           {
             headers: {
               "x-rapidapi-host": "jsearch.p.rapidapi.com",
               "x-rapidapi-key": key,
             },
-          }
+          },
+          2,
+          deadline,
         );
 
         if (!res.ok) continue;
@@ -67,12 +78,14 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
             companyEmail: null,
           });
         }
-      } catch {
-        // Skip failed queries silently
+      } catch (err) {
+        if (err instanceof Error && err.message === "SCRAPER_DEADLINE") break;
+        console.warn(`[Indeed] Failed for "${q.keyword}" in "${city}":`, err);
       }
     }
   }
 
+  console.log(`[Indeed] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
   return jobs;
 }
 

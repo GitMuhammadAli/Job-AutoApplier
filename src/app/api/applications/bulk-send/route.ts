@@ -68,9 +68,10 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // Brief delay between sends (capped to prevent timeout)
-      if (settings && i < applications.length - 1) {
-        const delay = Math.min(settings.sendDelaySeconds * 1000, 5000);
+      // Brief delay between sends (capped to prevent timeout, default 2s)
+      if (i < applications.length - 1) {
+        const delaySec = settings?.sendDelaySeconds ?? 2;
+        const delay = Math.min(delaySec * 1000, 5000);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }

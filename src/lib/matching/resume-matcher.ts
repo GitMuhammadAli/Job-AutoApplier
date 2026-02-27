@@ -32,15 +32,17 @@ export interface ResumeMatchResult {
 
 export async function pickBestResume(
   userId: string,
-  job: JobLike
+  job: JobLike,
+  mode?: string | null,
 ): Promise<ResumeRow | null> {
-  const result = await pickBestResumeWithTier(userId, job);
+  const result = await pickBestResumeWithTier(userId, job, mode);
   return result?.resume ?? null;
 }
 
 export async function pickBestResumeWithTier(
   userId: string,
-  job: JobLike
+  job: JobLike,
+  mode?: string | null,
 ): Promise<ResumeMatchResult | null> {
   const resumes: ResumeRow[] = await prisma.resume.findMany({
     where: { userId, isDeleted: false },
@@ -60,6 +62,17 @@ export async function pickBestResumeWithTier(
   if (resumes.length === 0) return null;
   if (resumes.length === 1) {
     return { resume: resumes[0], tier: "fallback", reason: "Only resume available" };
+  }
+
+  // M6: Honor resumeMatchMode setting
+  const matchMode = mode || "smart";
+  if (matchMode === "default") {
+    const defaultResume = resumes.find((r) => r.isDefault);
+    return {
+      resume: defaultResume || resumes[0],
+      tier: "fallback",
+      reason: "Resume match mode: always use default",
+    };
   }
 
   // ── German job detection ──
@@ -140,8 +153,8 @@ export async function pickBestResumeWithTier(
       };
     }
 
-    // ── Tier 3: AI tiebreaker (only for 2-4 tied candidates) ──
-    if (ties.length >= 2 && ties.length <= 4) {
+    // ── Tier 3: AI tiebreaker (only for 2-4 tied candidates, and only in "smart" mode) ──
+    if (matchMode === "smart" && ties.length >= 2 && ties.length <= 4) {
       try {
         const aiResult = await aiTiebreaker(job, ties.map((t) => t.resume));
         if (aiResult) return aiResult;

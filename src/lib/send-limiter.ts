@@ -1,6 +1,36 @@
 import { prisma } from "@/lib/prisma";
 
-function startOfDay(date: Date): Date {
+function startOfDay(date: Date, timezone?: string | null): Date {
+  if (timezone) {
+    try {
+      // Get the current date in the user's timezone
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      const parts = formatter.format(date).split("-"); // YYYY-MM-DD
+      // Create midnight in UTC that represents the user's local midnight
+      const userMidnight = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00`);
+      // Adjust back to UTC: find the offset
+      const offsetFormatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "numeric",
+        minute: "numeric",
+        hour12: false,
+        timeZoneName: "shortOffset",
+      });
+      const offsetMatch = offsetFormatter.format(date).match(/GMT([+-]\d+(?::\d+)?)/);
+      if (offsetMatch) {
+        const [h, m = "0"] = offsetMatch[1].split(":");
+        const offsetMs = (parseInt(h) * 60 + parseInt(m)) * 60 * 1000;
+        return new Date(userMidnight.getTime() - offsetMs);
+      }
+    } catch {
+      // Invalid timezone — fall through to server time
+    }
+  }
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   return d;
@@ -84,7 +114,7 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
   const effectiveMaxPerDay = Math.min(settings.maxSendsPerDay, warmupLimits.maxPerDay, providerLimits.maxPerDay);
   const effectiveMaxPerHour = Math.min(settings.maxSendsPerHour, warmupLimits.maxPerHour, providerLimits.maxPerHour);
 
-  const todayStart = startOfDay(now);
+  const todayStart = startOfDay(now, settings.timezone);
   const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
   // Run all limit checks in parallel (all independent queries)
@@ -231,6 +261,9 @@ export async function getSendingStats(userId: string) {
       maxSendsPerHour: true,
       sendDelaySeconds: true,
       sendingPausedUntil: true,
+      smtpSetupDate: true,
+      emailProvider: true,
+      smtpHost: true,
     },
   });
 
@@ -243,15 +276,23 @@ export async function getSendingStats(userId: string) {
     }),
   ]);
 
+  // Apply same warmup + provider limits as canSendNow() so UI matches reality
+  const warmupLimits = getWarmupLimits(settings?.smtpSetupDate);
+  const provider = detectProvider(settings?.emailProvider, settings?.smtpHost);
+  const providerLimits = getProviderLimits(provider);
+  const effectiveMaxPerDay = Math.min(settings?.maxSendsPerDay ?? 20, warmupLimits.maxPerDay, providerLimits.maxPerDay);
+  const effectiveMaxPerHour = Math.min(settings?.maxSendsPerHour ?? 8, warmupLimits.maxPerHour, providerLimits.maxPerHour);
+
   return {
     todaySent: todayCount,
-    todayMax: settings?.maxSendsPerDay ?? 20,
+    todayMax: effectiveMaxPerDay,
     hourSent: hourCount,
-    hourMax: settings?.maxSendsPerHour ?? 8,
+    hourMax: effectiveMaxPerHour,
     isPaused:
       settings?.sendingPausedUntil != null &&
       settings.sendingPausedUntil > new Date(),
     pausedUntil: settings?.sendingPausedUntil ?? null,
+    ...(warmupLimits.isWarmup ? { warmupDay: warmupLimits.day, warmupTotal: 7 } : {}),
   };
 }
 

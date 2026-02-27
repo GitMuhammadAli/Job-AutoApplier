@@ -4,7 +4,7 @@ import {
   computeMatchScore,
   MATCH_THRESHOLDS,
 } from "@/lib/matching/score-engine";
-import { sendNotificationEmail } from "@/lib/email";
+import { sendNotificationEmail, getNotificationFrom } from "@/lib/email";
 import { newJobsNotificationTemplate } from "@/lib/email-templates";
 import { decryptSettingsFields } from "@/lib/encryption";
 import { buildExistingJobKeys, isDuplicateByKey } from "@/lib/matching/location-filter";
@@ -151,8 +151,10 @@ export async function GET(req: NextRequest) {
               settings.user.name || "there",
               goodMatches.slice(0, LIMITS.NOTIFICATION_JOBS),
             );
+            const notifFrom = getNotificationFrom();
+            if (!notifFrom) continue;
             await sendNotificationEmail({
-              from: `JobPilot <${process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER || "notifications@jobpilot.app"}>`,
+              from: notifFrom,
               to: notifEmail,
               subject,
               html,

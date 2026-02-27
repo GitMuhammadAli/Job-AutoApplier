@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { parseResume } from "@/lib/skill-extractor";
 import { extractText } from "@/lib/resume-parser";
 import { generateWithGroq } from "@/lib/groq";
+import { decryptSettingsFields } from "@/lib/encryption";
 import { z } from "zod";
 import { LIMITS } from "@/lib/constants";
 
@@ -173,15 +174,23 @@ export async function deleteResume(id: string): Promise<{ success: boolean; erro
       if (otherResumes === 0) {
         return { success: false, error: "Cannot delete your only resume. Upload another first." };
       }
+      // Find the next best resume to be default (most recently updated)
+      const nextDefault = await prisma.resume.findFirst({
+        where: { userId, isDeleted: false, id: { not: id } },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      });
       await prisma.$transaction([
         prisma.resume.update({
           where: { id },
           data: { isDeleted: true, deletedAt: new Date(), isDefault: false },
         }),
-        prisma.resume.updateMany({
-          where: { userId, isDeleted: false, id: { not: id } },
-          data: { isDefault: true },
-        }),
+        ...(nextDefault
+          ? [prisma.resume.update({
+              where: { id: nextDefault.id },
+              data: { isDefault: true },
+            })]
+          : []),
       ]);
     } else {
       await prisma.resume.update({
@@ -363,7 +372,8 @@ export async function rephraseResumeContent(
       return { success: false, error: "Resume needs content first. Paste your resume text or upload a PDF, then rephrase." };
     }
 
-    const settings = await prisma.userSettings.findUnique({ where: { userId } });
+    const rawSettings = await prisma.userSettings.findUnique({ where: { userId } });
+    const settings = rawSettings ? decryptSettingsFields(rawSettings) : null;
 
     const systemPrompt = `You are an expert resume writer. Rephrase and improve the given resume text to be more impactful, professional, and ATS-friendly.
 

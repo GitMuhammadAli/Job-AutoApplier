@@ -40,9 +40,31 @@ export async function GET() {
 
     const zip = new JSZip();
 
-    // Settings JSON (strip sensitive fields)
+    // Settings JSON — whitelist safe fields only (no SMTP creds, API keys, or encrypted PII)
     if (settings) {
-      const safeSettings = { ...settings, smtpPass: undefined };
+      const safeSettings = {
+        fullName: settings.fullName,
+        phone: settings.phone,
+        city: settings.city,
+        country: settings.country,
+        experienceLevel: settings.experienceLevel,
+        keywords: settings.keywords,
+        preferredPlatforms: settings.preferredPlatforms,
+        blacklistedCompanies: settings.blacklistedCompanies,
+        preferredTone: settings.preferredTone,
+        emailLanguage: settings.emailLanguage,
+        emailProvider: settings.emailProvider,
+        applicationMode: settings.applicationMode,
+        resumeMatchMode: settings.resumeMatchMode,
+        linkedinUrl: settings.linkedinUrl,
+        githubUrl: settings.githubUrl,
+        portfolioUrl: settings.portfolioUrl,
+        includeLinkedin: settings.includeLinkedin,
+        includeGithub: settings.includeGithub,
+        includePortfolio: settings.includePortfolio,
+        customClosing: settings.customClosing,
+        defaultSignature: settings.defaultSignature,
+      };
       zip.file("settings.json", JSON.stringify(safeSettings, null, 2));
     }
 

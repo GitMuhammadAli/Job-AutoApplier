@@ -84,6 +84,8 @@ export async function POST(req: NextRequest) {
     const parsed = parseResume(textContent);
     const detectedSkills = parsed.skills;
 
+    // Vercel Blob only supports public access; URLs are unguessable due to random suffix.
+    // Files should be served through /api/resumes/[id]/preview (authenticated proxy).
     const blob = await put(`resumes/${userId}/${fileName}`, buffer, {
       access: "public",
       addRandomSuffix: true,

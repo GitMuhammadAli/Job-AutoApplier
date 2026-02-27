@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;
 
 const SCRAPERS: Record<string, ScraperFn> = {
-  jsearch: (q) => fetchJSearch(q, 6),
+  jsearch: (q) => fetchJSearch(q),
   indeed: (q) => fetchIndeed(q),
   remotive: (q) => fetchRemotive(q),
   arbeitnow: () => fetchArbeitnow(),
@@ -32,13 +32,13 @@ const SCRAPERS: Record<string, ScraperFn> = {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { source: string } },
+  { params }: { params: Promise<{ source: string }> },
 ) {
   if (!verifyCronSecret(req)) {
     return unauthorizedResponse();
   }
 
-  const source = params.source;
+  const { source } = await params;
   const scraperFn = SCRAPERS[source];
 
   if (!scraperFn) {

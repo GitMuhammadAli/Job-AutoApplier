@@ -2,12 +2,13 @@ import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
 import { fetchJSearch } from "./jsearch";
+import { TIMEOUTS } from "@/lib/constants";
 
 /**
  * LinkedIn selector changelog:
  * 2026-02-26: Initial configurable selectors via env vars
+ * 2026-02-27: Time-budget aware for Vercel 10s limit
  * When LinkedIn changes CSS classes, update env vars or defaults below.
- * Pattern: LinkedIn tends to rename base-search-card__X to job-card-X or similar.
  */
 
 // Configurable selectors via env (comma-separated for fallbacks)
@@ -35,103 +36,66 @@ const ACCEPT_HEADERS = {
   Connection: "keep-alive",
 };
 
-// Time filters: past 24h first (freshest), then past week for backfill
-const TIME_FILTERS = [
-  { param: "r86400", label: "24h" },
-  { param: "r604800", label: "7d" },
-];
-
 export async function fetchLinkedIn(
   queries: SearchQuery[],
 ): Promise<ScrapedJob[]> {
+  const startTime = Date.now();
+  const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;
   const jobs: ScrapedJob[] = [];
   const seenIds = new Set<string>();
 
-  // Use up to 8 queries (was 3) and ALL cities per query
-  const querySlice = queries.slice(0, 8);
+  // Reduced from 8 → 3 queries, 3 → 2 cities to fit in 10s
+  const querySlice = queries.slice(0, 3);
 
   for (const q of querySlice) {
-    // Search each city (was limited to 1)
-    for (const city of q.cities.slice(0, 3)) {
-      for (const timeFilter of TIME_FILTERS) {
-        try {
-          const keyword = encodeURIComponent(q.keyword);
-          const location = encodeURIComponent(city);
-          const ua =
-            USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+    if (Date.now() >= deadline) break;
 
-          const page1 = await fetchLinkedInPage(
-            keyword,
-            location,
-            0,
-            timeFilter.param,
-            ua,
-          );
-          const parsed1 = parseLinkedInHtml(page1, city, seenIds);
-          jobs.push(...parsed1);
+    for (const city of q.cities.slice(0, 2)) {
+      if (Date.now() >= deadline) break;
 
-          if (parsed1.length >= 10) {
-            await sleep(400 + Math.random() * 800);
-            const page2 = await fetchLinkedInPage(
-              keyword,
-              location,
-              25,
-              timeFilter.param,
-              ua,
-            );
-            const parsed2 = parseLinkedInHtml(page2, city, seenIds);
-            jobs.push(...parsed2);
+      try {
+        const keyword = encodeURIComponent(q.keyword);
+        const location = encodeURIComponent(city);
+        const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 
-            if (parsed2.length >= 15) {
-              await sleep(400 + Math.random() * 800);
-              const page3 = await fetchLinkedInPage(
-                keyword,
-                location,
-                50,
-                timeFilter.param,
-                ua,
-              );
-              jobs.push(...parseLinkedInHtml(page3, city, seenIds));
-            }
-          }
-
-          // Only use 24h filter if it returned results; skip 7d for this keyword+city
-          if (parsed1.length > 0 && timeFilter.label === "24h") break;
-        } catch (err) {
-          console.warn(
-            `[LinkedIn] Failed for "${q.keyword}" in "${city}" (${timeFilter.label}):`,
-            err,
-          );
-        }
+        // Only fetch page 1 (24h filter only, no backfill)
+        const page1 = await fetchLinkedInPage(keyword, location, 0, "r86400", ua, deadline);
+        jobs.push(...parseLinkedInHtml(page1, city, seenIds));
+      } catch (err) {
+        if (err instanceof Error && err.message === "SCRAPER_DEADLINE") break;
+        console.warn(`[LinkedIn] Failed for "${q.keyword}" in "${city}":`, err);
       }
-      // Small delay between cities to avoid rate limiting
-      await sleep(300 + Math.random() * 700);
+
+      // Minimal delay between cities
+      if (Date.now() < deadline - 1000) {
+        await sleep(100 + Math.random() * 200);
+      }
     }
   }
 
-  if (jobs.length === 0) {
+  if (jobs.length === 0 && Date.now() < deadline - 2000) {
     // Log raw HTML snippet for debugging when scraper returns 0
-    await logLinkedInFailure(queries[0]?.keyword || "unknown");
+    await logLinkedInFailure(queries[0]?.keyword || "unknown", deadline);
 
-    if (process.env.RAPIDAPI_KEY) {
+    if (process.env.RAPIDAPI_KEY && Date.now() < deadline - 2000) {
       console.warn("[LinkedIn] HTML returned 0 jobs — falling back to JSearch");
-      const fallback = await fetchJSearch(queries, 8);
+      const fallback = await fetchJSearch(queries, 3);
       return fallback;
     }
   }
 
-  console.log(`[LinkedIn] Total scraped: ${jobs.length} jobs`);
+  console.log(`[LinkedIn] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
   return jobs;
 }
 
 /** Log raw HTML response for debugging when LinkedIn returns 0 results */
-async function logLinkedInFailure(keyword: string) {
+async function logLinkedInFailure(keyword: string, deadline: number) {
   try {
     const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
     const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(keyword)}&start=0&f_TPR=r86400&sortBy=DD`;
     const res = await fetchWithRetry(url, {
       headers: { "User-Agent": ua, ...ACCEPT_HEADERS },
-    });
+    }, 1, deadline);
     const html = await res.text();
     const snippet = html.slice(0, 5000);
 
@@ -175,12 +139,13 @@ async function fetchLinkedInPage(
   start: number,
   timeFilter: string,
   ua: string,
+  deadline: number,
 ): Promise<string> {
   const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${keyword}&location=${location}&start=${start}&f_TPR=${timeFilter}&sortBy=DD`;
 
   const res = await fetchWithRetry(url, {
     headers: { "User-Agent": ua, ...ACCEPT_HEADERS },
-  });
+  }, 1, deadline);
 
   if (!res.ok) {
     console.warn(`[LinkedIn] HTTP ${res.status} for ${keyword}/${location}`);

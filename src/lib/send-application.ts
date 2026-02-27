@@ -264,7 +264,10 @@ function cleanJsonField(value: string, field: "subject" | "body"): string {
     if (typeof parsed === "object" && parsed !== null && typeof parsed[field] === "string") {
       return parsed[field];
     }
-  } catch { /* not JSON */ }
-  return value;
+  } catch { /* not valid JSON */ }
+  // M1: If it looks like a JSON fragment but failed to parse, strip it
+  // rather than sending raw {"subject": ... as an email
+  const stripped = value.replace(/^\s*\{[\s\S]*$/, "").trim();
+  return stripped || value;
 }
 

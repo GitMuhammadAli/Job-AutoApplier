@@ -1,29 +1,38 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
+import { TIMEOUTS } from "@/lib/constants";
 
 export async function fetchJSearch(
   queries: SearchQuery[],
-  maxQueries = 6
+  maxQueries = 3
 ): Promise<ScrapedJob[]> {
   const key = process.env.RAPIDAPI_KEY;
   if (!key) return [];
 
+  const startTime = Date.now();
+  const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
   const limited = queries.slice(0, maxQueries);
 
   for (const q of limited) {
-    for (const city of q.cities.slice(0, 3)) {
+    if (Date.now() >= deadline) break;
+
+    for (const city of q.cities.slice(0, 2)) {
+      if (Date.now() >= deadline) break;
+
       try {
         const query = `${q.keyword} jobs in ${city}`;
         const res = await fetchWithRetry(
-          `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=2&date_posted=week`,
+          `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=1&date_posted=week`,
           {
             headers: {
               "x-rapidapi-host": "jsearch.p.rapidapi.com",
               "x-rapidapi-key": key,
             },
-          }
+          },
+          2,
+          deadline,
         );
 
         if (!res.ok) continue;
@@ -59,12 +68,14 @@ export async function fetchJSearch(
             companyEmail: null,
           });
         }
-      } catch {
-        // Skip failed queries silently
+      } catch (err) {
+        if (err instanceof Error && err.message === "SCRAPER_DEADLINE") break;
+        console.warn(`[JSearch] Failed for "${q.keyword}" in "${city}":`, err);
       }
     }
   }
 
+  console.log(`[JSearch] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
   return jobs;
 }
 

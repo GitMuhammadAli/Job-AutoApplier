@@ -83,7 +83,7 @@ export async function getApplicationCounts() {
     return { draft, ready, sent, failed, bounced, total };
   } catch (error) {
     console.error("[getApplicationCounts]", error);
-    return { draft: 0, ready: 0, sent: 0, failed: 0, bounced: 0, total: 0 };
+    throw new Error("Failed to load application counts");
   }
 }
 

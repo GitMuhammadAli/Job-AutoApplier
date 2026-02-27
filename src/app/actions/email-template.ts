@@ -20,13 +20,18 @@ const updateTemplateSchema = z.object({
 });
 
 export async function getEmailTemplates() {
-  const userId = await getAuthUserId();
+  try {
+    const userId = await getAuthUserId();
 
-  return prisma.emailTemplate.findMany({
-    where: { userId },
-    orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
-    take: 100,
-  });
+    return await prisma.emailTemplate.findMany({
+      where: { userId },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+      take: 100,
+    });
+  } catch (error) {
+    console.error("[getEmailTemplates] Error:", error);
+    throw new Error("Failed to load email templates");
+  }
 }
 
 export async function createEmailTemplate(rawData: unknown) {

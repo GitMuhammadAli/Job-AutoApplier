@@ -39,10 +39,12 @@ export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunRes
     const durationMs = Date.now() - startedAt.getTime();
 
     if (jobs.length === 0 && fallbackFn) {
-      // Primary returned 0 — try fallback
-      console.warn(`[ScraperRunner] ${source} returned 0 jobs, trying fallback ${fallbackSource || "unknown"}`);
+      // Primary returned 0 — try fallback with remaining time budget
+      const elapsed = Date.now() - startedAt.getTime();
+      const remainingMs = Math.max(timeoutMs - elapsed, 5000);
+      console.warn(`[ScraperRunner] ${source} returned 0 jobs, trying fallback ${fallbackSource || "unknown"} (${remainingMs}ms remaining)`);
       try {
-        const fallbackJobs = await withTimeout(fallbackFn(queries), timeoutMs);
+        const fallbackJobs = await withTimeout(fallbackFn(queries), remainingMs);
         const totalDuration = Date.now() - startedAt.getTime();
         await updateRun(runId, {
           status: fallbackJobs.length > 0 ? "partial" : "failed",
@@ -91,11 +93,12 @@ export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunRes
     const errMsg = isTimeout ? `Timeout after ${timeoutMs}ms` : (err instanceof Error ? err.message : String(err));
     const status = isTimeout ? "timeout" : "failed";
 
-    // Try fallback on error
+    // Try fallback on error with remaining time budget
     if (fallbackFn) {
       try {
-        console.warn(`[ScraperRunner] ${source} failed, trying fallback ${fallbackSource || "unknown"}`);
-        const fallbackJobs = await withTimeout(fallbackFn(queries), timeoutMs);
+        const remainingMs = Math.max(timeoutMs - durationMs, 5000);
+        console.warn(`[ScraperRunner] ${source} failed, trying fallback ${fallbackSource || "unknown"} (${remainingMs}ms remaining)`);
+        const fallbackJobs = await withTimeout(fallbackFn(queries), remainingMs);
         const totalDuration = Date.now() - startedAt.getTime();
         await updateRun(runId, {
           status: fallbackJobs.length > 0 ? "partial" : "failed",
