@@ -237,6 +237,9 @@ Body: ${input.template.body.slice(0, 500)}`);
   subject = unwrapJsonField(subject, "subject");
   body = unwrapJsonField(body, "body");
 
+  subject = sanitizeEmailField(subject, "subject");
+  body = sanitizeEmailField(body, "body");
+
   subject = replacePlaceholders(subject, input);
   body = replacePlaceholders(body, input);
 
@@ -405,6 +408,77 @@ function unwrapJsonField(value: string, field: "subject" | "body"): string {
     }
   } catch { /* not JSON */ }
   return value;
+}
+
+/**
+ * Strips any residual JSON/markdown artifacts the AI left in the text.
+ * If the value is itself a full JSON response, extracts the correct field.
+ * Then cleans stray braces, escaped quotes, markdown fences, etc.
+ */
+function sanitizeEmailField(value: string, field: "subject" | "body"): string {
+  if (!value) return value;
+  let s = value;
+
+  // Strip markdown code fences
+  s = s.replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "").trim();
+
+  // If the value looks like a full JSON response, try to extract the correct field
+  if (s.startsWith("{")) {
+    // Try direct parse
+    try {
+      const parsed = JSON.parse(s);
+      if (typeof parsed === "object" && parsed !== null && typeof parsed[field] === "string") {
+        return parsed[field];
+      }
+    } catch { /* continue */ }
+
+    // Try fixing literal newlines then parse
+    try {
+      const fixed = s.replace(
+        /(?<=:\s*")([\s\S]*?)(?="(?:\s*[,}]))/g,
+        (m) => m.replace(/\r?\n/g, "\\n"),
+      );
+      const parsed = JSON.parse(fixed);
+      if (typeof parsed === "object" && parsed !== null && typeof parsed[field] === "string") {
+        return unescapeJsonString(parsed[field]);
+      }
+    } catch { /* continue */ }
+
+    // Regex extraction as fallback
+    const pattern = field === "subject"
+      ? /"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/
+      : /"body"\s*:\s*"([\s\S]*)"\s*\}?\s*$/;
+    const match = s.match(pattern);
+    if (match?.[1]) {
+      const extracted = field === "body"
+        ? match[1].replace(/"\s*\}?\s*$/, "")
+        : match[1];
+      return unescapeJsonString(extracted);
+    }
+  }
+
+  // Strip leading JSON key prefix like `"subject": "` or `"body": "`
+  s = s.replace(/^\s*"(?:subject|body)"\s*:\s*"?/i, "");
+
+  // Strip leading/trailing braces that wrap the entire value
+  s = s.replace(/^\s*\{\s*/, "").replace(/\s*\}\s*$/, "");
+
+  // Strip trailing quote + brace combos like `"\n}` or `"  }`
+  s = s.replace(/"\s*,?\s*\}\s*$/, "");
+
+  // Clean up escaped quotes left over from JSON encoding
+  s = s.replace(/\\"/g, '"');
+
+  // Clean up double-escaped newlines (\\n → actual newline)
+  s = s.replace(/\\n/g, "\n");
+
+  // Clean up orphaned backslashes
+  s = s.replace(/\\\\/g, "\\");
+
+  // Collapse 3+ consecutive newlines into 2
+  s = s.replace(/\n{3,}/g, "\n\n");
+
+  return s.trim();
 }
 
 /**

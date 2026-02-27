@@ -37,16 +37,58 @@ function cleanJsonField(value: string, field: "subject" | "body"): string {
     .replace(/```json\s*/gi, "")
     .replace(/```\s*/g, "")
     .trim();
-  if (!cleaned.startsWith("{")) return value;
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (typeof parsed === "object" && parsed !== null && typeof parsed[field] === "string") {
-      return parsed[field];
+
+  if (cleaned.startsWith("{")) {
+    // Attempt 1: direct parse
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (typeof parsed === "object" && parsed !== null && typeof parsed[field] === "string") {
+        return parsed[field];
+      }
+    } catch { /* continue */ }
+
+    // Attempt 2: fix literal newlines inside JSON values then parse
+    try {
+      const fixed = cleaned.replace(
+        /(?<=:\s*")([\s\S]*?)(?="(?:\s*[,}]))/g,
+        (m) => m.replace(/\r?\n/g, "\\n"),
+      );
+      const parsed = JSON.parse(fixed);
+      if (typeof parsed === "object" && parsed !== null && typeof parsed[field] === "string") {
+        return parsed[field].replace(/\\n/g, "\n");
+      }
+    } catch { /* continue */ }
+
+    // Attempt 3: regex extraction for the requested field
+    const pattern = field === "subject"
+      ? /"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/
+      : /"body"\s*:\s*"([\s\S]*)"\s*\}?\s*$/;
+    const match = cleaned.match(pattern);
+    if (match?.[1]) {
+      const extracted = field === "body"
+        ? match[1].replace(/"\s*\}?\s*$/, "")
+        : match[1];
+      return extracted
+        .replace(/\\n/g, "\n")
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, "\\")
+        .trim();
     }
-  } catch {
-    /* not JSON — use as-is */
   }
-  return value;
+
+  // Strip residual JSON artifacts
+  cleaned = cleaned
+    .replace(/^\s*"(?:subject|body)"\s*:\s*"?/i, "")
+    .replace(/^\s*\{\s*/, "")
+    .replace(/\s*\}\s*$/, "")
+    .replace(/"\s*,?\s*\}\s*$/, "")
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, "\n")
+    .replace(/\\\\/g, "\\")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return cleaned || value;
 }
 
 interface ApplicationData {
@@ -191,12 +233,14 @@ export function QuickApplyPanel({
     startRegenerate(async () => {
       try {
         const resumeId = selectedResumeId || undefined;
+        const previousRecipient = recipientEmail;
         const result = await regenerateApplication(userJob.id, resumeId);
         setApplication(result.application);
         setSubject(cleanJsonField(result.application.subject, "subject"));
         setEmailBody(cleanJsonField(result.application.emailBody, "body"));
-        setCoverLetter(result.application.coverLetter || "");
-        setRecipientEmail(result.application.recipientEmail);
+        setCoverLetter(result.application.coverLetter || coverLetter || "");
+        // Keep the manually-entered recipient if the server returned empty
+        setRecipientEmail(result.application.recipientEmail || previousRecipient);
         setMatchInfo(result.matchedResume);
         toast.success("New version generated");
       } catch {
@@ -465,13 +509,18 @@ export function QuickApplyPanel({
               placeholder="Enter recipient email..."
               className="h-9 text-sm"
             />
-            {!recipientEmail && (
+            {!recipientEmail ? (
               <p className="text-[10px] text-amber-600 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 No email found. Enter manually or use &quot;Copy All&quot; to
                 apply via the job platform.
               </p>
-            )}
+            ) : recipientEmail.startsWith("careers@") && userJob.globalJob.emailConfidence != null && userJob.globalJob.emailConfidence < 70 ? (
+              <p className="text-[10px] text-amber-500 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                This email was auto-guessed (confidence: {userJob.globalJob.emailConfidence}%). Verify before sending to avoid bounces.
+              </p>
+            ) : null}
           </div>
 
           {/* Subject */}

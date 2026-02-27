@@ -1,4 +1,4 @@
-import { verifyMxRecord } from "./email-verifier";
+import { verifyMxRecord, verifyRecipient } from "./email-verifier";
 
 export type EmailConfidence = "HIGH" | "MEDIUM" | "LOW" | "NONE";
 
@@ -147,7 +147,8 @@ export async function findCompanyEmail(job: {
     }
   }
 
-  // Strategy 3: Domain + MX verified pattern (only if MX exists)
+  // Strategy 3: Domain + MX verified + RCPT TO verified pattern guess
+  // Only returns the email if the mail server confirms the mailbox exists
   const domain = extractDomain(
     job.company,
     job.companyUrl || job.sourceUrl
@@ -155,16 +156,24 @@ export async function findCompanyEmail(job: {
   if (domain) {
     const hasMx = await verifyMxRecord(domain);
     if (hasMx) {
-      return {
-        email: `careers@${domain}`,
-        confidence: "LOW",
-        confidenceScore: CONFIDENCE_SCORES.LOW,
-        method: `pattern_guess_mx_verified (${domain})`,
-      };
+      const PREFIXES_TO_TRY = ["careers", "hr", "jobs", "hiring", "apply"] as const;
+      for (const prefix of PREFIXES_TO_TRY) {
+        const candidateEmail = `${prefix}@${domain}`;
+        const result = await verifyRecipient(candidateEmail);
+        if (result.exists) {
+          return {
+            email: candidateEmail,
+            confidence: "MEDIUM",
+            confidenceScore: CONFIDENCE_SCORES.MEDIUM,
+            method: `pattern_guess_rcpt_verified (${prefix}@${domain})`,
+          };
+        }
+      }
+      // MX exists but no common prefix accepted — don't guess blindly
+      console.log(`[EmailExtractor] ${domain}: MX exists but no common mailbox prefix accepted`);
     }
   }
 
-  // No guessing — if we can't find or verify an email, return none
   return { email: null, confidence: "NONE", confidenceScore: 0, method: "none" };
 }
 

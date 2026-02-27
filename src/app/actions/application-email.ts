@@ -131,16 +131,28 @@ export async function generateApplication(userJobId: string, resumeId?: string) 
 
     const generated = await generateApplicationEmail(input);
 
+    // If an existing draft has a recipient email (manually entered or from a
+    // previous enrichment) and the current globalJob has none, keep the old one.
+    let finalRecipientEmail = recipientEmail;
+    if (!finalRecipientEmail) {
+      const existing = await prisma.jobApplication.findUnique({
+        where: { userJobId },
+        select: { recipientEmail: true },
+      });
+      if (existing?.recipientEmail) {
+        finalRecipientEmail = existing.recipientEmail;
+      }
+    }
+
     const application = await prisma.jobApplication.upsert({
       where: { userJobId },
       update: {
         subject: generated.subject,
         emailBody: generated.body,
-        coverLetter: generated.coverLetter,
         resumeId: matchedResume.id,
         status: "DRAFT",
         senderEmail,
-        recipientEmail,
+        recipientEmail: finalRecipientEmail,
       },
       create: {
         userJobId,
@@ -151,8 +163,8 @@ export async function generateApplication(userJobId: string, resumeId?: string) 
         resumeId: matchedResume.id,
         status: "DRAFT",
         senderEmail,
-        recipientEmail,
-        appliedVia: recipientEmail ? "EMAIL" : "MANUAL",
+        recipientEmail: finalRecipientEmail,
+        appliedVia: finalRecipientEmail ? "EMAIL" : "MANUAL",
       },
     });
 

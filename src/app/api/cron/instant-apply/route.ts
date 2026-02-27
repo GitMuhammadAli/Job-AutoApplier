@@ -266,18 +266,23 @@ export async function GET(req: NextRequest) {
             appStatus = "DRAFT";
           }
 
+          // Don't put low-confidence guessed emails in the recipient field —
+          // they cause bounces and hurt sender reputation. Keep them as manual-apply.
+          const useEmail = emailResult.confidenceScore >= 50;
+          const recipientForDraft = useEmail ? (emailResult.email?.trim() || "") : "";
+
           const application = await prisma.jobApplication.create({
             data: {
               userJobId: userJob.id,
               userId,
               senderEmail,
-              recipientEmail: emailResult.email?.trim() || "",
+              recipientEmail: recipientForDraft,
               subject: emailContent.subject,
               emailBody: emailContent.body,
               coverLetter: emailContent.coverLetter,
               resumeId: bestResume?.id,
               status: appStatus,
-              appliedVia: emailResult.email?.trim() ? "EMAIL" : "MANUAL",
+              appliedVia: recipientForDraft ? "EMAIL" : "MANUAL",
               scheduledSendAt: appStatus === "DRAFT" ? null : scheduledSendAt,
               emailConfidence: emailResult.confidence,
             },

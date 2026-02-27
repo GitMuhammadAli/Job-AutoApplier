@@ -4,6 +4,7 @@ import { canSendNow } from "./send-limiter";
 import { checkDuplicate } from "./duplicate-checker";
 import { decryptSettingsFields, hasDecryptionFailure } from "./encryption";
 import { classifyError } from "./email-errors";
+import { verifyRecipient } from "./email-verifier";
 
 interface SendResult {
   success: boolean;
@@ -163,6 +164,51 @@ export async function sendApplication(
         data: { status: "FAILED", errorMessage: "No sender email configured — check SMTP settings" },
       });
       return { success: false, error: "No sender email configured" };
+    }
+
+    // Pre-send recipient verification via RCPT TO — catches invalid
+    // mailboxes before wasting a real send and hurting sender reputation
+    try {
+      const rcptResult = await verifyRecipient(application.recipientEmail);
+      if (!rcptResult.exists) {
+        const reason = rcptResult.smtpCode
+          ? `Recipient rejected (SMTP ${rcptResult.smtpCode}): ${rcptResult.message}`
+          : `Recipient verification failed: ${rcptResult.message || "mailbox does not exist"}`;
+
+        // Timeout/connection errors = inconclusive, allow the send to proceed
+        const inconclusive = rcptResult.message === "timeout"
+          || rcptResult.message === "socket timeout"
+          || rcptResult.message === "connection error";
+
+        if (!inconclusive) {
+          await prisma.$transaction([
+            prisma.jobApplication.update({
+              where: { id: applicationId },
+              data: { status: "BOUNCED", errorMessage: reason, scheduledSendAt: null },
+            }),
+            prisma.activity.create({
+              data: {
+                userId,
+                userJobId: application.userJobId,
+                type: "APPLICATION_BOUNCED",
+                description: `Pre-send check: ${reason}`,
+              },
+            }),
+          ]);
+
+          await prisma.globalJob.update({
+            where: { id: application.userJob.globalJobId },
+            data: { companyEmail: null, emailConfidence: null, emailSource: null },
+          }).catch((err) => console.error("[SendApp] Failed to clear invalid email from GlobalJob:", err));
+
+          console.warn(`[SendApp] Pre-send RCPT TO rejected ${application.recipientEmail}: ${reason}`);
+          return { success: false, error: reason };
+        }
+        console.log(`[SendApp] RCPT TO inconclusive for ${application.recipientEmail} (${rcptResult.message}), proceeding with send`);
+      }
+    } catch (verifyErr) {
+      // Verification itself failed — don't block the send
+      console.warn("[SendApp] RCPT TO verification error, proceeding:", verifyErr);
     }
 
     const result = await transporter.sendMail({
