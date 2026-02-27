@@ -55,15 +55,11 @@ export async function POST() {
       appsCleaned = result.count;
     }
 
-    // Also clear any READY applications that have empty recipientEmail
-    // (shouldn't be READY without an email — downgrade to DRAFT)
+    // Downgrade READY applications that have empty recipientEmail to DRAFT
     const readyNoEmail = await prisma.jobApplication.updateMany({
       where: {
         status: "READY",
-        OR: [
-          { recipientEmail: "" },
-          { recipientEmail: null as unknown as string },
-        ],
+        recipientEmail: "",
       },
       data: { status: "DRAFT" },
     });
