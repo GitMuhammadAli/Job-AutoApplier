@@ -443,7 +443,13 @@ export default function AdminDashboard() {
                     const res = await fetch("/api/admin/cleanup-emails", { method: "POST" });
                     const data = await res.json();
                     if (data.success) {
-                      toast.success(`Cleaned ${data.globalJobsEmailsCleared} guessed GlobalJob emails, ${data.draftEmailsCleared} draft recipients, ${data.readyDowngradedToDraft} READY→DRAFT`);
+                      const parts = [];
+                      if (data.globalEmailsCleared) parts.push(`${data.globalEmailsCleared} GlobalJob emails`);
+                      if (data.guessedEmailsCleared) parts.push(`${data.guessedEmailsCleared} guessed recipients`);
+                      if (data.jsonSubjectsCleaned) parts.push(`${data.jsonSubjectsCleaned} JSON subjects`);
+                      if (data.jsonBodiesCleaned) parts.push(`${data.jsonBodiesCleaned} JSON bodies`);
+                      if (data.readyDowngraded) parts.push(`${data.readyDowngraded} READY→DRAFT`);
+                      toast.success(parts.length > 0 ? `Cleaned: ${parts.join(", ")}` : `Scanned ${data.draftsScanned} drafts — nothing to clean`);
                     } else {
                       toast.error(data.error || "Failed");
                     }
