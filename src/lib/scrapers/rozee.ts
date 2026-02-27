@@ -1,6 +1,7 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
+import { extractSkillsFromContent } from "@/lib/skill-extractor";
 
 /**
  * Fetches Rozee.pk jobs via SerpAPI Google Jobs.
@@ -41,14 +42,16 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
           (opt) => opt.link && opt.link.toLowerCase().includes("rozee.pk")
         );
         const applyUrl = rozeeLink?.link || applyOptions[0]?.link || null;
-        const sourceId = `rozee-${r.job_id || hashString(r.title + r.company_name)}`;
+        const titleSlug = (r.title || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
+        const compSlug = (r.company_name || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
+        const sourceId = `rozee-${r.job_id || `${titleSlug}-${compSlug}`}`;
 
         if (seen.has(sourceId)) continue;
         seen.add(sourceId);
 
         const title = r.title || "Untitled";
         const description = r.description || null;
-        const skills = extractSkills(description || "");
+        const skills = extractSkillsFromContent(description || "");
 
         jobs.push({
           title,
@@ -93,28 +96,4 @@ function parseRelativeDate(text: string): Date | null {
   else if (unit.startsWith("month")) now.setMonth(now.getMonth() - num);
 
   return now;
-}
-
-function extractSkills(text: string): string[] {
-  const skillPatterns = [
-    "react", "vue", "angular", "next.js", "node.js", "express", "nestjs",
-    "typescript", "javascript", "python", "java", "c#", "go", "rust", "ruby",
-    "php", "swift", "kotlin", "flutter", "react native",
-    "aws", "azure", "gcp", "docker", "kubernetes", "terraform",
-    "postgresql", "mysql", "mongodb", "redis", "elasticsearch",
-    "graphql", "rest api", "microservices", "ci/cd", "git",
-    "tailwind", "sass", "css", "html", "figma",
-  ];
-  const lower = text.toLowerCase();
-  return skillPatterns.filter((s) => lower.includes(s));
-}
-
-function hashString(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(36);
 }

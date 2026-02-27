@@ -30,10 +30,10 @@ export async function GET() {
       locks,
       scrapeLogs,
     ] = await Promise.all([
-      prisma.systemLog.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      }),
+      // Only admins see system logs
+      userIsAdmin
+        ? prisma.systemLog.findMany({ orderBy: { createdAt: "desc" }, take: 20 })
+        : Promise.resolve([]),
       prisma.jobApplication.count({
         where: { ...userFilter, status: "SENT", sentAt: { gte: dayStart } },
       }),
@@ -46,17 +46,24 @@ export async function GET() {
       prisma.jobApplication.count({
         where: { ...userFilter, status: "DRAFT", createdAt: { gte: dayStart } },
       }),
-      prisma.systemLock.findMany(),
-      prisma.systemLog.findMany({
-        where: { type: "scrape", createdAt: { gte: dayStart } },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-      }),
+      // Only admins see lock state
+      userIsAdmin ? prisma.systemLock.findMany() : Promise.resolve([]),
+      userIsAdmin
+        ? prisma.systemLog.findMany({
+            where: { type: "scrape", createdAt: { gte: dayStart } },
+            orderBy: { createdAt: "desc" },
+            take: 100,
+          })
+        : Promise.resolve([]),
     ]);
 
     const lastScrape = recentLogs.find((l) => l.type === "scrape");
     const lastInstant = recentLogs.find((l) => l.type === "instant-apply");
-    const errors = recentLogs.filter((l) => l.type === "error");
+    // Check for actual errors: type "error" OR messages containing failure indicators
+    const errors = recentLogs.filter((l) =>
+      l.type === "error" ||
+      (l.message && (l.message.includes("failed") || l.message.includes("Failed") || l.message.includes("0 jobs")))
+    );
 
     const sourceStats: Record<string, { found: number; errors: number }> = {};
     for (const log of scrapeLogs) {

@@ -59,7 +59,7 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
           company: r.company?.display_name || "Unknown",
           location: r.location?.display_name || null,
           description: r.description || null,
-          salary: formatSalary(r.salary_min, r.salary_max),
+          salary: formatSalary(r.salary_min, r.salary_max, r.salary_currency),
           jobType: r.contract_time || null,
           experienceLevel: null,
           category: r.category?.label || null,
@@ -83,10 +83,11 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
   return jobs;
 }
 
-function formatSalary(min?: number, max?: number): string | null {
-  if (!min && !max) return null;
-  if (min && max) return `$${Math.round(min).toLocaleString()}-$${Math.round(max).toLocaleString()}`;
-  if (min) return `$${Math.round(min).toLocaleString()}+`;
-  if (max) return `Up to $${Math.round(max).toLocaleString()}`;
+function formatSalary(min?: number, max?: number, currency?: string): string | null {
+  if (min == null && max == null) return null;
+  const c = currency || "USD";
+  if (min != null && max != null) return `${c} ${Math.round(min).toLocaleString()}-${Math.round(max).toLocaleString()}`;
+  if (min != null) return `${c} ${Math.round(min).toLocaleString()}+`;
+  if (max != null) return `Up to ${c} ${Math.round(max).toLocaleString()}`;
   return null;
 }

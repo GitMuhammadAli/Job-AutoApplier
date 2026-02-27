@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 
-export const maxDuration = 30;
+export const maxDuration = 10;
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,7 +45,7 @@ async function extractJobFromUrl(url: string): Promise<ExtractedJob> {
 
   // Fetch the page
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
     const res = await fetch(url, {

@@ -1,6 +1,7 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
+import { extractSkillsFromContent } from "@/lib/skill-extractor";
 import { TIMEOUTS } from "@/lib/constants";
 
 /**
@@ -67,8 +68,8 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
             salary: formatSalary(r.job_min_salary, r.job_max_salary, r.job_salary_currency),
             jobType: r.job_employment_type?.toLowerCase() || null,
             experienceLevel: r.job_required_experience?.experience_level || null,
-            category: categorizeJob(title, extractSkills(description || ""), description || ""),
-            skills: extractSkills(description || ""),
+            category: categorizeJob(title, extractSkillsFromContent(description || ""), description || ""),
+            skills: extractSkillsFromContent(description || ""),
             postedDate: r.job_posted_at_datetime_utc ? new Date(r.job_posted_at_datetime_utc) : null,
             source: "indeed",
             sourceId: id,
@@ -96,20 +97,4 @@ function formatSalary(min?: number, max?: number, currency?: string): string | n
   if (min) return `${c} ${min.toLocaleString()}+`;
   if (max) return `${c} up to ${max.toLocaleString()}`;
   return null;
-}
-
-function extractSkills(text: string): string[] {
-  const skillPatterns = [
-    "react", "vue", "angular", "next.js", "node.js", "express", "nestjs",
-    "typescript", "javascript", "python", "java", "c#", "go", "rust", "ruby",
-    "php", "swift", "kotlin", "flutter", "react native",
-    "aws", "azure", "gcp", "docker", "kubernetes", "terraform",
-    "postgresql", "mysql", "mongodb", "redis", "elasticsearch",
-    "graphql", "rest api", "microservices", "ci/cd", "git",
-    "tailwind", "sass", "css", "html", "figma",
-    "machine learning", "deep learning", "nlp", "tensorflow", "pytorch",
-    "django", "flask", "spring boot", "laravel", ".net",
-  ];
-  const lower = text.toLowerCase();
-  return skillPatterns.filter((s) => lower.includes(s));
 }

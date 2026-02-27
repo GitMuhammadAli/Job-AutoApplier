@@ -28,7 +28,9 @@ export async function fetchArbeitnow(): Promise<ScrapedJob[]> {
     const results = allResults;
 
     for (const r of results) {
-      const sourceId = `arbeitnow-${r.slug || `${(r.title || "").toLowerCase().replace(/[^a-z0-9]/g, "")}-${Date.now()}`}`;
+      const titleSlug = (r.title || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
+      const compSlug = (r.company_name || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
+      const sourceId = `arbeitnow-${r.slug || `${titleSlug}-${compSlug}`}`;
       if (seen.has(sourceId)) continue;
       seen.add(sourceId);
 
@@ -51,8 +53,8 @@ export async function fetchArbeitnow(): Promise<ScrapedJob[]> {
         companyEmail: null,
       });
     }
-  } catch {
-    // Silently skip
+  } catch (err) {
+    console.warn("[Arbeitnow] Scraper failed:", err);
   }
 
   return jobs;

@@ -103,7 +103,7 @@ Write a brief, warm follow-up checking on the status.`,
             data: {
               userJobId: userJob.id,
               userId: userJob.userId,
-              type: "FOLLOW_UP_SENT",
+              type: "FOLLOW_UP_FLAGGED",
               description: `Follow-up draft generated for ${userJob.globalJob.company}`,
             },
           }),

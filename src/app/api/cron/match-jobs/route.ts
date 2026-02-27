@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const users = await prisma.userSettings.findMany({
-      where: { keywords: { isEmpty: false } },
+      where: { keywords: { isEmpty: false }, isOnboarded: true, accountStatus: "active" },
       select: {
         userId: true,
         keywords: true,

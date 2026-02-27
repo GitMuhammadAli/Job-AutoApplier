@@ -6,6 +6,7 @@ import {
   recordNotification,
 } from "@/lib/notification-limiter";
 import { decryptField } from "@/lib/encryption";
+import { TIMEOUTS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 
@@ -37,17 +38,25 @@ export async function GET(req: NextRequest) {
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
     for (const user of users) {
-      if (Date.now() - startTime > 50000) break;
+      if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
       const email = decryptField(user.notificationEmail) || user.user.email;
       if (!email) continue;
 
-      // Find new high-quality matched jobs from last 24h (score >= 50 only)
+      // Find the last notification time for this user to avoid re-notifying
+      const lastNotification = await prisma.systemLog.findFirst({
+        where: { type: "notification", source: user.userId },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      });
+      const cutoff = lastNotification?.createdAt ?? oneDayAgo;
+
+      // Find new high-quality matched jobs since last notification (score >= 50)
       const newJobs = await prisma.userJob.findMany({
         where: {
           userId: user.userId,
           isDismissed: false,
           matchScore: { gte: 50 },
-          createdAt: { gte: oneDayAgo },
+          createdAt: { gte: cutoff },
         },
         include: {
           globalJob: {

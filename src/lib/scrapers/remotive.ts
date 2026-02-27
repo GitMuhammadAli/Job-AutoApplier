@@ -57,8 +57,8 @@ export async function fetchRemotive(queries: SearchQuery[]): Promise<ScrapedJob[
         companyEmail: null,
       });
     }
-  } catch {
-    // Silently skip
+  } catch (err) {
+    console.warn("[Remotive] Scraper failed:", err);
   }
 
   return jobs;

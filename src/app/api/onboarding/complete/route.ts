@@ -8,6 +8,7 @@ import {
 import { STARTER_TEMPLATES } from "@/constants/templates";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 10;
 
 export async function POST() {
   try {
@@ -26,7 +27,7 @@ export async function POST() {
 
     const globalJobs = await prisma.globalJob.findMany({
       where: { createdAt: { gte: fourteenDaysAgo } },
-      take: 2000,
+      take: 500,
       orderBy: { createdAt: "desc" },
     });
 

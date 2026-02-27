@@ -116,25 +116,27 @@ export async function POST() {
         })
       : sources;
 
-    // Run all scrapers in parallel for speed
-    const scrapeResults = await Promise.allSettled(
-      activeSources.map(async (source) => {
-        try {
-          const result = await scrapeAndUpsert(source.name, source.fn, queries);
-          return { name: source.name, newCount: result.newCount ?? 0 };
-        } catch (err) {
-          console.warn(`[scan-now] ${source.name} failed:`, err);
-          return { name: source.name, newCount: 0 };
-        }
-      }),
-    );
-
+    // Run scrapers in batches of 2 to avoid API rate limit collisions
     let totalNew = 0;
     const sourceStats: Record<string, number> = {};
-    for (const r of scrapeResults) {
-      if (r.status === "fulfilled") {
-        totalNew += r.value.newCount;
-        sourceStats[r.value.name] = r.value.newCount;
+    for (let i = 0; i < activeSources.length; i += 2) {
+      const batch = activeSources.slice(i, i + 2);
+      const results = await Promise.allSettled(
+        batch.map(async (source) => {
+          try {
+            const result = await scrapeAndUpsert(source.name, source.fn, queries);
+            return { name: source.name, newCount: result.newCount ?? 0 };
+          } catch (err) {
+            console.warn(`[scan-now] ${source.name} failed:`, err);
+            return { name: source.name, newCount: 0 };
+          }
+        }),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") {
+          totalNew += r.value.newCount;
+          sourceStats[r.value.name] = r.value.newCount;
+        }
       }
     }
 

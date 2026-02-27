@@ -32,81 +32,104 @@ export async function scrapeAndUpsert(
   scraperFn: (queries: SearchQuery[]) => Promise<ScrapedJob[]>,
   queries: SearchQuery[]
 ): Promise<{ newCount: number; updatedCount: number; error?: string }> {
-  let newCount = 0;
-  let updatedCount = 0;
-
   const jobs = await scraperFn(queries);
+  if (jobs.length === 0) {
+    await logScrapeResult(sourceName, 0, 0, 0);
+    return { newCount: 0, updatedCount: 0 };
+  }
 
+  // 1. Sanitize all jobs (CPU-only, no DB)
   for (const job of jobs) {
-    try {
-      job.description = sanitizeScrapedText(job.description);
-      job.title = sanitizeScrapedText(job.title) || job.title;
-      job.company = sanitizeScrapedText(job.company) || job.company;
-      job.location = sanitizeScrapedText(job.location, false) || job.location;
-      job.salary = sanitizeScrapedText(job.salary, false) || job.salary;
-
-      if (!job.category) {
-        job.category = categorizeJob(job.title, job.skills || [], job.description || "");
-      }
-
-      const existing = await prisma.globalJob.findUnique({
-        where: { sourceId_source: { sourceId: job.sourceId, source: job.source } },
-        select: { id: true },
-      });
-
-      if (existing) {
-        await prisma.globalJob.update({
-          where: { id: existing.id },
-          data: {
-            lastSeenAt: new Date(),
-            isActive: true,
-            ...(job.description ? { description: job.description } : {}),
-            ...(job.salary ? { salary: job.salary } : {}),
-            ...(job.applyUrl ? { applyUrl: job.applyUrl } : {}),
-            ...(job.companyEmail ? { companyEmail: job.companyEmail } : {}),
-          },
-        });
-        updatedCount++;
-      } else {
-        await prisma.globalJob.create({
-          data: {
-            title: job.title,
-            company: job.company,
-            location: job.location,
-            description: job.description,
-            salary: job.salary,
-            jobType: job.jobType,
-            experienceLevel: job.experienceLevel,
-            category: job.category,
-            skills: job.skills,
-            postedDate: job.postedDate,
-            source: job.source,
-            sourceId: job.sourceId,
-            sourceUrl: job.sourceUrl,
-            applyUrl: job.applyUrl,
-            companyUrl: job.companyUrl,
-            companyEmail: job.companyEmail,
-            isActive: true,
-            isFresh: true,
-            firstSeenAt: new Date(),
-            lastSeenAt: new Date(),
-          },
-        });
-        newCount++;
-      }
-    } catch (err) {
-      console.warn(`[${sourceName}] Upsert failed for "${job.title}":`, err);
+    job.description = sanitizeScrapedText(job.description);
+    job.title = sanitizeScrapedText(job.title) || job.title;
+    job.company = sanitizeScrapedText(job.company) || job.company;
+    job.location = sanitizeScrapedText(job.location, false) || job.location;
+    job.salary = sanitizeScrapedText(job.salary, false) || job.salary;
+    if (!job.category) {
+      job.category = categorizeJob(job.title, job.skills || [], job.description || "");
     }
   }
 
+  // 2. Single query: find which sourceIds already exist
+  const sourceKeys = jobs.map((j) => ({ sourceId: j.sourceId, source: j.source }));
+  const existing = await prisma.globalJob.findMany({
+    where: { OR: sourceKeys.map((k) => ({ sourceId: k.sourceId, source: k.source })) },
+    select: { id: true, sourceId: true, source: true },
+  });
+  const existingSet = new Set(existing.map((e) => `${e.source}:${e.sourceId}`));
+  const existingIdMap = new Map(existing.map((e) => [`${e.source}:${e.sourceId}`, e.id] as const));
+
+  // 3. Split into new vs existing
+  const newJobs = jobs.filter((j) => !existingSet.has(`${j.source}:${j.sourceId}`));
+  const existingJobs = jobs.filter((j) => existingSet.has(`${j.source}:${j.sourceId}`));
+
+  // 4. Batch create new jobs (single query)
+  let newCount = 0;
+  if (newJobs.length > 0) {
+    const now = new Date();
+    try {
+      const result = await prisma.globalJob.createMany({
+        data: newJobs.map((job) => ({
+          title: job.title,
+          company: job.company,
+          location: job.location,
+          description: job.description,
+          salary: job.salary,
+          jobType: job.jobType,
+          experienceLevel: job.experienceLevel,
+          category: job.category,
+          skills: job.skills,
+          postedDate: job.postedDate,
+          source: job.source,
+          sourceId: job.sourceId,
+          sourceUrl: job.sourceUrl,
+          applyUrl: job.applyUrl,
+          companyUrl: job.companyUrl,
+          companyEmail: job.companyEmail,
+          isActive: true,
+          isFresh: true,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        })),
+        skipDuplicates: true,
+      });
+      newCount = result.count;
+    } catch (err) {
+      console.warn(`[${sourceName}] Batch create failed:`, err);
+    }
+  }
+
+  // 5. Batch update existing jobs — mark as active + refresh lastSeenAt
+  let updatedCount = 0;
+  if (existingJobs.length > 0) {
+    const existingIds = existingJobs
+      .map((j) => existingIdMap.get(`${j.source}:${j.sourceId}`))
+      .filter((id): id is string => !!id);
+
+    if (existingIds.length > 0) {
+      try {
+        const result = await prisma.globalJob.updateMany({
+          where: { id: { in: existingIds } },
+          data: { lastSeenAt: new Date(), isActive: true },
+        });
+        updatedCount = result.count;
+      } catch (err) {
+        console.warn(`[${sourceName}] Batch update failed:`, err);
+      }
+    }
+  }
+
+  await logScrapeResult(sourceName, jobs.length, newCount, updatedCount);
+  return { newCount, updatedCount };
+}
+
+async function logScrapeResult(source: string, found: number, newCount: number, updated: number) {
   await prisma.systemLog.create({
     data: {
       type: "scrape",
-      source: sourceName,
-      message: `${sourceName}: ${jobs.length} found, ${newCount} new, ${updatedCount} updated`,
-      metadata: { found: jobs.length, new: newCount, updated: updatedCount },
+      source,
+      message: `${source}: ${found} found, ${newCount} new, ${updated} updated`,
+      metadata: { found, new: newCount, updated },
     },
-  });
-
-  return { newCount, updatedCount };
+  }).catch((e) => console.warn(`[${source}] Failed to log scrape result:`, e));
 }
