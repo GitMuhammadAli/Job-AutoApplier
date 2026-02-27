@@ -25,6 +25,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+interface StatsData {
+  users: { total: number; active: number; paused: number; neverOnboarded: number };
+  jobs: { active: number; inactive: number; fresh: number; sourceDistribution: Record<string, number> };
+  applicationsToday: { sent: number; failed: number; bounced: number };
+  applicationPipeline: { draft: number; ready: number; sending: number; sentTotal: number; sentThisWeek: number };
+  quality: { overallEmailRate: number; deliveryRate: number; totalBounced: number; totalSent: number; totalFailed: number };
+  quotas: Record<string, { used: number; limit: number; period: string }>;
+  recentErrors: { message: string; createdAt: string; source: string }[];
+}
+
 interface ScraperInfo {
   source: string;
   lastRun: string | null;
@@ -65,6 +75,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: typeof Globe; color
 export default function AdminScrapersPage() {
   const [scrapers, setScrapers] = useState<ScraperInfo[]>([]);
   const [crons, setCrons] = useState<CronInfo[]>([]);
+  const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [triggeringSource, setTriggeringSource] = useState<string | null>(null);
 
@@ -76,6 +87,15 @@ export default function AdminScrapersPage() {
       const data = await res.json();
       setScrapers(data.scrapers || []);
       setCrons(data.crons || []);
+      setStats({
+        users: data.users,
+        jobs: data.jobs,
+        applicationsToday: data.applicationsToday,
+        applicationPipeline: data.applicationPipeline,
+        quality: data.quality,
+        quotas: data.quotas,
+        recentErrors: data.recentErrors || [],
+      });
     } catch {
       toast.error("Failed to load data");
     }
