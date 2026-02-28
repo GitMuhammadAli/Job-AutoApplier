@@ -29,6 +29,7 @@ import {
   KEYWORD_PRESETS,
 } from "@/constants/categories";
 import { APPLICATION_MODES, EMAIL_PROVIDERS } from "@/constants/settings";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { HelpTooltip } from "@/components/shared/HelpTooltip";
 import {
@@ -58,6 +59,7 @@ import {
   Lightbulb,
   FileText,
   Download,
+  Smartphone,
 } from "lucide-react";
 
 interface SettingsFormProps {
@@ -84,6 +86,7 @@ interface SettingsFormProps {
     preferredCategories?: string[];
     preferredPlatforms?: string[];
     emailNotifications?: boolean;
+    pushNotifications?: boolean;
     notificationEmail?: string | null;
     applicationEmail?: string | null;
     applicationMode?: string;
@@ -143,6 +146,7 @@ export function SettingsForm({
 }: SettingsFormProps) {
   const s = initialSettings;
   const [saving, setSaving] = useState(false);
+  const push = usePushNotifications();
 
   // Personal
   const [fullName, setFullName] = useState(s.fullName || "");
@@ -386,6 +390,7 @@ export function SettingsForm({
         preferredCategories: categories,
         preferredPlatforms: platforms,
         emailNotifications,
+        pushNotifications: push.isSubscribed,
         notificationEmail,
         applicationEmail,
         applicationMode: resolvedSchemaMode,
@@ -1934,6 +1939,40 @@ export function SettingsForm({
               </Field>
             </>
           )}
+
+          <div className="border-t border-slate-200 dark:border-zinc-700 pt-4 mt-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <Smartphone className="h-4 w-4 mt-0.5 text-blue-500" />
+                <div>
+                  <Label className="text-sm font-medium">Browser Push Notifications</Label>
+                  <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">
+                    {push.state === "unsupported"
+                      ? "Your browser doesn't support push notifications"
+                      : push.isDenied
+                        ? "Notifications blocked — enable them in your browser settings"
+                        : push.isSubscribed
+                          ? "You'll get instant alerts even when your browser is closed"
+                          : "Get instant alerts on your phone or laptop — even when the browser is closed"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {push.loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />}
+                <Switch
+                  checked={push.isSubscribed}
+                  onCheckedChange={push.toggle}
+                  disabled={!push.isSupported || push.isDenied || push.loading}
+                />
+              </div>
+            </div>
+            {push.isSubscribed && (
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-2 ml-7 flex items-center gap-1">
+                <Check className="h-3 w-3" />
+                Push notifications active on this device
+              </p>
+            )}
+          </div>
         </div>
       </Section>
 

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 export function getTodaysSources(): string[] {
   const sources: string[] = [];
 
-  sources.push("indeed", "remotive", "arbeitnow", "linkedin", "rozee");
+  sources.push("indeed", "remotive", "arbeitnow", "linkedin", "rozee", "linkedin_posts");
 
   if (process.env.RAPIDAPI_KEY) {
     sources.push("jsearch");
@@ -38,7 +38,7 @@ export function getPaidSourcesToday(): string[] {
   return sources;
 }
 
-const FREE_SOURCES = ["indeed", "remotive", "arbeitnow", "linkedin", "rozee"];
+const FREE_SOURCES = ["indeed", "remotive", "arbeitnow", "linkedin", "rozee", "linkedin_posts"];
 
 /**
  * Get priority platforms from all users who have instantApply enabled.

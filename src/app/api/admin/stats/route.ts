@@ -10,6 +10,7 @@ const SCRAPE_SOURCES = [
   "remotive",
   "arbeitnow",
   "linkedin",
+  "linkedin_posts",
   "rozee",
   "jsearch",
   "adzuna",
@@ -19,10 +20,12 @@ const SCRAPE_SOURCES = [
 const CRON_NAMES: { key: string; label: string; category: string }[] = [
   // Scrapers
   { key: "scrape-global", label: "Scrape Global", category: "scraper" },
+  { key: "scrape-posts", label: "Scrape LinkedIn Posts", category: "scraper" },
   { key: "scrape-indeed", label: "Scrape Indeed", category: "scraper" },
   { key: "scrape-remotive", label: "Scrape Remotive", category: "scraper" },
   { key: "scrape-arbeitnow", label: "Scrape Arbeitnow", category: "scraper" },
-  { key: "scrape-linkedin", label: "Scrape LinkedIn", category: "scraper" },
+  { key: "scrape-linkedin", label: "Scrape LinkedIn Jobs", category: "scraper" },
+  { key: "scrape-linkedin_posts", label: "Scrape LI Posts (per-source)", category: "scraper" },
   { key: "scrape-rozee", label: "Scrape Rozee", category: "scraper" },
   { key: "scrape-jsearch", label: "Scrape JSearch", category: "scraper" },
   { key: "scrape-adzuna", label: "Scrape Adzuna", category: "scraper" },

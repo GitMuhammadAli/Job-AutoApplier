@@ -194,6 +194,11 @@ export default function AdminScrapersPage() {
             {triggeringSource === "all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
             Scrape All
           </Button>
+          <Button size="sm" variant="outline" onClick={() => handleTrigger("scrape-posts")} disabled={!!triggeringSource}
+            className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
+            {triggeringSource === "scrape-posts" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
+            Scrape Posts
+          </Button>
           <Button size="sm" variant="outline" onClick={() => handleTrigger("scrape-global")} disabled={!!triggeringSource}
             className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
             {triggeringSource === "scrape-global" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}

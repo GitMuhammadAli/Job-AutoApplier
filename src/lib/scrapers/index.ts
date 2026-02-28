@@ -7,6 +7,7 @@ import { fetchAdzuna } from "./adzuna";
 import { fetchLinkedIn } from "./linkedin";
 import { fetchRozee } from "./rozee";
 import { fetchGoogleJobs } from "./google-jobs";
+import { fetchGoogleHiringPosts } from "./google-hiring-posts";
 
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;
 
@@ -19,6 +20,7 @@ const SCRAPERS: Record<string, ScraperFn> = {
   linkedin: (q) => fetchLinkedIn(q),
   rozee: (q) => fetchRozee(q),
   google: (q) => fetchGoogleJobs(q),
+  linkedin_posts: (q) => fetchGoogleHiringPosts(q),
 };
 
 // Scraper health tracking: consecutive errors + last result counts

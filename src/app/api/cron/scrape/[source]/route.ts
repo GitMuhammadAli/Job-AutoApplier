@@ -10,6 +10,7 @@ import { fetchAdzuna } from "@/lib/scrapers/adzuna";
 import { fetchLinkedIn } from "@/lib/scrapers/linkedin";
 import { fetchRozee } from "@/lib/scrapers/rozee";
 import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
+import { fetchGoogleHiringPosts } from "@/lib/scrapers/google-hiring-posts";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
@@ -29,6 +30,7 @@ const SCRAPERS: Record<string, ScraperFn> = {
   linkedin: (q) => fetchLinkedIn(q),
   rozee: (q) => fetchRozee(q),
   google: (q) => fetchGoogleJobs(q),
+  linkedin_posts: (q) => fetchGoogleHiringPosts(q),
 };
 
 export async function GET(

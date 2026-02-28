@@ -10,6 +10,7 @@ import { TIMEOUTS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
+import { pushNewJobMatches, isPushConfigured } from "@/lib/push-notifications";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -24,11 +25,18 @@ export async function GET(req: NextRequest) {
   try {
     // Get all users with email notifications enabled
     const users = await prisma.userSettings.findMany({
-      where: { emailNotifications: true },
+      where: {
+        OR: [
+          { emailNotifications: true },
+          { pushNotifications: true },
+        ],
+      },
       select: {
         userId: true,
         fullName: true,
         notificationEmail: true,
+        emailNotifications: true,
+        pushNotifications: true,
         user: { select: { email: true, name: true } },
       },
       take: 500,
@@ -101,14 +109,27 @@ export async function GET(req: NextRequest) {
 
       try {
         const displayName = user.fullName || user.user.name || "there";
-        await sendJobMatchNotification(
-          email,
-          jobNotifications,
-          displayName,
-        );
+
+        if (user.emailNotifications && email) {
+          await sendJobMatchNotification(
+            email,
+            jobNotifications,
+            displayName,
+          );
+        }
+
+        if (user.pushNotifications && isPushConfigured()) {
+          const topJob = newJobs[0]
+            ? { title: newJobs[0].globalJob.title, company: newJobs[0].globalJob.company }
+            : undefined;
+          await pushNewJobMatches(user.userId, newJobs.length, topJob).catch((e) =>
+            console.warn(`[NotifyMatches] Push failed for ${user.userId}:`, e),
+          );
+        }
+
         await recordNotification(
           user.userId,
-          `Sent ${newJobs.length} job match notification to ${email}`,
+          `Sent ${newJobs.length} job match notification to ${email || "push"}`,
         );
         notified++;
       } catch (err) {

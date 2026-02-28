@@ -175,6 +175,11 @@ export default function AdminDashboard() {
             {triggeringSource === "all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
             Scrape All
           </Button>
+          <Button size="sm" variant="outline" onClick={() => handleTrigger("scrape-posts")} disabled={!!triggeringSource}
+            className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
+            {triggeringSource === "scrape-posts" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
+            Scrape Posts
+          </Button>
           <Button size="sm" variant="outline" onClick={() => handleTrigger("instant-apply")} disabled={!!triggeringSource}
             className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
             {triggeringSource === "instant-apply" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -397,8 +402,10 @@ export default function AdminDashboard() {
             <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Quick Actions</h3>
             <div className="flex flex-wrap gap-2">
               {[
+                { id: "scrape-posts", label: "Scrape Posts", icon: Globe },
                 { id: "send-scheduled", label: "Send Scheduled", icon: Mail },
                 { id: "send-queued", label: "Send Queued", icon: Send },
+                { id: "notify-matches", label: "Notify", icon: Activity },
                 { id: "cleanup-stale", label: "Cleanup Stale", icon: Trash2 },
                 { id: "match-all-users", label: "Match All", icon: Globe },
               ].map((a) => (

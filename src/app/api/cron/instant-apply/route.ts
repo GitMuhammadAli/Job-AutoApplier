@@ -18,6 +18,7 @@ import { LIMITS, TIMEOUTS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
+import { pushInstantApplyUpdate, isPushConfigured } from "@/lib/push-notifications";
 import { getAppUrl } from "@/lib/email-templates";
 import { checkNotificationLimit as sharedCheckNotificationLimit, logNotificationSent } from "@/lib/notification-limiter";
 
@@ -326,30 +327,37 @@ export async function GET(req: NextRequest) {
       }
 
       // Notify user about new matches
-      if (
-        (appliedCount > 0 || draftedCount > 0) &&
-        settings.emailNotifications
-      ) {
+      if (appliedCount > 0 || draftedCount > 0) {
         const shouldNotify = await sharedCheckNotificationLimit(userId);
         if (shouldNotify) {
-          const notifEmail = settings.notificationEmail || settings.user.email;
-          if (notifEmail) {
-            try {
-              const notifFrom = getNotificationFrom();
-              if (!notifFrom) continue;
-              await sendNotificationEmail({
-                from: notifFrom,
-                to: notifEmail,
-                subject: `JobPilot: ${[appliedCount > 0 ? `${appliedCount} instant-applied` : "", draftedCount > 0 ? `${draftedCount} drafts ready` : ""].filter(Boolean).join(" | ") || "Application update"}`,
-                html: buildNotificationHTML(
-                  settings.user.name || "there",
-                  appliedCount,
-                  draftedCount,
-                ),
-              });
-              await logNotificationSent(userId, `InstantApply: ${appliedCount} applied, ${draftedCount} drafted`);
-            } catch (err) { console.warn("[InstantApply] Notification email failed:", err); }
+          if (settings.emailNotifications) {
+            const notifEmail = settings.notificationEmail || settings.user.email;
+            if (notifEmail) {
+              try {
+                const notifFrom = getNotificationFrom();
+                if (notifFrom) {
+                  await sendNotificationEmail({
+                    from: notifFrom,
+                    to: notifEmail,
+                    subject: `JobPilot: ${[appliedCount > 0 ? `${appliedCount} instant-applied` : "", draftedCount > 0 ? `${draftedCount} drafts ready` : ""].filter(Boolean).join(" | ") || "Application update"}`,
+                    html: buildNotificationHTML(
+                      settings.user.name || "there",
+                      appliedCount,
+                      draftedCount,
+                    ),
+                  });
+                }
+              } catch (err) { console.warn("[InstantApply] Notification email failed:", err); }
+            }
           }
+
+          if (settings.pushNotifications && isPushConfigured()) {
+            await pushInstantApplyUpdate(userId, appliedCount, draftedCount).catch((e) =>
+              console.warn("[InstantApply] Push failed:", e),
+            );
+          }
+
+          await logNotificationSent(userId, `InstantApply: ${appliedCount} applied, ${draftedCount} drafted`);
         }
       }
     }

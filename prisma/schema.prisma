@@ -10,21 +10,22 @@ datasource db {
 // ── AUTH (NextAuth) ──
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  userJobs      UserJob[]
-  resumes       Resume[]
-  settings      UserSettings?
-  activities    Activity[]
-  applications  JobApplication[]
-  feedback      UserFeedback[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                String             @id @default(cuid())
+  name              String?
+  email             String?            @unique
+  emailVerified     DateTime?
+  image             String?
+  accounts          Account[]
+  sessions          Session[]
+  userJobs          UserJob[]
+  resumes           Resume[]
+  settings          UserSettings?
+  activities        Activity[]
+  applications      JobApplication[]
+  feedback          UserFeedback[]
+  pushSubscriptions PushSubscription[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 }
 
 model Account {
@@ -198,6 +199,7 @@ model UserSettings {
   preferredPlatforms       String[]
   // Notifications
   emailNotifications       Boolean         @default(true)
+  pushNotifications        Boolean         @default(false)
   notificationEmail        String?
   // Email Provider
   emailProvider            String?         @default("brevo")
@@ -398,6 +400,22 @@ model ScraperRun {
 
   @@index([source, startedAt])
   @@index([status, startedAt])
+}
+
+// ── PUSH SUBSCRIPTION ──
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @db.Text
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, endpoint])
+  @@index([userId])
 }
 
 // ── USER FEEDBACK ──

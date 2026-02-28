@@ -9,6 +9,7 @@ const SOURCES = [
   "remotive",
   "arbeitnow",
   "linkedin",
+  "linkedin_posts",
   "rozee",
   "jsearch",
   "adzuna",

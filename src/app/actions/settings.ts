@@ -42,6 +42,7 @@ const settingsSchema = z.object({
   preferredPlatforms: z.array(z.string()).default([]),
   // Notifications
   emailNotifications: z.boolean().default(true),
+  pushNotifications: z.boolean().default(false),
   notificationEmail: z.string().email().optional().or(z.literal("")),
   // Email Provider
   emailProvider: z.string().default("gmail"),
