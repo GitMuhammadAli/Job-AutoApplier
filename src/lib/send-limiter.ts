@@ -119,7 +119,7 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
   const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
   // Run all limit checks in parallel (all independent queries)
-  const [todayCount, hourCount, lastSent, todayBounces] = await Promise.all([
+  const [todayCount, hourCount, lastSent, todayBouncedApps] = await Promise.all([
     prisma.jobApplication.count({
       where: { userId, status: "SENT", sentAt: { gte: todayStart } },
     }),
@@ -130,10 +130,25 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
       where: { userId, status: "SENT" },
       orderBy: { sentAt: "desc" },
     }),
-    prisma.jobApplication.count({
+    prisma.jobApplication.findMany({
       where: { userId, status: "BOUNCED", updatedAt: { gte: todayStart } },
+      select: { errorMessage: true },
     }),
   ]);
+
+  // Only count "address not found" bounces toward the auto-pause threshold.
+  // Policy/reputation rejections (SPF/DKIM, domain blocks) are a different
+  // problem and shouldn't prevent sending to verified addresses.
+  const ADDRESS_BOUNCE_PATTERNS = [
+    "address not found", "does not exist", "user unknown", "no such user",
+    "mailbox not found", "mailbox unavailable", "invalid recipient",
+    "recipient rejected", "undeliverable",
+  ];
+  const todayBounces = todayBouncedApps.filter((app) => {
+    if (!app.errorMessage) return false;
+    const msg = app.errorMessage.toLowerCase();
+    return ADDRESS_BOUNCE_PATTERNS.some((p) => msg.includes(p));
+  }).length;
 
   // Check 3: Daily limit (respects warmup limits)
   if (todayCount >= effectiveMaxPerDay) {

@@ -131,8 +131,8 @@ export async function findCompanyEmail(job: {
                 const hrEmail = filtered.find((e) => HR_PREFIX.test(e));
                 return {
                   email: (hrEmail || filtered[0]).toLowerCase(),
-                  confidence: "MEDIUM",
-                  confidenceScore: CONFIDENCE_SCORES.MEDIUM,
+                  confidence: "HIGH",
+                  confidenceScore: 80,
                   method: `scraped_from_${page.slice(1)}_page`,
                 };
               }
@@ -163,8 +163,8 @@ export async function findCompanyEmail(job: {
         if (result.exists) {
           return {
             email: candidateEmail,
-            confidence: "MEDIUM",
-            confidenceScore: CONFIDENCE_SCORES.MEDIUM,
+            confidence: "LOW",
+            confidenceScore: 40,
             method: `pattern_guess_rcpt_verified (${prefix}@${domain})`,
           };
         }

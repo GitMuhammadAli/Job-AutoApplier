@@ -81,6 +81,37 @@ const NETWORK_PATTERNS = [
   "dns resolution failed",
 ];
 
+const ADDRESS_NOT_FOUND_PHRASES = [
+  "address not found",
+  "does not exist",
+  "user unknown",
+  "no such user",
+  "mailbox not found",
+  "mailbox unavailable",
+  "mailbox disabled",
+  "account disabled",
+  "account does not exist",
+  "invalid recipient",
+  "recipient rejected",
+  "undeliverable",
+];
+
+const ADDRESS_NOT_FOUND_CODES = ["550", "551", "553"];
+
+export function isAddressNotFound(error: unknown): boolean {
+  const raw = error instanceof Error ? error.message : String(error);
+  const msg = raw.toLowerCase();
+  const responseCode =
+    error && typeof error === "object" && "responseCode" in error
+      ? (error as { responseCode?: number }).responseCode
+      : undefined;
+
+  if (responseCode && ADDRESS_NOT_FOUND_CODES.includes(String(responseCode))) {
+    return ADDRESS_NOT_FOUND_PHRASES.some((p) => msg.includes(p));
+  }
+  return ADDRESS_NOT_FOUND_PHRASES.some((p) => msg.includes(p));
+}
+
 export function classifyError(error: unknown): ClassifiedError {
   const raw = error instanceof Error ? error.message : String(error);
   const msg = raw.toLowerCase();

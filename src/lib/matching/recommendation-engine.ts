@@ -39,6 +39,7 @@ export interface RecommendedJob {
   emailConfidence: number | null;
   postedDate: string | null;
   firstSeenAt: string;
+  lastSeenAt: string;
   createdAt: string;
   // Scoring
   matchScore: number;
@@ -208,6 +209,7 @@ export async function getRecommendedJobs(
       emailConfidence: true,
       postedDate: true,
       firstSeenAt: true,
+      lastSeenAt: true,
       createdAt: true,
       isFresh: true,
     },
@@ -493,6 +495,7 @@ export async function getRecommendedJobs(
       emailConfidence: s.job.emailConfidence ?? null,
       postedDate: s.job.postedDate?.toISOString() ?? null,
       firstSeenAt: s.job.firstSeenAt.toISOString(),
+      lastSeenAt: s.job.lastSeenAt.toISOString(),
       createdAt: s.job.createdAt.toISOString(),
       matchScore: s.result.score,
       matchReasons: s.result.reasons,

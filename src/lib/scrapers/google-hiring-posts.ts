@@ -1,6 +1,7 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
+import { extractEmailFromText } from "@/lib/extract-email-from-text";
 import { TIMEOUTS } from "@/lib/constants";
 
 /**
@@ -194,8 +195,10 @@ function parseHiringPost(
   // Extract location from snippet
   const location = extractLocation(result.snippet || "", fallbackCity);
 
-  // Extract email from snippet
-  const email = extractEmail(result.snippet || "");
+  // Extract email from all available text (title + snippet combined for wider coverage)
+  const combinedText = [result.title, result.snippet].filter(Boolean).join(" ");
+  const emailExtraction = extractEmailFromText(combinedText);
+  const email = emailExtraction.email;
 
   // Extract job type
   const jobType = extractJobType(combined);
@@ -279,11 +282,6 @@ function extractLocation(text: string, fallback: string): string {
     if (match) return match[1].trim();
   }
   return fallback;
-}
-
-function extractEmail(text: string): string | null {
-  const match = text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
-  return match ? match[0] : null;
 }
 
 function extractJobType(text: string): string | null {

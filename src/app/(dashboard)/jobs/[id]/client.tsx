@@ -23,6 +23,7 @@ import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { ActivityTimeline } from "@/components/jobs/ActivityTimeline";
 import { QuickApplyPanel } from "@/components/jobs/QuickApplyPanel";
 import { QuickApplyKit } from "@/components/jobs/QuickApplyKit";
+import { FreshnessIndicator } from "@/components/jobs/FreshnessIndicator";
 import { updateStage, dismissJob, addNote, markAppliedFromSite } from "@/app/actions/job";
 
 import type { JobStage, ActivityType } from "@prisma/client";
@@ -41,6 +42,9 @@ import {
   AlertCircle,
   Mail,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Code2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -63,6 +67,9 @@ interface GlobalJobData {
   emailConfidence: number | null;
   emailSource: string | null;
   postedDate: Date | string | null;
+  firstSeenAt: Date | string | null;
+  lastSeenAt: Date | string | null;
+  isActive: boolean;
 }
 
 interface ActivityData {
@@ -127,6 +134,8 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
   const [noteText, setNoteText] = useState(job.notes || "");
   const [dismissReason, setDismissReason] = useState("");
   const [markedApplied, setMarkedApplied] = useState(job.stage === "APPLIED");
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [rawDataOpen, setRawDataOpen] = useState(false);
 
   const handleMarkApplied = () => {
     startTransition(async () => {
@@ -242,27 +251,41 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
                   {job.application.status}
                 </Badge>
               )}
+              <FreshnessIndicator
+                lastSeenAt={g.lastSeenAt ?? null}
+                firstSeenAt={g.firstSeenAt ?? null}
+                isActive={g.isActive}
+              />
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {(g.applyUrl || g.sourceUrl) && (
-              <Button size="sm" asChild className="shadow-sm text-xs bg-blue-600 hover:bg-blue-700 text-white">
-                <a href={g.applyUrl || g.sourceUrl || "#"} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                  Apply on Site
-                </a>
-              </Button>
-            )}
-            {g.companyEmail && (g.emailConfidence ?? 0) >= 70 && (
-              <Button variant="outline" size="sm" className="shadow-sm text-xs text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+            {g.companyEmail ? (
+              <Button size="sm" className="shadow-sm text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => {
                   const panel = document.getElementById("quick-apply-panel");
                   panel?.scrollIntoView({ behavior: "smooth" });
                 }}
               >
                 <Mail className="h-3.5 w-3.5 mr-1.5" />
-                Email Apply
+                Draft Application
+              </Button>
+            ) : (
+              (g.applyUrl || g.sourceUrl) && (
+                <Button size="sm" asChild className="shadow-sm text-xs bg-blue-600 hover:bg-blue-700 text-white">
+                  <a href={g.applyUrl || g.sourceUrl || "#"} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                    View on Site
+                  </a>
+                </Button>
+              )
+            )}
+            {g.companyEmail && (g.applyUrl || g.sourceUrl) && (
+              <Button variant="outline" size="sm" asChild className="shadow-sm text-xs text-slate-600 dark:text-slate-300">
+                <a href={g.applyUrl || g.sourceUrl || "#"} target="_blank" rel="noopener noreferrer" title="May require login on source site">
+                  <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                  View on Site
+                </a>
               </Button>
             )}
             {!markedApplied && job.stage !== "APPLIED" && (
@@ -379,7 +402,7 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
               {g.companyEmail ? (
                 <div className="space-y-1">
                   <InfoRow icon={<Send className="h-3.5 w-3.5" />} label="Email" value={g.companyEmail} />
-                  {g.emailConfidence != null && g.emailConfidence < 70 && (
+                  {g.emailConfidence != null && g.emailConfidence < 80 && (
                     <p className="text-[10px] text-amber-600 dark:text-amber-400 ml-6 flex items-center gap-1">
                       <AlertCircle className="h-3 w-3" />
                       Low confidence ({g.emailSource?.includes("guess") ? "guessed" : "scraped"}) — verify before sending
@@ -438,13 +461,50 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
             />
           )}
 
+          {/* Email availability */}
+          {g.companyEmail ? (
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 p-3 sm:p-4 ring-1 ring-emerald-200/50 dark:ring-emerald-800/30">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{g.companyEmail}</span>
+              </div>
+              <p className="text-xs text-emerald-600/80 dark:text-emerald-400/70 mt-1 ml-6">
+                Email found — you can apply directly
+                {g.emailSource && <span className="text-emerald-500/60"> · via {g.emailSource.replace(/_/g, " ")}</span>}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 p-3 sm:p-4 ring-1 ring-amber-200/50 dark:ring-amber-800/30">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-medium text-amber-700 dark:text-amber-300">No email found for this company</span>
+              </div>
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-1 ml-6">
+                Use &quot;View on site&quot; or &quot;Copy kit&quot; to apply manually
+              </p>
+            </div>
+          )}
+
           {/* Description */}
           {g.description && (
             <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
               <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Job Description</h3>
-              <div className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap max-h-72 sm:max-h-96 overflow-y-auto break-words">
+              <div className={`text-xs sm:text-sm text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap break-words ${
+                !descExpanded && g.description.length > 1000 ? "max-h-64 overflow-hidden relative" : ""
+              }`}>
                 {g.description}
+                {!descExpanded && g.description.length > 1000 && (
+                  <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white dark:from-zinc-800 to-transparent" />
+                )}
               </div>
+              {g.description.length > 1000 && (
+                <button
+                  onClick={() => setDescExpanded(!descExpanded)}
+                  className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  {descExpanded ? <><ChevronUp className="h-3 w-3" /> Collapse</> : <><ChevronDown className="h-3 w-3" /> Show full description</>}
+                </button>
+              )}
             </div>
           )}
 
@@ -476,6 +536,44 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
               </div>
             </div>
           )}
+
+          {/* Raw Scraper Data */}
+          <div className="rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
+            <button
+              onClick={() => setRawDataOpen(!rawDataOpen)}
+              className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors w-full"
+            >
+              <Code2 className="h-3.5 w-3.5" />
+              <span className="font-medium">{rawDataOpen ? "Hide" : "View"} raw scraper data</span>
+              {rawDataOpen ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
+            </button>
+            {rawDataOpen && (
+              <pre className="mt-3 p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg text-[10px] sm:text-xs text-slate-600 dark:text-zinc-400 overflow-x-auto max-h-96 overflow-y-auto font-mono leading-relaxed">
+                {JSON.stringify({
+                  title: g.title,
+                  company: g.company,
+                  location: g.location,
+                  description: g.description ? `${g.description.substring(0, 200)}...` : null,
+                  salary: g.salary,
+                  jobType: g.jobType,
+                  experienceLevel: g.experienceLevel,
+                  category: g.category,
+                  skills: g.skills,
+                  source: g.source,
+                  sourceUrl: g.sourceUrl,
+                  applyUrl: g.applyUrl,
+                  companyUrl: g.companyUrl,
+                  companyEmail: g.companyEmail,
+                  emailConfidence: g.emailConfidence,
+                  emailSource: g.emailSource,
+                  postedDate: g.postedDate,
+                  firstSeenAt: g.firstSeenAt,
+                  lastSeenAt: g.lastSeenAt,
+                  isActive: g.isActive,
+                }, null, 2)}
+              </pre>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="notes" className="mt-3 sm:mt-4">

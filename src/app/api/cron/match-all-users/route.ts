@@ -31,16 +31,20 @@ export async function GET(req: NextRequest) {
   }
 
   const startTime = Date.now();
+  const cursorUserId = req.nextUrl.searchParams.get("cursor") || undefined;
+  const batchSize = Math.min(parseInt(req.nextUrl.searchParams.get("batch") || "50", 10) || 50, 500);
 
   try {
     const users = await prisma.userSettings.findMany({
       where: { isOnboarded: true, keywords: { isEmpty: false } },
       include: { user: { select: { id: true, name: true, email: true } } },
-      take: 500,
+      orderBy: { userId: "asc" },
+      take: batchSize,
+      ...(cursorUserId ? { skip: 1, cursor: { userId: cursorUserId } } : {}),
     });
 
     if (users.length === 0) {
-      return NextResponse.json({ message: "No configured users", matched: 0 });
+      return NextResponse.json({ message: "No configured users", matched: 0, nextCursor: null });
     }
 
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
@@ -181,23 +185,33 @@ export async function GET(req: NextRequest) {
 
     const totalMatched = results.reduce((sum, r) => sum + r.matched, 0);
 
+    // Cursor for next batch: if we processed fewer users than requested, we're done
+    const timedOut = Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS;
+    const lastProcessedIdx = results.length - 1;
+    const nextCursor = (results.length < users.length || timedOut) && lastProcessedIdx >= 0
+      ? users[lastProcessedIdx].userId
+      : users.length === batchSize
+        ? users[users.length - 1].userId
+        : null;
+
     await prisma.systemLog.create({
       data: {
         type: "cron",
         source: "match-all-users",
-        message: `Matched ${totalMatched} jobs across ${users.length} users from ${unmatchedJobs.length} available jobs`,
-        metadata: { users: users.length, availableJobs: unmatchedJobs.length, totalMatched },
+        message: `Matched ${totalMatched} jobs across ${results.length} users from ${unmatchedJobs.length} available jobs${nextCursor ? " (more users pending)" : ""}`,
+        metadata: { users: results.length, availableJobs: unmatchedJobs.length, totalMatched, nextCursor },
       },
     });
 
-    await tracker.success({ processed: totalMatched, metadata: { users: users.length, availableJobs: unmatchedJobs.length } });
+    await tracker.success({ processed: totalMatched, metadata: { users: results.length, availableJobs: unmatchedJobs.length, nextCursor } });
 
     return NextResponse.json({
       success: true,
-      users: users.length,
+      users: results.length,
       availableJobs: unmatchedJobs.length,
       totalMatched,
       perUser: results,
+      nextCursor,
     });
   } catch (error) {
     await tracker.error(error instanceof Error ? error : String(error));

@@ -49,6 +49,9 @@ export default async function JobDetailPage({
               emailConfidence: true,
               emailSource: true,
               postedDate: true,
+              firstSeenAt: true,
+              lastSeenAt: true,
+              isActive: true,
             },
           },
           application: {
@@ -106,6 +109,9 @@ export default async function JobDetailPage({
                 emailConfidence: true,
                 emailSource: true,
                 postedDate: true,
+                firstSeenAt: true,
+                lastSeenAt: true,
+                isActive: true,
               },
             },
             application: {

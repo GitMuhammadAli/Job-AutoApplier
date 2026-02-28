@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CopyApplicationBundle } from "./CopyApplicationBundle";
+import { FreshnessDot } from "@/components/jobs/FreshnessIndicator";
 import {
   markApplicationReady,
   markApplicationManual,
@@ -242,9 +243,17 @@ const ApplicationCard = memo(function ApplicationCard({
             </Badge>
             <StatusBadge status={app.status} />
           </div>
-          <p className="text-sm text-slate-600 dark:text-zinc-400 mt-0.5">
-            {job.company}
-          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <p className="text-sm text-slate-600 dark:text-zinc-400">
+              {job.company}
+            </p>
+            {job.companyEmail && (
+              <span title={`Email: ${job.companyEmail}`} className="flex-shrink-0">
+                <Mail className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
+              </span>
+            )}
+            <FreshnessDot lastSeenAt={job.lastSeenAt} firstSeenAt={job.firstSeenAt} />
+          </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-slate-500 dark:text-zinc-400">
             <span title="Recipient">{app.recipientEmail}</span>
             {matchScore != null && (

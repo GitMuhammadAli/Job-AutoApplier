@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
+import { FreshnessDot } from "@/components/jobs/FreshnessIndicator";
 import { daysAgo } from "@/lib/utils";
 import { saveGlobalJob, dismissGlobalJob, undismissGlobalJob, bulkDismissBelowScore } from "@/app/actions/job";
 import { Button } from "@/components/ui/button";
@@ -580,12 +581,12 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         )}
         {job.companyEmail ? (
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-            (job.emailConfidence ?? 0) >= 70
+            (job.emailConfidence ?? 0) >= 80
               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
               : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
           }`}>
             <Mail className="h-2.5 w-2.5 inline mr-0.5" />
-            {(job.emailConfidence ?? 0) >= 70 ? "Email" : "Email?"}
+            {(job.emailConfidence ?? 0) >= 80 ? "Email" : "Email?"}
           </span>
         ) : (
           <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400">
@@ -641,6 +642,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
           )}
           {days !== null && (
             <div className="flex items-center gap-1 flex-shrink-0">
+              <FreshnessDot lastSeenAt={job.lastSeenAt} firstSeenAt={job.firstSeenAt} />
               <Clock className="h-2.5 w-2.5" />
               <span>{days === 0 ? "Today" : `${days}d ago`}</span>
             </div>
@@ -659,7 +661,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
           </button>
         )}
 
-        {job.companyEmail && (job.emailConfidence ?? 0) >= 70 && (
+        {job.companyEmail && (job.emailConfidence ?? 0) >= 80 && (
           <Link
             href={`${detailUrl}?apply=true`}
             className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 active:bg-emerald-300 transition-colors touch-manipulation"

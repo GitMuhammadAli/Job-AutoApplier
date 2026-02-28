@@ -82,6 +82,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ processed: 0, reason: "No fresh jobs" });
     }
 
+    const cursorUserId = req.nextUrl.searchParams.get("cursor") || undefined;
+    const userBatchSize = Math.min(parseInt(req.nextUrl.searchParams.get("batch") || "50", 10) || 50, 500);
+
     const allSettings = await prisma.userSettings.findMany({
       where: {
         isOnboarded: true,
@@ -89,7 +92,9 @@ export async function GET(req: NextRequest) {
         keywords: { isEmpty: false },
       },
       include: { user: { select: { id: true, name: true, email: true } } },
-      take: LIMITS.USERS_BATCH,
+      orderBy: { userId: "asc" },
+      take: userBatchSize,
+      ...(cursorUserId ? { skip: 1, cursor: { userId: cursorUserId } } : {}),
     });
 
     const stats = {
@@ -242,7 +247,7 @@ export async function GET(req: NextRequest) {
           } else if (isFullAuto && !isOutsidePeakHours) {
             if (
               match.score >= (settings.minMatchScoreForAutoApply || 75) &&
-              emailResult.confidenceScore >= 70
+              emailResult.confidenceScore >= 80
             ) {
               const isDupe = await isDuplicateApplication(userId, {
                 title: freshJob.title,
@@ -373,19 +378,24 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Cursor for next user batch: if we got a full batch, there may be more users
+    const nextCursor = allSettings.length === userBatchSize
+      ? allSettings[allSettings.length - 1].userId
+      : null;
+
     await prisma.systemLog.create({
       data: {
         type: "apply",
         source: "instant-apply",
-        message: `Processed ${stats.freshJobs} jobs for ${stats.users} users: ${stats.matched} matched, ${stats.drafted} drafted, ${stats.sent} sent`,
-        metadata: stats,
+        message: `Processed ${stats.freshJobs} jobs for ${stats.users} users: ${stats.matched} matched, ${stats.drafted} drafted, ${stats.sent} sent${nextCursor ? " (more users pending)" : ""}`,
+        metadata: { ...stats, nextCursor },
       },
     });
 
     await releaseLock("instant-apply");
-    await tracker.success({ processed: stats.sent, failed: stats.skipped, metadata: { matched: stats.matched, drafted: stats.drafted, freshJobs: stats.freshJobs } });
+    await tracker.success({ processed: stats.sent, failed: stats.skipped, metadata: { matched: stats.matched, drafted: stats.drafted, freshJobs: stats.freshJobs, nextCursor } });
 
-    return NextResponse.json({ success: true, ...stats });
+    return NextResponse.json({ success: true, ...stats, nextCursor });
   } catch (error) {
     await releaseLock("instant-apply");
     await tracker.error(error instanceof Error ? error : String(error));

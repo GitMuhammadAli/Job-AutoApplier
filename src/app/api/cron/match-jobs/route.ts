@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
 
   const tracker = createCronTracker("match-jobs");
   const startTime = Date.now();
+  const cursorUserId = req.nextUrl.searchParams.get("cursor") || undefined;
+  const batchSize = Math.min(parseInt(req.nextUrl.searchParams.get("batch") || "50", 10) || 50, 500);
 
   try {
     const users = await prisma.userSettings.findMany({
@@ -38,11 +40,13 @@ export async function GET(req: NextRequest) {
         salaryMax: true,
         minMatchScoreForAutoApply: true,
       },
-      take: 500,
+      orderBy: { userId: "asc" },
+      take: batchSize,
+      ...(cursorUserId ? { skip: 1, cursor: { userId: cursorUserId } } : {}),
     });
 
     if (users.length === 0) {
-      return NextResponse.json({ message: "No configured users", matched: 0 });
+      return NextResponse.json({ message: "No configured users", matched: 0, nextCursor: null });
     }
 
     const oneDayAgo = new Date();
@@ -141,23 +145,29 @@ export async function GET(req: NextRequest) {
       totalMatched += userMatched;
     }
 
+    const processedUsers = Object.keys(userStats).length;
+    const nextCursor = users.length === batchSize
+      ? users[users.length - 1].userId
+      : null;
+
     await prisma.systemLog.create({
       data: {
         type: "cron",
         source: "match-jobs",
-        message: `Matched ${totalMatched} jobs for ${users.length} users from ${recentJobs.length} recent jobs`,
-        metadata: { users: users.length, recentJobs: recentJobs.length, totalMatched },
+        message: `Matched ${totalMatched} jobs for ${processedUsers} users from ${recentJobs.length} recent jobs${nextCursor ? " (more users pending)" : ""}`,
+        metadata: { users: processedUsers, recentJobs: recentJobs.length, totalMatched, nextCursor },
       },
     });
 
-    await tracker.success({ processed: totalMatched, metadata: { users: users.length, recentJobs: recentJobs.length } });
+    await tracker.success({ processed: totalMatched, metadata: { users: processedUsers, recentJobs: recentJobs.length, nextCursor } });
 
     return NextResponse.json({
       success: true,
-      users: users.length,
+      users: processedUsers,
       recentJobs: recentJobs.length,
       totalMatched,
       perUser: userStats,
+      nextCursor,
     });
   } catch (error) {
     await tracker.error(error instanceof Error ? error : String(error));

@@ -21,10 +21,10 @@ export const LIMITS = {
   MATCH_BATCH: 500,
   /** Max users processed per cron cycle */
   USERS_BATCH: 500,
-  /** Max applications to send per cron run (queued) — kept low for 10s Vercel limit (~2s per send) */
-  SEND_QUEUED_BATCH: 3,
-  /** Max applications to send per cron run (scheduled) — kept low for 10s Vercel limit (~2s per send) */
-  SEND_SCHEDULED_BATCH: 3,
+  /** Max applications to send per cron run (queued) — kept low for 10s Vercel limit (~1.5s per send) */
+  SEND_QUEUED_BATCH: 4,
+  /** Max applications to send per cron run (scheduled) — kept low for 10s Vercel limit (~1.5s per send) */
+  SEND_SCHEDULED_BATCH: 4,
   /** Max follow-up candidates per cron run */
   FOLLOW_UP_BATCH: 200,
   /** Max notification jobs per user digest */
@@ -60,8 +60,8 @@ export const TIMEOUTS = {
   RESUME_PARSE_TIMEOUT_MS: 25_000,
   /** Careers page scrape timeout (ms) */
   CAREERS_SCRAPE_TIMEOUT_MS: 5_000,
-  /** Delay between consecutive email sends (ms) */
-  INTER_SEND_DELAY_MS: 2_000,
+  /** Delay between consecutive email sends (ms) — 1s is safe for Gmail/Outlook/Brevo */
+  INTER_SEND_DELAY_MS: 1_000,
   /** Delay between instant-apply sends (ms) */
   INSTANT_APPLY_DELAY_MS: 1_500,
   /** Per-API-call timeout for scrapers (ms) — must be well under Vercel 10s limit */

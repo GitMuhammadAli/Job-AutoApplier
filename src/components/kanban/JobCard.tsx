@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { StageSelector } from "@/components/shared/StageSelector";
+import { FreshnessDot } from "@/components/jobs/FreshnessIndicator";
 import { daysAgo } from "@/lib/utils";
 import type { UserJobWithGlobal } from "@/store/useJobStore";
 import type { JobStage } from "@prisma/client";
@@ -133,9 +134,14 @@ export const JobCard = memo(function JobCard({
     >
       <div className="mb-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-zinc-500 font-medium">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-zinc-500 font-medium min-w-0">
             <Building2 className="h-3 w-3 flex-shrink-0" />
             <span className="truncate">{g.company}</span>
+            {g.companyEmail && (
+              <span title={`Email: ${g.companyEmail}`} className="flex-shrink-0">
+                <Mail className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
+              </span>
+            )}
           </div>
           <StageSelector
             currentStage={job.stage}
@@ -229,6 +235,7 @@ export const JobCard = memo(function JobCard({
         <div className="flex items-center gap-2 min-w-0">
           {days !== null && (
             <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-zinc-500">
+              <FreshnessDot lastSeenAt={g.lastSeenAt} firstSeenAt={g.firstSeenAt} />
               <Clock className="h-2.5 w-2.5 flex-shrink-0" />
               <span>
                 {days === 0 ? "Today" : days === 1 ? "1d" : `${days}d`}
