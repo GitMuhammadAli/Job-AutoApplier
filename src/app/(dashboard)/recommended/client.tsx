@@ -7,7 +7,6 @@ import {
   Search,
   Building2,
   MapPin,
-  Clock,
   ExternalLink,
   Briefcase,
   Star,
@@ -27,7 +26,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { FreshnessDot } from "@/components/jobs/FreshnessIndicator";
-import { daysAgo } from "@/lib/utils";
 import { saveGlobalJob, dismissGlobalJob, undismissGlobalJob, bulkDismissBelowScore } from "@/app/actions/job";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -501,7 +499,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
   const [saved, setSaved] = useState(!!job.userJobId);
   const [dismissing, setDismissing] = useState(false);
 
-  const days = daysAgo(job.postedDate ?? null);
+
   const score = job.matchScore;
   const status = getStatusBadge(job.applicationStatus);
   const detailUrl = job.userJobId ? `/jobs/${job.userJobId}` : `/jobs/${job.id}`;
@@ -574,11 +572,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
             <Globe className="h-2.5 w-2.5 inline mr-0.5" />Remote
           </span>
         )}
-        {days !== null && days <= 1 && (
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-            Fresh
-          </span>
-        )}
+        <FreshnessDot lastSeenAt={job.lastSeenAt} firstSeenAt={job.firstSeenAt} />
         {job.companyEmail ? (
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
             (job.emailConfidence ?? 0) >= 80
@@ -638,13 +632,6 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
             <div className="flex items-center gap-1 truncate">
               <MapPin className="h-3 w-3 flex-shrink-0" />
               <span className="truncate">{job.location}</span>
-            </div>
-          )}
-          {days !== null && (
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <FreshnessDot lastSeenAt={job.lastSeenAt} firstSeenAt={job.firstSeenAt} />
-              <Clock className="h-2.5 w-2.5" />
-              <span>{days === 0 ? "Today" : `${days}d ago`}</span>
             </div>
           )}
         </div>

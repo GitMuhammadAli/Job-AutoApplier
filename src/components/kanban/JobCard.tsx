@@ -6,7 +6,6 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import {
   Building2,
-  Clock,
   ExternalLink,
   Mail,
   Zap,
@@ -14,7 +13,6 @@ import {
 } from "lucide-react";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { StageSelector } from "@/components/shared/StageSelector";
-import { FreshnessDot } from "@/components/jobs/FreshnessIndicator";
 import { daysAgo } from "@/lib/utils";
 import type { UserJobWithGlobal } from "@/store/useJobStore";
 import type { JobStage } from "@prisma/client";
@@ -32,29 +30,29 @@ function getFreshness(days: number | null): { label: string; color: string } {
   if (days === null) return { label: "", color: "" };
   if (days <= 1)
     return {
-      label: "New",
+      label: "Posted today",
       color:
         "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
     };
   if (days <= 3)
     return {
-      label: "Recent",
+      label: `${days}d ago`,
       color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
     };
   if (days <= 7)
     return {
-      label: "This week",
+      label: `${days}d ago`,
       color:
         "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
     };
   if (days <= 14)
     return {
-      label: "Getting old",
+      label: `${days}d — may be filled`,
       color:
         "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
     };
   return {
-    label: "Old",
+    label: `${days}d — likely expired`,
     color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
   };
 }
@@ -233,15 +231,6 @@ export const JobCard = memo(function JobCard({
 
       <div className="flex items-center justify-between pt-1.5 border-t border-slate-50 dark:border-zinc-700/50">
         <div className="flex items-center gap-2 min-w-0">
-          {days !== null && (
-            <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-zinc-500">
-              <FreshnessDot lastSeenAt={g.lastSeenAt} firstSeenAt={g.firstSeenAt} />
-              <Clock className="h-2.5 w-2.5 flex-shrink-0" />
-              <span>
-                {days === 0 ? "Today" : days === 1 ? "1d" : `${days}d`}
-              </span>
-            </div>
-          )}
           {g.location && (
             <div className="text-[11px] text-slate-400 dark:text-zinc-500 truncate">
               {g.location}
