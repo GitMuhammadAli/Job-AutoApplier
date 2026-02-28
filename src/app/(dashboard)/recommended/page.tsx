@@ -28,7 +28,7 @@ export default function RecommendedPage({ searchParams }: PageProps) {
           Recommended Jobs
         </h1>
         <p className="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
-          AI-matched jobs based on your keywords, skills, and location
+          Jobs that match your skills and preferences
         </p>
       </div>
 

@@ -100,9 +100,9 @@ export default function SystemHealthPage() {
       {/* Cron Status */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatusCard
-          title="Last Scrape"
+          title="Last Job Search"
           time={data.lastScrape?.time}
-          message={data.lastScrape?.message || "No scrapes yet"}
+          message={data.lastScrape?.message || "No searches yet"}
           timeAgo={data.lastScrape ? timeAgo(data.lastScrape.time) : "Never"}
         />
         <StatusCard
@@ -120,7 +120,7 @@ export default function SystemHealthPage() {
           <StatBox label="Sent" value={data.today.sent} color="text-emerald-600 dark:text-emerald-400" />
           <StatBox label="Drafted" value={data.today.drafted} color="text-blue-600 dark:text-blue-400" />
           <StatBox label="Failed" value={data.today.failed} color="text-red-600 dark:text-red-400" />
-          <StatBox label="Bounced" value={data.today.bounced} color="text-amber-600 dark:text-amber-400" />
+          <StatBox label="Undelivered" value={data.today.bounced} color="text-amber-600 dark:text-amber-400" />
         </div>
       </div>
 

@@ -4,7 +4,14 @@ import { useRef, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Building2, Clock, ExternalLink, Mail, Zap, FileText } from "lucide-react";
+import {
+  Building2,
+  Clock,
+  ExternalLink,
+  Mail,
+  Zap,
+  FileText,
+} from "lucide-react";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { StageSelector } from "@/components/shared/StageSelector";
 import { daysAgo } from "@/lib/utils";
@@ -13,20 +20,49 @@ import type { JobStage } from "@prisma/client";
 
 interface JobCardProps {
   job: UserJobWithGlobal;
-  onStageChange: (jobId: string, newStage: JobStage, oldStage: JobStage) => void;
+  onStageChange: (
+    jobId: string,
+    newStage: JobStage,
+    oldStage: JobStage,
+  ) => void;
 }
 
 function getFreshness(days: number | null): { label: string; color: string } {
   if (days === null) return { label: "", color: "" };
-  if (days <= 1) return { label: "Fresh", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" };
-  if (days <= 3) return { label: "Recent", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" };
-  if (days <= 7) return { label: "This week", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" };
-  if (days <= 14) return { label: "Aging", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" };
-  return { label: "Old", color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" };
+  if (days <= 1)
+    return {
+      label: "New",
+      color:
+        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    };
+  if (days <= 3)
+    return {
+      label: "Recent",
+      color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+    };
+  if (days <= 7)
+    return {
+      label: "This week",
+      color:
+        "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    };
+  if (days <= 14)
+    return {
+      label: "Getting old",
+      color:
+        "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+    };
+  return {
+    label: "Old",
+    color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  };
 }
 
-function getApplySpeed(job: UserJobWithGlobal): { label: string; fast: boolean } | null {
-  if (job.application?.status !== "SENT" || !job.application.sentAt) return null;
+function getApplySpeed(
+  job: UserJobWithGlobal,
+): { label: string; fast: boolean } | null {
+  if (job.application?.status !== "SENT" || !job.application.sentAt)
+    return null;
   const sentAt = new Date(job.application.sentAt).getTime();
   const firstSeen = new Date(job.globalJob.firstSeenAt).getTime();
   const diffMin = Math.max(0, Math.round((sentAt - firstSeen) / 60000));
@@ -36,7 +72,10 @@ function getApplySpeed(job: UserJobWithGlobal): { label: string; fast: boolean }
   return { label: `${diffMin}m`, fast: false };
 }
 
-export const JobCard = memo(function JobCard({ job, onStageChange }: JobCardProps) {
+export const JobCard = memo(function JobCard({
+  job,
+  onStageChange,
+}: JobCardProps) {
   const router = useRouter();
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
@@ -56,12 +95,9 @@ export const JobCard = memo(function JobCard({ job, onStageChange }: JobCardProp
   const speed = getApplySpeed(job);
   const freshness = getFreshness(days);
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      pointerStart.current = { x: e.clientX, y: e.clientY };
-    },
-    []
-  );
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    pointerStart.current = { x: e.clientX, y: e.clientY };
+  }, []);
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
@@ -75,7 +111,7 @@ export const JobCard = memo(function JobCard({ job, onStageChange }: JobCardProp
       if (interactive && interactive !== e.currentTarget) return;
       router.push(`/jobs/${job.id}`);
     },
-    [router, job.id]
+    [router, job.id],
   );
 
   return (
@@ -86,7 +122,8 @@ export const JobCard = memo(function JobCard({ job, onStageChange }: JobCardProp
       {...listeners}
       onPointerDown={(e) => {
         handlePointerDown(e);
-        const dndHandler = (listeners as Record<string, Function> | undefined)?.onPointerDown;
+        const dndHandler = (listeners as Record<string, Function> | undefined)
+          ?.onPointerDown;
         if (dndHandler) dndHandler(e);
       }}
       onPointerUp={handlePointerUp}
@@ -115,16 +152,20 @@ export const JobCard = memo(function JobCard({ job, onStageChange }: JobCardProp
       <div className="flex flex-wrap items-center gap-1 mb-2">
         <PlatformBadge source={g.source} />
         {freshness.label && (
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${freshness.color}`}>
+          <span
+            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${freshness.color}`}
+          >
             {freshness.label}
           </span>
         )}
         {hasApp && speed && (
-          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-            speed.fast
-              ? "bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-              : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-          }`}>
+          <span
+            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+              speed.fast
+                ? "bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+            }`}
+          >
             <Zap className="h-2.5 w-2.5" /> {speed.label}
           </span>
         )}
@@ -147,9 +188,11 @@ export const JobCard = memo(function JobCard({ job, onStageChange }: JobCardProp
       )}
 
       {job.matchScore != null && job.matchScore > 0 && (
-        <div className="mb-2">
+        <div className="mb-2" title="How well this job matches your keywords and preferences">
           <div className="flex items-center justify-between text-[11px] mb-0.5">
-            <span className="text-slate-400 dark:text-zinc-500 font-medium">Match</span>
+            <span className="text-slate-400 dark:text-zinc-500 font-medium">
+              Match
+            </span>
             <span
               className={`font-bold ${
                 job.matchScore >= 70
@@ -187,11 +230,15 @@ export const JobCard = memo(function JobCard({ job, onStageChange }: JobCardProp
           {days !== null && (
             <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-zinc-500">
               <Clock className="h-2.5 w-2.5 flex-shrink-0" />
-              <span>{days === 0 ? "Today" : days === 1 ? "1d" : `${days}d`}</span>
+              <span>
+                {days === 0 ? "Today" : days === 1 ? "1d" : `${days}d`}
+              </span>
             </div>
           )}
           {g.location && (
-            <div className="text-[11px] text-slate-400 dark:text-zinc-500 truncate">{g.location}</div>
+            <div className="text-[11px] text-slate-400 dark:text-zinc-500 truncate">
+              {g.location}
+            </div>
           )}
         </div>
 

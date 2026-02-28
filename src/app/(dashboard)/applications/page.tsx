@@ -17,7 +17,7 @@ export default function ApplicationsPage() {
           Applications
         </h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
-          Manage your prepared applications before sending
+          Your email applications go through these stages: Draft &rarr; Ready &rarr; Sent
         </p>
       </div>
 

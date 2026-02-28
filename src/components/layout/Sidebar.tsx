@@ -25,16 +25,16 @@ import { ASMark } from "@/components/ui/as-mark";
 import { useSidebarStore } from "@/store/useSidebarStore";
 
 const MAIN_NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, desc: "Job pipeline" },
-  { href: "/recommended", label: "Jobs", icon: Sparkles, desc: "Browse matches" },
-  { href: "/applications", label: "Applications", icon: Inbox, desc: "Track & send" },
+  { href: "/dashboard", label: "My Jobs", icon: LayoutDashboard, desc: "Your job board" },
+  { href: "/recommended", label: "Find Jobs", icon: Sparkles, desc: "New matches for you" },
+  { href: "/applications", label: "Applications", icon: Inbox, desc: "Emails & apply status" },
 ];
 
 const TOOLS_NAV = [
-  { href: "/resumes", label: "Resumes", icon: FileText, desc: "CV variants" },
+  { href: "/resumes", label: "Resumes", icon: FileText, desc: "Your uploaded CVs" },
   { href: "/templates", label: "Templates", icon: Mail, desc: "Email templates" },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, desc: "Insights" },
-  { href: "/system-health", label: "Health", icon: Activity, desc: "System status" },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, desc: "Your progress" },
+  { href: "/system-health", label: "System Status", icon: Activity, desc: "Background services" },
 ];
 
 const BOTTOM_NAV = [
@@ -131,10 +131,10 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
             </span>
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Automation Active</span>
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Auto-Search Active</span>
           </div>
           <p className="mt-1 text-[10px] text-emerald-600/80 dark:text-emerald-500/70 leading-relaxed">
-            Daily scan from 8 sources. Emails sent per match.
+            Finding jobs from 8 sites for you automatically.
           </p>
         </div>
 

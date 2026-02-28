@@ -6,7 +6,7 @@ export default function SystemHealthLoading() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">System Health</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
-          Monitor scraper status, API quotas, and system performance.
+          Monitor search status, API usage, and system performance.
         </p>
       </div>
       <SystemHealthSkeleton />

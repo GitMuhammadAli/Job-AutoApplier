@@ -52,14 +52,14 @@ export function StatusBanner() {
         toast.success(
           result.newJobs > 0
             ? `Found ${result.newJobs} new jobs!`
-            : "Scan complete. No new jobs found."
+            : "Search complete — no new jobs right now."
         );
         setScanCooldown(300);
       } else {
-        toast.error(result.error || "Scan failed.");
+        toast.error(result.error || "Search failed — try again later.");
       }
     } catch {
-      toast.error("Scan request failed.");
+      toast.error("Search request failed.");
     }
     setScanning(false);
   }, []);
@@ -75,7 +75,7 @@ export function StatusBanner() {
       <div className="flex items-center gap-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 px-3 sm:px-4 py-2.5 ring-1 ring-blue-200/60 dark:ring-blue-800/40">
         <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
         <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
-          Fetching new jobs&hellip;
+          Searching for new jobs&hellip;
         </span>
       </div>
     );
@@ -88,7 +88,7 @@ export function StatusBanner() {
           <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
           <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
             {data.newJobsCount} new job{data.newJobsCount !== 1 ? "s" : ""}{" "}
-            matched since your last visit!
+            found for you since your last visit!
           </span>
         </div>
       </div>
@@ -100,7 +100,7 @@ export function StatusBanner() {
       <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2.5 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40">
         <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
         <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-          Auto-apply ran recently. Check your Application Queue.
+          We sent some applications for you! Check your Applications page.
         </span>
       </div>
     );
@@ -128,11 +128,11 @@ export function StatusBanner() {
       <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[11px] text-slate-500 dark:text-zinc-400 min-w-0">
         <span className="flex items-center gap-1.5">
           <Radio className="h-3 w-3" />
-          Last scan: {timeAgo}
+          Last search: {timeAgo}
         </span>
-        <span className="tabular-nums">{data.totalJobs} jobs tracked</span>
+        <span className="tabular-nums">{data.totalJobs} jobs on your board</span>
         <span className="tabular-nums">
-          Next refresh: {data.nextScrapeIn}m
+          Next search in {data.nextScrapeIn} min
         </span>
       </div>
       <Button
@@ -148,8 +148,8 @@ export function StatusBanner() {
           <Search className="h-3 w-3" />
         )}
         {scanCooldown > 0
-          ? `Scan (${Math.floor(scanCooldown / 60)}:${String(scanCooldown % 60).padStart(2, "0")})`
-          : "Scan Now"}
+          ? `Wait ${Math.floor(scanCooldown / 60)}:${String(scanCooldown % 60).padStart(2, "0")}`
+          : "Search Now"}
       </Button>
     </div>
   );

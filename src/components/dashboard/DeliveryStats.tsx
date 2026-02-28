@@ -62,16 +62,18 @@ export function DeliveryStats({ stats }: DeliveryStatsProps) {
           color="emerald"
         />
         <StatCard
-          label="Bounced"
+          label="Undelivered"
           value={thisWeek.bounced}
           icon={<AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
           color="amber"
+          tooltip="The email address was invalid"
         />
         <StatCard
           label="Failed"
           value={thisWeek.failed}
           icon={<XCircle className="h-3.5 w-3.5 text-red-500" />}
           color="red"
+          tooltip="Something went wrong — you can retry these"
         />
         <StatCard
           label="Drafts"
@@ -85,7 +87,7 @@ export function DeliveryStats({ stats }: DeliveryStatsProps) {
       <div className="flex flex-wrap items-center gap-3 text-[11px]">
         {(thisWeek.sent + thisWeek.bounced > 0) && (
           <div className="flex items-center gap-1.5">
-            <span className="text-slate-500 dark:text-zinc-400">Delivery:</span>
+            <span className="text-slate-500 dark:text-zinc-400">Success rate:</span>
             <span className={`font-bold tabular-nums ${
               thisWeek.deliveryRate >= 80
                 ? "text-emerald-600 dark:text-emerald-400"
@@ -115,7 +117,7 @@ export function DeliveryStats({ stats }: DeliveryStatsProps) {
         {thisWeek.siteApps > 0 && (
           <span className="text-slate-400 dark:text-zinc-500">
             <ExternalLink className="h-3 w-3 inline mr-0.5" />
-            {thisWeek.siteApps} via site
+            {thisWeek.siteApps} applied on site
           </span>
         )}
         {todayMatches > 0 && (
@@ -129,16 +131,16 @@ export function DeliveryStats({ stats }: DeliveryStatsProps) {
       {emailAvailability.total > 0 && (
         <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-700/60">
           <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block mb-1.5">
-            Email Availability ({emailAvailability.total} matched jobs)
+            Jobs with Company Email ({emailAvailability.total} jobs)
           </span>
           <div className="flex items-center gap-4 text-[11px]">
             <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
               <Shield className="h-3 w-3" />
-              {emailAvailability.verified} verified
+              {emailAvailability.verified} confirmed
             </span>
             <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
               <AlertCircle className="h-3 w-3" />
-              {emailAvailability.unverified} unverified
+              {emailAvailability.unverified} guessed
             </span>
             <span className="flex items-center gap-1 text-slate-400 dark:text-zinc-500">
               <Ban className="h-3 w-3" />
@@ -171,14 +173,16 @@ function StatCard({
   label,
   value,
   icon,
+  tooltip,
 }: {
   label: string;
   value: number;
   icon: React.ReactNode;
   color: string;
+  tooltip?: string;
 }) {
   return (
-    <div className="rounded-lg p-2.5 bg-slate-50/80 dark:bg-zinc-800/50 ring-1 ring-slate-100/60 dark:ring-zinc-700/40">
+    <div className="rounded-lg p-2.5 bg-slate-50/80 dark:bg-zinc-800/50 ring-1 ring-slate-100/60 dark:ring-zinc-700/40" title={tooltip}>
       <div className="flex items-center gap-1.5 mb-0.5">
         {icon}
         <span className="text-[10px] font-medium text-slate-500 dark:text-zinc-400">{label}</span>

@@ -32,7 +32,7 @@ export const KanbanColumn = memo(function KanbanColumn({ stage, jobs, onStageCha
     >
       <div className={cn("h-1 rounded-t-xl bg-gradient-to-r", config.gradient)} />
 
-      <div className="flex items-center gap-2.5 px-3 py-2.5">
+      <div className="flex items-center gap-2.5 px-3 py-2.5" title={config.hint}>
         <div className={cn("h-2 w-2 rounded-full", config.dot)} />
         <h3 className={cn("text-xs font-bold uppercase tracking-wider", config.text)}>
           {config.label}

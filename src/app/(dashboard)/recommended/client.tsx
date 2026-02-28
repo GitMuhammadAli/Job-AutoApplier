@@ -91,7 +91,7 @@ function getStatusBadge(status: string | null) {
     case "FAILED":
       return { label: "Failed", cls: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" };
     case "BOUNCED":
-      return { label: "Bounced", cls: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" };
+      return { label: "Undelivered", cls: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" };
     default:
       return null;
   }
@@ -218,7 +218,7 @@ export function RecommendedClient({
       {/* Stats bar */}
       <div className="flex items-center justify-between text-xs">
         <p className="text-slate-500 dark:text-zinc-400">
-          Matched from {filterBreakdown.sqlCandidates.toLocaleString()} candidates in {timing.totalMs}ms
+          {filterBreakdown.sqlCandidates.toLocaleString()} jobs searched
         </p>
         <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1.5 ring-1 ring-blue-100 dark:ring-blue-900/40">
           <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
@@ -298,9 +298,9 @@ export function RecommendedClient({
         </div>
 
         {/* Score filter */}
-        <div>
+        <div title="Higher score = better match for your skills">
           <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 block">
-            <Star className="h-3 w-3 inline mr-1" />Score
+            <Star className="h-3 w-3 inline mr-1" />Match
           </span>
           <div className="flex gap-1">
             {SCORE_PRESETS.map((p) => (
@@ -354,7 +354,7 @@ export function RecommendedClient({
                 : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600"
             }`}
           >
-            Has Email
+            Can Email Directly
           </button>
         </div>
       </div>

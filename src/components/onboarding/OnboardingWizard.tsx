@@ -18,7 +18,7 @@ import Link from "next/link";
 
 const STEPS = [
   { title: "About You", icon: User, description: "Basic info for personalized applications" },
-  { title: "Job Preferences", icon: Briefcase, description: "Keywords, categories, and location" },
+  { title: "Job Preferences", icon: Briefcase, description: "Skills, categories, and location" },
   { title: "Resume", icon: FileUp, description: "Upload your resume for better matching" },
   { title: "You're Ready!", icon: Rocket, description: "Let's find your first matches" },
 ];
@@ -226,7 +226,7 @@ export function OnboardingWizard() {
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="ob-keywords" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Keywords (type + Enter to add, or pick from presets below)</Label>
+                <Label htmlFor="ob-keywords" className="text-xs font-medium text-slate-600 dark:text-zinc-300">Skills or Job Titles (type + Enter to add, or pick below)</Label>
                 <Input
                   id="ob-keywords"
                   value={keywordInput}
@@ -413,14 +413,14 @@ export function OnboardingWizard() {
                   />
                   {uploading && (
                     <p className="text-xs text-blue-600 flex items-center gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" /> Parsing…
+                      <Loader2 className="h-3 w-3 animate-spin" /> Reading your resume…
                     </p>
                   )}
                 </label>
               )}
               <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3 ring-1 ring-blue-100 dark:ring-blue-800/40">
                 <p className="text-xs text-blue-700 dark:text-blue-300 font-medium text-center">
-                  Matching works 3x better with a resume — we extract your skills automatically.
+                  Upload your resume so we can find better jobs for you — we&apos;ll read your skills automatically.
                 </p>
               </div>
             </div>
@@ -443,10 +443,10 @@ export function OnboardingWizard() {
                     <CheckCircle2 className="h-10 w-10 text-emerald-500" />
                   </div>
                   <h3 className="text-base font-bold text-slate-800 dark:text-zinc-100">
-                    Found {matchResult.matched} matches!
+                    Found {matchResult.matched} jobs for you!
                   </h3>
                   <p className="text-sm text-slate-500 dark:text-zinc-400">
-                    Scanned {matchResult.totalScanned} recent jobs. {matchResult.matched} matched your profile.
+                    We searched {matchResult.totalScanned} recent jobs and found {matchResult.matched} that fit your profile.
                   </p>
                 </div>
               ) : (
@@ -456,7 +456,7 @@ export function OnboardingWizard() {
                   </div>
                   <h3 className="text-base font-bold text-slate-800 dark:text-zinc-100">You&apos;re all set!</h3>
                   <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2 max-w-xs mx-auto">
-                    JobPilot will scrape jobs from 8 sources and match them to your profile.
+                    We&apos;ll search 8 job sites for you automatically and find jobs that match your skills.
                   </p>
                 </>
               )}
@@ -476,7 +476,7 @@ export function OnboardingWizard() {
                   <span>Want more control?</span>
                 </div>
                 <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">
-                  For advanced options like email credentials, salary filters, job sources, and notification preferences, visit{" "}
+                  For advanced options like email account setup, salary filters, job sources, and notifications, visit{" "}
                   <Link href="/settings" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
                     Settings
                   </Link>{" "}

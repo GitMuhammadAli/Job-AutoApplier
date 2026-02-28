@@ -90,14 +90,21 @@ export function TodaysQueue({ autoApply, quickApply, total }: TodaysQueueProps) 
 
       {expanded && (
         <div className="border-t border-slate-100 dark:border-zinc-700 px-4 pb-4">
+          <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-2 mb-1">
+            Jobs are split by how you can apply
+          </p>
+
           {autoApply.length > 0 && (
             <div className="mt-3">
-              <div className="flex items-center gap-1.5 mb-2">
+              <div className="flex items-center gap-1.5 mb-1">
                 <Mail className="h-3 w-3 text-emerald-500" />
                 <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                  Auto-Apply Ready ({autoApply.length})
+                  Email Apply ({autoApply.length})
                 </span>
               </div>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mb-2">
+                We found the company email — click to send your application
+              </p>
               <div className="space-y-1.5">
                 {autoApply.map((job) => (
                   <QueueJobRow
@@ -114,12 +121,15 @@ export function TodaysQueue({ autoApply, quickApply, total }: TodaysQueueProps) 
 
           {quickApply.length > 0 && (
             <div className="mt-3">
-              <div className="flex items-center gap-1.5 mb-2">
+              <div className="flex items-center gap-1.5 mb-1">
                 <ExternalLink className="h-3 w-3 text-blue-500" />
                 <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-400">
-                  Quick Apply ({quickApply.length})
+                  Apply on Site ({quickApply.length})
                 </span>
               </div>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mb-2">
+                No email found — apply directly on the job posting
+              </p>
               <div className="space-y-1.5">
                 {quickApply.map((job) => (
                   <QueueJobRow

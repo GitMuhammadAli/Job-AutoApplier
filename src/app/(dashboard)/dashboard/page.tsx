@@ -61,10 +61,10 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-            Job Pipeline
+            My Jobs
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-zinc-400">
-            Drag cards between stages or use the arrows to move them.
+            Organize your job search — drag cards between stages.
           </p>
         </div>
 
@@ -76,13 +76,13 @@ export default async function DashboardPage() {
             <Plus className="h-3.5 w-3.5 shrink-0" />
             <span className="text-[10px] sm:text-[11px] font-semibold">Add Job</span>
           </Link>
-          <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 px-2 sm:px-2.5 py-1.5 shrink-0" title="We check 8 job sites every hour">
+          <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 px-2 sm:px-2.5 py-1.5 shrink-0" title="We search 8 job sites every hour for new matches">
             <Clock className="h-3.5 w-3.5 text-slate-500 dark:text-zinc-400 shrink-0" />
             <span className="text-[10px] sm:text-[11px] font-medium text-slate-600 dark:text-zinc-300">
-              Auto scan
+              Auto-search
             </span>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 ring-1 ring-emerald-100 dark:ring-emerald-900/40 shrink-0" title="AI generates a personalized email for each matched job">
+          <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 ring-1 ring-emerald-100 dark:ring-emerald-900/40 shrink-0" title="We write a personalized email for each job we find">
             <Mail className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
               Email per job
@@ -156,10 +156,10 @@ async function DashboardKanban({ settings }: { settings: any }) {
             <Zap className="h-7 w-7 text-blue-500" />
           </div>
           <h3 className="text-base font-bold text-slate-800 dark:text-zinc-100">
-            Scanning for jobs matching your keywords
+            Searching for jobs matching your keywords
           </h3>
           <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400 max-w-md mx-auto">
-            New matches usually appear within a few minutes. We&apos;re checking 8 job sites for you.
+            New jobs usually appear within a few minutes. We&apos;re searching 8 job sites for you.
           </p>
           <div className="mt-4 inline-block rounded-lg bg-slate-50 dark:bg-zinc-800/50 px-4 py-3 text-left text-xs text-slate-600 dark:text-zinc-300 space-y-1">
             {settings.keywords && settings.keywords.length > 0 && (

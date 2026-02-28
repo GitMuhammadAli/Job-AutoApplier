@@ -297,7 +297,7 @@ export function QuickApplyPanel({
   function handleSend() {
     if (!application?.recipientEmail && !recipientEmail) {
       toast.error(
-        "No recipient email. Enter one or use 'Copy All' to apply manually."
+        "No recipient email. Enter one above, or copy the email to apply manually."
       );
       return;
     }
@@ -339,7 +339,7 @@ export function QuickApplyPanel({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Apply via Email</h3>
+          <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Send Application Email</h3>
           {score != null && (
             <Badge
               variant="outline"
@@ -378,7 +378,7 @@ export function QuickApplyPanel({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Apply via Email</h3>
+        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100">Send Application Email</h3>
         {score != null && (
           <Badge
             variant="outline"
@@ -399,6 +399,12 @@ export function QuickApplyPanel({
       <p className="text-xs text-slate-500 dark:text-zinc-400">
         {userJob.globalJob.title} at {userJob.globalJob.company}
       </p>
+
+      <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-zinc-500">
+        <span className={application ? "text-emerald-500 font-semibold" : "font-semibold"}>1. Review email</span>
+        <span>&rarr;</span>
+        <span className={application?.status === "SENT" ? "text-emerald-500 font-semibold" : ""}>2. Send or Copy</span>
+      </div>
 
       {/* Email Status Banner */}
       {!application && (
@@ -466,7 +472,7 @@ export function QuickApplyPanel({
             onChange={(e) => setSelectedResumeId(e.target.value)}
             className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">AI picks best match</option>
+            <option value="">We&apos;ll pick the best resume</option>
             {availableResumes.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name}{r.isDefault ? " (default)" : ""}
@@ -512,13 +518,12 @@ export function QuickApplyPanel({
             {!recipientEmail ? (
               <p className="text-[10px] text-amber-600 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                No email found. Enter manually or use &quot;Copy All&quot; to
-                apply via the job platform.
+                No company email found. You can type one above, or copy the email and apply on the job site.
               </p>
             ) : recipientEmail.startsWith("careers@") && userJob.globalJob.emailConfidence != null && userJob.globalJob.emailConfidence < 70 ? (
               <p className="text-[10px] text-amber-500 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                This email was auto-guessed (confidence: {userJob.globalJob.emailConfidence}%). Verify before sending to avoid bounces.
+                This email was guessed — please double-check it before sending.
               </p>
             ) : null}
           </div>
@@ -572,7 +577,7 @@ export function QuickApplyPanel({
                 ) : (
                   <Sparkles className="h-3 w-3" />
                 )}
-                {coverLetter ? "Regenerate" : "Generate"}
+                {coverLetter ? "Rewrite" : "Generate"}
               </Button>
             </div>
             {coverLetter ? (
@@ -609,7 +614,7 @@ export function QuickApplyPanel({
                 ) : (
                   <RefreshCw className="h-3.5 w-3.5" />
                 )}
-                Regenerate
+                Rewrite Email
               </Button>
               <div className="flex-1">
                 <CopyApplicationBundle
@@ -646,8 +651,8 @@ export function QuickApplyPanel({
                   Send (set up in Settings)
                 </Button>
                 <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1.5 text-center">
-                  You&apos;re in Manual mode. Use &quot;Copy All&quot; to apply yourself.
-                  Switch to Semi-Auto in Settings to enable in-app sending.
+                  You&apos;re in Manual mode. Copy the email above and apply yourself.
+                  Switch to Semi-Auto in Settings to send directly from here.
                 </p>
               </div>
             ) : (
@@ -724,7 +729,7 @@ export function QuickApplyPanel({
                 onChange={(e) => setSelectedResumeId(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">AI picks best match</option>
+                <option value="">We&apos;ll pick the best resume</option>
                 {availableResumes.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}{r.isDefault ? " (default)" : ""}

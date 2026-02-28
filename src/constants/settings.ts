@@ -9,14 +9,14 @@ export const APPLICATION_MODES = [
     description:
       "AI prepares everything. You copy and apply through Gmail, LinkedIn, or any platform.",
     steps: [
-      "JobPilot scrapes 8 job boards",
+      "JobPilot searches 8 job sites",
       "AI scores and matches jobs",
       "AI writes email + cover letter",
       "AI picks best resume",
-      "You click \u2018Copy All\u2019 \u2192 paste anywhere",
-      "Click \u2018Mark as Applied\u2019 when done",
+      "You copy and paste into your email",
+      "Click \u2018I Applied\u2019 when done",
     ],
-    bestFor: "People who want full control over every application.",
+    bestFor: "You review and send every application yourself.",
     riskLevel: "none" as const,
     riskLabel: "Zero risk",
     requires: [] as string[],
@@ -31,14 +31,14 @@ export const APPLICATION_MODES = [
     description:
       "AI prepares everything. You review, edit if needed, then click Send.",
     steps: [
-      "JobPilot scrapes 8 job boards",
+      "JobPilot searches 8 job sites",
       "AI scores and matches jobs",
       "AI writes email + cover letter",
       "AI picks best resume",
       "You review the draft \u2014 edit anything",
-      "Click \u2018Send\u2019 \u2192 sent from your Gmail with resume attached",
+      "Click \u2018Send\u2019 \u2192 sent from your email with resume attached",
     ],
-    bestFor: "People who want AI help but review before sending.",
+    bestFor: "We prepare drafts, you review and click send.",
     riskLevel: "low" as const,
     riskLabel: "Low risk",
     requires: ["emailProvider", "resume"],
@@ -53,14 +53,14 @@ export const APPLICATION_MODES = [
     description:
       "High-scoring jobs auto-applied. Lower matches saved as drafts for review.",
     steps: [
-      "JobPilot scrapes every 30 minutes",
+      "JobPilot searches every 30 minutes",
       "New job \u2192 AI scores against your profile",
       "Score above threshold \u2192 AI writes + sends automatically",
       "Configurable delay before sending (you can catch & edit)",
       "You get notification: \u2018Applied to TechCorp\u2019",
     ],
     bestFor:
-      "People who want to wake up to \u2018applications sent overnight.\u2019",
+      "We send applications automatically for high-scoring matches.",
     riskLevel: "high" as const,
     riskLabel: "Higher risk",
     requires: [
@@ -89,7 +89,7 @@ export const APPLICATION_MODES = [
       "SENT at 10:47 AM \u2014 you\u2019re applicant #2",
     ],
     bestFor:
-      "People competing for high-demand roles where speed matters most.",
+      "We send immediately when a matching job appears — maximum speed.",
     riskLevel: "high" as const,
     riskLabel: "Medium risk",
     requires: [

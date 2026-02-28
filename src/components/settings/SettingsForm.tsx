@@ -452,10 +452,10 @@ export function SettingsForm({
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
               {accountStatus === "active"
-                ? "Scraping, matching, and auto-apply running normally."
+                ? "Searching, matching, and applying running normally."
                 : accountStatus === "paused"
-                  ? "Jobs still scraped & matched, but no auto-apply or notifications."
-                  : "All automation stopped. Data preserved."}
+                  ? "Jobs still searched & matched, but no auto-apply or notifications."
+                  : "All automation stopped. Your data is preserved."}
             </p>
           </div>
           <Select value={accountStatus} onValueChange={setAccountStatus}>
@@ -479,7 +479,7 @@ export function SettingsForm({
           </TabsTrigger>
           <TabsTrigger value="preferences" className="gap-1.5 text-xs py-2">
             <Briefcase className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Jobs</span>
+            <span className="hidden sm:inline">Job Preferences</span>
           </TabsTrigger>
           <TabsTrigger value="email" className="gap-1.5 text-xs py-2">
             <Mail className="h-3.5 w-3.5" />
@@ -491,7 +491,7 @@ export function SettingsForm({
           </TabsTrigger>
           <TabsTrigger value="ai" className="gap-1.5 text-xs py-2">
             <Sparkles className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">AI</span>
+            <span className="hidden sm:inline">Email Style</span>
           </TabsTrigger>
           <TabsTrigger value="account" className="gap-1.5 text-xs py-2">
             <Shield className="h-3.5 w-3.5" />
@@ -608,12 +608,12 @@ export function SettingsForm({
       <Section
         icon={<Briefcase className="h-4 w-4" />}
         title="Job Preferences"
-        description="These preferences control which jobs appear on your Kanban board. The matching engine scores every scraped job against these settings."
+        description="These preferences control which jobs appear on your board. We check every new job against these settings to find the best matches."
       >
         <div className="space-y-4">
           <Field
-            label="Keywords (type + Enter to add)"
-            hint="Matched against job titles and descriptions. More keywords = more matches. Be specific (e.g. 'React' not 'frontend')."
+            label="Skills & Job Titles (type + Enter to add)"
+            hint="What skills or roles are you looking for? Be specific (e.g. 'React', 'Marketing Manager'). More keywords = more job matches."
           >
             <div className="flex gap-2">
               <Input
@@ -1015,7 +1015,7 @@ export function SettingsForm({
       <Section
         icon={<Radio className="h-4 w-4" />}
         title="Job Platforms"
-        description="JobPilot scrapes these platforms automatically on a schedule. Deselect any you don't want. Paid APIs have monthly limits shown in parentheses."
+        description="JobPilot searches these sites automatically for you. Deselect any you don't want. Paid sources have monthly limits shown in parentheses."
       >
         <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">
           Free sources (Indeed, LinkedIn, etc.) run every 30 min. Paid APIs
@@ -1170,7 +1170,7 @@ export function SettingsForm({
           })}
         </div>
 
-        {/* SMTP fields for Gmail/Outlook/Custom */}
+        {/* Email account fields for Gmail/Outlook/Custom */}
         {(emailProvider === "gmail" ||
           emailProvider === "outlook" ||
           emailProvider === "custom") && (
@@ -1202,7 +1202,7 @@ export function SettingsForm({
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="SMTP Host" helpTip="For Gmail: smtp.gmail.com">
+              <Field label="Mail Server" helpTip="For Gmail: smtp.gmail.com, for Outlook: smtp.office365.com">
                 <Input
                   value={smtpHost}
                   onChange={(e) => setSmtpHost(e.target.value)}
@@ -1215,7 +1215,7 @@ export function SettingsForm({
                   }
                 />
               </Field>
-              <Field label="SMTP Port" helpTip="465 for secure (SSL), 587 for TLS">
+              <Field label="Port" helpTip="Usually 465 (secure) or 587 (standard)">
                 <Input
                   type="number"
                   value={smtpPort}
@@ -1317,12 +1317,12 @@ export function SettingsForm({
       {/* ── Application Mode ── */}
       <Section
         icon={<Send className="h-4 w-4" />}
-        title="Application Mode"
-        description="Choose how much control you want. From fully manual to instant auto-apply — each mode determines when and how emails get sent."
+        title="How Should We Apply?"
+        description="Choose how much control you want over sending applications. You can change this anytime."
       >
         <Field
           label="Application Email"
-          hint="This is the 'From' address on your application emails. Must match your SMTP/email provider above."
+          hint="This is the 'From' address on your application emails. Must match the email account you set up above."
         >
           <Input
             type="email"
@@ -1458,7 +1458,7 @@ export function SettingsForm({
                   Auto-Apply Enabled
                 </Label>
                 <p className="text-xs text-slate-400 dark:text-zinc-500">
-                  Must be ON for Full-Auto to work
+                  Must be ON for automatic sending to work
                 </p>
               </div>
               <Switch
@@ -1621,8 +1621,8 @@ export function SettingsForm({
       {(applicationMode === "full_auto" || applicationMode === "instant") && (
         <Section
           icon={<Zap className="h-4 w-4" />}
-          title="Speed & Instant Apply"
-          description="Fine-tune how fast JobPilot applies on your behalf. Only visible in Full Auto and Instant modes."
+          title="Speed Settings"
+          description="Control how quickly we apply on your behalf. Only visible in automatic modes."
         >
           <div className="space-y-4">
             <Field label="Priority Platforms (checked every 15 min — free sources only)">

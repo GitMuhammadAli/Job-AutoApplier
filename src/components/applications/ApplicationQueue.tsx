@@ -86,7 +86,7 @@ const STATUS_CONFIG: Record<
       "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800",
   },
   BOUNCED: {
-    label: "Bounced",
+    label: "Undelivered",
     variant: "destructive",
     className:
       "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800",
@@ -281,7 +281,7 @@ const ApplicationCard = memo(function ApplicationCard({
               ) : (
                 <Check className="h-3.5 w-3.5" />
               )}
-              Queue to Send
+              Mark Ready to Send
             </Button>
           )}
           <CopyApplicationBundle
@@ -306,7 +306,7 @@ const ApplicationCard = memo(function ApplicationCard({
               ) : (
                 <Send className="h-3.5 w-3.5" />
               )}
-              Applied Elsewhere
+              I Applied on the Site
             </Button>
           )}
           <Button
@@ -359,7 +359,7 @@ const ApplicationCard = memo(function ApplicationCard({
         {app.status === "BOUNCED" && (
           <div className="flex items-center gap-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 px-3 py-2 ring-1 ring-orange-200/60 dark:ring-orange-800/40">
             <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-              Email bounced — address may be invalid
+              Email couldn&apos;t be delivered — the address may be invalid
             </span>
             <CopyApplicationBundle
               senderEmail={app.senderEmail}
@@ -595,7 +595,7 @@ export function ApplicationQueue({
           </TabsTrigger>
           {counts.bounced > 0 && (
             <TabsTrigger value="bounced" className="gap-1.5">
-              Bounced
+              Undelivered
               <Badge
                 variant="secondary"
                 className="ml-0.5 h-5 px-1.5 text-[10px]"
@@ -634,12 +634,12 @@ export function ApplicationQueue({
                 onClick={async () => {
                   const result = await bulkDeleteByStatus("BOUNCED");
                   if (result.success) {
-                    toast.success(`Deleted ${result.count} bounced application(s)`);
+                    toast.success(`Deleted ${result.count} undelivered application(s)`);
                     router.refresh();
                   } else toast.error(result.error || "Failed");
                 }}
               >
-                <Trash2 className="h-3 w-3" /> Delete {counts.bounced} bounced
+                <Trash2 className="h-3 w-3" /> Delete {counts.bounced} undelivered
               </Button>
             )}
             {counts.draft > 2 && (
