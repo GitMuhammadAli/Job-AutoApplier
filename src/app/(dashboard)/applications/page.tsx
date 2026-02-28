@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getApplications } from "@/app/actions/application";
+import { getApplications, getDraftableJobCount } from "@/app/actions/application";
 import { ApplicationQueue } from "@/components/applications/ApplicationQueue";
 import { SendingStatusBar } from "@/components/applications/SendingStatusBar";
 import { getSendingStats } from "@/lib/send-limiter";
@@ -39,12 +39,14 @@ async function ApplicationsContent() {
     isPaused: false,
     pausedUntil: null,
   };
+  let draftableCount = 0;
 
   try {
     const userId = await getAuthUserId();
-    [applications, sendingStats] = await Promise.all([
+    [applications, sendingStats, draftableCount] = await Promise.all([
       getApplications(),
       getSendingStats(userId),
+      getDraftableJobCount(),
     ]);
   } catch (error) {
     console.error("[ApplicationsPage] Failed to load data:", error);
@@ -74,7 +76,7 @@ async function ApplicationsContent() {
         maxPerHour={sendingStats.hourMax}
         isPaused={sendingStats.isPaused}
       />
-      <ApplicationQueue applications={applications} counts={counts} />
+      <ApplicationQueue applications={applications} counts={counts} draftableCount={draftableCount} />
     </>
   );
 }

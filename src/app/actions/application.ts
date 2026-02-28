@@ -380,6 +380,59 @@ export async function startFresh(): Promise<{ success: boolean; error?: string }
   }
 }
 
+export async function getDraftableJobCount(): Promise<number> {
+  try {
+    const userId = await getAuthUserId();
+    const count = await prisma.userJob.count({
+      where: {
+        userId,
+        stage: "SAVED",
+        application: null,
+        globalJob: {
+          companyEmail: { not: null },
+          emailConfidence: { gte: 50 },
+        },
+      },
+    });
+    return count;
+  } catch (error) {
+    console.error("[getDraftableJobCount]", error);
+    return 0;
+  }
+}
+
+export async function getDraftableJobs(limit: number = 10): Promise<{ id: string; title: string; company: string }[]> {
+  try {
+    const userId = await getAuthUserId();
+    const jobs = await prisma.userJob.findMany({
+      where: {
+        userId,
+        stage: "SAVED",
+        application: null,
+        globalJob: {
+          companyEmail: { not: null },
+          emailConfidence: { gte: 50 },
+        },
+      },
+      select: {
+        id: true,
+        matchScore: true,
+        globalJob: { select: { title: true, company: true } },
+      },
+      orderBy: { matchScore: "desc" },
+      take: limit,
+    });
+    return jobs.map((j) => ({
+      id: j.id,
+      title: j.globalJob.title,
+      company: j.globalJob.company,
+    }));
+  } catch (error) {
+    console.error("[getDraftableJobs]", error);
+    return [];
+  }
+}
+
 export async function getApplicationById(applicationId: string) {
   try {
     const userId = await getAuthUserId();

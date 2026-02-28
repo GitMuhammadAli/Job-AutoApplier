@@ -2026,20 +2026,29 @@ export function SettingsForm({
         )}
       </Tabs>
 
-      {/* ── Save Button (always visible) ── */}
-      <div className="sticky bottom-4 flex justify-end mt-6">
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="shadow-lg px-6"
-        >
-          {saving ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          {saving ? "Saving..." : "Save Settings"}
-        </Button>
+      {/* spacer so sticky bar doesn't overlap last content */}
+      <div className="h-20" />
+
+      {/* ── Sticky Save Bar (always visible at bottom) ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 dark:border-zinc-700 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm shadow-[0_-4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <p className="text-xs text-slate-500 dark:text-zinc-400 hidden sm:block">
+            Changes are not saved until you click Save.
+          </p>
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            size="lg"
+            className="shadow-md px-8 ml-auto"
+          >
+            {saving ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            {saving ? "Saving..." : "Save Settings"}
+          </Button>
+        </div>
       </div>
     </div>
   );

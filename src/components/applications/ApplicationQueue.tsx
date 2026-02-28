@@ -13,6 +13,8 @@ import {
   Loader2,
   RotateCcw,
   ExternalLink,
+  Sparkles,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +29,9 @@ import {
   bulkCancelDrafts,
   bulkDeleteByStatus,
   deleteApplication,
+  getDraftableJobs,
 } from "@/app/actions/application";
+import { generateApplication } from "@/app/actions/application-email";
 import type { ApplicationStatus } from "@prisma/client";
 import { Mail } from "lucide-react";
 
@@ -45,6 +49,7 @@ interface ApplicationQueueProps {
     bounced: number;
     total: number;
   };
+  draftableCount?: number;
 }
 
 const STATUS_CONFIG: Record<
@@ -380,9 +385,12 @@ const ApplicationCard = memo(function ApplicationCard({
 export function ApplicationQueue({
   applications,
   counts,
+  draftableCount = 0,
 }: ApplicationQueueProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("all");
+  const [generatingDrafts, setGeneratingDrafts] = useState(false);
+  const [draftProgress, setDraftProgress] = useState<{ current: number; total: number; currentJob: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{
@@ -524,6 +532,40 @@ export function ApplicationQueue({
     }
   };
 
+  const handleGenerateDrafts = async () => {
+    setGeneratingDrafts(true);
+    setDraftProgress(null);
+    try {
+      const jobs = await getDraftableJobs(10);
+      if (jobs.length === 0) {
+        toast.info("No saved jobs with verified emails to draft");
+        return;
+      }
+      setDraftProgress({ current: 0, total: jobs.length, currentJob: jobs[0].title });
+      let success = 0;
+      let failed = 0;
+      for (let i = 0; i < jobs.length; i++) {
+        setDraftProgress({ current: i, total: jobs.length, currentJob: jobs[i].title });
+        try {
+          await generateApplication(jobs[i].id);
+          success++;
+        } catch {
+          failed++;
+        }
+      }
+      setDraftProgress({ current: jobs.length, total: jobs.length, currentJob: "Done" });
+      const parts = [`${success} draft${success !== 1 ? "s" : ""} created`];
+      if (failed > 0) parts.push(`${failed} failed`);
+      toast.success(parts.join(", "));
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to generate drafts");
+    } finally {
+      setGeneratingDrafts(false);
+      setTimeout(() => setDraftProgress(null), 2000);
+    }
+  };
+
   const refresh = useCallback(() => router.refresh(), [router]);
 
   const getFilteredForTab = useCallback((tab: string) =>
@@ -546,6 +588,66 @@ export function ApplicationQueue({
 
   return (
     <div className="space-y-4">
+      {draftableCount > 0 && (
+        <div className="rounded-xl border border-blue-200 dark:border-blue-800/50 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 p-4">
+          <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-blue-100 dark:bg-blue-900/50 p-2">
+                <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-800 dark:text-zinc-200">
+                  {draftableCount} saved job{draftableCount !== 1 ? "s" : ""} ready for email drafts
+                </p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                  These jobs have verified company emails and match your profile.
+                  We&apos;ll write a personalized email for each one.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleGenerateDrafts}
+              disabled={generatingDrafts}
+              className="gap-1.5 shrink-0"
+            >
+              {generatingDrafts ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              {generatingDrafts ? "Creating..." : `Create ${Math.min(draftableCount, 10)} Draft${Math.min(draftableCount, 10) !== 1 ? "s" : ""}`}
+            </Button>
+          </div>
+          {draftProgress && (
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-blue-700 dark:text-blue-300 truncate max-w-[70%]">
+                  {draftProgress.current >= draftProgress.total
+                    ? "Done!"
+                    : `Writing draft for "${draftProgress.currentJob}"...`}
+                </span>
+                <span className="tabular-nums text-blue-600/70 dark:text-blue-400/70">
+                  {draftProgress.current}/{draftProgress.total}
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-blue-200/60 dark:bg-blue-900/40 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    draftProgress.current >= draftProgress.total
+                      ? "bg-emerald-500"
+                      : "bg-blue-500"
+                  }`}
+                  style={{
+                    width: `${Math.max((draftProgress.current / draftProgress.total) * 100, 3)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="all" className="gap-1.5">
@@ -692,7 +794,7 @@ export function ApplicationQueue({
                 ) : (
                   <Check className="h-3.5 w-3.5" />
                 )}
-                Queue All to Send
+                Mark All Ready
               </Button>
               <Button
                 size="sm"
@@ -767,7 +869,7 @@ export function ApplicationQueue({
         </TabsContent>
         {counts.bounced > 0 && (
           <TabsContent value="bounced" className="mt-4">
-            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Email bounced — address may be invalid</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Email couldn&apos;t be delivered — address may be invalid</p>
             {renderTabContent("bounced")}
           </TabsContent>
         )}
