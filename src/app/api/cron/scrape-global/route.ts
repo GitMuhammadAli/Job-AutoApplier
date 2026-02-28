@@ -15,6 +15,7 @@ import { fetchRozee } from "@/lib/scrapers/rozee";
 import { fetchGoogleJobs } from "@/lib/scrapers/google-jobs";
 import { fetchGoogleHiringPosts } from "@/lib/scrapers/google-hiring-posts";
 import { categorizeJob } from "@/lib/job-categorizer";
+import { extractEmailFromText } from "@/lib/extract-email-from-text";
 import { TIMEOUTS } from "@/lib/constants";
 import { sendNotificationEmail } from "@/lib/email";
 import { sendAlertWebhook } from "@/lib/webhooks";
@@ -140,13 +141,21 @@ export async function GET(req: NextRequest) {
         let newCount = 0;
         let updatedCount = 0;
 
-        // Sanitize and categorize all jobs first
+        // Sanitize, categorize, and extract emails from all jobs
+        const emailExtractions = new Map<string, { email: string; confidence: number }>();
         for (const job of runResult.jobs) {
           job.description = sanitizeScrapedText(job.description);
           job.title = sanitizeScrapedText(job.title) || job.title;
           job.company = sanitizeScrapedText(job.company) || job.company;
           if (!job.category) {
             job.category = categorizeJob(job.title, job.skills || [], job.description || "");
+          }
+          if (!job.companyEmail && job.description) {
+            const extracted = extractEmailFromText(job.description);
+            if (extracted.email) {
+              job.companyEmail = extracted.email;
+              emailExtractions.set(`${job.source}:${job.sourceId}`, extracted as { email: string; confidence: number });
+            }
           }
         }
 
@@ -155,14 +164,15 @@ export async function GET(req: NextRequest) {
           const sourceKeys = runResult.jobs.map((j) => ({ sourceId: j.sourceId, source: j.source }));
           const existingJobs = await prisma.globalJob.findMany({
             where: { OR: sourceKeys.map((k) => ({ sourceId: k.sourceId, source: k.source })) },
-            select: { id: true, sourceId: true, source: true },
+            select: { id: true, sourceId: true, source: true, companyEmail: true, description: true },
           });
           const existingSet = new Set(existingJobs.map((e) => `${e.source}:${e.sourceId}`));
-          const existingIdMap = new Map(existingJobs.map((e) => [`${e.source}:${e.sourceId}`, e.id] as const));
+          const existingIdMap = new Map<string, string>(existingJobs.map((e) => [`${e.source}:${e.sourceId}`, e.id]));
+          const existingDataMap = new Map(existingJobs.map((e) => [`${e.source}:${e.sourceId}`, e]));
 
           const newJobs = runResult.jobs.filter((j) => !existingSet.has(`${j.source}:${j.sourceId}`));
-          const existingIds = runResult.jobs
-            .filter((j) => existingSet.has(`${j.source}:${j.sourceId}`))
+          const existingJobsList = runResult.jobs.filter((j) => existingSet.has(`${j.source}:${j.sourceId}`));
+          const existingIds = existingJobsList
             .map((j) => existingIdMap.get(`${j.source}:${j.sourceId}`))
             .filter((id): id is string => !!id);
 
@@ -171,28 +181,35 @@ export async function GET(req: NextRequest) {
             const now = new Date();
             try {
               const result = await prisma.globalJob.createMany({
-                data: newJobs.map((job) => ({
-                  title: job.title,
-                  company: job.company,
-                  location: job.location,
-                  description: job.description,
-                  salary: job.salary,
-                  jobType: job.jobType,
-                  experienceLevel: job.experienceLevel,
-                  category: job.category,
-                  skills: job.skills,
-                  postedDate: job.postedDate,
-                  source: job.source,
-                  sourceId: job.sourceId,
-                  sourceUrl: job.sourceUrl,
-                  applyUrl: job.applyUrl,
-                  companyUrl: job.companyUrl,
-                  companyEmail: job.companyEmail,
-                  isActive: true,
-                  isFresh: true,
-                  firstSeenAt: now,
-                  lastSeenAt: now,
-                })),
+                data: newJobs.map((job) => {
+                  const extraction = emailExtractions.get(`${job.source}:${job.sourceId}`);
+                  return {
+                    title: job.title,
+                    company: job.company,
+                    location: job.location,
+                    description: job.description,
+                    salary: job.salary,
+                    jobType: job.jobType,
+                    experienceLevel: job.experienceLevel,
+                    category: job.category,
+                    skills: job.skills,
+                    postedDate: job.postedDate,
+                    source: job.source,
+                    sourceId: job.sourceId,
+                    sourceUrl: job.sourceUrl,
+                    applyUrl: job.applyUrl,
+                    companyUrl: job.companyUrl,
+                    companyEmail: job.companyEmail,
+                    ...(extraction ? {
+                      emailSource: "description_text",
+                      emailConfidence: extraction.confidence,
+                    } : {}),
+                    isActive: true,
+                    isFresh: true,
+                    firstSeenAt: now,
+                    lastSeenAt: now,
+                  };
+                }),
                 skipDuplicates: true,
               });
               newCount = result.count;
@@ -201,7 +218,7 @@ export async function GET(req: NextRequest) {
             }
           }
 
-          // Batch update existing jobs
+          // Batch update existing jobs — refresh lastSeenAt
           if (existingIds.length > 0) {
             try {
               const result = await prisma.globalJob.updateMany({
@@ -211,6 +228,33 @@ export async function GET(req: NextRequest) {
               updatedCount = result.count;
             } catch (err) {
               console.warn(`[ScrapeGlobal] Batch update failed for ${source}:`, err);
+            }
+          }
+
+          // Enrich existing jobs: backfill email from description
+          for (const job of existingJobsList) {
+            const key = `${job.source}:${job.sourceId}`;
+            const dbRecord = existingDataMap.get(key);
+            const dbId = existingIdMap.get(key);
+            if (!dbRecord || !dbId) continue;
+
+            const extraction = emailExtractions.get(key);
+            const hasNewEmail = extraction && !dbRecord.companyEmail;
+            const hasLongerDesc = job.description &&
+              job.description.length > (dbRecord.description?.length ?? 0);
+
+            if (hasNewEmail || hasLongerDesc) {
+              await prisma.globalJob.update({
+                where: { id: dbId },
+                data: {
+                  ...(hasNewEmail ? {
+                    companyEmail: extraction.email,
+                    emailSource: "description_text_rescrape",
+                    emailConfidence: extraction.confidence,
+                  } : {}),
+                  ...(hasLongerDesc ? { description: job.description } : {}),
+                },
+              }).catch((err) => console.warn(`[ScrapeGlobal] Enrichment failed for ${dbId}:`, err));
             }
           }
         }

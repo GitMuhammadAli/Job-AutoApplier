@@ -25,11 +25,13 @@ import { TIMEOUTS } from "@/lib/constants";
  */
 
 const HIRING_TERMS = [
-  '"hiring"',
-  '"we are hiring"',
-  '"looking for"',
-  '"join our team"',
-  '"job opening"',
+  "hiring",
+  "we are hiring",
+  "looking for",
+  "join our team",
+  "job opening",
+  "open position",
+  "apply now",
 ];
 
 interface SearchResult {
@@ -41,7 +43,8 @@ interface SearchResult {
 
 /**
  * Fetch results from Google Custom Search API (free tier: 100/day).
- * Restricted to linkedin.com/posts via the CSE configuration.
+ * CSE should be configured to search linkedin.com/posts.
+ * dateRestrict=d7 captures posts Google indexes slowly (2-5 day lag).
  */
 async function fetchGoogleCSE(
   query: string,
@@ -50,7 +53,7 @@ async function fetchGoogleCSE(
   const cx = process.env.GOOGLE_CSE_ID;
   if (!key || !cx) return [];
 
-  const url = `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=10&dateRestrict=d3&sort=date`;
+  const url = `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=10&dateRestrict=d7&sort=date`;
 
   const res = await fetchWithRetry(url);
   if (!res.ok) {
@@ -75,6 +78,7 @@ async function fetchGoogleCSE(
 
 /**
  * Fetch results from SerpAPI (paid fallback).
+ * Uses qdr:w1 (past week) for wider coverage.
  */
 async function fetchSerpAPI(
   query: string,
@@ -82,7 +86,7 @@ async function fetchSerpAPI(
   const key = process.env.SERPAPI_KEY;
   if (!key) return [];
 
-  const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&num=20&tbs=qdr:d3&api_key=${key}`;
+  const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&num=20&tbs=qdr:w1&api_key=${key}`;
 
   const res = await fetchWithRetry(url);
   if (!res.ok) return [];
@@ -93,7 +97,7 @@ async function fetchSerpAPI(
 
 export async function fetchGoogleHiringPosts(
   queries: SearchQuery[],
-  maxQueries = 4,
+  maxQueries = 6,
 ): Promise<ScrapedJob[]> {
   const startTime = Date.now();
   const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;
@@ -108,54 +112,60 @@ export async function fetchGoogleHiringPosts(
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
-  const MAX_QUERIES = 4;
-  const MAX_CITIES = 2;
-  if (queries.length > MAX_QUERIES) {
-    console.log(`[HiringPosts] Truncating ${queries.length} queries to ${MAX_QUERIES} (dropped: ${queries.slice(MAX_QUERIES).map(q => q.keyword).join(", ")})`);
+  // Build search queries — keyword-only first (global reach), then keyword+city
+  const MAX_KEYWORDS = 5;
+  const searchEntries: Array<{ query: string; fallbackCity: string }> = [];
+
+  const topKeywords = queries.slice(0, MAX_KEYWORDS);
+
+  // Strategy 1: keyword-only queries (broadest — catches remote/global posts)
+  for (const q of topKeywords) {
+    const term = HIRING_TERMS[searchEntries.length % HIRING_TERMS.length];
+    searchEntries.push({
+      query: `site:linkedin.com/posts "${term}" ${q.keyword}`,
+      fallbackCity: "Remote",
+    });
   }
-  const searchPairs: Array<{ keyword: string; city: string }> = [];
-  for (const q of queries.slice(0, MAX_QUERIES)) {
-    for (const city of q.cities.slice(0, MAX_CITIES)) {
-      if (city.toLowerCase() === "remote") continue;
-      searchPairs.push({ keyword: q.keyword, city });
+
+  // Strategy 2: keyword+city for users' non-remote cities (local hiring posts)
+  for (const q of topKeywords) {
+    const realCities = q.cities.filter((c) => c.toLowerCase() !== "remote");
+    if (realCities.length > 0) {
+      const city = realCities[0];
+      searchEntries.push({
+        query: `site:linkedin.com/posts hiring ${q.keyword} ${city}`,
+        fallbackCity: city,
+      });
     }
   }
 
-  const pairs = searchPairs.slice(0, maxQueries);
+  const entriesToRun = searchEntries.slice(0, maxQueries);
   let cseExhausted = false;
 
-  for (let i = 0; i < pairs.length; i++) {
-    if (Date.now() >= deadline) break;
+  console.log(`[HiringPosts] Running ${entriesToRun.length} queries (${topKeywords.length} keywords)`);
 
-    const { keyword, city } = pairs[i];
-    // Rotate through hiring terms to cast a wider net
-    const term = HIRING_TERMS[i % HIRING_TERMS.length];
-    const query = `site:linkedin.com/posts ${term} "${city}" "${keyword}"`;
+  for (const entry of entriesToRun) {
+    if (Date.now() >= deadline) break;
 
     try {
       let results: SearchResult[] = [];
 
-      // Try Google CSE first (free), fall back to SerpAPI
       if (hasCSE && !cseExhausted) {
-        results = await fetchGoogleCSE(query);
+        results = await fetchGoogleCSE(entry.query);
         if (results.length === 0 && hasSerpAPI && Date.now() < deadline) {
-          // CSE might be exhausted or returned nothing — try SerpAPI
-          results = await fetchSerpAPI(query);
-          if (results.length > 0) cseExhausted = true; // CSE is likely at quota
+          results = await fetchSerpAPI(entry.query);
+          if (results.length > 0) cseExhausted = true;
         }
       } else if (hasSerpAPI) {
-        results = await fetchSerpAPI(query);
+        results = await fetchSerpAPI(entry.query);
       }
 
       for (const r of results) {
-        const parsed = parseHiringPost(r, city, seen);
+        const parsed = parseHiringPost(r, entry.fallbackCity, seen);
         if (parsed) jobs.push(parsed);
       }
     } catch (err) {
-      console.warn(
-        `[GoogleHiringPosts] Failed for "${keyword}" in "${city}":`,
-        err,
-      );
+      console.warn(`[GoogleHiringPosts] Failed for query "${entry.query}":`, err);
     }
   }
 

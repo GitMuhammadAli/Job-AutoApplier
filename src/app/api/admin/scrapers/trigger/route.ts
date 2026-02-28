@@ -13,17 +13,16 @@ const VALID_CRON_ACTIONS = [
   "instant-apply", "match-jobs", "match-all-users",
   "send-scheduled", "send-queued", "notify-matches",
   "cleanup-stale", "follow-up", "check-follow-ups",
-  "scrape-global", "scrape-posts",
+  "scrape-global", "backfill-emails",
 ];
 
 function cronPath(action: string): string {
   switch (action) {
     case "scrape-global": return "/api/cron/scrape-global";
-    case "scrape-posts": return "/api/cron/scrape-posts";
     case "instant-apply": return "/api/cron/instant-apply";
     case "match-jobs": return "/api/cron/match-jobs";
     case "match-all-users": return "/api/cron/match-all-users";
-    case "send-scheduled": return "/api/cron/send-queued";
+    case "send-scheduled": return "/api/cron/send-scheduled";
     case "send-queued": return "/api/cron/send-queued";
     case "notify-matches": return "/api/cron/notify-matches";
     case "cleanup-stale": return "/api/cron/cleanup-stale";
@@ -55,6 +54,23 @@ export async function POST(req: NextRequest) {
       { error: "CRON_SECRET not configured" },
       { status: 500 },
     );
+  }
+
+  // Backfill emails — direct POST to admin route (not a cron)
+  if (source === "backfill-emails") {
+    try {
+      const res = await fetch(`${baseUrl}/api/admin/backfill-emails`, {
+        method: "POST",
+        headers: { cookie: req.headers.get("cookie") || "" },
+      });
+      const data = await res.json().catch(() => ({ status: res.status }));
+      return NextResponse.json({ action: source, status: res.status, ...data });
+    } catch (err: unknown) {
+      return NextResponse.json(
+        { error: `Backfill failed`, details: String(err) },
+        { status: 500 },
+      );
+    }
   }
 
   // Trigger a cron action
