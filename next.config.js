@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
-  generateBuildId: async () => {
-    return process.env.VERCEL_GIT_COMMIT_SHA || Date.now().toString();
-  },
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
