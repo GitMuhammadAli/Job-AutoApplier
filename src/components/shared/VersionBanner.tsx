@@ -15,10 +15,12 @@ export function VersionBanner() {
 
     async function checkVersion() {
       try {
-        const res = await fetch("/api/version", { cache: "no-store" });
+        const res = await fetch(`/api/version?_t=${Date.now()}`, {
+          cache: "no-store",
+        });
         if (!res.ok) return;
         const { buildId } = await res.json();
-        if (!mounted) return;
+        if (!mounted || !buildId || buildId === "unknown") return;
 
         if (initialBuildId.current === null) {
           initialBuildId.current = buildId;
@@ -26,7 +28,7 @@ export function VersionBanner() {
           setUpdateAvailable(true);
         }
       } catch {
-        // Network error — skip this check
+        // Network error — skip
       }
     }
 
