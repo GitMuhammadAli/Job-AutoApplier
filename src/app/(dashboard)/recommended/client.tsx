@@ -20,6 +20,9 @@ import {
   ChevronRight,
   Bookmark,
   Globe,
+  ArrowUpDown,
+  CalendarDays,
+  Banknote,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
@@ -60,6 +63,13 @@ const LOCATION_PRESETS = [
   { value: "country", label: "My Country" },
   { value: "remote", label: "Remote" },
   { value: "all", label: "All" },
+];
+
+const FRESHNESS_PRESETS = [
+  { value: "", label: "Any" },
+  { value: "today", label: "Today" },
+  { value: "3days", label: "3 Days" },
+  { value: "week", label: "This Week" },
 ];
 
 function getScoreColor(score: number) {
@@ -111,6 +121,8 @@ export function RecommendedClient({
   const [isPending, startTransition] = useTransition();
   const [searchInput, setSearchInput] = useState(currentFilters.q || "");
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [clientSort, setClientSort] = useState(currentFilters.sort);
+  const [freshness, setFreshness] = useState("");
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const totalPages = Math.ceil(total / pageSize);
@@ -122,7 +134,12 @@ export function RecommendedClient({
       if (!v || (k === "minScore" && v === "0") || (k === "sort" && v === "score") || (k === "page" && v === "1")) {
         continue;
       }
-      params.set(k, v);
+      let val = v;
+      if (k === "sort") {
+        if (val === "score_asc") val = "score";
+        else if (val === "date_asc") val = "date";
+      }
+      params.set(k, val);
     }
     const qs = params.toString();
     return `/recommended${qs ? `?${qs}` : ""}`;
@@ -164,7 +181,37 @@ export function RecommendedClient({
 
   const activeSources = useMemo(() => (currentFilters.source || "").split(",").filter(Boolean), [currentFilters.source]);
   const sortedSources = useMemo(() => Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]), [sourceCounts]);
-  const visibleJobs = useMemo(() => jobs.filter((j) => !dismissedIds.has(j.id)), [jobs, dismissedIds]);
+  const visibleJobs = useMemo(() => {
+    let filtered = jobs.filter((j) => !dismissedIds.has(j.id));
+
+    if (freshness) {
+      const now = Date.now();
+      const maxAge: Record<string, number> = {
+        today: 1 * 24 * 60 * 60 * 1000,
+        "3days": 3 * 24 * 60 * 60 * 1000,
+        week: 7 * 24 * 60 * 60 * 1000,
+      };
+      const cutoff = maxAge[freshness];
+      if (cutoff) {
+        filtered = filtered.filter((j) => {
+          if (!j.postedDate) return false;
+          return now - new Date(j.postedDate).getTime() <= cutoff;
+        });
+      }
+    }
+
+    if (clientSort === "score_asc") {
+      filtered = [...filtered].sort((a, b) => a.matchScore - b.matchScore);
+    } else if (clientSort === "date_asc") {
+      filtered = [...filtered].sort((a, b) => {
+        const ta = a.postedDate ? new Date(a.postedDate).getTime() : 0;
+        const tb = b.postedDate ? new Date(b.postedDate).getTime() : 0;
+        return ta - tb;
+      });
+    }
+
+    return filtered;
+  }, [jobs, dismissedIds, freshness, clientSort]);
 
   const handleDismiss = useCallback(async (id: string) => {
     const job = jobs.find((j) => j.id === id);
@@ -203,11 +250,13 @@ export function RecommendedClient({
   const hasActiveFilters = useMemo(() => {
     return !!(currentFilters.source || currentFilters.q || currentFilters.email === "true" ||
       (currentFilters.minScore && currentFilters.minScore !== "0") ||
-      currentFilters.location || currentFilters.type);
-  }, [currentFilters]);
+      currentFilters.location || freshness || (clientSort !== "score" && clientSort !== "date"));
+  }, [currentFilters, freshness, clientSort]);
 
   const resetAllFilters = useCallback(() => {
     setSearchInput("");
+    setFreshness("");
+    setClientSort("score");
     startTransition(() => {
       router.push("/recommended");
     });
@@ -220,11 +269,18 @@ export function RecommendedClient({
         <p className="text-slate-500 dark:text-zinc-400">
           {filterBreakdown.sqlCandidates.toLocaleString()} jobs searched
         </p>
-        <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1.5 ring-1 ring-blue-100 dark:ring-blue-900/40">
-          <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-          <span className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
-            {total} job{total !== 1 ? "s" : ""}
-          </span>
+        <div className="flex items-center gap-2">
+          {(freshness || clientSort === "score_asc" || clientSort === "date_asc") && visibleJobs.length !== jobs.length && (
+            <span className="text-slate-400 dark:text-zinc-500 tabular-nums">
+              {visibleJobs.length} shown
+            </span>
+          )}
+          <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1.5 ring-1 ring-blue-100 dark:ring-blue-900/40">
+            <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            <span className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
+              {total} job{total !== 1 ? "s" : ""}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -245,14 +301,24 @@ export function RecommendedClient({
           )}
         </form>
 
-        <select
-          value={currentFilters.sort}
-          onChange={(e) => updateFilter("sort", e.target.value === "score" ? null : e.target.value)}
-          className="rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="score">Best Match</option>
-          <option value="date">Newest First</option>
-        </select>
+        <div className="flex items-center gap-1.5">
+          <ArrowUpDown className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-500" />
+          <select
+            value={clientSort}
+            onChange={(e) => {
+              const val = e.target.value;
+              setClientSort(val);
+              const serverSort = val === "score_asc" ? "score" : val === "date_asc" ? "date" : val;
+              updateFilter("sort", serverSort === "score" ? null : serverSort);
+            }}
+            className="rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="score">Best Match</option>
+            <option value="date">Newest First</option>
+            <option value="score_asc">Lowest Match First</option>
+            <option value="date_asc">Oldest First</option>
+          </select>
+        </div>
       </div>
 
       {/* Filter chips */}
@@ -263,35 +329,21 @@ export function RecommendedClient({
             <Filter className="h-3 w-3 inline mr-1" />Source
           </span>
           <div className="flex flex-wrap gap-1">
-            <button
-              onClick={() => updateFilter("source", null)}
-              className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                activeSources.length === 0
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600"
-              }`}
-            >
-              All
-            </button>
+            <FilterChip active={activeSources.length === 0} onClick={() => updateFilter("source", null)} label="All" />
             {sortedSources.map(([source, count]) => {
               const active = activeSources.includes(source);
               return (
-                <button
+                <FilterChip
                   key={source}
+                  active={active}
                   onClick={() => {
                     const newSources = active
                       ? activeSources.filter((s) => s !== source)
                       : [...activeSources, source];
                     updateFilter("source", newSources.length > 0 ? newSources.join(",") : null);
                   }}
-                  className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                    active
-                      ? "bg-blue-600 text-white"
-                      : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600"
-                  }`}
-                >
-                  {source} ({count})
-                </button>
+                  label={`${source} (${count})`}
+                />
               );
             })}
           </div>
@@ -304,17 +356,12 @@ export function RecommendedClient({
           </span>
           <div className="flex gap-1">
             {SCORE_PRESETS.map((p) => (
-              <button
+              <FilterChip
                 key={p.value}
+                active={(currentFilters.minScore || "0") === p.value}
                 onClick={() => updateFilter("minScore", p.value === "0" ? null : p.value)}
-                className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                  (currentFilters.minScore || "0") === p.value
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600"
-                }`}
-              >
-                {p.label}
-              </button>
+                label={p.label}
+              />
             ))}
           </div>
         </div>
@@ -326,17 +373,29 @@ export function RecommendedClient({
           </span>
           <div className="flex gap-1">
             {LOCATION_PRESETS.map((p) => (
-              <button
+              <FilterChip
                 key={p.value}
+                active={(currentFilters.location || "") === p.value}
                 onClick={() => updateFilter("location", p.value || null)}
-                className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                  (currentFilters.location || "") === p.value
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600"
-                }`}
-              >
-                {p.label}
-              </button>
+                label={p.label}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Freshness filter */}
+        <div>
+          <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 block">
+            <CalendarDays className="h-3 w-3 inline mr-1" />Posted
+          </span>
+          <div className="flex gap-1">
+            {FRESHNESS_PRESETS.map((p) => (
+              <FilterChip
+                key={p.value}
+                active={freshness === p.value}
+                onClick={() => setFreshness(p.value)}
+                label={p.label}
+              />
             ))}
           </div>
         </div>
@@ -346,17 +405,24 @@ export function RecommendedClient({
           <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 block">
             <Mail className="h-3 w-3 inline mr-1" />Email
           </span>
-          <button
+          <FilterChip
+            active={currentFilters.email === "true"}
             onClick={() => updateFilter("email", currentFilters.email === "true" ? null : "true")}
-            className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
-              currentFilters.email === "true"
-                ? "bg-blue-600 text-white"
-                : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600"
-            }`}
-          >
-            Can Email Directly
-          </button>
+            label="Can Email Directly"
+          />
         </div>
+
+        {/* Clear all */}
+        {hasActiveFilters && (
+          <div className="flex items-end">
+            <button
+              onClick={resetAllFilters}
+              className="rounded-md px-2 py-0.5 text-[11px] font-medium text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
+            >
+              <X className="h-3 w-3 inline mr-0.5" />Clear All
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Results */}
@@ -411,6 +477,21 @@ export function RecommendedClient({
         </div>
       )}
     </div>
+  );
+}
+
+function FilterChip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+        active
+          ? "bg-blue-600 text-white"
+          : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
