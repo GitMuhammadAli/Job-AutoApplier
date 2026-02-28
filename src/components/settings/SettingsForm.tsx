@@ -477,7 +477,8 @@ export function SettingsForm({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto gap-1 bg-slate-100 dark:bg-zinc-800 p-1 mb-6">
+        <div className="flex items-center gap-3 mb-6">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto gap-1 bg-slate-100 dark:bg-zinc-800 p-1 flex-1">
           <TabsTrigger value="profile" className="gap-1.5 text-xs py-2">
             <User className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Profile</span>
@@ -503,6 +504,20 @@ export function SettingsForm({
             <span className="hidden sm:inline">Account</span>
           </TabsTrigger>
         </TabsList>
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            size="sm"
+            className="shadow-sm px-4 shrink-0 hidden sm:flex"
+          >
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Save className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            {saving ? "Saving..." : "Save"}
+          </Button>
+        </div>
 
         {/* ══════ TAB 1: Profile ══════ */}
         {activeTab === "profile" && (
@@ -1880,82 +1895,84 @@ export function SettingsForm({
         <TabsContent value="account" className="space-y-8" forceMount>
 
       {/* ── Notifications ── */}
-      <Section
-        icon={<Bell className="h-4 w-4" />}
-        title="Notifications"
-        description="Get email alerts when JobPilot finds new jobs matching your preferences. You can control frequency to avoid inbox overload."
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm font-medium">Email Notifications</Label>
-              <p className="text-xs text-slate-400 dark:text-zinc-500">
-                Sends a summary of new job matches to your email
-              </p>
+      <div className="rounded-xl bg-gradient-to-r from-blue-50 to-violet-50 dark:from-blue-950/30 dark:to-violet-950/30 p-5 shadow-sm ring-1 ring-blue-200/50 dark:ring-blue-800/30">
+        <div className="mb-4">
+          <div className="flex items-center gap-2">
+            <div className="rounded-lg bg-blue-100 dark:bg-blue-900/40 p-1.5">
+              <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
-            <Switch
-              checked={emailNotifications}
-              onCheckedChange={setEmailNotifications}
-            />
+            <h2 className="text-sm font-bold text-slate-800 dark:text-zinc-100">
+              Notifications
+            </h2>
           </div>
-          {emailNotifications && (
-            <>
-              <Field
-                label="Notification Email"
-                hint="Leave empty to use your login email. Use a different email if you want alerts separated from applications."
-              >
-                <Input
-                  value={notificationEmail}
-                  onChange={(e) => setNotificationEmail(e.target.value)}
-                  placeholder="alerts@example.com"
-                />
-              </Field>
-              <Field
-                label="Notification Frequency"
-                hint="How often you receive match digest emails. Real-time can be noisy during active scraping."
-              >
-                <Select
-                  value={notificationFrequency}
-                  onValueChange={setNotificationFrequency}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="realtime">
-                      Real-time — instant alert per match
-                    </SelectItem>
-                    <SelectItem value="hourly">
-                      Hourly — bundled digest, max 1/hour
-                    </SelectItem>
-                    <SelectItem value="daily">
-                      Daily — one summary per day
-                    </SelectItem>
-                    <SelectItem value="off">
-                      Off — no email notifications
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </>
-          )}
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1.5 ml-9">
+            Stay updated when we find new jobs for you. Choose email digests, browser push alerts, or both.
+          </p>
+        </div>
 
-          <div className="border-t border-slate-200 dark:border-zinc-700 pt-4 mt-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-start gap-3">
-                <Smartphone className="h-4 w-4 mt-0.5 text-blue-500" />
-                <div>
-                  <Label className="text-sm font-medium">Browser Push Notifications</Label>
-                  <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">
-                    {push.state === "unsupported"
-                      ? "Your browser doesn't support push notifications"
-                      : push.isDenied
-                        ? "Notifications blocked — enable them in your browser settings"
-                        : push.isSubscribed
-                          ? "You'll get instant alerts even when your browser is closed"
-                          : "Get instant alerts on your phone or laptop — even when the browser is closed"}
-                  </p>
-                </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Email Notifications Card */}
+          <div className="rounded-xl bg-white dark:bg-zinc-800/80 p-4 ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-blue-500" />
+                <Label className="text-sm font-bold">Email Alerts</Label>
+              </div>
+              <Switch
+                checked={emailNotifications}
+                onCheckedChange={setEmailNotifications}
+              />
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mb-3">
+              Get a summary of new job matches sent to your inbox.
+            </p>
+            {emailNotifications && (
+              <div className="space-y-3">
+                <Field
+                  label="Send to"
+                  hint="Leave empty to use your login email"
+                >
+                  <Input
+                    value={notificationEmail}
+                    onChange={(e) => setNotificationEmail(e.target.value)}
+                    placeholder="alerts@example.com"
+                    className="h-8 text-xs"
+                  />
+                </Field>
+                <Field
+                  label="Frequency"
+                >
+                  <Select
+                    value={notificationFrequency}
+                    onValueChange={setNotificationFrequency}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="realtime">Real-time</SelectItem>
+                      <SelectItem value="hourly">Hourly digest</SelectItem>
+                      <SelectItem value="daily">Daily summary</SelectItem>
+                      <SelectItem value="off">Off</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            )}
+            {!emailNotifications && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                You won&apos;t receive email alerts for new matches
+              </p>
+            )}
+          </div>
+
+          {/* Push Notifications Card */}
+          <div className="rounded-xl bg-white dark:bg-zinc-800/80 p-4 ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4 text-violet-500" />
+                <Label className="text-sm font-bold">Push Notifications</Label>
               </div>
               <div className="flex items-center gap-2">
                 {push.loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />}
@@ -1966,15 +1983,31 @@ export function SettingsForm({
                 />
               </div>
             </div>
-            {push.isSubscribed && (
-              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-2 ml-7 flex items-center gap-1">
-                <Check className="h-3 w-3" />
-                Push notifications active on this device
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mb-3">
+              Instant browser alerts — works even when the tab is closed.
+            </p>
+            {push.isSubscribed ? (
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                <Check className="h-3.5 w-3.5" />
+                Active on this device
+              </p>
+            ) : push.state === "unsupported" ? (
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500">
+                Your browser doesn&apos;t support push notifications
+              </p>
+            ) : push.isDenied ? (
+              <p className="text-[10px] text-red-500 dark:text-red-400 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Blocked — enable in browser settings
+              </p>
+            ) : (
+              <p className="text-[10px] text-blue-600 dark:text-blue-400">
+                Click the toggle to enable instant job alerts
               </p>
             )}
           </div>
         </div>
-      </Section>
+      </div>
 
       {/* ── Mode Comparison Table ── */}
       <Section
@@ -2065,29 +2098,24 @@ export function SettingsForm({
         )}
       </Tabs>
 
-      {/* spacer so sticky bar doesn't overlap last content */}
-      <div className="h-20" />
-
-      {/* ── Sticky Save Bar (always visible at bottom) ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 dark:border-zinc-700 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm shadow-[0_-4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-          <p className="text-xs text-slate-500 dark:text-zinc-400 hidden sm:block">
-            Changes are not saved until you click Save.
-          </p>
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            size="lg"
-            className="shadow-md px-8 ml-auto"
-          >
-            {saving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            {saving ? "Saving..." : "Save Settings"}
-          </Button>
-        </div>
+      {/* ── Save Button (inline at bottom of form) ── */}
+      <div className="mt-8 flex items-center justify-end gap-3">
+        <p className="text-xs text-slate-400 dark:text-zinc-500 hidden sm:block">
+          Changes are not saved until you click Save.
+        </p>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          size="lg"
+          className="shadow-md px-8"
+        >
+          {saving ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4 mr-2" />
+          )}
+          {saving ? "Saving..." : "Save Settings"}
+        </Button>
       </div>
     </div>
   );
