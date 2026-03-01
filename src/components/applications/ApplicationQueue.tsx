@@ -15,6 +15,10 @@ import {
   ExternalLink,
   Sparkles,
   FileText,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -111,6 +115,27 @@ function StatusBadge({ status }: { status: ApplicationStatus }) {
     <Badge variant={config.variant} className={config.className ?? ""}>
       {config.label}
     </Badge>
+  );
+}
+
+function getEmailQuality(confidence: number | null | undefined): {
+  label: string;
+  className: string;
+  Icon: typeof ShieldCheck;
+} {
+  if (confidence == null) return { label: "Unverified", className: "text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800", Icon: ShieldX };
+  if (confidence >= 80) return { label: "Verified", className: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800", Icon: ShieldCheck };
+  if (confidence >= 50) return { label: "Guessed", className: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800", Icon: ShieldAlert };
+  return { label: "Unverified", className: "text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800", Icon: ShieldX };
+}
+
+function EmailQualityBadge({ confidence }: { confidence: number | null | undefined }) {
+  const { label, className, Icon } = getEmailQuality(confidence);
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${className}`}>
+      <Icon className="h-2.5 w-2.5" />
+      {label}
+    </span>
   );
 }
 
@@ -283,10 +308,22 @@ const ApplicationCard = memo(function ApplicationCard({
             )}
             <FreshnessDot lastSeenAt={job.lastSeenAt} firstSeenAt={job.firstSeenAt} />
           </div>
-          <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5 text-[11px] text-slate-500 dark:text-zinc-400">
-            <span className="truncate max-w-[180px]" title="Recipient">{app.recipientEmail}</span>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1.5 text-[11px] text-slate-500 dark:text-zinc-400">
+            {app.recipientEmail ? (
+              <span className="inline-flex items-center gap-1">
+                <span className="truncate max-w-[180px]" title="Recipient">{app.recipientEmail}</span>
+                <EmailQualityBadge confidence={job.emailConfidence} />
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 text-red-500 dark:text-red-400">
+                <ShieldX className="h-2.5 w-2.5" /> No email
+              </span>
+            )}
             {matchScore != null && (
               <span>Match: {Math.round(matchScore)}%</span>
+            )}
+            {app.resume?.name && (
+              <span className="truncate max-w-[120px]">Resume: {app.resume.name}</span>
             )}
             <span>{formatDistanceToNow(createdDate, { addSuffix: true })}</span>
           </div>
@@ -881,6 +918,11 @@ export function ApplicationQueue({
 
         {selectedCount > 0 && (
           <div className="mt-4 space-y-2">
+            {/* Pre-send quality summary */}
+            <PreSendSummary
+              applications={filteredApplications.filter((a) => selectedIds.has(a.id))}
+            />
+
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2">
               <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">
                 {selectedCount} selected
@@ -961,6 +1003,13 @@ export function ApplicationQueue({
                 </div>
               </div>
             )}
+
+            {selectedSendable.length > 10 && !bulkProgress && (
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Large batches are sent sequentially with delays to protect your sender reputation
+              </p>
+            )}
           </div>
         )}
 
@@ -990,6 +1039,47 @@ export function ApplicationQueue({
           </TabsContent>
         )}
       </Tabs>
+    </div>
+  );
+}
+
+function PreSendSummary({ applications }: { applications: ApplicationWithRelations[] }) {
+  const { verified, guessed, noEmail } = useMemo(() => {
+    let v = 0, g = 0, n = 0;
+    for (const app of applications) {
+      if (!app.recipientEmail) { n++; continue; }
+      const conf = app.userJob?.globalJob?.emailConfidence;
+      if (conf != null && conf >= 80) v++;
+      else g++;
+    }
+    return { verified: v, guessed: g, noEmail: n };
+  }, [applications]);
+
+  if (applications.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/80 px-4 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      <span className="font-medium text-slate-600 dark:text-zinc-300">Email quality:</span>
+      {verified > 0 && (
+        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+          <ShieldCheck className="h-3 w-3" /> {verified} verified
+        </span>
+      )}
+      {guessed > 0 && (
+        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+          <ShieldAlert className="h-3 w-3" /> {guessed} guessed
+        </span>
+      )}
+      {noEmail > 0 && (
+        <span className="inline-flex items-center gap-1 text-red-500 dark:text-red-400">
+          <ShieldX className="h-3 w-3" /> {noEmail} no email
+        </span>
+      )}
+      {(guessed > 0 || noEmail > 0) && (
+        <span className="text-[10px] text-slate-400 dark:text-zinc-500 ml-auto">
+          Only verified emails are sent in bulk
+        </span>
+      )}
     </div>
   );
 }

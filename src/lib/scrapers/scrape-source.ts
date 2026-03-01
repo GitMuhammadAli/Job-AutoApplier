@@ -40,7 +40,7 @@ export async function scrapeAndUpsert(
   }
 
   // 1. Sanitize all jobs and extract emails from description text (CPU-only, no DB)
-  const emailExtractions = new Map<string, { email: string; confidence: number }>();
+  const emailExtractions = new Map<string, { email: string; confidence: number; source?: string }>();
   for (const job of jobs) {
     job.description = sanitizeScrapedText(job.description);
     job.title = sanitizeScrapedText(job.title) || job.title;
@@ -54,8 +54,16 @@ export async function scrapeAndUpsert(
       const extracted = extractEmailFromText(job.description);
       if (extracted.email) {
         job.companyEmail = extracted.email;
-        emailExtractions.set(`${job.source}:${job.sourceId}`, extracted as { email: string; confidence: number });
+        emailExtractions.set(`${job.source}:${job.sourceId}`, { email: extracted.email, confidence: extracted.confidence });
       }
+    }
+    // If the scraper already provided confidence/source (e.g. hiring posts), use those
+    if (job.companyEmail && job.emailConfidence && job.emailSource) {
+      emailExtractions.set(`${job.source}:${job.sourceId}`, {
+        email: job.companyEmail,
+        confidence: job.emailConfidence,
+        source: job.emailSource,
+      });
     }
   }
 
@@ -99,7 +107,7 @@ export async function scrapeAndUpsert(
             companyUrl: job.companyUrl,
             companyEmail: job.companyEmail,
             ...(extraction ? {
-              emailSource: "description_text",
+              emailSource: extraction.source || "description_text",
               emailConfidence: extraction.confidence,
             } : {}),
             isActive: true,

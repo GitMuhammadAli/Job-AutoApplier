@@ -38,7 +38,11 @@ interface SearchResult {
   title?: string;
   link?: string;
   snippet?: string;
+  htmlSnippet?: string;
   date?: string;
+  pagemap?: {
+    metatags?: Array<Record<string, string>>;
+  };
 }
 
 /**
@@ -68,11 +72,19 @@ async function fetchGoogleCSE(
   const data = await res.json();
   const items = data?.items || [];
 
-  return items.map((item: { title?: string; link?: string; snippet?: string; pagemap?: { metatags?: Array<{ "article:published_time"?: string }> } }) => ({
+  return items.map((item: {
+    title?: string;
+    link?: string;
+    snippet?: string;
+    htmlSnippet?: string;
+    pagemap?: { metatags?: Array<Record<string, string>> };
+  }) => ({
     title: item.title || undefined,
     link: item.link || undefined,
     snippet: item.snippet || undefined,
+    htmlSnippet: item.htmlSnippet || undefined,
     date: item.pagemap?.metatags?.[0]?.["article:published_time"] || undefined,
+    pagemap: item.pagemap || undefined,
   }));
 }
 
@@ -205,8 +217,15 @@ function parseHiringPost(
   // Extract location from snippet
   const location = extractLocation(result.snippet || "", fallbackCity);
 
-  // Extract email from all available text (title + snippet combined for wider coverage)
-  const combinedText = [result.title, result.snippet].filter(Boolean).join(" ");
+  // Extract email from all available text fields for wider coverage
+  const combinedText = [
+    result.title,
+    result.snippet,
+    result.htmlSnippet?.replace(/<[^>]*>/g, " "),
+    result.pagemap?.metatags?.[0]?.["og:description"],
+    result.pagemap?.metatags?.[0]?.["description"],
+    result.pagemap?.metatags?.[0]?.["og:title"],
+  ].filter(Boolean).join(" ");
   const emailExtraction = extractEmailFromText(combinedText);
   const email = emailExtraction.email;
 
@@ -216,15 +235,20 @@ function parseHiringPost(
   // Parse posted date from Google's date field
   const postedDate = result.date ? parseGoogleDate(result.date) : null;
 
+  // Use the richer combinedText as description if it's longer than just the snippet
+  const richDescription = combinedText.length > (result.snippet?.length ?? 0)
+    ? combinedText.replace(/\s+/g, " ").trim()
+    : (result.snippet || null);
+
   return {
     title,
     company,
     location,
-    description: result.snippet || null,
+    description: richDescription,
     salary: extractSalary(combined),
     jobType,
     experienceLevel: extractExperienceLevel(combined),
-    category: categorizeJob(title, [], result.snippet || ""),
+    category: categorizeJob(title, [], richDescription || ""),
     skills: [],
     postedDate,
     source: "linkedin_posts",
@@ -233,6 +257,8 @@ function parseHiringPost(
     applyUrl: email ? `mailto:${email}` : result.link,
     companyUrl: null,
     companyEmail: email,
+    // Hiring posts are high-quality sources — override confidence to 90
+    ...(email ? { emailConfidence: 90, emailSource: "hiring_post" } : {}),
   };
 }
 

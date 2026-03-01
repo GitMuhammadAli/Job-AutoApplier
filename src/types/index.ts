@@ -189,6 +189,8 @@ export interface ScrapedJob {
   applyUrl: string | null;
   companyUrl: string | null;
   companyEmail: string | null;
+  emailConfidence?: number;
+  emailSource?: string;
 }
 
 // ── Search Query (from keyword aggregator) ──

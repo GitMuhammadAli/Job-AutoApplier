@@ -132,7 +132,7 @@ export async function findCompanyEmail(job: {
                 return {
                   email: (hrEmail || filtered[0]).toLowerCase(),
                   confidence: "HIGH",
-                  confidenceScore: 80,
+                  confidenceScore: 82,
                   method: `scraped_from_${page.slice(1)}_page`,
                 };
               }
@@ -164,7 +164,7 @@ export async function findCompanyEmail(job: {
           return {
             email: candidateEmail,
             confidence: "LOW",
-            confidenceScore: 40,
+            confidenceScore: 35,
             method: `pattern_guess_rcpt_verified (${prefix}@${domain})`,
           };
         }
