@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendApplication } from "@/lib/send-application";
-import { canSendNow } from "@/lib/send-limiter";
 import { LIMITS, TIMEOUTS, STUCK_SENDING_TIMEOUT_MS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
@@ -65,17 +64,15 @@ export async function GET(req: NextRequest) {
       if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
 
       try {
-        const limitCheck = await canSendNow(app.userId);
-        if (!limitCheck.allowed) {
-          skipped++;
-          continue;
-        }
-
         const result = await sendApplication(app.id);
         if (result.success) {
           sent++;
         } else {
-          failed++;
+          if (result.error?.includes("limit") || result.error?.includes("paused") || result.error?.includes("Wait")) {
+            skipped++;
+          } else {
+            failed++;
+          }
         }
       } catch (err) {
         failed++;

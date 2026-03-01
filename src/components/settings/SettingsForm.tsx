@@ -1555,8 +1555,8 @@ export function SettingsForm({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field
             label="Delay between emails (seconds)"
-            hint="Wait time between each sent email. Gmail recommends 60-120s to avoid throttling."
-            helpTip="Minimum 60 seconds to look natural"
+            hint="Minimum wait time between each sent email. Gmail recommends 60-120s to avoid throttling."
+            helpTip="Enforced on both manual and automated sends to protect sender reputation"
           >
             <Input
               type="number"
@@ -1599,8 +1599,8 @@ export function SettingsForm({
           </Field>
           <Field
             label="Cooldown after burst (minutes)"
-            hint="Pause after hitting the hourly limit. Gives your email time to cool down."
-            helpTip="Pause after rapid sends to avoid throttling"
+            hint="When the hourly limit is hit, sending auto-pauses for this many minutes to cool down."
+            helpTip="Triggers automatically when hourly limit is reached"
           >
             <Input
               type="number"
@@ -1630,9 +1630,10 @@ export function SettingsForm({
         </div>
         <div className="mt-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3 ring-1 ring-amber-100 dark:ring-amber-800/40">
           <p className="text-[10px] text-amber-700 dark:text-amber-300">
-            <strong>How it works:</strong> If 3 emails bounce in one day,
-            sending auto-pauses for {bouncePauseHours} hours. Hourly and daily
-            limits prevent your email from being flagged as spam.
+            <strong>How it works:</strong> Each email waits {sendDelaySeconds}s
+            after the previous one. When the hourly limit ({maxSendsPerHour}/hr)
+            is hit, sending pauses for {cooldownMinutes} minutes. If 3 emails
+            bounce in one day, sending auto-pauses for {bouncePauseHours} hours.
           </p>
         </div>
       </Section>

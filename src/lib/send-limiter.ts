@@ -129,6 +129,7 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
     prisma.jobApplication.findFirst({
       where: { userId, status: "SENT" },
       orderBy: { sentAt: "desc" },
+      select: { sentAt: true },
     }),
     prisma.jobApplication.findMany({
       where: { userId, status: "BOUNCED", updatedAt: { gte: todayStart } },
@@ -166,13 +167,23 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
     };
   }
 
-  // Check 4: Hourly limit
+  // Check 4: Hourly limit — triggers cooldown pause when hit
   if (hourCount >= effectiveMaxPerHour) {
+    const cooldownMs = (settings.cooldownMinutes ?? 30) * 60 * 1000;
+    const alreadyPausedRecently = settings.sendingPausedUntil && settings.sendingPausedUntil > now;
+    if (!alreadyPausedRecently && cooldownMs > 0) {
+      const cooldownUntil = new Date(now.getTime() + cooldownMs);
+      await prisma.userSettings.update({
+        where: { userId },
+        data: { sendingPausedUntil: cooldownUntil },
+      });
+    }
     return {
       allowed: false,
       reason: warmupLimits.isWarmup
         ? `Email warmup: Day ${warmupLimits.day}/7 — limit ${effectiveMaxPerHour}/hour. Full capacity after warmup.`
-        : `Hourly limit reached (${hourCount}/${effectiveMaxPerHour}). Wait a bit.`,
+        : `Hourly limit reached (${hourCount}/${effectiveMaxPerHour}). Cooling down for ${settings.cooldownMinutes ?? 30} minutes.`,
+      waitSeconds: (settings.cooldownMinutes ?? 30) * 60,
       stats: {
         todayCount,
         hourCount,
@@ -182,15 +193,14 @@ export async function canSendNow(userId: string): Promise<LimitResult> {
     };
   }
 
-  // Check 5: Minimum delay between sends
+  // Check 5: Delay between sends — user-configured pacing
   if (lastSent?.sentAt) {
-    const elapsedSeconds =
-      (now.getTime() - lastSent.sentAt.getTime()) / 1000;
+    const elapsedSeconds = (now.getTime() - lastSent.sentAt.getTime()) / 1000;
     if (elapsedSeconds < settings.sendDelaySeconds) {
       const wait = Math.ceil(settings.sendDelaySeconds - elapsedSeconds);
       return {
         allowed: false,
-        reason: `Wait ${wait}s before next send.`,
+        reason: `Delay between sends: ${wait}s remaining (${settings.sendDelaySeconds}s configured).`,
         waitSeconds: wait,
         stats: {
           todayCount,
@@ -337,6 +347,7 @@ export async function getSendStats(userId: string) {
   const lastSent = await prisma.jobApplication.findFirst({
     where: { userId, status: "SENT" },
     orderBy: { sentAt: "desc" },
+    select: { sentAt: true },
   });
   const nextSendIn = lastSent?.sentAt
     ? Math.max(
@@ -351,6 +362,8 @@ export async function getSendStats(userId: string) {
     hourCount,
     maxPerDay: settings.maxSendsPerDay,
     maxPerHour: settings.maxSendsPerHour,
+    sendDelaySeconds: settings.sendDelaySeconds,
+    cooldownMinutes: settings.cooldownMinutes,
     nextSendInSeconds: nextSendIn,
     isPaused: settings.sendingPausedUntil
       ? settings.sendingPausedUntil > now

@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import { useEffect, useState } from "react";
-import { Send, AlertTriangle, Clock, PauseCircle } from "lucide-react";
+import { Send, AlertTriangle, Clock, PauseCircle, Timer } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -60,9 +60,10 @@ export function SendingStatusBar(props: SendingStatusBarProps) {
       <div className="flex items-center gap-2.5 rounded-xl bg-red-50 dark:bg-red-900/30 px-4 py-2.5 ring-1 ring-red-200/60 dark:ring-red-800/40">
         <PauseCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
         <span className="text-xs font-semibold text-red-700 dark:text-red-300">
-          Sending paused — bounces detected.
-          {stats.pausedUntil && (
-            <> Resumes at {new Date(stats.pausedUntil).toLocaleTimeString()}.</>
+          Sending paused — {stats.pausedUntil ? (
+            <>cooldown active. Resumes at {new Date(stats.pausedUntil).toLocaleTimeString()}.</>
+          ) : (
+            <>bounces detected.</>
           )}{" "}
           You can still use &quot;Copy All&quot; to apply manually.
         </span>
@@ -99,8 +100,9 @@ export function SendingStatusBar(props: SendingStatusBarProps) {
             </strong>
           </span>
           {countdown > 0 && (
-            <span className="text-slate-400 dark:text-zinc-500">
-              Next send in: {formatTime(countdown)}
+            <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
+              <Timer className="h-3 w-3" />
+              Next send in {formatTime(countdown)}
             </span>
           )}
         </div>
@@ -154,5 +156,5 @@ export function SendingStatusBar(props: SendingStatusBarProps) {
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  return m > 0 ? `${m}:${s.toString().padStart(2, "0")}` : `${s}s`;
 }
