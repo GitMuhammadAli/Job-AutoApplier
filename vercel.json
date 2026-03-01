@@ -1,3 +1,9 @@
 {
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/scrape-posts?secret=${CRON_SECRET}",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }

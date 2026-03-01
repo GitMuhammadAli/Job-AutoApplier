@@ -9,7 +9,7 @@ import {
   BarChart3,
   FileText,
   Settings,
-  Zap,
+  Send,
   Menu,
   X,
   LogOut,
@@ -106,12 +106,12 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
       >
         {/* Logo area */}
         <div className="flex h-16 items-center gap-3 px-5 border-b border-slate-100 dark:border-zinc-800">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 shadow-lg shadow-blue-600/20">
-            <Zap className="h-4.5 w-4.5 text-white" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 shadow-lg shadow-emerald-600/25">
+            <Send className="h-4 w-4 text-white -translate-x-[1px]" />
           </div>
           <div className="flex-1 min-w-0">
             <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-zinc-100">JobPilot</span>
-            <span className="ml-1.5 inline-flex items-center rounded-md bg-gradient-to-r from-blue-500/10 to-violet-500/10 dark:from-blue-500/20 dark:to-violet-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-blue-600 dark:text-blue-400 ring-1 ring-inset ring-blue-500/20">
+            <span className="ml-1.5 inline-flex items-center rounded-md bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
               PRO
             </span>
           </div>

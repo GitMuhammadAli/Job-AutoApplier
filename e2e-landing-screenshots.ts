@@ -6,7 +6,7 @@ import { chromium } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 
-const BASE_URL = "http://localhost:3002";
+const BASE_URL = "https://job-auto-applier-three.vercel.app";
 const SCREENSHOT_DIR = path.join(process.cwd(), "test-screenshots");
 
 async function main() {
@@ -27,7 +27,7 @@ async function main() {
   try {
     await page.goto(`${BASE_URL}/`, {
       waitUntil: "networkidle",
-      timeout: 15000,
+      timeout: 30000,
     });
     const url = page.url();
 
@@ -59,18 +59,28 @@ async function main() {
       report.push("- Hero headline: " + (hasHeadline ? "Yes" : "No"));
       report.push("- Mock Kanban: " + (hasKanban ? "Yes" : "No"));
 
-      // 2. Middle of page
+      // 2. Scroll ~25% - Pain points / problems section
       const scrollHeight = await page.evaluate(
         () => document.documentElement.scrollHeight,
       );
-      const midScroll = Math.floor(scrollHeight * 0.4);
-      await page.evaluate((y) => window.scrollTo(0, y), midScroll);
+      let scrollPos = Math.floor(scrollHeight * 0.25);
+      await page.evaluate((y) => window.scrollTo(0, y), scrollPos);
       await page.waitForTimeout(500);
       await page.screenshot({
-        path: path.join(SCREENSHOT_DIR, "landing-02-middle.png"),
+        path: path.join(SCREENSHOT_DIR, "landing-02-problems.png"),
         fullPage: false,
       });
-      report.push("\n## 2. Middle of page (saved: landing-02-middle.png)");
+      report.push("\n## 2. ~25% scroll - Problems section (saved: landing-02-problems.png)");
+
+      // 3. Scroll ~40% - Features section
+      scrollPos = Math.floor(scrollHeight * 0.4);
+      await page.evaluate((y) => window.scrollTo(0, y), scrollPos);
+      await page.waitForTimeout(500);
+      await page.screenshot({
+        path: path.join(SCREENSHOT_DIR, "landing-03-features.png"),
+        fullPage: false,
+      });
+      report.push("\n## 3. ~40% scroll - Features (saved: landing-03-features.png)");
 
       const bodyMid = (await page.textContent("body")) || "";
       const hasFeatures =
@@ -82,16 +92,26 @@ async function main() {
           (hasFeatures ? "Yes" : "No"),
       );
 
-      // 3. Bottom of page
+      // 4. Scroll ~65% - Automation modes / How it works
+      scrollPos = Math.floor(scrollHeight * 0.65);
+      await page.evaluate((y) => window.scrollTo(0, y), scrollPos);
+      await page.waitForTimeout(500);
+      await page.screenshot({
+        path: path.join(SCREENSHOT_DIR, "landing-04-modes.png"),
+        fullPage: false,
+      });
+      report.push("\n## 4. ~65% scroll - Modes / How it works (saved: landing-04-modes.png)");
+
+      // 5. Bottom of page
       await page.evaluate(() =>
         window.scrollTo(0, document.documentElement.scrollHeight),
       );
       await page.waitForTimeout(500);
       await page.screenshot({
-        path: path.join(SCREENSHOT_DIR, "landing-03-bottom.png"),
+        path: path.join(SCREENSHOT_DIR, "landing-05-bottom.png"),
         fullPage: false,
       });
-      report.push("\n## 3. Bottom of page (saved: landing-03-bottom.png)");
+      report.push("\n## 5. Bottom of page (saved: landing-05-bottom.png)");
 
       const bodyBottom = (await page.textContent("body")) || "";
       const hasFooter =

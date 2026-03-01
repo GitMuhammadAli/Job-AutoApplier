@@ -3,10 +3,9 @@ import { redirect } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Instrument_Serif, DM_Sans } from "next/font/google";
 import { Navbar } from "@/components/landing/Navbar";
-import { Hero } from "@/components/landing/Hero";
-import { LogoBar } from "@/components/landing/LogoBar";
 
-// Below-fold sections: lazy loaded for faster initial paint
+const Hero = dynamic(() => import("@/components/landing/Hero").then(m => ({ default: m.Hero })), { ssr: true });
+const LogoBar = dynamic(() => import("@/components/landing/LogoBar").then(m => ({ default: m.LogoBar })), { ssr: true });
 const ProblemSolution = dynamic(() => import("@/components/landing/ProblemSolution").then(m => ({ default: m.ProblemSolution })));
 const Features = dynamic(() => import("@/components/landing/Features").then(m => ({ default: m.Features })));
 const HowItWorks = dynamic(() => import("@/components/landing/HowItWorks").then(m => ({ default: m.HowItWorks })));
