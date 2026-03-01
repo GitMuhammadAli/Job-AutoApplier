@@ -15,6 +15,7 @@ import { generateWithGroq } from "@/lib/groq";
 import { acquireLock, releaseLock, isLockHeld } from "@/lib/system-lock";
 import { canSendNow } from "@/lib/send-limiter";
 import { LIMITS, TIMEOUTS } from "@/lib/constants";
+import { SENDING_SAFETY_DEFAULTS } from "@/constants/settings";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
@@ -309,7 +310,8 @@ export async function GET(req: NextRequest) {
                 if (sendResult.success) {
                   appliedCount++;
                   stats.sent++;
-                  await new Promise((r) => setTimeout(r, TIMEOUTS.INSTANT_APPLY_DELAY_MS));
+                  const userDelayMs = Math.max((settings.sendDelaySeconds ?? SENDING_SAFETY_DEFAULTS.sendDelaySeconds) * 1000, 1000);
+                  await new Promise((r) => setTimeout(r, userDelayMs));
                 }
               }
             }

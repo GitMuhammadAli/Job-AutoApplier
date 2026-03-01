@@ -6,8 +6,6 @@ import { getSendingStats } from "@/lib/send-limiter";
 import { getAuthUserId } from "@/lib/auth";
 import { ApplicationsSkeleton } from "@/components/shared/Skeletons";
 
-export const dynamic = "force-dynamic";
-
 export default function ApplicationsPage() {
   return (
     <div className="space-y-6">
@@ -36,8 +34,13 @@ async function ApplicationsContent() {
     todayMax: 20,
     hourSent: 0,
     hourMax: 8,
+    sendDelaySeconds: 120,
+    cooldownMinutes: 30,
+    bouncePauseHours: 24,
+    nextSendInSeconds: 0,
     isPaused: false,
     pausedUntil: null,
+    provider: "Brevo",
   };
   let draftableCount = 0;
 

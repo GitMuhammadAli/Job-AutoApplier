@@ -20,8 +20,6 @@ const Charts = nextDynamic(
   },
 );
 
-export const dynamic = "force-dynamic";
-
 export default function AnalyticsPage() {
   return (
     <div className="space-y-6 animate-slide-up">

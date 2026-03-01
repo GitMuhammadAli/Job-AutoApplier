@@ -4,8 +4,6 @@ import { getRecommendedJobs, type RecommendationOptions } from "@/lib/matching/r
 import { RecommendedClient } from "./client";
 import { RecommendedJobsSkeleton } from "@/components/shared/Skeletons";
 
-export const dynamic = "force-dynamic";
-
 interface PageProps {
   searchParams: {
     source?: string;

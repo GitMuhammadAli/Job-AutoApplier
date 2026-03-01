@@ -15,8 +15,6 @@ const TemplateEditor = nextDynamic(
   },
 );
 
-export const dynamic = "force-dynamic";
-
 export default function TemplatesPage() {
   return (
     <div className="space-y-5 animate-slide-up">

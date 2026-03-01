@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendApplication } from "@/lib/send-application";
 import { LIMITS, TIMEOUTS, STUCK_SENDING_TIMEOUT_MS } from "@/lib/constants";
+import { SENDING_SAFETY_DEFAULTS } from "@/constants/settings";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
@@ -52,6 +53,15 @@ export async function GET(req: NextRequest) {
         status: "READY",
         scheduledSendAt: null,
       },
+      include: {
+        user: {
+          select: {
+            settings: {
+              select: { sendDelaySeconds: true },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: "asc" },
       take: LIMITS.SEND_QUEUED_BATCH,
     });
@@ -60,15 +70,16 @@ export async function GET(req: NextRequest) {
     let failed = 0;
     let skipped = 0;
 
-    for (const app of readyApps) {
+    for (let i = 0; i < readyApps.length; i++) {
       if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS) break;
+      const app = readyApps[i];
 
       try {
         const result = await sendApplication(app.id);
         if (result.success) {
           sent++;
         } else {
-          if (result.error?.includes("limit") || result.error?.includes("paused") || result.error?.includes("Wait")) {
+          if (result.error?.includes("limit") || result.error?.includes("paused") || result.error?.includes("Delay")) {
             skipped++;
           } else {
             failed++;
@@ -79,9 +90,10 @@ export async function GET(req: NextRequest) {
         console.error(`[SendQueued] Error sending app ${app.id}:`, err);
       }
 
-      const isLast = readyApps.indexOf(app) === readyApps.length - 1;
-      if (!isLast) {
-        await new Promise((resolve) => setTimeout(resolve, TIMEOUTS.INTER_SEND_DELAY_MS));
+      if (i < readyApps.length - 1) {
+        const userDelay = app.user?.settings?.sendDelaySeconds ?? SENDING_SAFETY_DEFAULTS.sendDelaySeconds;
+        const delayMs = Math.max(userDelay * 1000, 1000);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
 

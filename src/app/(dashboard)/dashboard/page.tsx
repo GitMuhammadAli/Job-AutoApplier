@@ -24,8 +24,6 @@ const OnboardingWizard = nextDynamic(
   },
 );
 
-export const dynamic = "force-dynamic";
-
 export default async function DashboardPage() {
   // Settings load first — fast query, needed for onboarding gate
   const settings = await getSettingsLite().catch(() => null);

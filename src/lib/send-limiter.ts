@@ -279,8 +279,9 @@ function getWarmupLimits(smtpSetupDate: Date | null | undefined): {
 
 /** Used by the SendingStatusBar on /applications (server-side) */
 export async function getSendingStats(userId: string) {
-  const todayStart = startOfDay(new Date());
-  const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
   const settings = await prisma.userSettings.findUnique({
     where: { userId },
@@ -288,6 +289,8 @@ export async function getSendingStats(userId: string) {
       maxSendsPerDay: true,
       maxSendsPerHour: true,
       sendDelaySeconds: true,
+      cooldownMinutes: true,
+      bouncePauseHours: true,
       sendingPausedUntil: true,
       smtpSetupDate: true,
       emailProvider: true,
@@ -295,16 +298,25 @@ export async function getSendingStats(userId: string) {
     },
   });
 
-  const [todayCount, hourCount] = await Promise.all([
+  const [todayCount, hourCount, lastSent] = await Promise.all([
     prisma.jobApplication.count({
       where: { userId, status: "SENT", sentAt: { gte: todayStart } },
     }),
     prisma.jobApplication.count({
       where: { userId, status: "SENT", sentAt: { gte: hourAgo } },
     }),
+    prisma.jobApplication.findFirst({
+      where: { userId, status: "SENT" },
+      orderBy: { sentAt: "desc" },
+      select: { sentAt: true },
+    }),
   ]);
 
-  // Apply same warmup + provider limits as canSendNow() so UI matches reality
+  const userDelay = settings?.sendDelaySeconds ?? 120;
+  const nextSendIn = lastSent?.sentAt
+    ? Math.max(0, userDelay - Math.floor((now.getTime() - lastSent.sentAt.getTime()) / 1000))
+    : 0;
+
   const warmupLimits = getWarmupLimits(settings?.smtpSetupDate);
   const provider = detectProvider(settings?.emailProvider, settings?.smtpHost);
   const providerLimits = getProviderLimits(provider);
@@ -316,10 +328,15 @@ export async function getSendingStats(userId: string) {
     todayMax: effectiveMaxPerDay,
     hourSent: hourCount,
     hourMax: effectiveMaxPerHour,
+    sendDelaySeconds: userDelay,
+    cooldownMinutes: settings?.cooldownMinutes ?? 30,
+    bouncePauseHours: settings?.bouncePauseHours ?? 24,
+    nextSendInSeconds: nextSendIn,
     isPaused:
       settings?.sendingPausedUntil != null &&
-      settings.sendingPausedUntil > new Date(),
+      settings.sendingPausedUntil > now,
     pausedUntil: settings?.sendingPausedUntil ?? null,
+    provider: providerLimits.label,
     ...(warmupLimits.isWarmup ? { warmupDay: warmupLimits.day, warmupTotal: 7 } : {}),
   };
 }

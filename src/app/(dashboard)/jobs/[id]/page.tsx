@@ -4,8 +4,6 @@ import { getAuthUserId } from "@/lib/auth";
 import { JobDetailClient } from "./client";
 import { getSettings } from "@/app/actions/settings";
 
-export const dynamic = "force-dynamic";
-
 export default async function JobDetailPage({
   params,
   searchParams,

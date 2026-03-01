@@ -12,6 +12,20 @@ module.exports = {
           : "localhost:3000",
       ],
     },
+    optimizePackageImports: [
+      "lucide-react",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-popover",
+      "@radix-ui/react-select",
+      "@radix-ui/react-tooltip",
+      "@radix-ui/react-tabs",
+      "@radix-ui/react-switch",
+      "@radix-ui/react-label",
+      "date-fns",
+      "recharts",
+      "swr",
+    ],
   },
 
   async headers() {
@@ -24,11 +38,40 @@ module.exports = {
           { key: "Referrer-Policy", value: "origin-when-cross-origin" },
         ],
       },
+      {
+        source: "/api/applications/send-stats",
+        headers: [
+          { key: "Cache-Control", value: "private, max-age=5, stale-while-revalidate=10" },
+        ],
+      },
+      {
+        source: "/api/health",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=30, stale-while-revalidate=60" },
+        ],
+      },
+      {
+        source: "/api/status",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=30, stale-while-revalidate=60" },
+        ],
+      },
+      {
+        source: "/api/analytics",
+        headers: [
+          { key: "Cache-Control", value: "private, max-age=60, stale-while-revalidate=120" },
+        ],
+      },
+      {
+        source: "/_next/static/(.*)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
     ];
   },
 
   webpack: (config) => {
-    // pdfjs-dist tries to require 'canvas' for Node.js rendering — we only need text extraction
     config.resolve.alias.canvas = false;
     return config;
   },

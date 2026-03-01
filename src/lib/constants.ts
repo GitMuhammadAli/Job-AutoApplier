@@ -60,10 +60,8 @@ export const TIMEOUTS = {
   RESUME_PARSE_TIMEOUT_MS: 25_000,
   /** Careers page scrape timeout (ms) */
   CAREERS_SCRAPE_TIMEOUT_MS: 5_000,
-  /** Delay between consecutive email sends (ms) — 1s is safe for Gmail/Outlook/Brevo */
-  INTER_SEND_DELAY_MS: 1_000,
-  /** Delay between instant-apply sends (ms) */
-  INSTANT_APPLY_DELAY_MS: 1_500,
+  // INTER_SEND_DELAY_MS and INSTANT_APPLY_DELAY_MS removed —
+  // per-user sendDelaySeconds from UserSettings is used instead
   /** Per-API-call timeout for scrapers (ms) — must be well under Vercel 10s limit */
   SCRAPER_API_TIMEOUT_MS: 6_000,
   /** Soft deadline for scrapers to wrap up (ms) — bail and return partial results */

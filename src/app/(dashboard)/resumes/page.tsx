@@ -4,8 +4,6 @@ import { ResumeList } from "@/components/resumes/ResumeList";
 import { ResumesSkeleton } from "@/components/shared/Skeletons";
 import { FileText, Lightbulb } from "lucide-react";
 
-export const dynamic = "force-dynamic";
-
 export default function ResumesPage() {
   return (
     <div className="space-y-5 animate-slide-up">
