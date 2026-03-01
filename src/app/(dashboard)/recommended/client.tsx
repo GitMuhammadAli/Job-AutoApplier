@@ -26,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { FreshnessDot } from "@/components/jobs/FreshnessIndicator";
-import { saveGlobalJob, dismissGlobalJob, undismissGlobalJob, bulkDismissBelowScore } from "@/app/actions/job";
+import { saveGlobalJob, dismissGlobalJob, undismissGlobalJob } from "@/app/actions/job";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { RecommendedJob, RecommendationResult } from "@/lib/matching/recommendation-engine";
@@ -321,13 +321,13 @@ export function RecommendedClient({
       </div>
 
       {/* Filter chips */}
-      <div className="flex flex-wrap gap-3 rounded-xl bg-white dark:bg-zinc-800/50 p-3 ring-1 ring-slate-100 dark:ring-zinc-700/60">
-        {/* Sources */}
-        <div className="w-full sm:w-auto">
-          <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 block">
+      <div className="rounded-xl bg-white dark:bg-zinc-800/50 p-2.5 sm:p-3 ring-1 ring-slate-100 dark:ring-zinc-700/60 space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-3">
+        {/* Sources — horizontal scroll on mobile */}
+        <div className="min-w-0">
+          <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block">
             <Filter className="h-3 w-3 inline mr-1" />Source
           </span>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex gap-1 overflow-x-auto scrollbar-none pb-0.5 -mx-0.5 px-0.5">
             <FilterChip active={activeSources.length === 0} onClick={() => updateFilter("source", null)} label="All" />
             {sortedSources.map(([source, count]) => {
               const active = activeSources.includes(source);
@@ -348,80 +348,83 @@ export function RecommendedClient({
           </div>
         </div>
 
-        {/* Score filter */}
-        <div title="Higher score = better match for your skills">
-          <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 block">
-            <Star className="h-3 w-3 inline mr-1" />Match
-          </span>
-          <div className="flex gap-1">
-            {SCORE_PRESETS.map((p) => (
-              <FilterChip
-                key={p.value}
-                active={(currentFilters.minScore || "0") === p.value}
-                onClick={() => updateFilter("minScore", p.value === "0" ? null : p.value)}
-                label={p.label}
-              />
-            ))}
+        {/* Row of small filters — scrollable on mobile */}
+        <div className="flex gap-3 overflow-x-auto scrollbar-none pb-0.5">
+          {/* Score filter */}
+          <div className="shrink-0" title="Higher score = better match for your skills">
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block">
+              <Star className="h-3 w-3 inline mr-1" />Match
+            </span>
+            <div className="flex gap-1">
+              {SCORE_PRESETS.map((p) => (
+                <FilterChip
+                  key={p.value}
+                  active={(currentFilters.minScore || "0") === p.value}
+                  onClick={() => updateFilter("minScore", p.value === "0" ? null : p.value)}
+                  label={p.label}
+                />
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Location filter */}
-        <div>
-          <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 block">
-            <MapPin className="h-3 w-3 inline mr-1" />Location
-          </span>
-          <div className="flex gap-1">
-            {LOCATION_PRESETS.map((p) => (
-              <FilterChip
-                key={p.value}
-                active={(currentFilters.location || "") === p.value}
-                onClick={() => updateFilter("location", p.value || null)}
-                label={p.label}
-              />
-            ))}
+          {/* Location filter */}
+          <div className="shrink-0">
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block">
+              <MapPin className="h-3 w-3 inline mr-1" />Location
+            </span>
+            <div className="flex gap-1">
+              {LOCATION_PRESETS.map((p) => (
+                <FilterChip
+                  key={p.value}
+                  active={(currentFilters.location || "") === p.value}
+                  onClick={() => updateFilter("location", p.value || null)}
+                  label={p.label}
+                />
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Freshness filter */}
-        <div>
-          <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 block">
-            <CalendarDays className="h-3 w-3 inline mr-1" />Posted
-          </span>
-          <div className="flex gap-1">
-            {FRESHNESS_PRESETS.map((p) => (
-              <FilterChip
-                key={p.value}
-                active={freshness === p.value}
-                onClick={() => setFreshness(p.value)}
-                label={p.label}
-              />
-            ))}
+          {/* Freshness filter */}
+          <div className="shrink-0">
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block">
+              <CalendarDays className="h-3 w-3 inline mr-1" />Posted
+            </span>
+            <div className="flex gap-1">
+              {FRESHNESS_PRESETS.map((p) => (
+                <FilterChip
+                  key={p.value}
+                  active={freshness === p.value}
+                  onClick={() => setFreshness(p.value)}
+                  label={p.label}
+                />
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Has Email toggle */}
-        <div>
-          <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5 block">
-            <Mail className="h-3 w-3 inline mr-1" />Email
-          </span>
-          <FilterChip
-            active={currentFilters.email === "true"}
-            onClick={() => updateFilter("email", currentFilters.email === "true" ? null : "true")}
-            label="Can Email Directly"
-          />
-        </div>
-
-        {/* Clear all */}
-        {hasActiveFilters && (
-          <div className="flex items-end">
-            <button
-              onClick={resetAllFilters}
-              className="rounded-md px-2 py-0.5 text-[11px] font-medium text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
-            >
-              <X className="h-3 w-3 inline mr-0.5" />Clear All
-            </button>
+          {/* Has Email toggle */}
+          <div className="shrink-0">
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block">
+              <Mail className="h-3 w-3 inline mr-1" />Email
+            </span>
+            <FilterChip
+              active={currentFilters.email === "true"}
+              onClick={() => updateFilter("email", currentFilters.email === "true" ? null : "true")}
+              label="Has Email"
+            />
           </div>
-        )}
+
+          {/* Clear all */}
+          {hasActiveFilters && (
+            <div className="flex items-end shrink-0">
+              <button
+                onClick={resetAllFilters}
+                className="rounded-md px-2 py-0.5 text-[11px] font-medium text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
+              >
+                <X className="h-3 w-3 inline mr-0.5" />Clear
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Results */}
@@ -442,7 +445,7 @@ export function RecommendedClient({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {visibleJobs.map((job) => (
             <JobCard
               key={job.id}
@@ -536,32 +539,30 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
   }, [job.applyUrl, job.sourceUrl]);
 
   return (
-    <div className="group block rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-all duration-200 hover:shadow-md hover:ring-slate-200/80 dark:hover:ring-zinc-600/80">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-zinc-500 min-w-0">
-          <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
+    <div className="group block rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-all duration-200 hover:shadow-md hover:ring-slate-200/80 dark:hover:ring-zinc-600/80">
+      {/* Header: company + score */}
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 min-w-0">
+          <Building2 className="h-3 w-3 flex-shrink-0" />
           <span className="truncate font-medium">{job.company}</span>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0" title="Match score based on keywords, skills, location, and freshness">
-          <span className={`text-sm font-bold tabular-nums ${getScoreColor(score)}`}>
-            {Math.round(score)}%
-          </span>
-        </div>
+        <span className={`text-sm font-bold tabular-nums shrink-0 ${getScoreColor(score)}`} title="Match score">
+          {Math.round(score)}%
+        </span>
       </div>
 
       {/* Title */}
       <Link href={detailUrl}>
-        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100 leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors mb-2 line-clamp-2 cursor-pointer">
+        <h3 className="text-[13px] font-bold text-slate-800 dark:text-zinc-100 leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors mb-1.5 line-clamp-2 cursor-pointer">
           {job.title}
         </h3>
       </Link>
 
-      {/* Badges */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+      {/* Badges — compact */}
+      <div className="flex flex-wrap items-center gap-1 mb-1.5">
         <PlatformBadge source={job.source} />
         {status && (
-          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${status.cls}`}>
+          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${status.cls}`}>
             {status.label === "Applied" && <Mail className="h-2.5 w-2.5" />}
             {status.label === "Draft" && <FileText className="h-2.5 w-2.5" />}
             {status.label}
@@ -590,55 +591,51 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
       </div>
 
       {/* Score bar */}
-      <div className="mb-2">
-        <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-zinc-700">
+      <div className="mb-1.5">
+        <div className="h-1 w-full rounded-full bg-slate-100 dark:bg-zinc-700">
           <div
-            className={`h-1.5 rounded-full transition-all duration-500 ${getScoreBg(score)}`}
+            className={`h-1 rounded-full transition-all duration-500 ${getScoreBg(score)}`}
             style={{ width: `${Math.min(score, 100)}%` }}
           />
         </div>
         {job.matchReasons.length > 0 && (
-          <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1 line-clamp-2">
-            {job.matchReasons.slice(0, 3).join(" \u00B7 ")}
+          <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5 line-clamp-1">
+            {job.matchReasons.slice(0, 2).join(" \u00B7 ")}
           </p>
         )}
       </div>
 
       {/* Salary */}
       {job.salary && (
-        <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mb-2 truncate">
+        <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mb-1.5 truncate">
           {job.salary}
         </div>
       )}
 
-      {/* Skills */}
+      {/* Skills — show fewer on mobile */}
       {job.skills.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {job.skills.slice(0, 4).map((skill) => (
+        <div className="flex flex-wrap gap-1 mb-1.5">
+          {job.skills.slice(0, 3).map((skill) => (
             <span key={skill} className="rounded bg-slate-100 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:text-zinc-300">
               {skill}
             </span>
           ))}
-          {job.skills.length > 4 && (
-            <span className="text-[10px] text-slate-400 dark:text-zinc-500">+{job.skills.length - 4}</span>
+          {job.skills.length > 3 && (
+            <span className="text-[10px] text-slate-400 dark:text-zinc-500">+{job.skills.length - 3}</span>
           )}
         </div>
       )}
 
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-2 border-t border-slate-50 dark:border-zinc-700/50 mb-2">
-        <div className="flex items-center gap-2 min-w-0 text-[11px] text-slate-400 dark:text-zinc-500">
-          {job.location && (
-            <div className="flex items-center gap-1 truncate">
-              <MapPin className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate">{job.location}</span>
-            </div>
-          )}
+      {/* Location */}
+      {job.location && (
+        <div className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-zinc-500 mb-2 truncate">
+          <MapPin className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{job.location}</span>
         </div>
-      </div>
+      )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+      {/* Actions — responsive: stack on very small, row on sm+ */}
+      <div className="flex items-center gap-1.5 pt-2 border-t border-slate-50 dark:border-zinc-700/50 flex-wrap">
         {(job.applyUrl || job.sourceUrl) && (
           <button
             onClick={handleViewExternal}
@@ -660,7 +657,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         <button
           onClick={handleSave}
           disabled={saved || saving}
-          className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors touch-manipulation ${
+          className={`inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-colors touch-manipulation ${
             saved
               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
               : "bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300 hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 dark:hover:text-blue-300 active:bg-blue-200"
@@ -673,7 +670,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         <button
           onClick={handleDismiss}
           disabled={dismissing}
-          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-300 active:bg-red-200 transition-colors touch-manipulation ml-auto disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-300 active:bg-red-200 transition-colors touch-manipulation ml-auto disabled:opacity-50"
         >
           <X className="h-3 w-3" /> {dismissing ? "..." : "Dismiss"}
         </button>

@@ -119,16 +119,26 @@ const ApplicationCard = memo(function ApplicationCard({
   selected,
   onToggleSelect,
   onRefresh,
+  localStatus,
+  onLocalStatusChange,
 }: {
   app: ApplicationWithRelations;
   selected: boolean;
   onToggleSelect: () => void;
   onRefresh: () => void;
+  localStatus?: ApplicationStatus;
+  onLocalStatusChange?: (id: string, status: ApplicationStatus) => void;
 }) {
   const [loading, setLoading] = useState<string | null>(null);
 
+  const effectiveStatus = localStatus ?? app.status;
+  const isSent = effectiveStatus === "SENT" || effectiveStatus === "SENDING";
+  const isActionable = effectiveStatus === "DRAFT" || effectiveStatus === "READY";
+
   const handleSend = useCallback(async () => {
+    if (isSent) return;
     setLoading("send");
+    onLocalStatusChange?.(app.id, "SENDING");
     try {
       const res = await fetch(`/api/applications/${app.id}/send`, {
         method: "POST",
@@ -140,45 +150,47 @@ const ApplicationCard = memo(function ApplicationCard({
         data = { error: res.statusText || "Invalid response" };
       }
       if (res.ok && data.success) {
+        onLocalStatusChange?.(app.id, "SENT");
         toast.success(`Sent to ${app.recipientEmail}!`);
-        onRefresh();
       } else {
+        onLocalStatusChange?.(app.id, app.status);
         toast.error(data.error || res.statusText || "Send failed");
       }
     } catch {
+      onLocalStatusChange?.(app.id, app.status);
       toast.error("Network error");
     } finally {
       setLoading(null);
     }
-  }, [app.id, app.recipientEmail, onRefresh]);
+  }, [app.id, app.recipientEmail, app.status, isSent, onLocalStatusChange]);
 
   const handleMarkReady = useCallback(async () => {
     setLoading("ready");
     try {
       const result = await markApplicationReady(app.id);
       if (!result.success) { toast.error(result.error || "Failed to mark ready"); return; }
+      onLocalStatusChange?.(app.id, "READY");
       toast.success("Marked as ready");
-      onRefresh();
     } catch {
       toast.error("Failed to mark ready");
     } finally {
       setLoading(null);
     }
-  }, [app.id, onRefresh]);
+  }, [app.id, onLocalStatusChange]);
 
   const handleMarkManual = useCallback(async () => {
     setLoading("manual");
     try {
       const result = await markApplicationManual(app.id);
       if (!result.success) { toast.error(result.error || "Failed to mark manual"); return; }
+      onLocalStatusChange?.(app.id, "SENT");
       toast.success("Marked as manually applied");
-      onRefresh();
     } catch {
       toast.error("Failed to mark manual");
     } finally {
       setLoading(null);
     }
-  }, [app.id, onRefresh]);
+  }, [app.id, onLocalStatusChange]);
 
   const handleDelete = useCallback(async () => {
     setLoading("delete");
@@ -199,14 +211,14 @@ const ApplicationCard = memo(function ApplicationCard({
     try {
       const result = await markApplicationReady(app.id);
       if (!result.success) { toast.error(result.error || "Retry failed"); return; }
+      onLocalStatusChange?.(app.id, "READY");
       toast.success("Queued for retry");
-      onRefresh();
     } catch {
       toast.error("Retry failed");
     } finally {
       setLoading(null);
     }
-  }, [app.id, onRefresh]);
+  }, [app.id, onLocalStatusChange]);
 
   const job = app.userJob.globalJob;
   const matchScore = app.userJob.matchScore;
@@ -215,36 +227,53 @@ const ApplicationCard = memo(function ApplicationCard({
   const jobDetailHref = `/jobs/${app.userJob.id}`;
 
   return (
-    <Card className="group/card transition-shadow hover:shadow-md dark:hover:shadow-zinc-900/50 dark:border-zinc-700/80">
-      <CardHeader className="flex flex-row items-start gap-3 pb-2">
-        <button
-          type="button"
-          onClick={onToggleSelect}
-          className="mt-0.5 shrink-0 rounded p-0.5 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
-          aria-label={selected ? "Deselect" : "Select"}
-        >
-          {selected ? (
-            <CheckSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          ) : (
-            <Square className="h-4 w-4 text-slate-300 dark:text-zinc-500" />
-          )}
-        </button>
+    <Card className={`group/card transition-all dark:border-zinc-700/80 ${
+      isSent
+        ? "opacity-60 bg-emerald-50/30 dark:bg-emerald-950/10 ring-1 ring-emerald-200/40 dark:ring-emerald-800/30"
+        : "hover:shadow-md dark:hover:shadow-zinc-900/50"
+    }`}>
+      <CardHeader className="flex flex-row items-start gap-2 sm:gap-3 pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+        {!isSent && (
+          <button
+            type="button"
+            onClick={onToggleSelect}
+            className="mt-0.5 shrink-0 rounded p-0.5 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors touch-manipulation"
+            aria-label={selected ? "Deselect" : "Select"}
+          >
+            {selected ? (
+              <CheckSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            ) : (
+              <Square className="h-4 w-4 text-slate-300 dark:text-zinc-500" />
+            )}
+          </button>
+        )}
+        {isSent && (
+          <div className="mt-0.5 shrink-0">
+            <Check className="h-4 w-4 text-emerald-500" />
+          </div>
+        )}
         <Link href={jobDetailHref} className="flex-1 min-w-0 cursor-pointer">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-slate-900 dark:text-zinc-100 truncate group-hover/card:text-blue-600 dark:group-hover/card:text-blue-400 transition-colors">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <h3 className={`font-semibold text-sm line-clamp-2 transition-colors ${
+              isSent
+                ? "text-slate-500 dark:text-zinc-400"
+                : "text-slate-900 dark:text-zinc-100 group-hover/card:text-blue-600 dark:group-hover/card:text-blue-400"
+            }`}>
               {job.title}
             </h3>
-            <ExternalLink className="h-3.5 w-3.5 text-slate-300 dark:text-zinc-600 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0" />
+            <ExternalLink className="h-3.5 w-3.5 text-slate-300 dark:text-zinc-600 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0 hidden sm:block" />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1">
             <Badge
               variant="outline"
               className="text-[10px] font-medium shrink-0 dark:border-zinc-600 dark:text-zinc-300"
             >
               {job.source}
             </Badge>
-            <StatusBadge status={app.status} />
+            <StatusBadge status={effectiveStatus} />
           </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <p className="text-sm text-slate-600 dark:text-zinc-400">
+          <div className="flex items-center gap-1.5 mt-1">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 truncate">
               {job.company}
             </p>
             {job.companyEmail && (
@@ -254,20 +283,48 @@ const ApplicationCard = memo(function ApplicationCard({
             )}
             <FreshnessDot lastSeenAt={job.lastSeenAt} firstSeenAt={job.firstSeenAt} />
           </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-slate-500 dark:text-zinc-400">
-            <span title="Recipient">{app.recipientEmail}</span>
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5 text-[11px] text-slate-500 dark:text-zinc-400">
+            <span className="truncate max-w-[180px]" title="Recipient">{app.recipientEmail}</span>
             {matchScore != null && (
               <span>Match: {Math.round(matchScore)}%</span>
             )}
-            {app.resume?.name && <span>Resume: {app.resume.name}</span>}
             <span>{formatDistanceToNow(createdDate, { addSuffix: true })}</span>
           </div>
         </Link>
       </CardHeader>
-      <CardContent className="pt-0 space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {(app.status === "DRAFT" || app.status === "READY") &&
-            app.recipientEmail && (
+      <CardContent className="pt-0 space-y-3 px-3 sm:px-6 pb-3 sm:pb-6">
+        {/* Sent confirmation */}
+        {isSent && effectiveStatus === "SENT" && localStatus === "SENT" && (
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40">
+            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+              Sent successfully
+            </span>
+            <CopyApplicationBundle
+              senderEmail={app.senderEmail}
+              recipientEmail={app.recipientEmail}
+              subject={app.subject}
+              emailBody={app.emailBody}
+              coverLetter={app.coverLetter}
+              resumeName={app.resume?.name}
+              variant="compact"
+            />
+          </div>
+        )}
+
+        {effectiveStatus === "SENDING" && (
+          <div className="flex items-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 px-3 py-2 ring-1 ring-blue-200/60 dark:ring-blue-800/40">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600 dark:text-blue-400" />
+            <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+              Sending...
+            </span>
+          </div>
+        )}
+
+        {/* Action buttons — only for actionable statuses */}
+        {isActionable && (
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            {app.recipientEmail && (
               <Button
                 size="sm"
                 onClick={handleSend}
@@ -282,32 +339,31 @@ const ApplicationCard = memo(function ApplicationCard({
                 Send
               </Button>
             )}
-          {app.status === "DRAFT" && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleMarkReady}
-              disabled={!!loading}
-              className="gap-1.5"
-            >
-              {loading === "ready" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Check className="h-3.5 w-3.5" />
-              )}
-              Mark Ready to Send
-            </Button>
-          )}
-          <CopyApplicationBundle
-            senderEmail={app.senderEmail}
-            recipientEmail={app.recipientEmail}
-            subject={app.subject}
-            emailBody={app.emailBody}
-            coverLetter={app.coverLetter}
-            resumeName={app.resume?.name}
-            variant="compact"
-          />
-          {(app.status === "DRAFT" || app.status === "READY") && (
+            {effectiveStatus === "DRAFT" && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleMarkReady}
+                disabled={!!loading}
+                className="gap-1.5"
+              >
+                {loading === "ready" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Check className="h-3.5 w-3.5" />
+                )}
+                Mark Ready to Send
+              </Button>
+            )}
+            <CopyApplicationBundle
+              senderEmail={app.senderEmail}
+              recipientEmail={app.recipientEmail}
+              subject={app.subject}
+              emailBody={app.emailBody}
+              coverLetter={app.coverLetter}
+              resumeName={app.resume?.name}
+              variant="compact"
+            />
             <Button
               size="sm"
               variant="outline"
@@ -322,25 +378,40 @@ const ApplicationCard = memo(function ApplicationCard({
               )}
               I Applied on the Site
             </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleDelete}
-            disabled={!!loading}
-            className="gap-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
-          >
-            {loading === "delete" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="h-3.5 w-3.5" />
-            )}
-            Delete
-          </Button>
-        </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleDelete}
+              disabled={!!loading}
+              className="gap-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+            >
+              {loading === "delete" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Delete
+            </Button>
+          </div>
+        )}
 
-        {app.status === "FAILED" && (
-          <div className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/20 px-3 py-2 ring-1 ring-red-200/60 dark:ring-red-800/40">
+        {/* Server-reported sent — show copy only */}
+        {app.status === "SENT" && !localStatus && (
+          <div className="flex items-center gap-2">
+            <CopyApplicationBundle
+              senderEmail={app.senderEmail}
+              recipientEmail={app.recipientEmail}
+              subject={app.subject}
+              emailBody={app.emailBody}
+              coverLetter={app.coverLetter}
+              resumeName={app.resume?.name}
+              variant="compact"
+            />
+          </div>
+        )}
+
+        {effectiveStatus === "FAILED" && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/20 px-3 py-2 ring-1 ring-red-200/60 dark:ring-red-800/40">
             <span className="text-xs text-red-600 dark:text-red-400 font-medium">
               Failed: {app.retryCount || 0}/3 attempts
             </span>
@@ -370,8 +441,8 @@ const ApplicationCard = memo(function ApplicationCard({
           </div>
         )}
 
-        {app.status === "BOUNCED" && (
-          <div className="flex items-center gap-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 px-3 py-2 ring-1 ring-orange-200/60 dark:ring-orange-800/40">
+        {effectiveStatus === "BOUNCED" && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 px-3 py-2 ring-1 ring-orange-200/60 dark:ring-orange-800/40">
             <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
               Email couldn&apos;t be delivered — the address may be invalid
             </span>
@@ -407,15 +478,43 @@ export function ApplicationQueue({
     total: number;
     label: string;
   } | null>(null);
+  const [localStatuses, setLocalStatuses] = useState<Map<string, ApplicationStatus>>(new Map());
+
+  const handleLocalStatusChange = useCallback((id: string, status: ApplicationStatus) => {
+    setLocalStatuses((prev) => {
+      const next = new Map(prev);
+      next.set(id, status);
+      return next;
+    });
+  }, []);
+
+  const getEffectiveStatus = useCallback((a: ApplicationWithRelations) =>
+    localStatuses.get(a.id) ?? a.status,
+  [localStatuses]);
+
+  const effectiveCounts = useMemo(() => {
+    const c = { draft: 0, ready: 0, sent: 0, failed: 0, bounced: 0, total: applications.length };
+    for (const a of applications) {
+      const s = getEffectiveStatus(a);
+      if (s === "DRAFT") c.draft++;
+      else if (s === "READY") c.ready++;
+      else if (s === "SENT" || s === "SENDING") c.sent++;
+      else if (s === "FAILED") c.failed++;
+      else if (s === "BOUNCED") c.bounced++;
+    }
+    return c;
+  }, [applications, getEffectiveStatus]);
 
   const filteredApplications = useMemo(
-    () => activeTab === "all" ? applications : applications.filter((a) => a.status === activeTab.toUpperCase()),
-    [applications, activeTab],
+    () => activeTab === "all"
+      ? applications
+      : applications.filter((a) => getEffectiveStatus(a) === activeTab.toUpperCase()),
+    [applications, activeTab, getEffectiveStatus],
   );
 
   const selectedDrafts = useMemo(
-    () => filteredApplications.filter((a) => selectedIds.has(a.id) && a.status === "DRAFT"),
-    [filteredApplications, selectedIds],
+    () => filteredApplications.filter((a) => selectedIds.has(a.id) && getEffectiveStatus(a) === "DRAFT"),
+    [filteredApplications, selectedIds, getEffectiveStatus],
   );
   const selectedCount = useMemo(
     () => filteredApplications.filter((a) => selectedIds.has(a.id)).length,
@@ -462,10 +561,12 @@ export function ApplicationQueue({
   };
 
   const selectedSendable = filteredApplications.filter(
-    (a) =>
-      selectedIds.has(a.id) &&
-      (a.status === "DRAFT" || a.status === "READY") &&
-      !!a.recipientEmail,
+    (a) => {
+      const s = getEffectiveStatus(a);
+      return selectedIds.has(a.id) &&
+        (s === "DRAFT" || s === "READY") &&
+        !!a.recipientEmail;
+    },
   );
 
   const handleBulkSend = async () => {
@@ -482,6 +583,7 @@ export function ApplicationQueue({
     try {
       for (let i = 0; i < apps.length; i++) {
         setBulkProgress({ current: i, total: apps.length, label: "Sending" });
+        handleLocalStatusChange(apps[i].id, "SENDING");
         try {
           const res = await fetch(`/api/applications/${apps[i].id}/send`, {
             method: "POST",
@@ -489,13 +591,17 @@ export function ApplicationQueue({
           const data = await res.json().catch(() => ({ success: false }));
           if (res.ok && data.success) {
             sent++;
+            handleLocalStatusChange(apps[i].id, "SENT");
           } else if (data.error?.includes("Wait") || data.error?.includes("rate") || data.error?.includes("limit") || res.status === 429) {
             rateLimited++;
+            handleLocalStatusChange(apps[i].id, "READY");
           } else {
             failed++;
+            handleLocalStatusChange(apps[i].id, apps[i].status);
           }
         } catch {
           failed++;
+          handleLocalStatusChange(apps[i].id, apps[i].status);
         }
         const isLast = i === apps.length - 1;
         if (!isLast) {
@@ -507,7 +613,6 @@ export function ApplicationQueue({
       if (rateLimited > 0) toast.info(`${rateLimited} queued — will be sent by the next cron cycle`);
       if (failed > 0) toast.error(`${failed} failed to send`);
       setSelectedIds(new Set());
-      router.refresh();
     } catch {
       toast.error("Bulk send failed");
     } finally {
@@ -578,8 +683,8 @@ export function ApplicationQueue({
   const refresh = useCallback(() => router.refresh(), [router]);
 
   const getFilteredForTab = useCallback((tab: string) =>
-    tab === "all" ? applications : applications.filter((a) => a.status === tab.toUpperCase()),
-  [applications]);
+    tab === "all" ? applications : applications.filter((a) => getEffectiveStatus(a) === tab.toUpperCase()),
+  [applications, getEffectiveStatus]);
 
   const renderTabContent = (tabValue: string) => {
     const list = getFilteredForTab(tabValue);
@@ -591,6 +696,8 @@ export function ApplicationQueue({
         onToggleSelectAll={toggleSelectAll}
         onRefresh={refresh}
         allSelected={selectedCount === list.length && list.length > 0}
+        localStatuses={localStatuses}
+        onLocalStatusChange={handleLocalStatusChange}
       />
     );
   };
@@ -658,14 +765,14 @@ export function ApplicationQueue({
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex flex-wrap h-auto gap-1 p-1">
+        <TabsList className="flex overflow-x-auto scrollbar-none h-auto gap-1 p-1 w-full">
           <TabsTrigger value="all" className="gap-1.5">
             All
             <Badge
               variant="secondary"
               className="ml-0.5 h-5 px-1.5 text-[10px]"
             >
-              {counts.total}
+              {effectiveCounts.total}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="draft" className="gap-1.5">
@@ -674,7 +781,7 @@ export function ApplicationQueue({
               variant="secondary"
               className="ml-0.5 h-5 px-1.5 text-[10px]"
             >
-              {counts.draft}
+              {effectiveCounts.draft}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="ready" className="gap-1.5">
@@ -683,7 +790,7 @@ export function ApplicationQueue({
               variant="secondary"
               className="ml-0.5 h-5 px-1.5 text-[10px]"
             >
-              {counts.ready}
+              {effectiveCounts.ready}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="sent" className="gap-1.5">
@@ -692,7 +799,7 @@ export function ApplicationQueue({
               variant="secondary"
               className="ml-0.5 h-5 px-1.5 text-[10px]"
             >
-              {counts.sent}
+              {effectiveCounts.sent}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="failed" className="gap-1.5">
@@ -701,27 +808,27 @@ export function ApplicationQueue({
               variant="secondary"
               className="ml-0.5 h-5 px-1.5 text-[10px]"
             >
-              {counts.failed}
+              {effectiveCounts.failed}
             </Badge>
           </TabsTrigger>
-          {counts.bounced > 0 && (
+          {effectiveCounts.bounced > 0 && (
             <TabsTrigger value="bounced" className="gap-1.5">
               Undelivered
               <Badge
                 variant="secondary"
                 className="ml-0.5 h-5 px-1.5 text-[10px]"
               >
-                {counts.bounced}
+                {effectiveCounts.bounced}
               </Badge>
             </TabsTrigger>
           )}
         </TabsList>
 
         {/* Quick cleanup actions (no selection needed) */}
-        {(counts.failed > 0 || counts.bounced > 0 || counts.draft > 2) && (
+        {(effectiveCounts.failed > 0 || effectiveCounts.bounced > 0 || effectiveCounts.draft > 2) && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Quick:</span>
-            {counts.failed > 0 && (
+            {effectiveCounts.failed > 0 && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -734,10 +841,10 @@ export function ApplicationQueue({
                   } else toast.error(result.error || "Failed");
                 }}
               >
-                <Trash2 className="h-3 w-3" /> Delete {counts.failed} failed
+                <Trash2 className="h-3 w-3" /> Delete {effectiveCounts.failed} failed
               </Button>
             )}
-            {counts.bounced > 0 && (
+            {effectiveCounts.bounced > 0 && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -750,10 +857,10 @@ export function ApplicationQueue({
                   } else toast.error(result.error || "Failed");
                 }}
               >
-                <Trash2 className="h-3 w-3" /> Delete {counts.bounced} undelivered
+                <Trash2 className="h-3 w-3" /> Delete {effectiveCounts.bounced} undelivered
               </Button>
             )}
-            {counts.draft > 2 && (
+            {effectiveCounts.draft > 2 && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -766,7 +873,7 @@ export function ApplicationQueue({
                   } else toast.error(result.error || "Failed");
                 }}
               >
-                <RotateCcw className="h-3 w-3" /> Cancel all {counts.draft} drafts
+                <RotateCcw className="h-3 w-3" /> Cancel all {effectiveCounts.draft} drafts
               </Button>
             )}
           </div>
@@ -876,7 +983,7 @@ export function ApplicationQueue({
           <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Something went wrong — you can retry</p>
           {renderTabContent("failed")}
         </TabsContent>
-        {counts.bounced > 0 && (
+        {effectiveCounts.bounced > 0 && (
           <TabsContent value="bounced" className="mt-4">
             <p className="text-xs text-slate-400 dark:text-zinc-500 mb-3">Email couldn&apos;t be delivered — address may be invalid</p>
             {renderTabContent("bounced")}
@@ -896,6 +1003,8 @@ function ApplicationList({
   onToggleSelectAll,
   onRefresh,
   allSelected,
+  localStatuses,
+  onLocalStatusChange,
 }: {
   applications: ApplicationWithRelations[];
   selectedIds: Set<string>;
@@ -903,6 +1012,8 @@ function ApplicationList({
   onToggleSelectAll: () => void;
   onRefresh: () => void;
   allSelected: boolean;
+  localStatuses: Map<string, ApplicationStatus>;
+  onLocalStatusChange: (id: string, status: ApplicationStatus) => void;
 }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
@@ -949,7 +1060,7 @@ function ApplicationList({
           Showing {visibleApps.length} of {applications.length}
         </span>
       </div>
-      <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-1 lg:grid-cols-2">
         {visibleApps.map((app) => (
           <ApplicationCard
             key={app.id}
@@ -957,6 +1068,8 @@ function ApplicationList({
             selected={selectedIds.has(app.id)}
             onToggleSelect={() => onToggleSelect(app.id)}
             onRefresh={onRefresh}
+            localStatus={localStatuses.get(app.id)}
+            onLocalStatusChange={onLocalStatusChange}
           />
         ))}
       </div>

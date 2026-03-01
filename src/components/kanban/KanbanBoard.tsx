@@ -13,7 +13,8 @@ import {
 } from "@dnd-kit/core";
 import { toast } from "sonner";
 import { useJobStore, type UserJobWithGlobal } from "@/store/useJobStore";
-import { STAGES } from "@/lib/utils";
+import { STAGES, STAGE_CONFIG } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { StatsBar } from "@/components/analytics/StatsBar";
 import { KanbanColumn } from "./KanbanColumn";
 import { JobCard } from "./JobCard";
@@ -31,6 +32,7 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
   const search = useJobStore((s) => s.search);
   const updateJobStage = useJobStore((s) => s.updateJobStage);
   const [activeJob, setActiveJob] = useState<UserJobWithGlobal | null>(null);
+  const [mobileStage, setMobileStage] = useState<JobStage>("SAVED");
   const pendingMoves = React.useRef(new Set<string>());
 
   useEffect(() => {
@@ -129,16 +131,66 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <StatsBar jobs={jobs} />
 
+      {/* Mobile: tab-based stage selector */}
+      <div className="md:hidden">
+        <div className="flex overflow-x-auto gap-1 pb-2 -mx-1 px-1 scrollbar-none">
+          {STAGES.map((stage) => {
+            const s = stage as JobStage;
+            const config = STAGE_CONFIG[s];
+            const count = jobsByStage[s].length;
+            const isActive = mobileStage === s;
+            return (
+              <button
+                key={stage}
+                onClick={() => setMobileStage(s)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all whitespace-nowrap shrink-0 touch-manipulation",
+                  isActive
+                    ? "bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm"
+                    : "bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400"
+                )}
+              >
+                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", config.dot)} />
+                {config.label}
+                <span className={cn(
+                  "ml-0.5 min-w-[18px] text-center rounded-full px-1 py-0.5 text-[10px] font-bold",
+                  isActive
+                    ? "bg-white/20 dark:bg-zinc-900/30 text-white dark:text-zinc-900"
+                    : "bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400"
+                )}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <KanbanColumn
+            stage={mobileStage}
+            jobs={jobsByStage[mobileStage]}
+            onStageChange={handleStageChange}
+            isMobile
+          />
+        </DndContext>
+      </div>
+
+      {/* Desktop: full kanban grid */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-4 -mx-1 px-1 snap-x snap-mandatory md:snap-none md:mx-0 md:px-0 md:grid md:grid-cols-3 md:overflow-x-visible lg:grid-cols-6 scrollbar-thin">
+        <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-6 gap-3">
           {STAGES.map((stage) => (
             <KanbanColumn
               key={stage}
@@ -151,7 +203,7 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
 
         <DragOverlay>
           {activeJob ? (
-            <div className="w-[200px] sm:w-72 rotate-3 opacity-90">
+            <div className="w-72 rotate-3 opacity-90">
               <JobCard
                 job={activeJob}
                 onStageChange={() => {}}

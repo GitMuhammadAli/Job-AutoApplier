@@ -126,124 +126,117 @@ export const JobCard = memo(function JobCard({
         if (dndHandler) dndHandler(e);
       }}
       onPointerUp={handlePointerUp}
-      className={`group relative cursor-pointer active:cursor-grabbing rounded-xl bg-white dark:bg-zinc-800 p-3.5 md:p-4 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-shadow transition-transform duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 dark:hover:ring-zinc-600/80 touch-manipulation ${
+      className={`group relative cursor-pointer active:cursor-grabbing rounded-xl bg-white dark:bg-zinc-800 p-3 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-shadow transition-transform duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 dark:hover:ring-zinc-600/80 touch-manipulation ${
         isDragging ? "opacity-50 shadow-lg rotate-2 z-50 ring-blue-300" : ""
       }`}
     >
-      <div className="mb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-zinc-500 font-medium min-w-0">
-            <Building2 className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{g.company}</span>
-            {g.companyEmail && (
-              <span title={`Email: ${g.companyEmail}`} className="flex-shrink-0">
-                <Mail className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
-              </span>
-            )}
-          </div>
-          <StageSelector
-            currentStage={job.stage}
-            onStageChange={(newStage) =>
-              onStageChange(job.id, newStage, job.stage)
-            }
-          />
+      {/* Company + stage */}
+      <div className="flex items-start justify-between gap-1.5 mb-1">
+        <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-zinc-500 font-medium min-w-0">
+          <Building2 className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{g.company}</span>
+          {g.companyEmail && (
+            <span title={`Email: ${g.companyEmail}`} className="flex-shrink-0">
+              <Mail className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
+            </span>
+          )}
         </div>
-        <span className="mt-1 text-sm font-bold text-slate-800 dark:text-zinc-100 leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors block">
-          {g.title}
-        </span>
+        <StageSelector
+          currentStage={job.stage}
+          onStageChange={(newStage) =>
+            onStageChange(job.id, newStage, job.stage)
+          }
+        />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1 mb-2">
+      {/* Title */}
+      <h4 className="text-[13px] font-bold text-slate-800 dark:text-zinc-100 leading-snug hover:text-blue-600 dark:hover:text-blue-400 transition-colors line-clamp-2 mb-1.5">
+        {g.title}
+      </h4>
+
+      {/* Badges — compact row */}
+      <div className="flex flex-wrap items-center gap-1 mb-1.5">
         <PlatformBadge source={g.source} />
         {freshness.label && (
-          <span
-            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${freshness.color}`}
-          >
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${freshness.color}`}>
             {freshness.label}
           </span>
         )}
         {hasApp && speed && (
-          <span
-            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-              speed.fast
-                ? "bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-            }`}
-          >
+          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+            speed.fast
+              ? "bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+              : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+          }`}>
             <Zap className="h-2.5 w-2.5" /> {speed.label}
           </span>
         )}
         {hasApp && !speed && (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
             <Mail className="h-2.5 w-2.5" /> Applied
           </span>
         )}
         {job.application?.status === "DRAFT" && (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
             <FileText className="h-2.5 w-2.5" /> Draft
           </span>
         )}
       </div>
 
       {g.salary && (
-        <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mb-1.5 truncate">
+        <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mb-1.5 truncate">
           {g.salary}
         </div>
       )}
 
+      {/* Match score — inline compact */}
       {job.matchScore != null && job.matchScore > 0 && (
-        <div className="mb-2" title="How well this job matches your keywords and preferences">
-          <div className="flex items-center justify-between text-[11px] mb-0.5">
-            <span className="text-slate-400 dark:text-zinc-500 font-medium">
-              Match
-            </span>
-            <span
-              className={`font-bold ${
-                job.matchScore >= 70
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : job.matchScore >= 40
-                    ? "text-amber-600 dark:text-amber-400"
-                    : "text-slate-400 dark:text-zinc-500"
-              }`}
-            >
+        <div className="mb-1.5" title="How well this job matches your keywords and preferences">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">Match</span>
+            <div className="flex-1 h-1 rounded-full bg-slate-100 dark:bg-zinc-700">
+              <div
+                className={`h-1 rounded-full transition-all duration-500 ${
+                  job.matchScore >= 70
+                    ? "bg-emerald-500 dark:bg-emerald-400"
+                    : job.matchScore >= 40
+                      ? "bg-amber-400 dark:bg-amber-500"
+                      : "bg-slate-300 dark:bg-zinc-600"
+                }`}
+                style={{ width: `${Math.min(job.matchScore, 100)}%` }}
+              />
+            </div>
+            <span className={`text-[11px] font-bold tabular-nums ${
+              job.matchScore >= 70
+                ? "text-emerald-600 dark:text-emerald-400"
+                : job.matchScore >= 40
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-slate-400 dark:text-zinc-500"
+            }`}>
               {Math.round(job.matchScore)}%
             </span>
           </div>
-          <div className="h-1 w-full rounded-full bg-slate-100 dark:bg-zinc-700">
-            <div
-              className={`h-1 rounded-full transition-all duration-500 ${
-                job.matchScore >= 70
-                  ? "bg-emerald-500 dark:bg-emerald-400"
-                  : job.matchScore >= 40
-                    ? "bg-amber-400 dark:bg-amber-500"
-                    : "bg-slate-300 dark:bg-zinc-600"
-              }`}
-              style={{ width: `${Math.min(job.matchScore, 100)}%` }}
-            />
-          </div>
           {job.matchReasons && job.matchReasons.length > 0 && (
-            <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5 truncate">
-              {job.matchReasons.slice(0, 3).join(" \u00B7 ")}
+            <p className="text-[9px] text-slate-400 dark:text-zinc-500 mt-0.5 truncate">
+              {job.matchReasons.slice(0, 2).join(" \u00B7 ")}
             </p>
           )}
         </div>
       )}
 
+      {/* Footer */}
       <div className="flex items-center justify-between pt-1.5 border-t border-slate-50 dark:border-zinc-700/50">
-        <div className="flex items-center gap-2 min-w-0">
-          {g.location && (
-            <div className="text-[11px] text-slate-400 dark:text-zinc-500 truncate">
-              {g.location}
-            </div>
-          )}
-        </div>
-
+        {g.location && (
+          <div className="text-[10px] text-slate-400 dark:text-zinc-500 truncate min-w-0 mr-2">
+            {g.location}
+          </div>
+        )}
         {g.applyUrl && (
           <a
             href={g.applyUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors duration-200 shadow-sm hover:shadow bg-blue-500 text-white hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-none touch-manipulation"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold transition-colors shadow-sm hover:shadow bg-blue-500 text-white hover:bg-blue-600 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-none touch-manipulation shrink-0"
           >
             <ExternalLink className="h-2.5 w-2.5" />
             Apply

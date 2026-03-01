@@ -57,15 +57,15 @@ export function SendingStatusBar(props: SendingStatusBarProps) {
 
   if (isPaused) {
     return (
-      <div className="flex items-center gap-2.5 rounded-xl bg-red-50 dark:bg-red-900/30 px-4 py-2.5 ring-1 ring-red-200/60 dark:ring-red-800/40">
-        <PauseCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-        <span className="text-xs font-semibold text-red-700 dark:text-red-300">
+      <div className="flex items-start sm:items-center gap-2 sm:gap-2.5 rounded-xl bg-red-50 dark:bg-red-900/30 px-3 sm:px-4 py-2.5 ring-1 ring-red-200/60 dark:ring-red-800/40">
+        <PauseCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5 sm:mt-0" />
+        <span className="text-[11px] sm:text-xs font-semibold text-red-700 dark:text-red-300">
           Sending paused — {stats.pausedUntil ? (
             <>cooldown active. Resumes at {new Date(stats.pausedUntil).toLocaleTimeString()}.</>
           ) : (
             <>bounces detected.</>
           )}{" "}
-          You can still use &quot;Copy All&quot; to apply manually.
+          <span className="hidden sm:inline">You can still use &quot;Copy All&quot; to apply manually.</span>
         </span>
       </div>
     );
@@ -76,40 +76,41 @@ export function SendingStatusBar(props: SendingStatusBarProps) {
 
   return (
     <div
-      className={`rounded-xl px-4 py-3 ring-1 space-y-3 ${
+      className={`rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 ring-1 space-y-2 sm:space-y-3 ${
         isWarning
           ? "bg-amber-50 dark:bg-amber-950/30 ring-amber-200/60 dark:ring-amber-800/40"
           : "bg-slate-50 dark:bg-zinc-800/60 ring-slate-200/60 dark:ring-zinc-700/60"
       }`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-zinc-400">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[11px] text-slate-500 dark:text-zinc-400">
           <span className="flex items-center gap-1.5">
             <Send className="h-3 w-3" />
-            Today:{" "}
+            <span className="hidden sm:inline">Today:</span>{" "}
             <strong className="text-slate-700 dark:text-zinc-200 tabular-nums">
               {todayCount}/{maxPerDay}
             </strong>{" "}
-            sent
+            <span className="hidden sm:inline">sent</span>
           </span>
           <span className="flex items-center gap-1.5">
             <Clock className="h-3 w-3" />
-            This hour:{" "}
+            <span className="hidden sm:inline">This hour:</span>{" "}
             <strong className="text-slate-700 dark:text-zinc-200 tabular-nums">
               {hourCount}/{maxPerHour}
             </strong>
           </span>
           {countdown > 0 && (
-            <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
+            <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
               <Timer className="h-3 w-3" />
-              Next send in {formatTime(countdown)}
+              {formatTime(countdown)}
             </span>
           )}
         </div>
         {isWarning && (
-          <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+          <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
             <AlertTriangle className="h-3.5 w-3.5" />
-            Approaching daily limit
+            <span className="hidden sm:inline">Approaching daily limit</span>
+            <span className="sm:hidden">Near limit</span>
           </div>
         )}
       </div>

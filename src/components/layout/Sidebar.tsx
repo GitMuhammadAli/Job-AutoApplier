@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -18,6 +19,7 @@ import {
   PanelLeftClose,
   Sparkles,
   Activity,
+  Pause,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -53,6 +55,16 @@ interface SidebarProps {
 export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
   const pathname = usePathname();
   const { collapsed, mobileOpen, toggle, setMobileOpen } = useSidebarStore();
+  const [accountStatus, setAccountStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/mode")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.status) setAccountStatus(data.status);
+      })
+      .catch(() => {});
+  }, []);
 
   const adminNav = adminUser
     ? [{ href: "/admin", label: "Admin Panel", icon: ShieldCheck, desc: "System admin" }]
@@ -125,18 +137,30 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
         </div>
 
         {/* Automation status */}
-        <div className="mx-3 mt-4 mb-2 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 p-3 ring-1 ring-emerald-200/50 dark:ring-emerald-800/40">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-            </span>
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Auto-Search Active</span>
+        {accountStatus === "paused" ? (
+          <div className="mx-3 mt-4 mb-2 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 p-3 ring-1 ring-amber-200/50 dark:ring-amber-800/40">
+            <div className="flex items-center gap-2">
+              <Pause className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+              <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Auto-Apply Paused</span>
+            </div>
+            <p className="mt-1 text-[10px] text-amber-600/80 dark:text-amber-500/70 leading-relaxed">
+              Jobs are still being found. Auto-sending is paused.
+            </p>
           </div>
-          <p className="mt-1 text-[10px] text-emerald-600/80 dark:text-emerald-500/70 leading-relaxed">
-            Finding jobs from 8 sites for you automatically.
-          </p>
-        </div>
+        ) : (
+          <div className="mx-3 mt-4 mb-2 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 p-3 ring-1 ring-emerald-200/50 dark:ring-emerald-800/40">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+              </span>
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Auto-Search Active</span>
+            </div>
+            <p className="mt-1 text-[10px] text-emerald-600/80 dark:text-emerald-500/70 leading-relaxed">
+              Finding jobs from 8 sites for you automatically.
+            </p>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-3 overflow-y-auto scrollbar-thin flex flex-col">

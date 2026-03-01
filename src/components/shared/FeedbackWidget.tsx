@@ -69,10 +69,10 @@ export default function FeedbackWidget() {
 
   if (sent) {
     return (
-      <div className="fixed bottom-6 right-6 z-50">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-green-200 dark:border-green-800 p-8 flex flex-col items-center gap-3 animate-in fade-in zoom-in-95">
-          <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
-            <Check className="w-7 h-7 text-green-600" />
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-green-200 dark:border-green-800 p-6 sm:p-8 flex flex-col items-center gap-3 animate-in fade-in zoom-in-95">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
+            <Check className="w-6 h-6 sm:w-7 sm:h-7 text-green-600" />
           </div>
           <p className="font-semibold text-zinc-900 dark:text-zinc-100">Thank you!</p>
           <p className="text-sm text-zinc-500">Your feedback helps us improve.</p>
@@ -82,11 +82,11 @@ export default function FeedbackWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
       {isOpen && (
         <div
           ref={panelRef}
-          className="mb-3 w-[360px] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
+          className="mb-3 w-[calc(100vw-2rem)] max-w-[360px] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
         >
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
             <div>
@@ -169,15 +169,15 @@ export default function FeedbackWidget() {
 
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`group flex items-center gap-2 px-4 py-3 rounded-full shadow-lg transition-all duration-200 ${
+        className={`group flex items-center gap-2 rounded-full shadow-lg transition-all duration-200 ${
           isOpen
-            ? "bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900"
-            : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-xl hover:shadow-blue-500/25 hover:-translate-y-0.5"
+            ? "p-3 bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900"
+            : "p-3 sm:px-4 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-xl hover:shadow-blue-500/25 hover:-translate-y-0.5"
         }`}
         aria-label="Send feedback"
       >
         <MessageSquarePlus className="w-5 h-5" />
-        {!isOpen && <span className="text-sm font-medium pr-0.5">Feedback</span>}
+        {!isOpen && <span className="hidden sm:inline text-sm font-medium pr-0.5">Feedback</span>}
       </button>
     </div>
   );

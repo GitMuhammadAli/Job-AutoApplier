@@ -63,21 +63,21 @@ export function StatsBar({ analytics, jobs }: StatsBarProps) {
   };
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-2.5">
+    <div className="flex overflow-x-auto gap-1.5 sm:gap-2 pb-1 scrollbar-none sm:grid sm:grid-cols-4 lg:grid-cols-7 sm:overflow-x-visible">
       {STAT_CONFIGS.map((stat, idx) => (
         <div
           key={stat.key}
-          className="group relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-3 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-all hover:shadow-md hover:-translate-y-0.5"
+          className="group relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-2.5 sm:p-3 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-all hover:shadow-md hover:-translate-y-0.5 shrink-0 min-w-[110px] sm:min-w-0"
           style={{ animationDelay: `${idx * 80}ms` }}
         >
           <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${stat.gradient}`} />
-          <div className="flex items-center gap-2.5">
-            <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${stat.iconBg}`}>
+          <div className="flex items-center gap-2">
+            <div className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg ${stat.iconBg}`}>
               <stat.icon className={`h-3.5 w-3.5 ${stat.iconColor}`} />
             </div>
             <div>
-              <p className="text-[10px] font-medium text-slate-400 dark:text-zinc-500 uppercase tracking-wider">{stat.label}</p>
-              <p className="text-lg font-bold text-slate-900 dark:text-zinc-100 tabular-nums">{values[stat.key]}</p>
+              <p className="text-[9px] sm:text-[10px] font-medium text-slate-400 dark:text-zinc-500 uppercase tracking-wider">{stat.label}</p>
+              <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tabular-nums">{values[stat.key]}</p>
             </div>
           </div>
         </div>
