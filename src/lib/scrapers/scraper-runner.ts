@@ -134,6 +134,20 @@ export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunRes
       errorMessage: errMsg,
     });
 
+    await prisma.systemLog.create({
+      data: {
+        type: "scrape-detail",
+        source,
+        message: `${source}: FAILED — ${errMsg}`,
+        metadata: {
+          error: errMsg,
+          errorType: isTimeout ? "timeout" : (err instanceof Error ? err.name : "unknown"),
+          partialResults: 0,
+          durationMs,
+        },
+      },
+    }).catch(() => {});
+
     return { source, jobs: [], status, durationMs, runId, errorMessage: errMsg };
   }
 }

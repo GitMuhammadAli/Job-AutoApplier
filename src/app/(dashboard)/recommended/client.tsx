@@ -246,8 +246,15 @@ export function RecommendedClient({
     });
   }, [jobs]);
 
+  const emailCounts = useMemo(() => ({
+    all: jobs.length,
+    verified: jobs.filter((j) => j.companyEmail && (j.emailConfidence ?? 0) >= 80).length,
+    none: jobs.filter((j) => !j.companyEmail).length,
+  }), [jobs]);
+
   const hasActiveFilters = useMemo(() => {
-    return !!(currentFilters.source || currentFilters.q || currentFilters.email === "true" ||
+    return !!(currentFilters.source || currentFilters.q ||
+      (currentFilters.email && currentFilters.email !== "all") ||
       (currentFilters.minScore && currentFilters.minScore !== "0") ||
       currentFilters.location || freshness || (clientSort !== "score" && clientSort !== "date"));
   }, [currentFilters, freshness, clientSort]);
@@ -401,16 +408,28 @@ export function RecommendedClient({
             </div>
           </div>
 
-          {/* Has Email toggle */}
+          {/* Email filter — 3-way */}
           <div className="shrink-0">
             <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block">
               <Mail className="h-3 w-3 inline mr-1" />Email
             </span>
-            <FilterChip
-              active={currentFilters.email === "true"}
-              onClick={() => updateFilter("email", currentFilters.email === "true" ? null : "true")}
-              label="Has Email"
-            />
+            <div className="flex gap-1">
+              <FilterChip
+                active={!currentFilters.email || currentFilters.email === "all"}
+                onClick={() => updateFilter("email", null)}
+                label={`All (${emailCounts.all})`}
+              />
+              <FilterChip
+                active={currentFilters.email === "verified"}
+                onClick={() => updateFilter("email", "verified")}
+                label={`Can Email (${emailCounts.verified})`}
+              />
+              <FilterChip
+                active={currentFilters.email === "none"}
+                onClick={() => updateFilter("email", "none")}
+                label={`No Email (${emailCounts.none})`}
+              />
+            </div>
           </div>
 
           {/* Clear all */}

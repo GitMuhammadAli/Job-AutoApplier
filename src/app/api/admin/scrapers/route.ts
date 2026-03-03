@@ -26,14 +26,20 @@ export async function GET() {
 
     const health = await Promise.all(
       SOURCES.map(async (source) => {
-        const [lastLog, jobs, errCount] = await Promise.all([
+        const [lastLog, jobs, errCount, recentLogs] = await Promise.all([
           prisma.systemLog.findFirst({
-            where: { type: "scrape", source },
+            where: { type: "scrape-detail", source },
             orderBy: { createdAt: "desc" },
           }),
           prisma.globalJob.count({ where: { source } }),
           prisma.systemLog.count({
             where: { type: "error", source, createdAt: { gte: dayAgo } },
+          }),
+          prisma.systemLog.findMany({
+            where: { source, type: "scrape-detail" },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: { message: true, metadata: true, createdAt: true },
           }),
         ]);
         return {
@@ -42,6 +48,7 @@ export async function GET() {
           totalJobs: jobs,
           errorsLast24h: errCount,
           metadata: lastLog?.metadata ?? null,
+          recentLogs,
         };
       }),
     );

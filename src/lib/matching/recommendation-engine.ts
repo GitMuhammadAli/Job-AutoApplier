@@ -66,6 +66,7 @@ export interface RecommendationOptions {
   locationFilter?: "all" | "city" | "country" | "remote";
   jobType?: string;
   hasEmail?: boolean;
+  emailFilter?: "all" | "verified" | "none";
 }
 
 export interface RecommendationResult {
@@ -102,6 +103,7 @@ export async function getRecommendedJobs(
     locationFilter,
     jobType,
     hasEmail,
+    emailFilter,
   } = options;
 
   // ── STEP 1: Load user profile (parallel queries) ──
@@ -423,6 +425,11 @@ export async function getRecommendedJobs(
   }
   if (hasEmail) {
     filtered = filtered.filter((s) => !!s.job.companyEmail);
+  }
+  if (emailFilter === "verified") {
+    filtered = filtered.filter((s) => s.job.companyEmail && (s.job.emailConfidence ?? 0) >= 80);
+  } else if (emailFilter === "none") {
+    filtered = filtered.filter((s) => !s.job.companyEmail);
   }
 
   // ── STEP 6: Cross-source deduplication ──

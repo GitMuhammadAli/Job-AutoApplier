@@ -26,34 +26,36 @@ interface JobCardProps {
   ) => void;
 }
 
-function getFreshness(days: number | null): { label: string; color: string } {
-  if (days === null) return { label: "", color: "" };
+function getFreshness(days: number | null): { label: string; color: string; dotColor: string } {
+  if (days === null) return { label: "", color: "", dotColor: "" };
   if (days <= 1)
     return {
-      label: "Posted today",
-      color:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+      label: "Fresh",
+      color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+      dotColor: "text-emerald-500",
     };
   if (days <= 3)
     return {
       label: `${days}d ago`,
       color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+      dotColor: "text-yellow-500",
     };
   if (days <= 7)
     return {
       label: `${days}d ago`,
-      color:
-        "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+      color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+      dotColor: "text-orange-500",
     };
   if (days <= 14)
     return {
       label: `${days}d — may be filled`,
-      color:
-        "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+      color: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+      dotColor: "text-orange-500",
     };
   return {
     label: `${days}d — likely expired`,
     color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    dotColor: "text-red-500",
   };
 }
 
@@ -135,9 +137,20 @@ export const JobCard = memo(function JobCard({
         <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-zinc-500 font-medium min-w-0">
           <Building2 className="h-3 w-3 flex-shrink-0" />
           <span className="truncate">{g.company}</span>
-          {g.companyEmail && (
-            <span title={`Email: ${g.companyEmail}`} className="flex-shrink-0">
-              <Mail className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
+          {g.companyEmail ? (
+            <span
+              title={`${g.companyEmail}${(g.emailConfidence ?? 0) >= 80 ? " (verified)" : " (unverified)"}`}
+              className="flex-shrink-0"
+            >
+              <Mail className={`h-3 w-3 ${
+                (g.emailConfidence ?? 0) >= 80
+                  ? "text-emerald-500 dark:text-emerald-400"
+                  : "text-amber-500 dark:text-amber-400"
+              }`} />
+            </span>
+          ) : (
+            <span title="No email — apply on site" className="flex-shrink-0 text-[9px] text-slate-400 dark:text-zinc-500">
+              🌐
             </span>
           )}
         </div>
@@ -158,8 +171,8 @@ export const JobCard = memo(function JobCard({
       <div className="flex flex-wrap items-center gap-1 mb-1.5">
         <PlatformBadge source={g.source} />
         {freshness.label && (
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${freshness.color}`}>
-            {freshness.label}
+          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${freshness.color}`}>
+            <span className={freshness.dotColor}>●</span> {freshness.label}
           </span>
         )}
         {hasApp && speed && (

@@ -28,6 +28,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+interface ScraperRecentLog {
+  message: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 interface ScraperInfo {
   source: string;
   lastRun: string | null;
@@ -38,6 +44,7 @@ interface ScraperInfo {
   isHealthy: boolean;
   lastError: string | null;
   lastErrorAt: string | null;
+  recentLogs?: ScraperRecentLog[];
 }
 
 interface CronInfo {
@@ -81,6 +88,7 @@ export default function AdminScrapersPage() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [triggeringSource, setTriggeringSource] = useState<string | null>(null);
+  const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -194,11 +202,6 @@ export default function AdminScrapersPage() {
             {triggeringSource === "all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
             Scrape All
           </Button>
-          <Button size="sm" variant="outline" onClick={() => handleTrigger("scrape-posts")} disabled={!!triggeringSource}
-            className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
-            {triggeringSource === "scrape-posts" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
-            Scrape Posts
-          </Button>
           <Button size="sm" variant="outline" onClick={() => handleTrigger("scrape-global")} disabled={!!triggeringSource}
             className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
             {triggeringSource === "scrape-global" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
@@ -242,6 +245,32 @@ export default function AdminScrapersPage() {
               {s.lastError && !s.isHealthy && (
                 <div className="rounded-lg bg-red-500/10 p-2 text-[9px] text-red-300 truncate mb-3 ring-1 ring-red-500/20">
                   <AlertTriangle className="h-2.5 w-2.5 inline mr-1" />{s.lastError}
+                </div>
+              )}
+              {/* Recent runs — collapsible */}
+              {s.recentLogs && s.recentLogs.length > 0 && (
+                <div className="mb-3">
+                  <button
+                    onClick={() => setExpandedLogs((prev) => {
+                      const next = new Set(Array.from(prev));
+                      next.has(s.source) ? next.delete(s.source) : next.add(s.source);
+                      return next;
+                    })}
+                    className="text-[9px] text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1"
+                  >
+                    <ChevronRight className={`h-2.5 w-2.5 transition-transform ${expandedLogs.has(s.source) ? "rotate-90" : ""}`} />
+                    Recent runs ({s.recentLogs.length})
+                  </button>
+                  {expandedLogs.has(s.source) && (
+                    <div className="mt-1.5 space-y-1 pl-3.5">
+                      {s.recentLogs.map((log, i) => (
+                        <div key={i} className="text-[9px] text-slate-400 truncate" title={log.message}>
+                          <span className="text-slate-600 tabular-nums">{timeAgo(log.createdAt)}</span>
+                          {" "}{log.message}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               <Button size="sm" variant="outline" disabled={!!triggeringSource} onClick={() => handleTrigger(s.source)}

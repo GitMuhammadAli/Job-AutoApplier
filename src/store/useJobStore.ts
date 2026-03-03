@@ -17,6 +17,7 @@ interface GlobalJobData {
   sourceUrl: string | null;
   applyUrl: string | null;
   companyEmail: string | null;
+  emailConfidence: number | null;
   postedDate: Date | string | null;
   firstSeenAt: Date | string;
   lastSeenAt: Date | string;

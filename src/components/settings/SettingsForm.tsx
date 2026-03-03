@@ -1334,6 +1334,86 @@ export function SettingsForm({
         {activeTab === "automation" && (
         <TabsContent value="automation" className="space-y-8" forceMount>
 
+      {/* ── Auto-Apply Readiness ── */}
+      {applicationMode !== "manual" && (() => {
+        const checks = [
+          {
+            ok: applicationMode !== "manual",
+            label: `Mode: ${APPLICATION_MODES.find((m) => m.value === applicationMode)?.label || applicationMode}`,
+          },
+          {
+            ok: applicationMode === "full_auto" || applicationMode === "instant" ? autoApplyEnabled : true,
+            label: "Auto Apply is enabled",
+            hide: applicationMode !== "full_auto" && applicationMode !== "instant",
+          },
+          {
+            ok: resumeCount > 0,
+            label: "At least one resume uploaded",
+            fix: resumeCount === 0 ? { text: "Upload a resume", href: "/resumes" } : undefined,
+          },
+          {
+            ok: keywords.length > 0,
+            label: "Job keywords configured",
+            fix: keywords.length === 0 ? { text: "Add keywords in the Job Preferences tab" } : undefined,
+          },
+          {
+            ok: !!applicationEmail.trim(),
+            label: "Sending email configured",
+            fix: !applicationEmail.trim() ? { text: "Set your application email below" } : undefined,
+          },
+        ].filter((c) => !c.hide);
+        const allPassed = checks.every((c) => c.ok);
+        return (
+          <div className={`rounded-xl border-2 p-4 transition-colors ${
+            allPassed
+              ? "border-emerald-300 bg-emerald-50/50 dark:border-emerald-800/60 dark:bg-emerald-950/20"
+              : "border-amber-300 bg-amber-50/50 dark:border-amber-800/60 dark:bg-amber-950/20"
+          }`}>
+            <h3 className={`text-sm font-bold mb-3 ${
+              allPassed ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"
+            }`}>
+              Auto-Apply Readiness
+            </h3>
+            <div className="space-y-2">
+              {checks.map((c) => (
+                <div key={c.label} className="flex items-start gap-2">
+                  {c.ok ? (
+                    <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                  )}
+                  <div>
+                    <span className={`text-sm ${c.ok ? "text-slate-700 dark:text-zinc-300" : "text-amber-800 dark:text-amber-200"}`}>
+                      {c.label}
+                    </span>
+                    {!c.ok && c.fix && (
+                      c.fix.href ? (
+                        <a href={c.fix.href} className="block text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5">
+                          → {c.fix.text}
+                        </a>
+                      ) : (
+                        <span className="block text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                          {c.fix.text}
+                        </span>
+                      )
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className={`mt-3 pt-3 border-t text-xs font-medium ${
+              allPassed
+                ? "border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300"
+                : "border-amber-200 dark:border-amber-800/40 text-amber-700 dark:text-amber-300"
+            }`}>
+              {allPassed
+                ? "Ready — instant-apply will create drafts automatically"
+                : "Complete the items above to enable auto-draft creation"}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Application Mode ── */}
       <Section
         icon={<Send className="h-4 w-4" />}

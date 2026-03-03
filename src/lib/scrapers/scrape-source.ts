@@ -35,7 +35,7 @@ export async function scrapeAndUpsert(
 ): Promise<{ newCount: number; updatedCount: number; error?: string }> {
   const jobs = await scraperFn(queries);
   if (jobs.length === 0) {
-    await logScrapeResult(sourceName, 0, 0, 0);
+    await logScrapeDetail(sourceName, 0, 0, 0, 0, queries.map((q) => q.keyword).filter(Boolean));
     return { newCount: 0, updatedCount: 0 };
   }
 
@@ -171,17 +171,32 @@ export async function scrapeAndUpsert(
     }
   }
 
-  await logScrapeResult(sourceName, jobs.length, newCount, updatedCount);
+  const emailsFound = jobs.filter((j) => j.companyEmail).length;
+  const queryTerms = queries.map((q) => q.keyword).filter(Boolean);
+  await logScrapeDetail(sourceName, jobs.length, newCount, updatedCount, emailsFound, queryTerms);
   return { newCount, updatedCount };
 }
 
-async function logScrapeResult(source: string, found: number, newCount: number, updated: number) {
+async function logScrapeDetail(
+  source: string,
+  found: number,
+  newCount: number,
+  updated: number,
+  emailsFound: number,
+  queriesUsed: string[],
+) {
   await prisma.systemLog.create({
     data: {
-      type: "scrape",
+      type: "scrape-detail",
       source,
-      message: `${source}: ${found} found, ${newCount} new, ${updated} updated`,
-      metadata: { found, new: newCount, updated },
+      message: `${source}: ${newCount} new, ${updated} updated, ${emailsFound} emails (${found} fetched)`,
+      metadata: {
+        found,
+        new: newCount,
+        updated,
+        emailsFound,
+        queriesUsed: queriesUsed.slice(0, 10),
+      },
     },
-  }).catch((e) => console.warn(`[${source}] Failed to log scrape result:`, e));
+  }).catch((e) => console.warn(`[${source}] Failed to log scrape detail:`, e));
 }

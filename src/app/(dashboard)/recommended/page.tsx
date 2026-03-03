@@ -48,6 +48,9 @@ async function RecommendedJobsList({ searchParams }: { searchParams: PageProps["
     minScore: parseInt(searchParams.minScore || "0") || 0,
     searchQuery: searchParams.q || undefined,
     hasEmail: searchParams.email === "true",
+    emailFilter: (["all", "verified", "none"].includes(searchParams.email || ""))
+      ? searchParams.email as "all" | "verified" | "none"
+      : undefined,
     jobType: searchParams.type || undefined,
   };
 

@@ -151,9 +151,9 @@ export async function GET() {
       }),
       // Last scrape log per source (fetch recent, dedupe in JS)
       prisma.systemLog.findMany({
-        where: { type: "scrape", source: { in: SCRAPE_SOURCES } },
+        where: { type: { in: ["scrape", "scrape-detail"] }, source: { in: SCRAPE_SOURCES } },
         orderBy: { createdAt: "desc" },
-        take: 50,
+        take: 100,
       }),
       // Last error per source
       prisma.systemLog.findMany({
@@ -237,6 +237,17 @@ export async function GET() {
       }
     }
 
+    // Build recent detail logs per source (up to 5 each)
+    const recentDetailBySource = new Map<string, { message: string; metadata: unknown; createdAt: Date }[]>();
+    for (const log of allScrapeLogs) {
+      if (!log.source || log.type !== "scrape-detail") continue;
+      const arr = recentDetailBySource.get(log.source) || [];
+      if (arr.length < 5) {
+        arr.push({ message: log.message, metadata: log.metadata, createdAt: log.createdAt });
+        recentDetailBySource.set(log.source, arr);
+      }
+    }
+
     // Build skill/category maps per source from sampled jobs
     const scraperStatus = SCRAPE_SOURCES.map((source) => {
       const totalJobs = jobCountMap.get(source) ?? 0;
@@ -276,6 +287,7 @@ export async function GET() {
         isHealthy: !!lastLog && (!lastError || lastLog.createdAt > lastError.createdAt),
         lastError: lastError?.message ?? null,
         lastErrorAt: lastError?.createdAt ?? null,
+        recentLogs: recentDetailBySource.get(source) || [],
       };
     });
 

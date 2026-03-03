@@ -42,6 +42,7 @@ export async function getJobs(preloadedSettings?: Awaited<ReturnType<typeof getS
               sourceUrl: true,
               companyUrl: true,
               companyEmail: true,
+              emailConfidence: true,
               isFresh: true,
               isActive: true,
               postedDate: true,
