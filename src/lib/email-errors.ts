@@ -99,7 +99,11 @@ const ADDRESS_NOT_FOUND_PHRASES = [
 const ADDRESS_NOT_FOUND_CODES = ["550", "551", "553"];
 
 export function isAddressNotFound(error: unknown): boolean {
-  const raw = error instanceof Error ? error.message : String(error);
+  const raw = error instanceof Error
+    ? error.message
+    : (error && typeof error === "object" && "message" in error)
+      ? String((error as { message: unknown }).message)
+      : String(error);
   const msg = raw.toLowerCase();
   const responseCode =
     error && typeof error === "object" && "responseCode" in error
@@ -113,7 +117,11 @@ export function isAddressNotFound(error: unknown): boolean {
 }
 
 export function classifyError(error: unknown): ClassifiedError {
-  const raw = error instanceof Error ? error.message : String(error);
+  const raw = error instanceof Error
+    ? error.message
+    : (error && typeof error === "object" && "message" in error)
+      ? String((error as { message: unknown }).message)
+      : String(error);
   const msg = raw.toLowerCase();
 
   // Extract numeric SMTP response code from nodemailer error object if available
