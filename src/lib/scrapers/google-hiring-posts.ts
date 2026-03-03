@@ -3,6 +3,7 @@ import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
 import { extractEmailFromText } from "@/lib/extract-email-from-text";
 import { TIMEOUTS } from "@/lib/constants";
+import { logApiCall } from "@/lib/api-usage-logger";
 
 /**
  * Google Hiring Posts Scraper
@@ -60,6 +61,7 @@ async function fetchGoogleCSE(
   const url = `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=10&dateRestrict=d7&sort=date`;
 
   const res = await fetchWithRetry(url);
+  logApiCall("google_cse").catch(() => {});
   if (!res.ok) {
     if (res.status === 429) {
       console.warn("[GoogleHiringPosts] CSE daily quota exhausted");
@@ -101,6 +103,7 @@ async function fetchSerpAPI(
   const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&num=20&tbs=qdr:w1&api_key=${key}`;
 
   const res = await fetchWithRetry(url);
+  logApiCall("serpapi").catch(() => {});
   if (!res.ok) return [];
 
   const data = await res.json();

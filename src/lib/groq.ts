@@ -3,6 +3,7 @@
  */
 
 import { TIMEOUTS } from "./constants";
+import { logApiCall } from "./api-usage-logger";
 
 interface GroqOptions {
   temperature?: number;
@@ -76,6 +77,7 @@ export async function generateWithGroq(
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) throw new Error("AI returned an empty response. Please try again.");
 
+      logApiCall("groq").catch(() => {});
       return text;
     } catch (err) {
       lastError = err;

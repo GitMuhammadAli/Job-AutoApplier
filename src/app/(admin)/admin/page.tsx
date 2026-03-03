@@ -68,8 +68,13 @@ interface AdminStats {
   crons: {
     key: string;
     label: string;
+    category: string;
     lastRun: string | null;
     lastMessage: string | null;
+    lastStatus: string | null;
+    lastDurationMs: number | null;
+    avgDurationMs: number | null;
+    recentFailures: number;
     isRunning: boolean;
     startedAt: string | null;
   }[];
@@ -174,11 +179,6 @@ export default function AdminDashboard() {
             className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white border-0 shadow-lg shadow-blue-600/20">
             {triggeringSource === "all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
             Scrape All
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => handleTrigger("scrape-posts")} disabled={!!triggeringSource}
-            className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
-            {triggeringSource === "scrape-posts" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
-            Scrape Posts
           </Button>
           <Button size="sm" variant="outline" onClick={() => handleTrigger("instant-apply")} disabled={!!triggeringSource}
             className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white">
@@ -380,20 +380,52 @@ export default function AdminDashboard() {
             <Server className="h-4 w-4 text-slate-400" />
             <h2 className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Cron Jobs & Actions</h2>
           </div>
-          <div className="space-y-1">
-            {stats.crons.map((cron) => (
-              <div key={cron.key} className="flex items-center gap-3 rounded-lg p-2 hover:bg-white/[0.03] transition-colors">
-                <Circle className={`h-2 w-2 shrink-0 fill-current ${cron.isRunning ? "text-amber-400 animate-pulse" : "text-slate-600"}`} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-slate-300">{cron.label}</div>
-                  <div className="text-[10px] text-slate-500 truncate">
-                    {cron.isRunning ? `Running since ${cron.startedAt ? timeAgo(cron.startedAt) : "unknown"}` : cron.lastRun ? `Last: ${timeAgo(cron.lastRun)}` : "Never run"}
-                  </div>
+          <div className="space-y-3">
+            {Object.entries(
+              stats.crons.reduce<Record<string, typeof stats.crons>>((acc, cron) => {
+                const cat = cron.category || "other";
+                if (!acc[cat]) acc[cat] = [];
+                acc[cat].push(cron);
+                return acc;
+              }, {}),
+            ).map(([category, crons]) => (
+              <div key={category}>
+                <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 px-2">
+                  {category === "scraper" ? "Scrapers" : category === "matching" ? "Matching" : category === "application" ? "Applications" : category === "notification" ? "Notifications" : category === "followup" ? "Follow-ups" : category === "maintenance" ? "Maintenance" : category}
                 </div>
-                <Button size="sm" variant="ghost" disabled={!!triggeringSource || cron.isRunning} onClick={() => handleTrigger(cron.key)}
-                  className="h-7 px-2 text-slate-500 hover:text-white hover:bg-white/[0.06]">
-                  {triggeringSource === cron.key ? <Loader2 className="h-3 w-3 animate-spin" /> : cron.isRunning ? <Activity className="h-3 w-3 text-amber-400" /> : <Play className="h-3 w-3" />}
-                </Button>
+                <div className="space-y-0.5">
+                  {crons.map((cron) => {
+                    const statusColor = cron.isRunning
+                      ? "text-amber-400"
+                      : cron.lastStatus === "success" ? "text-emerald-400"
+                      : cron.lastStatus === "error" ? "text-red-400"
+                      : cron.recentFailures > 2 ? "text-red-400"
+                      : !cron.lastRun ? "text-slate-600"
+                      : "text-emerald-400";
+                    return (
+                      <div key={cron.key} className="flex items-center gap-2 rounded-lg p-2 hover:bg-white/[0.03] transition-colors">
+                        <Circle className={`h-2 w-2 shrink-0 fill-current ${statusColor} ${cron.isRunning ? "animate-pulse" : ""}`} />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-medium text-slate-300">{cron.label}</div>
+                          <div className="text-[10px] text-slate-500 truncate">
+                            {cron.isRunning
+                              ? `Running since ${cron.startedAt ? timeAgo(cron.startedAt) : "unknown"}`
+                              : cron.lastRun
+                                ? `${timeAgo(cron.lastRun)}${cron.lastDurationMs ? ` · ${(cron.lastDurationMs / 1000).toFixed(1)}s` : ""}`
+                                : "Waiting for first run"}
+                          </div>
+                        </div>
+                        {cron.avgDurationMs != null && cron.avgDurationMs > 7000 && (
+                          <span className="text-[9px] text-amber-400 shrink-0" title="Avg duration is near 10s Vercel limit">slow</span>
+                        )}
+                        <Button size="sm" variant="ghost" disabled={!!triggeringSource || cron.isRunning} onClick={() => handleTrigger(cron.key)}
+                          className="h-7 px-2 text-slate-500 hover:text-white hover:bg-white/[0.06]">
+                          {triggeringSource === cron.key ? <Loader2 className="h-3 w-3 animate-spin" /> : cron.isRunning ? <Activity className="h-3 w-3 text-amber-400" /> : <Play className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
@@ -402,12 +434,13 @@ export default function AdminDashboard() {
             <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Quick Actions</h3>
             <div className="flex flex-wrap gap-2">
               {[
-                { id: "scrape-posts", label: "Scrape Posts", icon: Globe },
+                { id: "scrape-global", label: "Full Scrape", icon: Globe },
+                { id: "match-all-users", label: "Match All", icon: Globe },
+                { id: "instant-apply", label: "Auto Draft", icon: Sparkles },
                 { id: "send-scheduled", label: "Send Scheduled", icon: Mail },
                 { id: "send-queued", label: "Send Queued", icon: Send },
                 { id: "notify-matches", label: "Notify", icon: Activity },
-                { id: "cleanup-stale", label: "Cleanup Stale", icon: Trash2 },
-                { id: "match-all-users", label: "Match All", icon: Globe },
+                { id: "cleanup-stale", label: "Cleanup", icon: Trash2 },
               ].map((a) => (
                 <Button key={a.id} size="sm" variant="outline" disabled={!!triggeringSource} onClick={() => handleTrigger(a.id)}
                   className="h-7 text-[11px] gap-1 border-white/10 bg-white/[0.03] text-slate-400 hover:bg-white/[0.08] hover:text-white">

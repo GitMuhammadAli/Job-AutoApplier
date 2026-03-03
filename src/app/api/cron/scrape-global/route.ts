@@ -326,37 +326,63 @@ export async function GET(req: NextRequest) {
     // Vercel function invocation which then runs independently.
     const shouldMatch = req.nextUrl.searchParams.get("match") === "true";
     const shouldSend = req.nextUrl.searchParams.get("send") === "true";
+    const cronSecret = process.env.CRON_SECRET;
+    const origin = req.nextUrl.origin;
 
-    let matchResult = null;
-    let sendResult = null;
+    const downstream: Record<string, string | null> = {};
+
+    const fireAndForget = (name: string, path: string) => {
+      try {
+        const url = new URL(path, origin);
+        url.searchParams.set("secret", cronSecret || "");
+        fetch(url.toString()).catch((e) => {
+          console.error(`[ScrapeGlobal] Fire-and-forget ${name} failed:`, e);
+        });
+        downstream[name] = "triggered";
+      } catch (e) {
+        downstream[name] = `failed: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    };
 
     if (shouldMatch) {
-      try {
-        const matchUrl = new URL("/api/cron/match-all-users", req.nextUrl.origin);
-        fetch(matchUrl.toString(), {
-          headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
-        }).catch((e) => {
-          console.error("[ScrapeGlobal] Fire-and-forget match-all-users failed:", e);
-        });
-        matchResult = "triggered (fire-and-forget)";
-      } catch (e) {
-        matchResult = `failed to dispatch: ${e instanceof Error ? e.message : String(e)}`;
-      }
+      fireAndForget("match-all-users", "/api/cron/match-all-users");
     }
 
     if (shouldSend) {
-      try {
-        const sendUrl = new URL("/api/cron/send-queued", req.nextUrl.origin);
-        fetch(sendUrl.toString(), {
-          headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
-        }).catch((e) => {
-          console.error("[ScrapeGlobal] Fire-and-forget send-queued failed:", e);
-        });
-        sendResult = "triggered (fire-and-forget)";
-      } catch (e) {
-        sendResult = `failed to dispatch: ${e instanceof Error ? e.message : String(e)}`;
-      }
+      fireAndForget("send-queued", "/api/cron/send-queued");
     }
+
+    // Always trigger instant-apply after scraping — it processes isFresh jobs
+    // and creates drafts/applications for all users. Without this, drafts are
+    // never created unless the user manually configures instant-apply in cron-job.org.
+    fireAndForget("instant-apply", "/api/cron/instant-apply");
+
+    // Maintenance crons — only fire if last run was >20 hours ago to avoid
+    // over-triggering (scrape-global runs every 2-4 hours)
+    try {
+      const twentyHoursAgo = new Date(Date.now() - 20 * 60 * 60 * 1000);
+      const recentMaintenance = await prisma.systemLog.findMany({
+        where: {
+          type: "cron-run",
+          source: { in: ["cleanup-stale", "check-follow-ups"] },
+          createdAt: { gte: twentyHoursAgo },
+        },
+        select: { source: true },
+      });
+      const recentSources = new Set(recentMaintenance.map((l) => l.source));
+      if (!recentSources.has("cleanup-stale")) {
+        fireAndForget("cleanup-stale", "/api/cron/cleanup-stale");
+      }
+      if (!recentSources.has("check-follow-ups")) {
+        fireAndForget("check-follow-ups", "/api/cron/check-follow-ups");
+      }
+    } catch (e) {
+      console.warn("[ScrapeGlobal] Maintenance cron check failed, skipping:", e);
+    }
+
+    // Flush any batched API usage logs before the function terminates
+    const { flushApiUsageLogs } = await import("@/lib/api-usage-logger");
+    await flushApiUsageLogs();
 
     const totalNew = results.reduce((s, r) => s + r.new, 0);
     await tracker.success({ processed: totalNew, failed: failedCount, metadata: { mode, sources: results.length } });
@@ -368,8 +394,7 @@ export async function GET(req: NextRequest) {
       totalNew,
       totalUpdated: results.reduce((s, r) => s + r.updated, 0),
       durationMs: Date.now() - startTime,
-      matchResult,
-      sendResult,
+      downstream,
     });
   } catch (error) {
     await tracker.error(error instanceof Error ? error : String(error));

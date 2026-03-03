@@ -2,6 +2,7 @@ import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
 import { TIMEOUTS } from "@/lib/constants";
+import { logApiCall } from "@/lib/api-usage-logger";
 
 export async function fetchJSearch(
   queries: SearchQuery[],
@@ -35,6 +36,8 @@ export async function fetchJSearch(
           2,
           deadline,
         );
+
+        logApiCall("jsearch").catch(() => {});
 
         if (!res.ok) continue;
 

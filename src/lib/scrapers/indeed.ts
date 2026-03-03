@@ -3,6 +3,7 @@ import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
 import { TIMEOUTS } from "@/lib/constants";
+import { logApiCall } from "@/lib/api-usage-logger";
 
 /**
  * Fetches Indeed jobs via JSearch (RapidAPI) — filters by publisher "Indeed".
@@ -44,6 +45,8 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
           2,
           deadline,
         );
+
+        logApiCall("jsearch").catch(() => {});
 
         if (!res.ok) continue;
 

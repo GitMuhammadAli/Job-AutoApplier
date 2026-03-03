@@ -1,6 +1,7 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { TIMEOUTS } from "@/lib/constants";
+import { logApiCall } from "@/lib/api-usage-logger";
 
 const ADZUNA_COUNTRY_MAP: Record<string, string> = {
   pakistan: "pk", india: "in", "united states": "us", usa: "us",
@@ -48,6 +49,7 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
       const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&what=${keyword}&results_per_page=50&max_days_old=14&sort_by=date`;
 
       const res = await fetchWithRetry(url, undefined, 2, deadline);
+      logApiCall("adzuna").catch(() => {});
       if (!res.ok) continue;
 
       const data = await res.json();

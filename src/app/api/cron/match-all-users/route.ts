@@ -205,6 +205,29 @@ export async function GET(req: NextRequest) {
 
     await tracker.success({ processed: totalMatched, metadata: { users: results.length, availableJobs: unmatchedJobs.length, nextCursor } });
 
+    // Fire-and-forget downstream crons after matching completes
+    const cronSecret = process.env.CRON_SECRET;
+    const origin = req.nextUrl.origin;
+    const downstream: Record<string, string> = {};
+
+    const fireAndForget = (name: string, path: string) => {
+      try {
+        const url = new URL(path, origin);
+        url.searchParams.set("secret", cronSecret || "");
+        fetch(url.toString()).catch((e) => {
+          console.error(`[MatchAllUsers] Fire-and-forget ${name} failed:`, e);
+        });
+        downstream[name] = "triggered";
+      } catch (e) {
+        downstream[name] = `failed: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    };
+
+    if (totalMatched > 0) {
+      fireAndForget("notify-matches", "/api/cron/notify-matches");
+      fireAndForget("instant-apply", "/api/cron/instant-apply");
+    }
+
     return NextResponse.json({
       success: true,
       users: results.length,
@@ -212,6 +235,7 @@ export async function GET(req: NextRequest) {
       totalMatched,
       perUser: results,
       nextCursor,
+      downstream,
     });
   } catch (error) {
     await tracker.error(error instanceof Error ? error : String(error));

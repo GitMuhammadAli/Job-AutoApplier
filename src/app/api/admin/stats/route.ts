@@ -18,14 +18,13 @@ const SCRAPE_SOURCES = [
 ];
 
 const CRON_NAMES: { key: string; label: string; category: string }[] = [
-  // Scrapers
+  // Primary scraper orchestrator
   { key: "scrape-global", label: "Scrape Global", category: "scraper" },
-  { key: "scrape-posts", label: "Scrape LinkedIn Posts", category: "scraper" },
+  // Per-source scrapers (run individually or via scrape-global)
   { key: "scrape-indeed", label: "Scrape Indeed", category: "scraper" },
   { key: "scrape-remotive", label: "Scrape Remotive", category: "scraper" },
   { key: "scrape-arbeitnow", label: "Scrape Arbeitnow", category: "scraper" },
-  { key: "scrape-linkedin", label: "Scrape LinkedIn Jobs", category: "scraper" },
-  { key: "scrape-linkedin_posts", label: "Scrape LI Posts (per-source)", category: "scraper" },
+  { key: "scrape-linkedin", label: "Scrape LinkedIn", category: "scraper" },
   { key: "scrape-rozee", label: "Scrape Rozee", category: "scraper" },
   { key: "scrape-jsearch", label: "Scrape JSearch", category: "scraper" },
   { key: "scrape-adzuna", label: "Scrape Adzuna", category: "scraper" },
@@ -33,7 +32,7 @@ const CRON_NAMES: { key: string; label: string; category: string }[] = [
   // Matching
   { key: "match-jobs", label: "Match Jobs", category: "matching" },
   { key: "match-all-users", label: "Match All Users", category: "matching" },
-  // Application
+  // Application pipeline
   { key: "instant-apply", label: "Instant Apply", category: "application" },
   { key: "send-scheduled", label: "Send Scheduled", category: "application" },
   { key: "send-queued", label: "Send Queued", category: "application" },
@@ -128,8 +127,8 @@ export async function GET() {
       totalFailed,
       allCronLogs,
       recentlyActive,
-      jsearchUsed,
-      groqUsed,
+      jsearchUsageLogs,
+      groqUsageLogs,
       brevoUsed,
     ] = await Promise.all([
       // Job counts per source (active)
@@ -196,17 +195,28 @@ export async function GET() {
         orderBy: { lastVisitedAt: "desc" },
         take: 20,
       }),
-      // Quotas
-      prisma.systemLog.count({
-        where: { type: { in: ["api_usage", "api_call"] }, source: "jsearch", createdAt: { gte: startOfMonth } },
+      // Quotas — aggregate from api_call log entries, summing the count field
+      prisma.systemLog.findMany({
+        where: { type: "api_call", source: "jsearch", createdAt: { gte: startOfMonth } },
+        select: { metadata: true },
+      }),
+      prisma.systemLog.findMany({
+        where: { type: "api_call", source: "groq", createdAt: { gte: startOfDay } },
+        select: { metadata: true },
       }),
       prisma.systemLog.count({
-        where: { type: { in: ["api_usage", "api_call"] }, source: "groq", createdAt: { gte: startOfDay } },
-      }),
-      prisma.activity.count({
-        where: { type: "NOTIFICATION_SENT", createdAt: { gte: startOfDay } },
+        where: { type: "notification", createdAt: { gte: startOfDay } },
       }),
     ]);
+
+    // Sum API call counts from batched log entries
+    const sumApiCalls = (logs: { metadata: unknown }[]): number =>
+      logs.reduce((sum, log) => {
+        const meta = log.metadata as Record<string, unknown> | null;
+        return sum + ((meta?.count as number) || 1);
+      }, 0);
+    const jsearchUsed = sumApiCalls(jsearchUsageLogs);
+    const groqUsed = sumApiCalls(groqUsageLogs);
 
     // Build lookup maps from batch results
     const jobCountMap = new Map(jobCountsBySource.map((r) => [r.source, r._count]));

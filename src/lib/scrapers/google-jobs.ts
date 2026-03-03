@@ -1,6 +1,7 @@
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { TIMEOUTS } from "@/lib/constants";
+import { logApiCall } from "@/lib/api-usage-logger";
 
 export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const key = process.env.SERPAPI_KEY;
@@ -27,6 +28,7 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
         const url = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&api_key=${key}`;
 
         const res = await fetchWithRetry(url, undefined, 2, deadline);
+        logApiCall("serpapi").catch(() => {});
         if (!res.ok) continue;
 
         const data = await res.json();
