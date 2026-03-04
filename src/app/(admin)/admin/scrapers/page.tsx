@@ -51,6 +51,7 @@ interface CronInfo {
   key: string;
   label: string;
   category: string;
+  schedule: string;
   lastRun: string | null;
   lastMessage: string | null;
   lastStatus: string | null;
@@ -113,7 +114,11 @@ export default function AdminScrapersPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   async function handleTrigger(source: string) {
     setTriggeringSource(source);
@@ -397,6 +402,7 @@ function CronCard({ cron: c, triggeringSource, onTrigger }: { cron: CronInfo; tr
       </div>
 
       <div className="space-y-1.5 text-[10px] mb-2.5">
+        <MetricRow icon={Timer} label="Schedule" value={c.schedule} />
         <MetricRow icon={Clock} label="Last run" value={c.lastRun ? timeAgo(c.lastRun) : "Never"} />
         {c.lastDurationMs != null && (
           <MetricRow icon={Timer} label="Duration" value={formatDuration(c.lastDurationMs)} />

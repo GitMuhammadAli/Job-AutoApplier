@@ -17,32 +17,26 @@ const SCRAPE_SOURCES = [
   "google",
 ];
 
-const CRON_NAMES: { key: string; label: string; category: string }[] = [
-  // Primary scraper orchestrator
-  { key: "scrape-global", label: "Scrape Global", category: "scraper" },
-  // Per-source scrapers (run individually or via scrape-global)
-  { key: "scrape-indeed", label: "Scrape Indeed", category: "scraper" },
-  { key: "scrape-remotive", label: "Scrape Remotive", category: "scraper" },
-  { key: "scrape-arbeitnow", label: "Scrape Arbeitnow", category: "scraper" },
-  { key: "scrape-linkedin", label: "Scrape LinkedIn", category: "scraper" },
-  { key: "scrape-rozee", label: "Scrape Rozee", category: "scraper" },
-  { key: "scrape-jsearch", label: "Scrape JSearch", category: "scraper" },
-  { key: "scrape-adzuna", label: "Scrape Adzuna", category: "scraper" },
-  { key: "scrape-google", label: "Scrape Google", category: "scraper" },
+// Only list crons that are actually scheduled on cron-job.org
+// Per-source scrapers (scrape-indeed, scrape-remotive, etc.) are sub-tasks of scrape-global
+// and are NOT scheduled individually — they should NOT appear here.
+const CRON_NAMES: { key: string; label: string; category: string; schedule: string }[] = [
+  // Scraping (orchestrated via scrape-global)
+  { key: "scrape-global", label: "Scrape Global", category: "scraper", schedule: "Every 2h (free) / 6h (paid)" },
   // Matching
-  { key: "match-jobs", label: "Match Jobs", category: "matching" },
-  { key: "match-all-users", label: "Match All Users", category: "matching" },
+  { key: "match-all-users", label: "Match All Users", category: "matching", schedule: "Every hour" },
+  { key: "match-jobs", label: "Match Jobs", category: "matching", schedule: "On-demand" },
   // Application pipeline
-  { key: "instant-apply", label: "Instant Apply", category: "application" },
-  { key: "send-scheduled", label: "Send Scheduled", category: "application" },
-  { key: "send-queued", label: "Send Queued", category: "application" },
+  { key: "instant-apply", label: "Instant Apply", category: "application", schedule: "Every 30 min" },
+  { key: "send-scheduled", label: "Send Scheduled", category: "application", schedule: "Every 5 min" },
+  { key: "send-queued", label: "Send Queued", category: "application", schedule: "Every 5 min" },
   // Notification
-  { key: "notify-matches", label: "Notify Matches", category: "notification" },
+  { key: "notify-matches", label: "Notify Matches", category: "notification", schedule: "Daily at 9:00 AM" },
   // Follow-up
-  { key: "follow-up", label: "Follow Up", category: "followup" },
-  { key: "check-follow-ups", label: "Check Follow Ups", category: "followup" },
+  { key: "follow-up", label: "Follow Up", category: "followup", schedule: "Every 8 hours" },
+  { key: "check-follow-ups", label: "Check Follow Ups", category: "followup", schedule: "Daily at 9:00 AM" },
   // Maintenance
-  { key: "cleanup-stale", label: "Cleanup Stale", category: "maintenance" },
+  { key: "cleanup-stale", label: "Cleanup Stale", category: "maintenance", schedule: "Daily at 3:00 AM" },
 ];
 
 export async function GET() {
@@ -322,6 +316,7 @@ export async function GET() {
         key: cron.key,
         label: cron.label,
         category: cron.category,
+        schedule: cron.schedule,
         lastRun: lastLog?.createdAt ?? null,
         lastMessage: lastLog?.message ?? null,
         lastStatus: (meta.status as string) ?? null,

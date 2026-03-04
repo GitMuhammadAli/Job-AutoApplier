@@ -69,6 +69,7 @@ interface AdminStats {
     key: string;
     label: string;
     category: string;
+    schedule: string;
     lastRun: string | null;
     lastMessage: string | null;
     lastStatus: string | null;
@@ -101,7 +102,11 @@ export default function AdminDashboard() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchStats(); }, [fetchStats]);
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
 
   async function handleTrigger(source: string) {
     setTriggeringSource(source);
@@ -149,6 +154,7 @@ export default function AdminDashboard() {
   }
 
   const healthyScrapers = stats.scrapers.filter((s) => s.isHealthy).length;
+  const healthyCrons = stats.crons.filter((c) => c.lastStatus === "success" || c.lastStatus === "skipped").length;
   const runningLocks = stats.locks.filter((l) => l.isRunning);
 
   return (
@@ -161,7 +167,7 @@ export default function AdminDashboard() {
             <h1 className="text-lg font-bold text-white tracking-tight">Dashboard</h1>
           </div>
           <p className="text-[11px] text-slate-500 mt-1">
-            System overview &middot; {healthyScrapers}/{stats.scrapers.length} scrapers healthy
+            System overview &middot; {healthyCrons}/{stats.crons.length} crons OK &middot; {healthyScrapers}/{stats.scrapers.length} scrapers healthy
             {runningLocks.length > 0 && (
               <span className="text-amber-400 ml-2">
                 &middot; {runningLocks.length} lock{runningLocks.length > 1 ? "s" : ""} active
@@ -406,7 +412,10 @@ export default function AdminDashboard() {
                       <div key={cron.key} className="flex items-center gap-2 rounded-lg p-2 hover:bg-white/[0.03] transition-colors">
                         <Circle className={`h-2 w-2 shrink-0 fill-current ${statusColor} ${cron.isRunning ? "animate-pulse" : ""}`} />
                         <div className="min-w-0 flex-1">
-                          <div className="text-xs font-medium text-slate-300">{cron.label}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-slate-300">{cron.label}</span>
+                            <span className="text-[9px] text-slate-600">{cron.schedule}</span>
+                          </div>
                           <div className="text-[10px] text-slate-500 truncate">
                             {cron.isRunning
                               ? `Running since ${cron.startedAt ? timeAgo(cron.startedAt) : "unknown"}`
