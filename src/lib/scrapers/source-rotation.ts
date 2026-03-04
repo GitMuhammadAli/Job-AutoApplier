@@ -30,15 +30,21 @@ export function getTodaysSources(): string[] {
 export function getPaidSourcesToday(): string[] {
   const sources: string[] = [];
 
-  if (process.env.RAPIDAPI_KEY) sources.push("jsearch");
+  if (process.env.RAPIDAPI_KEY) {
+    sources.push("jsearch");
+    sources.push("indeed");
+  }
   if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) sources.push("adzuna");
 
-  if (process.env.SERPAPI_KEY) sources.push("google");
+  if (process.env.SERPAPI_KEY) {
+    sources.push("google");
+    sources.push("rozee");
+  }
 
   return sources;
 }
 
-const FREE_SOURCES = ["indeed", "remotive", "arbeitnow", "linkedin", "rozee", "linkedin_posts"];
+const FREE_SOURCES = ["remotive", "arbeitnow", "linkedin", "linkedin_posts"];
 
 /**
  * Get priority platforms from all users who have instantApply enabled.

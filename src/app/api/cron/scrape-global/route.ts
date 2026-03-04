@@ -79,18 +79,16 @@ export async function GET(req: NextRequest) {
         sources = await getPriorityPlatforms();
         break;
       case "free":
-        sources = ["indeed", "remotive", "arbeitnow", "linkedin", "rozee", "linkedin_posts"];
+        sources = ["remotive", "arbeitnow", "linkedin", "linkedin_posts"];
         break;
       case "paid":
         sources = getPaidSourcesToday();
         break;
       default:
         sources = [
-          "indeed",
           "remotive",
           "arbeitnow",
           "linkedin",
-          "rozee",
           "linkedin_posts",
           ...getPaidSourcesToday(),
         ];
