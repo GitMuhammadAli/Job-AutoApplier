@@ -67,7 +67,8 @@ export async function fetchRemotive(queries: SearchQuery[]): Promise<ScrapedJob[
     console.warn("[Remotive] Scraper failed:", err);
   }
 
-  return jobs;
+  const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+  return jobs.filter((j) => !j.postedDate || j.postedDate.getTime() >= threeDaysAgo);
 }
 
 function cleanHtml(html: string): string {

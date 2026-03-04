@@ -22,7 +22,7 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
     try {
       // Search Google Jobs for Pakistan-specific listings
       const query = encodeURIComponent(`${q.keyword} jobs Pakistan`);
-      const url = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&api_key=${key}`;
+      const url = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&chips=date_posted:today&api_key=${key}`;
 
       const res = await fetchWithRetry(url);
       if (!res.ok) continue;

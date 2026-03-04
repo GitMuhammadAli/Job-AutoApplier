@@ -46,7 +46,7 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
       const keyword = encodeURIComponent(q.keyword);
 
       // Only fetch page 1 to stay within time budget
-      const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&what=${keyword}&results_per_page=50&max_days_old=14&sort_by=date`;
+      const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?app_id=${appId}&app_key=${appKey}&what=${keyword}&results_per_page=50&max_days_old=3&sort_by=date`;
 
       const res = await fetchWithRetry(url, undefined, 2, deadline);
       logApiCall("adzuna").catch(() => {});

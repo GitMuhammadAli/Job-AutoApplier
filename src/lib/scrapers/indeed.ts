@@ -35,7 +35,7 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
       try {
         const query = `${q.keyword} jobs in ${city}`;
         const res = await fetchWithRetry(
-          `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=1&date_posted=week`,
+          `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=1&date_posted=today`,
           {
             headers: {
               "x-rapidapi-host": "jsearch.p.rapidapi.com",

@@ -78,15 +78,15 @@ export const MATCHING = {
 } as const;
 
 export const STALE_DAYS: Record<string, number> = {
-  linkedin: 14,
-  indeed: 10,
-  remotive: 21,
-  arbeitnow: 21,
-  adzuna: 14,
-  rozee: 14,
-  jsearch: 14,
-  google: 14,
-  linkedin_posts: 7,
+  linkedin: 7,
+  indeed: 5,
+  remotive: 7,
+  arbeitnow: 7,
+  adzuna: 7,
+  rozee: 7,
+  jsearch: 5,
+  google: 7,
+  linkedin_posts: 5,
   manual: 30,
   default: 7,
 } as const;

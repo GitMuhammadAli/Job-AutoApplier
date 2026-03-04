@@ -57,5 +57,6 @@ export async function fetchArbeitnow(): Promise<ScrapedJob[]> {
     console.warn("[Arbeitnow] Scraper failed:", err);
   }
 
-  return jobs;
+  const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+  return jobs.filter((j) => !j.postedDate || j.postedDate.getTime() >= threeDaysAgo);
 }

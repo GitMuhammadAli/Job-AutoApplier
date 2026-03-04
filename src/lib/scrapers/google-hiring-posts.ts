@@ -49,7 +49,7 @@ interface SearchResult {
 /**
  * Fetch results from Google Custom Search API (free tier: 100/day).
  * CSE should be configured to search linkedin.com/posts.
- * dateRestrict=d7 captures posts Google indexes slowly (2-5 day lag).
+ * dateRestrict=d3 captures recent posts (Google indexes with 1-2 day lag).
  */
 async function fetchGoogleCSE(
   query: string,
@@ -58,7 +58,7 @@ async function fetchGoogleCSE(
   const cx = process.env.GOOGLE_CSE_ID;
   if (!key || !cx) return [];
 
-  const url = `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=10&dateRestrict=d7&sort=date`;
+  const url = `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=10&dateRestrict=d3&sort=date`;
 
   const res = await fetchWithRetry(url);
   logApiCall("google_cse").catch(() => {});
@@ -92,7 +92,7 @@ async function fetchGoogleCSE(
 
 /**
  * Fetch results from SerpAPI (paid fallback).
- * Uses qdr:w1 (past week) for wider coverage.
+ * Uses qdr:d3 (past 3 days) for fresh coverage.
  */
 async function fetchSerpAPI(
   query: string,
@@ -100,7 +100,7 @@ async function fetchSerpAPI(
   const key = process.env.SERPAPI_KEY;
   if (!key) return [];
 
-  const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&num=20&tbs=qdr:w1&api_key=${key}`;
+  const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&num=20&tbs=qdr:d3&api_key=${key}`;
 
   const res = await fetchWithRetry(url);
   logApiCall("serpapi").catch(() => {});
