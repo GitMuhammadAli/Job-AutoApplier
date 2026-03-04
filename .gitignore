@@ -14,9 +14,5 @@ e2e-*.ts
 
 .vercel
 
-# Documentation (local reference only)
-TECH_REFERENCE.md
-SYSTEM_FLOW.md
-QA_AUDIT_REPORT.md
-SYSTEM-ARCHITECTURE.md
+# Contains secrets — never commit
 FREE_RESOURCES_AND_ENV.md
