@@ -63,9 +63,9 @@ export const TIMEOUTS = {
   // INTER_SEND_DELAY_MS and INSTANT_APPLY_DELAY_MS removed —
   // per-user sendDelaySeconds from UserSettings is used instead
   /** Per-API-call timeout for scrapers (ms) — must be well under Vercel 10s limit */
-  SCRAPER_API_TIMEOUT_MS: 6_000,
+  SCRAPER_API_TIMEOUT_MS: 7_000,
   /** Soft deadline for scrapers to wrap up (ms) — bail and return partial results */
-  SCRAPER_DEADLINE_MS: 8_000,
+  SCRAPER_DEADLINE_MS: 9_000,
 } as const;
 
 export const MATCHING = {

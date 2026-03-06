@@ -20,59 +20,67 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
 
   for (const q of queries.slice(0, 5)) {
     try {
-      // Search Google Jobs for Pakistan-specific listings
       const query = encodeURIComponent(`${q.keyword} jobs Pakistan`);
-      const url = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&chips=date_posted:today&api_key=${key}`;
+      const baseUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&chips=date_posted:week&api_key=${key}`;
 
-      const res = await fetchWithRetry(url);
-      if (!res.ok) continue;
+      // Fetch up to 2 pages (start=0 and start=10) for broader coverage
+      const pages = [0, 10];
 
-      const data = await res.json();
-      const results = data?.jobs_results || [];
+      for (const start of pages) {
+        const url = start === 0 ? baseUrl : `${baseUrl}&start=${start}`;
 
-      for (const r of results) {
-        const locLower = (r.location || "").toLowerCase();
-        const isPakistan = locLower.includes("pakistan") ||
-          PK_CITIES.some((c) => locLower.includes(c));
+        const res = await fetchWithRetry(url);
+        if (!res.ok) break;
 
-        if (!isPakistan) continue;
+        const data = await res.json();
+        const results = data?.jobs_results || [];
 
-        const applyOptions: Array<{ link?: string; title?: string }> = r.apply_options || [];
-        const rozeeLink = applyOptions.find(
-          (opt) => opt.link && opt.link.toLowerCase().includes("rozee.pk")
-        );
-        const applyUrl = rozeeLink?.link || applyOptions[0]?.link || null;
-        const titleSlug = (r.title || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
-        const compSlug = (r.company_name || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
-        const sourceId = `rozee-${r.job_id || `${titleSlug}-${compSlug}`}`;
+        for (const r of results) {
+          const locLower = (r.location || "").toLowerCase();
+          const isPakistan = locLower.includes("pakistan") ||
+            PK_CITIES.some((c) => locLower.includes(c));
 
-        if (seen.has(sourceId)) continue;
-        seen.add(sourceId);
+          if (!isPakistan) continue;
 
-        const title = r.title || "Untitled";
-        const description = r.description || null;
-        const skills = extractSkillsFromContent(description || "");
+          const applyOptions: Array<{ link?: string; title?: string }> = r.apply_options || [];
+          const rozeeLink = applyOptions.find(
+            (opt) => opt.link && opt.link.toLowerCase().includes("rozee.pk")
+          );
+          const applyUrl = rozeeLink?.link || applyOptions[0]?.link || null;
+          const titleSlug = (r.title || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40);
+          const compSlug = (r.company_name || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
+          const sourceId = `rozee-${r.job_id || `${titleSlug}-${compSlug}`}`;
 
-        jobs.push({
-          title,
-          company: r.company_name || "Unknown",
-          location: r.location || "Pakistan",
-          description,
-          salary: r.detected_extensions?.salary || null,
-          jobType: r.detected_extensions?.schedule_type?.toLowerCase() || null,
-          experienceLevel: null,
-          category: categorizeJob(title, skills, description || ""),
-          skills,
-          postedDate: r.detected_extensions?.posted_at
-            ? parseRelativeDate(r.detected_extensions.posted_at)
-            : null,
-          source: "rozee",
-          sourceId,
-          sourceUrl: applyUrl,
-          applyUrl,
-          companyUrl: null,
-          companyEmail: null,
-        });
+          if (seen.has(sourceId)) continue;
+          seen.add(sourceId);
+
+          const title = r.title || "Untitled";
+          const description = r.description || null;
+          const skills = extractSkillsFromContent(description || "");
+
+          jobs.push({
+            title,
+            company: r.company_name || "Unknown",
+            location: r.location || "Pakistan",
+            description,
+            salary: r.detected_extensions?.salary || null,
+            jobType: r.detected_extensions?.schedule_type?.toLowerCase() || null,
+            experienceLevel: null,
+            category: categorizeJob(title, skills, description || ""),
+            skills,
+            postedDate: r.detected_extensions?.posted_at
+              ? parseRelativeDate(r.detected_extensions.posted_at)
+              : null,
+            source: "rozee",
+            sourceId,
+            sourceUrl: applyUrl,
+            applyUrl,
+            companyUrl: null,
+            companyEmail: null,
+          });
+        }
+
+        if (results.length < 10) break;
       }
     } catch (err) {
       console.warn(`[Rozee] Failed for "${q.keyword}":`, err);

@@ -21,8 +21,8 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
-  const MAX_QUERIES = 4;
-  const MAX_CITIES = 2;
+  const MAX_QUERIES = 2;
+  const MAX_CITIES = 1;
   if (queries.length > MAX_QUERIES) {
     console.log(`[Indeed] Truncating ${queries.length} queries to ${MAX_QUERIES} (dropped: ${queries.slice(MAX_QUERIES).map(q => q.keyword).join(", ")})`);
   }
@@ -48,7 +48,10 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
 
         logApiCall("jsearch").catch(() => {});
 
-        if (!res.ok) continue;
+        if (!res.ok) {
+          console.warn(`[Indeed] HTTP ${res.status} for "${q.keyword}" in "${city}"`);
+          continue;
+        }
 
         const data = await res.json();
         const results = data?.data || [];
@@ -89,7 +92,8 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
         }
       } catch (err) {
         if (err instanceof Error && err.message === "SCRAPER_DEADLINE") break;
-        console.warn(`[Indeed] Failed for "${q.keyword}" in "${city}":`, err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[Indeed] Failed for "${q.keyword}" in "${city}":`, msg);
       }
     }
   }

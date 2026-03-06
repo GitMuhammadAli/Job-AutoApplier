@@ -221,7 +221,7 @@ export async function GET(req: NextRequest) {
             try {
               const result = await prisma.globalJob.updateMany({
                 where: { id: { in: existingIds } },
-                data: { lastSeenAt: new Date(), isActive: true },
+                data: { lastSeenAt: new Date(), isActive: true, isFresh: true },
               });
               updatedCount = result.count;
             } catch (err) {

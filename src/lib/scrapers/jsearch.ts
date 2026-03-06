@@ -6,7 +6,7 @@ import { logApiCall } from "@/lib/api-usage-logger";
 
 export async function fetchJSearch(
   queries: SearchQuery[],
-  maxQueries = 3
+  maxQueries = 2
 ): Promise<ScrapedJob[]> {
   const key = process.env.RAPIDAPI_KEY;
   if (!key) return [];
@@ -20,7 +20,7 @@ export async function fetchJSearch(
   for (const q of limited) {
     if (Date.now() >= deadline) break;
 
-    for (const city of q.cities.slice(0, 2)) {
+    for (const city of q.cities.slice(0, 1)) {
       if (Date.now() >= deadline) break;
 
       try {
@@ -39,7 +39,10 @@ export async function fetchJSearch(
 
         logApiCall("jsearch").catch(() => {});
 
-        if (!res.ok) continue;
+        if (!res.ok) {
+          console.warn(`[JSearch] HTTP ${res.status} for "${q.keyword}" in "${city}"`);
+          continue;
+        }
 
         const data = await res.json();
         const results = data?.data || [];
@@ -74,7 +77,8 @@ export async function fetchJSearch(
         }
       } catch (err) {
         if (err instanceof Error && err.message === "SCRAPER_DEADLINE") break;
-        console.warn(`[JSearch] Failed for "${q.keyword}" in "${city}":`, err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[JSearch] Failed for "${q.keyword}" in "${city}":`, msg);
       }
     }
   }
