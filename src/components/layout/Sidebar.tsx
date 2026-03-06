@@ -20,6 +20,11 @@ import {
   Sparkles,
   Activity,
   Pause,
+  Radar,
+  TrendingUp,
+  FileSearch,
+  MessageSquare,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -42,6 +47,17 @@ const TOOLS_NAV = [
 const BOTTOM_NAV = [
   { href: "/settings", label: "Settings", icon: Settings, desc: "Preferences" },
 ];
+
+const DEVRADAR_URL = process.env.NEXT_PUBLIC_DEVRADAR_URL;
+
+const DEVRADAR_NAV = DEVRADAR_URL
+  ? [
+      { href: `${DEVRADAR_URL}/skills`, label: "Skill Trends", icon: TrendingUp, desc: "What's in demand" },
+      { href: `${DEVRADAR_URL}/resume`, label: "Resume Gaps", icon: FileSearch, desc: "Analyze your fit" },
+      { href: `${DEVRADAR_URL}/interview`, label: "Interview Prep", icon: MessageSquare, desc: "AI mock interviews" },
+      { href: `${DEVRADAR_URL}/salaries`, label: "Salaries", icon: BarChart3, desc: "Market pay data" },
+    ]
+  : [];
 
 interface SidebarProps {
   user?: {
@@ -181,6 +197,35 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
             </div>
           </div>
 
+          {/* DevRadar — only shows when NEXT_PUBLIC_DEVRADAR_URL is configured */}
+          {DEVRADAR_NAV.length > 0 && (
+            <div className="mt-5">
+              <div className="mx-0 mb-2 rounded-xl bg-gradient-to-r from-rose-500/8 to-purple-500/8 dark:from-rose-500/10 dark:to-purple-500/10 p-2.5 ring-1 ring-rose-200/30 dark:ring-rose-800/20">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-md bg-gradient-to-br from-rose-500/20 to-purple-500/20">
+                    <Radar className="h-3 w-3 text-rose-500 dark:text-rose-400" />
+                  </div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-rose-500 to-purple-500 bg-clip-text text-transparent">DevRadar</p>
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                {DEVRADAR_NAV.map((item) => (
+                  <ExternalNavLink key={item.href} item={item} onNavigate={() => setMobileOpen(false)} />
+                ))}
+              </div>
+              <a
+                href={DEVRADAR_URL!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center justify-center gap-2 mx-1 mt-2 rounded-lg bg-gradient-to-r from-rose-500 to-purple-500 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm shadow-rose-500/20 hover:shadow-md hover:shadow-rose-500/30 transition-all hover:brightness-110"
+              >
+                <Radar className="h-3 w-3" />
+                Open DevRadar
+                <ExternalLink className="h-3 w-3 opacity-70" />
+              </a>
+            </div>
+          )}
+
           <div className="flex-1" />
 
           {/* Bottom — Settings + Admin */}
@@ -276,5 +321,32 @@ function NavLink({
         <div className={cn("text-[10px] leading-tight", isActive ? "text-blue-100" : "text-slate-400 dark:text-zinc-500")}>{item.desc}</div>
       </div>
     </Link>
+  );
+}
+
+function ExternalNavLink({
+  item,
+  onNavigate,
+}: {
+  item: { href: string; label: string; icon: React.ComponentType<{ className?: string }>; desc: string };
+  onNavigate: () => void;
+}) {
+  return (
+    <a
+      href={item.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onNavigate}
+      className="group flex items-center gap-3 rounded-xl px-3 py-2 transition-all duration-200 text-slate-500 dark:text-zinc-400 hover:bg-gradient-to-r hover:from-rose-50/50 hover:to-purple-50/50 dark:hover:from-rose-950/15 dark:hover:to-purple-950/15"
+    >
+      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500/10 to-purple-500/10 dark:from-rose-500/15 dark:to-purple-500/15 ring-1 ring-rose-200/20 dark:ring-rose-800/15 group-hover:from-rose-500/20 group-hover:to-purple-500/20 transition-all">
+        <item.icon className="h-3.5 w-3.5 text-rose-500/70 dark:text-rose-400/70 group-hover:text-rose-500 dark:group-hover:text-rose-400" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-medium text-slate-600 dark:text-zinc-300 group-hover:bg-gradient-to-r group-hover:from-rose-600 group-hover:to-purple-600 dark:group-hover:from-rose-400 dark:group-hover:to-purple-400 group-hover:bg-clip-text group-hover:text-transparent">{item.label}</div>
+        <div className="text-[10px] leading-tight text-slate-400 dark:text-zinc-500">{item.desc}</div>
+      </div>
+      <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity text-purple-400" />
+    </a>
   );
 }
