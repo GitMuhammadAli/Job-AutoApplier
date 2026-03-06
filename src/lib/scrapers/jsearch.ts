@@ -33,7 +33,7 @@ export async function fetchJSearch(
               "x-rapidapi-key": key,
             },
           },
-          2,
+          1,
           deadline,
         );
 

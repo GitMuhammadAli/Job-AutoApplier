@@ -58,9 +58,8 @@ const SCRAPERS: Record<string, ScraperFn> = {
 };
 
 // Fallback mapping: when primary fails, try these
+// jsearch/indeed run as dedicated crons — no fallbacks needed here
 const FALLBACKS: Record<string, { fn: ScraperFn; source: string } | undefined> = {
-  linkedin: process.env.RAPIDAPI_KEY ? { fn: (q) => fetchJSearch(q, 3), source: "jsearch" } : undefined,
-  indeed: process.env.RAPIDAPI_KEY ? { fn: (q) => fetchJSearch(q, 3), source: "jsearch" } : undefined,
   rozee: process.env.SERPAPI_KEY ? { fn: (q) => fetchGoogleJobs(q), source: "google" } : undefined,
 };
 

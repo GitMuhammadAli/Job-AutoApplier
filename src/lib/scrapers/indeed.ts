@@ -42,7 +42,7 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
               "x-rapidapi-key": key,
             },
           },
-          2,
+          1,
           deadline,
         );
 

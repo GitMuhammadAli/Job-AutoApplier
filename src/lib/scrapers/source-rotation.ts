@@ -7,11 +7,7 @@ import { prisma } from "@/lib/prisma";
 export function getTodaysSources(): string[] {
   const sources: string[] = [];
 
-  sources.push("indeed", "remotive", "arbeitnow", "linkedin", "rozee", "linkedin_posts");
-
-  if (process.env.RAPIDAPI_KEY) {
-    sources.push("jsearch");
-  }
+  sources.push("remotive", "arbeitnow", "linkedin", "rozee", "linkedin_posts");
 
   if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) {
     sources.push("adzuna");
@@ -30,10 +26,6 @@ export function getTodaysSources(): string[] {
 export function getPaidSourcesToday(): string[] {
   const sources: string[] = [];
 
-  if (process.env.RAPIDAPI_KEY) {
-    sources.push("jsearch");
-    sources.push("indeed");
-  }
   if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) sources.push("adzuna");
 
   if (process.env.SERPAPI_KEY) {
