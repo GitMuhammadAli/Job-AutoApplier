@@ -8,6 +8,7 @@ import { BulkActionsBar } from "@/components/dashboard/BulkActionsBar";
 import { TodaysQueue } from "@/components/dashboard/TodaysQueue";
 import { DeliveryStats } from "@/components/dashboard/DeliveryStats";
 import { KanbanSkeleton } from "@/components/shared/Skeletons";
+import { DevRadarBanner } from "@/components/dashboard/DevRadarBanner";
 import { Zap, Clock, Mail, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
@@ -54,6 +55,8 @@ export default async function DashboardPage() {
     <div className="space-y-5 animate-slide-up">
       {/* Client component — self-fetches via SWR, renders instantly */}
       <StatusBanner />
+
+      <DevRadarBanner />
 
       {/* Static header — renders instantly */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

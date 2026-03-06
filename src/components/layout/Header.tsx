@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import type { JobStage } from "@prisma/client";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { PauseToggle } from "@/components/shared/PauseToggle";
+import { AppSwitcher } from "@/components/layout/app-switcher";
 
 export function Header() {
   const search = useJobStore((s) => s.search);
@@ -117,6 +118,7 @@ export function Header() {
               <PauseToggle initialStatus={accountStatus} />
             </div>
           )}
+          <AppSwitcher />
           <ThemeToggle />
         </div>
       </div>

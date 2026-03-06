@@ -22,6 +22,8 @@ import {
   ArrowUpDown,
   CalendarDays,
   Banknote,
+  BarChart2,
+  MessageSquare,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
@@ -693,6 +695,47 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         >
           <X className="h-3 w-3" /> {dismissing ? "..." : "Dismiss"}
         </button>
+      </div>
+
+      {/* DevRadar actions */}
+      <div className="pt-1.5 mt-1.5 border-t border-dashed border-slate-100 dark:border-zinc-700/40">
+        <p className="text-[9px] text-slate-400 dark:text-zinc-500 font-medium mb-1">
+          Prepare with DevRadar →
+        </p>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const params = new URLSearchParams({
+                jobTitle: job.title,
+                company: job.company,
+                source: 'jobpilot',
+              });
+              window.open(`https://dev-radar-web-j2jq.vercel.app/resume?${params}`, '_blank');
+            }}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors touch-manipulation"
+          >
+            <BarChart2 className="h-3 w-3" />
+            Analyze Gap
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const params = new URLSearchParams({
+                jobTitle: job.title,
+                company: job.company,
+                source: 'jobpilot',
+              });
+              window.open(`https://dev-radar-web-j2jq.vercel.app/interview?${params}`, '_blank');
+            }}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors touch-manipulation"
+          >
+            <MessageSquare className="h-3 w-3" />
+            Prep Interview
+          </button>
+        </div>
       </div>
     </div>
   );
