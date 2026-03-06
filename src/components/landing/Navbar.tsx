@@ -11,6 +11,8 @@ const NAV_LINKS = [
   { href: "#faq", label: "FAQ" },
 ];
 
+const DEVRADAR_URL = process.env.NEXT_PUBLIC_DEVRADAR_URL;
+
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -49,6 +51,22 @@ export function Navbar() {
               {link.label}
             </a>
           ))}
+          {DEVRADAR_URL && (
+            <a
+              href={DEVRADAR_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-1.5 cursor-pointer font-medium text-[13px] px-4 py-2 text-white bg-gradient-to-r from-rose-500 to-purple-500 border-none tracking-wide rounded-full transition-all duration-300 hover:from-rose-600 hover:to-purple-600 hover:shadow-[0_0_30px_rgba(251,113,133,0.3)] active:scale-[0.97]"
+            >
+              <svg height="16" width="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] rotate-[30deg] group-hover:rotate-90 group-hover:translate-x-0.5">
+                <path d="M0 0h24v24H0z" fill="none" />
+                <path d="M5 13c0-5.088 2.903-9.436 7-11.182C16.097 3.564 19 7.912 19 13c0 .823-.076 1.626-.22 2.403l1.94 1.832a.5.5 0 0 1 .095.603l-2.495 4.575a.5.5 0 0 1-.793.114l-2.234-2.234a1 1 0 0 0-.707-.293H9.414a1 1 0 0 0-.707.293l-2.234 2.234a.5.5 0 0 1-.793-.114l-2.495-4.575a.5.5 0 0 1 .095-.603l1.94-1.832C5.077 14.626 5 13.823 5 13zm1.476 6.696l.817-.817A3 3 0 0 1 9.414 18h5.172a3 3 0 0 1 2.121.879l.817.817.982-1.8-1.1-1.04a2 2 0 0 1-.593-1.82c.124-.664.187-1.345.187-2.036 0-3.87-1.995-7.3-5-8.96C8.995 5.7 7 9.13 7 13c0 .691.063 1.372.187 2.037a2 2 0 0 1-.593 1.82l-1.1 1.039.982 1.8zM12 13a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" fill="currentColor" />
+              </svg>
+              <span className="transition-transform duration-500 ease-[cubic-bezier(0.76,0,0.24,1)] group-hover:translate-x-1">
+                DevRadar
+              </span>
+            </a>
+          )}
           <Link
             href="/login"
             className="rounded-full bg-zinc-900 dark:bg-white px-5 py-2 text-[13px] font-semibold text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
@@ -82,6 +100,21 @@ export function Navbar() {
               {link.label}
             </a>
           ))}
+          {DEVRADAR_URL && (
+            <a
+              href={DEVRADAR_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileOpen(false)}
+              className="group mt-2 flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-300 hover:from-rose-600 hover:to-purple-600 hover:shadow-[0_0_20px_rgba(251,113,133,0.3)]"
+            >
+              <svg height="16" width="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="rotate-[30deg]">
+                <path d="M0 0h24v24H0z" fill="none" />
+                <path d="M5 13c0-5.088 2.903-9.436 7-11.182C16.097 3.564 19 7.912 19 13c0 .823-.076 1.626-.22 2.403l1.94 1.832a.5.5 0 0 1 .095.603l-2.495 4.575a.5.5 0 0 1-.793.114l-2.234-2.234a1 1 0 0 0-.707-.293H9.414a1 1 0 0 0-.707.293l-2.234 2.234a.5.5 0 0 1-.793-.114l-2.495-4.575a.5.5 0 0 1 .095-.603l1.94-1.832C5.077 14.626 5 13.823 5 13zm1.476 6.696l.817-.817A3 3 0 0 1 9.414 18h5.172a3 3 0 0 1 2.121.879l.817.817.982-1.8-1.1-1.04a2 2 0 0 1-.593-1.82c.124-.664.187-1.345.187-2.036 0-3.87-1.995-7.3-5-8.96C8.995 5.7 7 9.13 7 13c0 .691.063 1.372.187 2.037a2 2 0 0 1-.593 1.82l-1.1 1.039.982 1.8zM12 13a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" fill="currentColor" />
+              </svg>
+              DevRadar
+            </a>
+          )}
           <Link
             href="/login"
             onClick={() => setMobileOpen(false)}
