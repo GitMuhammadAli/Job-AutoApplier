@@ -207,6 +207,9 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
                   </div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-rose-500 to-purple-500 bg-clip-text text-transparent">DevRadar</p>
                 </div>
+                <p className="mt-1 px-1 text-[10px] text-slate-400 dark:text-zinc-500 leading-relaxed">
+                  Career intelligence — skill trends, salary data & interview prep.
+                </p>
               </div>
               <div className="space-y-0.5">
                 {DEVRADAR_NAV.map((item) => (
