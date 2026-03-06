@@ -34,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" sizes="any" />
         <link rel="apple-touch-icon" href="/icon-192.svg" />
       </head>
       <body className={`${inter.className} antialiased`}>
