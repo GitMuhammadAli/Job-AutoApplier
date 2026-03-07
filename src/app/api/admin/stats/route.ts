@@ -17,23 +17,22 @@ const SCRAPE_SOURCES = [
   "google",
 ];
 
-// Only list crons that are actually scheduled on cron-job.org
-// Per-source scrapers (scrape-indeed, scrape-remotive, etc.) are sub-tasks of scrape-global
-// and are NOT scheduled individually — they should NOT appear here.
 const CRON_NAMES: { key: string; label: string; category: string; schedule: string }[] = [
-  // Scraping (orchestrated via scrape-global)
-  { key: "scrape-global", label: "Scrape Global", category: "scraper", schedule: "Every 2h (free) / 6h (paid)" },
+  // Scraping
+  { key: "scrape-global", label: "Scrape Global", category: "scraper", schedule: "Every 2h (free) / daily (paid)" },
+  { key: "scrape-jsearch", label: "Scrape JSearch", category: "scraper", schedule: "Every 6 hours" },
+  { key: "scrape-indeed", label: "Scrape Indeed", category: "scraper", schedule: "Every 6 hours" },
   // Matching
   { key: "match-all-users", label: "Match All Users", category: "matching", schedule: "Every hour" },
   { key: "match-jobs", label: "Match Jobs", category: "matching", schedule: "On-demand" },
   // Application pipeline
-  { key: "instant-apply", label: "Instant Apply", category: "application", schedule: "Every 30 min" },
+  { key: "instant-apply", label: "Instant Apply", category: "application", schedule: "Every 15 min" },
   { key: "send-scheduled", label: "Send Scheduled", category: "application", schedule: "Every 5 min" },
   { key: "send-queued", label: "Send Queued", category: "application", schedule: "Every 5 min" },
   // Notification
   { key: "notify-matches", label: "Notify Matches", category: "notification", schedule: "Daily at 9:00 AM" },
   // Follow-up
-  { key: "follow-up", label: "Follow Up", category: "followup", schedule: "Every 8 hours" },
+  { key: "follow-up", label: "Follow Up", category: "followup", schedule: "Daily at 10:00 AM" },
   { key: "check-follow-ups", label: "Check Follow Ups", category: "followup", schedule: "Daily at 9:00 AM" },
   // Maintenance
   { key: "cleanup-stale", label: "Cleanup Stale", category: "maintenance", schedule: "Daily at 3:00 AM" },

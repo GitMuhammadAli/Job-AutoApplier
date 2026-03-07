@@ -41,6 +41,7 @@ interface Props {
   timing: RecommendationResult["timing"];
   sourceCounts: Record<string, number>;
   filterBreakdown: RecommendationResult["filterBreakdown"];
+  referrer?: string;
   currentFilters: {
     source: string | null;
     sort: string;
@@ -116,6 +117,7 @@ export function RecommendedClient({
   timing,
   sourceCounts,
   filterBreakdown,
+  referrer,
   currentFilters,
 }: Props) {
   const router = useRouter();
@@ -272,6 +274,22 @@ export function RecommendedClient({
 
   return (
     <div className={`space-y-4 transition-opacity duration-200 ${isPending ? "opacity-60 pointer-events-none" : ""}`}>
+      {referrer?.startsWith("devradar") && (
+        <div className="flex items-center gap-2 rounded-lg border border-purple-200 dark:border-purple-800/60 bg-purple-50/80 dark:bg-purple-950/30 px-3 py-2 text-sm">
+          <span className="text-purple-600 dark:text-purple-400 text-base">📡</span>
+          <span className="font-medium text-purple-700 dark:text-purple-300">From DevRadar:</span>
+          <span className="text-purple-600 dark:text-purple-400">
+            Showing jobs matching &ldquo;{currentFilters.q}&rdquo;
+          </span>
+          <a
+            href="https://dev-radar-web-j2jq.vercel.app"
+            className="ml-auto text-xs font-medium text-purple-500 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
+          >
+            &larr; Back to DevRadar
+          </a>
+        </div>
+      )}
+
       {/* Stats bar */}
       <div className="flex items-center justify-between text-xs">
         <p className="text-slate-500 dark:text-zinc-400">

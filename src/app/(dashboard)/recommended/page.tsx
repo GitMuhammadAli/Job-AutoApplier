@@ -14,6 +14,7 @@ interface PageProps {
     location?: string;
     email?: string;
     q?: string;
+    ref?: string;
   };
 }
 
@@ -76,6 +77,7 @@ async function RecommendedJobsList({ searchParams }: { searchParams: PageProps["
       timing={result.timing}
       sourceCounts={result.sourceCounts}
       filterBreakdown={result.filterBreakdown}
+      referrer={searchParams.ref?.startsWith("devradar") ? searchParams.ref : undefined}
       currentFilters={{
         source: searchParams.source || null,
         sort: searchParams.sort || "score",
