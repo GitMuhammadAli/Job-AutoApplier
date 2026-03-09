@@ -23,6 +23,7 @@ import { runScraper, updateRunJobsSaved } from "@/lib/scrapers/scraper-runner";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
+import { backfillCompanyEmails, findCrossSourceDuplicates } from "@/lib/scrapers/post-scrape-enrichment";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 function sanitizeScrapedText(text: string | null): string | null {
@@ -167,8 +168,12 @@ export async function GET(req: NextRequest) {
           const existingIdMap = new Map<string, string>(existingJobs.map((e) => [`${e.source}:${e.sourceId}`, e.id]));
           const existingDataMap = new Map(existingJobs.map((e) => [`${e.source}:${e.sourceId}`, e]));
 
-          const newJobs = runResult.jobs.filter((j) => !existingSet.has(`${j.source}:${j.sourceId}`));
+          const candidateNew = runResult.jobs.filter((j) => !existingSet.has(`${j.source}:${j.sourceId}`));
           const existingJobsList = runResult.jobs.filter((j) => existingSet.has(`${j.source}:${j.sourceId}`));
+
+          // Cross-source dedup: skip jobs that already exist under a different source
+          const crossDupes = await findCrossSourceDuplicates(candidateNew).catch(() => new Map<string, string>());
+          const newJobs = candidateNew.filter((j) => !crossDupes.has(`${j.source}:${j.sourceId}`));
           const existingIds = existingJobsList
             .map((j) => existingIdMap.get(`${j.source}:${j.sourceId}`))
             .filter((id): id is string => !!id);
@@ -296,6 +301,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Company email cache: backfill emails to other jobs from the same companies
+    // Collect companies that have emails from a recent scrape window
+    const recentCompanies = await prisma.globalJob.findMany({
+      where: {
+        companyEmail: { not: null },
+        emailConfidence: { gte: 70 },
+        isActive: true,
+        lastSeenAt: { gte: new Date(Date.now() - 4 * 60 * 60 * 1000) },
+      },
+      select: { company: true },
+      distinct: ["company"],
+      take: 100,
+    }).catch(() => []);
+    const backfilled = await backfillCompanyEmails(
+      recentCompanies.map((c) => c.company),
+    ).catch(() => 0);
+
     const failedCount = results.filter((r) => r.status === "failed" || r.status === "timeout").length;
     const failedSources = results
       .filter((r) => r.status === "failed" || r.status === "timeout")
@@ -390,6 +412,7 @@ export async function GET(req: NextRequest) {
       results,
       totalNew,
       totalUpdated: results.reduce((s, r) => s + r.updated, 0),
+      emailsBackfilled: backfilled,
       durationMs: Date.now() - startTime,
       downstream,
     });

@@ -56,6 +56,57 @@ export async function GET(req: NextRequest) {
       totalMarkedInactive += defaultResult.count;
     }
 
+    // URL liveness check: HEAD-request a batch of old active jobs to find dead listings
+    let deadUrlCount = 0;
+    try {
+      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const candidates = await prisma.globalJob.findMany({
+        where: {
+          isActive: true,
+          applyUrl: { not: null },
+          lastSeenAt: { lt: threeDaysAgo },
+        },
+        select: { id: true, applyUrl: true },
+        orderBy: { lastSeenAt: "asc" },
+        take: 15,
+      });
+
+      const deadIds: string[] = [];
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+
+      await Promise.allSettled(
+        candidates.map(async (job) => {
+          if (!job.applyUrl) return;
+          try {
+            const res = await fetch(job.applyUrl, {
+              method: "HEAD",
+              redirect: "follow",
+              signal: controller.signal,
+              headers: { "User-Agent": "JobPilot-LinkChecker/1.0" },
+            });
+            if (res.status === 404 || res.status === 410 || res.status === 403) {
+              deadIds.push(job.id);
+            }
+          } catch {
+            // Network errors are inconclusive — skip
+          }
+        }),
+      );
+
+      clearTimeout(timeout);
+
+      if (deadIds.length > 0) {
+        const result = await prisma.globalJob.updateMany({
+          where: { id: { in: deadIds } },
+          data: { isActive: false },
+        });
+        deadUrlCount = result.count;
+      }
+    } catch (e) {
+      console.warn("[CleanupStale] URL liveness check failed:", e);
+    }
+
     // Dead letter recovery: unstick SENDING apps older than 10 min
     const stuckCutoff = new Date(Date.now() - STUCK_SENDING_TIMEOUT_MS);
     const stuckRecovered = await prisma.jobApplication.updateMany({
@@ -109,9 +160,10 @@ export async function GET(req: NextRequest) {
       data: {
         type: "cron",
         source: "cleanup-stale",
-        message: `Marked ${totalMarkedInactive} inactive, deleted ${deletedOldJobs} old jobs, recovered ${stuckRecovered.count} stuck, pruned ${prunedLogs.count} logs + ${prunedRuns} runs`,
+        message: `Marked ${totalMarkedInactive} inactive, ${deadUrlCount} dead URLs, deleted ${deletedOldJobs} old jobs, recovered ${stuckRecovered.count} stuck, pruned ${prunedLogs.count} logs + ${prunedRuns} runs`,
         metadata: {
           markedInactive: totalMarkedInactive,
+          deadUrlCount,
           perSource,
           deletedOldJobs,
           stuckRecovered: stuckRecovered.count,
@@ -121,11 +173,12 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    await tracker.success({ processed: totalMarkedInactive, metadata: { deletedOldJobs, stuckRecovered: stuckRecovered.count, prunedLogs: prunedLogs.count, prunedRuns } });
+    await tracker.success({ processed: totalMarkedInactive + deadUrlCount, metadata: { deadUrlCount, deletedOldJobs, stuckRecovered: stuckRecovered.count, prunedLogs: prunedLogs.count, prunedRuns } });
 
     return NextResponse.json({
       success: true,
       markedInactive: totalMarkedInactive,
+      deadUrls: deadUrlCount,
       perSource,
       deletedOldJobs,
       stuckRecovered: stuckRecovered.count,

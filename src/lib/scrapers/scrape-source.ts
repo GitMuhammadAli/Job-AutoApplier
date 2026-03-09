@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { ScrapedJob, SearchQuery } from "@/types";
 import { categorizeJob } from "@/lib/job-categorizer";
 import { extractEmailFromText } from "@/lib/extract-email-from-text";
+import { backfillCompanyEmails, findCrossSourceDuplicates } from "@/lib/scrapers/post-scrape-enrichment";
 
 function sanitizeScrapedText(text: string | null, stripHtml = true): string | null {
   if (!text) return text;
@@ -77,9 +78,12 @@ export async function scrapeAndUpsert(
   const existingIdMap = new Map<string, string>(existing.map((e) => [`${e.source}:${e.sourceId}`, e.id]));
   const existingDataMap = new Map(existing.map((e) => [`${e.source}:${e.sourceId}`, e]));
 
-  // 3. Split into new vs existing
-  const newJobs = jobs.filter((j) => !existingSet.has(`${j.source}:${j.sourceId}`));
+  // 3. Split into new vs existing, with cross-source dedup
+  const candidateNew = jobs.filter((j) => !existingSet.has(`${j.source}:${j.sourceId}`));
   const existingJobs = jobs.filter((j) => existingSet.has(`${j.source}:${j.sourceId}`));
+
+  const crossDupes = await findCrossSourceDuplicates(candidateNew).catch(() => new Map<string, string>());
+  const newJobs = candidateNew.filter((j) => !crossDupes.has(`${j.source}:${j.sourceId}`));
 
   // 4. Batch create new jobs (single query)
   let newCount = 0;
@@ -171,9 +175,15 @@ export async function scrapeAndUpsert(
     }
   }
 
+  // Company email cache: backfill emails across jobs from the same companies
+  const companiesWithEmail = jobs
+    .filter((j) => j.companyEmail)
+    .map((j) => j.company);
+  const emailsBackfilled = await backfillCompanyEmails(companiesWithEmail).catch(() => 0);
+
   const emailsFound = jobs.filter((j) => j.companyEmail).length;
   const queryTerms = queries.map((q) => q.keyword).filter(Boolean);
-  await logScrapeDetail(sourceName, jobs.length, newCount, updatedCount, emailsFound, queryTerms);
+  await logScrapeDetail(sourceName, jobs.length, newCount, updatedCount, emailsFound + emailsBackfilled, queryTerms);
   return { newCount, updatedCount };
 }
 
