@@ -47,13 +47,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: "No configured users", matched: 0, nextCursor: null });
     }
 
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-
+    // Only match jobs that haven't been matched to ANY user yet.
+    // This keeps workload constant regardless of DB size — only truly new
+    // unmatched jobs are processed, not the entire 3-day window.
     const rawUnmatched = await prisma.globalJob.findMany({
       where: {
         isActive: true,
         isFresh: false,
-        createdAt: { gte: threeDaysAgo },
+        userJobs: { none: {} },
       },
       take: LIMITS.MATCH_BATCH,
     });

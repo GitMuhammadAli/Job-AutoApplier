@@ -22,6 +22,7 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
 
     for (const city of q.cities.slice(0, MAX_CITIES)) {
       if (Date.now() >= deadline) break;
+      if (jobs.length > 0) await new Promise((r) => setTimeout(r, 150));
 
       try {
         const query = encodeURIComponent(`${q.keyword} jobs ${city || ""}`);

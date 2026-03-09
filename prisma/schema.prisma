@@ -106,6 +106,22 @@ model GlobalJob {
   @@index([createdAt])
 }
 
+// ── COMPANY EMAIL CACHE ──
+
+model CompanyEmail {
+  id             String   @id @default(cuid())
+  companyNorm    String   @unique
+  companyDisplay String
+  email          String
+  confidence     Int
+  source         String
+  lastVerifiedAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([companyNorm])
+}
+
 // ── USER JOB ──
 
 model UserJob {

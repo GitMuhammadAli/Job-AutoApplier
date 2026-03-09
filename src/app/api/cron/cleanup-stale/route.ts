@@ -72,8 +72,9 @@ export async function GET(req: NextRequest) {
       });
 
       const deadIds: string[] = [];
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
+      const liveIds: Array<{ id: string; url: string }> = [];
+      const headController = new AbortController();
+      const headTimeout = setTimeout(() => headController.abort(), 3000);
 
       await Promise.allSettled(
         candidates.map(async (job) => {
@@ -82,11 +83,13 @@ export async function GET(req: NextRequest) {
             const res = await fetch(job.applyUrl, {
               method: "HEAD",
               redirect: "follow",
-              signal: controller.signal,
+              signal: headController.signal,
               headers: { "User-Agent": "JobPilot-LinkChecker/1.0" },
             });
             if (res.status === 404 || res.status === 410 || res.status === 403) {
               deadIds.push(job.id);
+            } else if (res.ok) {
+              liveIds.push({ id: job.id, url: job.applyUrl });
             }
           } catch {
             // Network errors are inconclusive — skip
@@ -94,7 +97,50 @@ export async function GET(req: NextRequest) {
         }),
       );
 
-      clearTimeout(timeout);
+      clearTimeout(headTimeout);
+
+      // Phase 2: For pages that returned 200, check if they say "position filled"
+      const CLOSED_PHRASES = [
+        "position has been filled",
+        "position filled",
+        "no longer accepting",
+        "this job has expired",
+        "listing has been removed",
+        "job is closed",
+        "job has been closed",
+        "application deadline has passed",
+        "this position is no longer available",
+        "job no longer available",
+        "vacancy has been filled",
+        "role has been filled",
+      ];
+
+      const checkBatch = liveIds.slice(0, 5);
+      if (checkBatch.length > 0) {
+        const getController = new AbortController();
+        const getTimeout = setTimeout(() => getController.abort(), 3000);
+
+        await Promise.allSettled(
+          checkBatch.map(async ({ id, url }) => {
+            try {
+              const res = await fetch(url, {
+                signal: getController.signal,
+                headers: { "User-Agent": "JobPilot-LinkChecker/1.0" },
+              });
+              if (!res.ok) return;
+              const text = await res.text();
+              const snippet = text.slice(0, 10000).toLowerCase();
+              if (CLOSED_PHRASES.some((phrase) => snippet.includes(phrase))) {
+                deadIds.push(id);
+              }
+            } catch {
+              // Inconclusive — skip
+            }
+          }),
+        );
+
+        clearTimeout(getTimeout);
+      }
 
       if (deadIds.length > 0) {
         const result = await prisma.globalJob.updateMany({

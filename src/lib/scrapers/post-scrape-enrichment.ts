@@ -1,9 +1,13 @@
 import { prisma } from "@/lib/prisma";
 
+function normalizeCompanyName(company: string): string {
+  return company.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+}
+
 /**
- * Company Email Cache: when we find an email for one job at Company X,
- * backfill it to ALL other jobs from that company that have no email.
- * This dramatically improves email coverage (2% → 10-15%) for free.
+ * Company Email Cache: persist emails into CompanyEmail table,
+ * then backfill all jobs from those companies that have no email.
+ * The table persists across deploys — emails found once are reused forever.
  */
 export async function backfillCompanyEmails(
   companyNames: string[],
@@ -15,63 +19,87 @@ export async function backfillCompanyEmails(
 
   let totalBackfilled = 0;
 
-  // Process in batches of 20 companies to keep queries manageable
-  const batchSize = 20;
-  for (let i = 0; i < unique.length; i += batchSize) {
-    const batch = unique.slice(i, i + batchSize);
+  // Step 1: Find high-confidence emails from GlobalJob and persist to CompanyEmail table
+  const donors = await prisma.globalJob.findMany({
+    where: {
+      company: { in: unique, mode: "insensitive" },
+      companyEmail: { not: null },
+      emailConfidence: { gte: 70 },
+      isActive: true,
+    },
+    select: { company: true, companyEmail: true, emailConfidence: true, emailSource: true },
+    orderBy: { emailConfidence: "desc" },
+  });
 
-    // Find one confirmed email per company (highest confidence wins)
-    const donors = await prisma.globalJob.findMany({
-      where: {
-        company: { in: batch },
-        companyEmail: { not: null },
-        emailConfidence: { gte: 70 },
-        isActive: true,
+  const seenNorms = new Set<string>();
+  for (const d of donors) {
+    if (!d.companyEmail) continue;
+    const norm = normalizeCompanyName(d.company);
+    if (seenNorms.has(norm)) continue;
+    seenNorms.add(norm);
+
+    await prisma.companyEmail.upsert({
+      where: { companyNorm: norm },
+      create: {
+        companyNorm: norm,
+        companyDisplay: d.company,
+        email: d.companyEmail,
+        confidence: d.emailConfidence ?? 70,
+        source: d.emailSource || "description_text",
       },
-      select: {
-        company: true,
-        companyEmail: true,
-        emailConfidence: true,
+      update: {
+        email: d.companyEmail,
+        confidence: d.emailConfidence ?? 70,
+        source: d.emailSource || "description_text",
+        lastVerifiedAt: new Date(),
       },
-      orderBy: { emailConfidence: "desc" },
-    });
+    }).catch((err) => console.warn(`[EmailCache] Upsert failed for "${norm}":`, err));
+  }
 
-    // Build company → best email map (case-insensitive company name)
-    const emailMap = new Map<string, { email: string; confidence: number }>();
-    for (const d of donors) {
-      const key = d.company.toLowerCase().trim();
-      if (!emailMap.has(key) && d.companyEmail) {
-        emailMap.set(key, {
-          email: d.companyEmail,
-          confidence: Math.min(d.emailConfidence ?? 70, 75),
-        });
-      }
-    }
+  // Step 2: Find all jobs with no email whose company exists in the cache
+  const jobsWithoutEmail = await prisma.globalJob.findMany({
+    where: {
+      companyEmail: null,
+      isActive: true,
+      company: { in: unique, mode: "insensitive" },
+    },
+    select: { id: true, company: true },
+  });
 
-    if (emailMap.size === 0) continue;
+  if (jobsWithoutEmail.length === 0) return 0;
 
-    // Backfill: update jobs from these companies that have no email
-    for (const [companyLower, { email, confidence }] of Array.from(emailMap.entries())) {
-      try {
-        const result = await prisma.globalJob.updateMany({
-          where: {
-            companyEmail: null,
-            isActive: true,
-            company: {
-              equals: companyLower,
-              mode: "insensitive",
-            },
-          },
-          data: {
-            companyEmail: email,
-            emailConfidence: confidence,
-            emailSource: "company_cache",
-          },
-        });
-        totalBackfilled += result.count;
-      } catch (err) {
-        console.warn(`[EmailCache] Backfill failed for "${companyLower}":`, err);
-      }
+  // Step 3: Look up cached emails for those companies
+  const companyNorms = Array.from(new Set(jobsWithoutEmail.map((j) => normalizeCompanyName(j.company))));
+  const cached = await prisma.companyEmail.findMany({
+    where: { companyNorm: { in: companyNorms } },
+  });
+  const cacheMap = new Map(cached.map((c) => [c.companyNorm, c]));
+
+  // Step 4: Batch-update jobs grouped by normalized company
+  const updatesByNorm = new Map<string, string[]>();
+  for (const job of jobsWithoutEmail) {
+    const norm = normalizeCompanyName(job.company);
+    if (!cacheMap.has(norm)) continue;
+    const ids = updatesByNorm.get(norm) || [];
+    ids.push(job.id);
+    updatesByNorm.set(norm, ids);
+  }
+
+  for (const [norm, ids] of Array.from(updatesByNorm.entries())) {
+    const entry = cacheMap.get(norm);
+    if (!entry) continue;
+    try {
+      const result = await prisma.globalJob.updateMany({
+        where: { id: { in: ids } },
+        data: {
+          companyEmail: entry.email,
+          emailConfidence: Math.min(entry.confidence, 75),
+          emailSource: "company_db",
+        },
+      });
+      totalBackfilled += result.count;
+    } catch (err) {
+      console.warn(`[EmailCache] Backfill failed for "${norm}":`, err);
     }
   }
 
@@ -80,8 +108,8 @@ export async function backfillCompanyEmails(
       data: {
         type: "enrichment",
         source: "email-cache",
-        message: `Backfilled ${totalBackfilled} jobs with cached company emails`,
-        metadata: { backfilled: totalBackfilled, companies: unique.length },
+        message: `Backfilled ${totalBackfilled} jobs from CompanyEmail cache`,
+        metadata: { backfilled: totalBackfilled, companies: unique.length, cached: cached.length },
       },
     }).catch(() => {});
   }

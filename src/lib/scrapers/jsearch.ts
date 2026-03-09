@@ -22,6 +22,7 @@ export async function fetchJSearch(
 
     for (const city of q.cities.slice(0, 1)) {
       if (Date.now() >= deadline) break;
+      if (jobs.length > 0) await new Promise((r) => setTimeout(r, 200));
 
       try {
         const query = `${q.keyword} jobs in ${city}`;

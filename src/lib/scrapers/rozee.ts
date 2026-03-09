@@ -27,6 +27,7 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
       const pages = [0, 10];
 
       for (const start of pages) {
+        if (start > 0) await new Promise((r) => setTimeout(r, 150));
         const url = start === 0 ? baseUrl : `${baseUrl}&start=${start}`;
 
         const res = await fetchWithRetry(url);
