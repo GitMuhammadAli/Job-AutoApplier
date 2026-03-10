@@ -38,7 +38,7 @@ export async function fetchJSearch(
           deadline,
         );
 
-        logApiCall("jsearch").catch(() => {});
+        await logApiCall("jsearch");
 
         if (!res.ok) {
           console.warn(`[JSearch] HTTP ${res.status} for "${q.keyword}" in "${city}"`);

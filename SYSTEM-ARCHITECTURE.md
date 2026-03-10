@@ -101,7 +101,7 @@ Jobs are scraped from LinkedIn, Indeed, Remotive, Arbeitnow, Adzuna, Rozee, JSea
 | /api/cron/scrape-global           | GET       | verifyCronSecret| Multi-source scraper             |
 | /api/cron/scrape/[source]         | GET       | verifyCronSecret| Single-source scraper            |
 | /api/cron/match-jobs              | GET       | verifyCronSecret| Match recent jobs (24h)          |
-| /api/cron/match-all-users         | GET       | verifyCronSecret| Match all jobs (3 days)          |
+| /api/cron/match-all-users         | GET       | verifyCronSecret| Match unmatched jobs (userJobs: none) |
 | /api/cron/instant-apply           | GET       | verifyCronSecret| Auto-draft/send applications     |
 | /api/cron/send-queued             | GET       | verifyCronSecret| Send READY apps (no schedule)    |
 | /api/cron/send-scheduled          | GET       | verifyCronSecret| Send scheduled apps (separate from send-queued) |
@@ -117,14 +117,14 @@ Jobs are scraped from LinkedIn, Indeed, Remotive, Arbeitnow, Adzuna, Rozee, JSea
 |---------------------|----------------------------------------------|-------------------|----------------------------------------------------|
 | Scrape Global (free)| /api/cron/scrape-global?mode=free&match=true | 0 */2 * * *       | LinkedIn, LinkedIn Posts, Remotive, Arbeitnow       |
 | Scrape Global (paid)| /api/cron/scrape-global?mode=paid&match=false| 0 6 * * *         | JSearch, Indeed, Adzuna, Google Jobs, Rozee          |
-| Match All Users     | /api/cron/match-all-users                    | 0 * * * *         | Score new jobs against all users' preferences        |
+| Match All Users     | /api/cron/match-all-users                    | 0 * * * *         | Score jobs not yet matched to any user (userJobs: none); workload constant regardless of DB size |
 | Instant Apply       | /api/cron/instant-apply                      | */30 * * * *      | Create drafts for matched jobs with verified emails  |
 | Send Queued         | /api/cron/send-queued                        | */5 * * * *       | Send READY applications (no schedule)                |
 | Send Scheduled      | /api/cron/send-scheduled                     | */5 * * * *       | Send scheduled applications past their send time     |
 | Notify Matches      | /api/cron/notify-matches                     | 0 9 * * *         | Email users about new matched jobs                   |
 | Follow Up           | /api/cron/follow-up                          | 0 10 * * *        | Mark ghosted + flag follow-up reminders              |
 | Check Follow-ups    | /api/cron/check-follow-ups                   | 0 9 * * *         | Generate follow-up drafts for flagged jobs            |
-| Cleanup Stale       | /api/cron/cleanup-stale                      | 0 3 * * *         | Deactivate old unseen jobs                           |
+| Cleanup Stale       | /api/cron/cleanup-stale                      | 0 3 * * *         | Deactivate old unseen jobs; 2-phase URL check (HEAD + position-filled text scan, up to 5 pages/run) |
 ```
 **NOTE:** vercel.json has NO crons configured — all scheduling is via cron-job.org (Vercel Hobby plan limitation).
 
@@ -133,6 +133,8 @@ Jobs are scraped from LinkedIn, Indeed, Remotive, Arbeitnow, Adzuna, Rozee, JSea
 **Fire-and-forget chaining:** After scrape-global completes, it triggers instant-apply automatically. After match-all-users finds matches, it triggers notify-matches and instant-apply. Maintenance crons (cleanup-stale, check-follow-ups) are triggered by scrape-global only if last run was >20 hours ago.
 
 **Admin triggers (scrapers/trigger):** scrape-global, backfill-emails, instant-apply, match-jobs, match-all-users, send-scheduled, send-queued, notify-matches, cleanup-stale, follow-up, check-follow-ups.
+
+**cleanup-stale position-filled detection:** 2-phase URL check — Phase 1: HEAD requests (existing). Phase 2: fetch pages that returned 200, check for "position filled" / "job expired" / "no longer accepting" text in first 10KB. Up to 5 pages per run, 3s timeout.
 
 ### All Server Actions (src/app/actions/)
 ```
@@ -255,6 +257,8 @@ Jobs are scraped from LinkedIn, Indeed, Remotive, Arbeitnow, Adzuna, Rozee, JSea
 | `src/lib/cron-tracker.ts` | Cron outcome logging: success/error/skipped → SystemLog; retry on DB failure |
 | `src/components/jobs/FreshnessIndicator.tsx` | Job freshness badge (Fresh / Xd ago / may be filled / likely expired) + FreshnessDot |
 | `src/app/api/admin/backfill-emails/route.ts` | Admin endpoint: extract emails from job descriptions; fix legacy emails with null confidence |
+| `src/lib/scrapers/post-scrape-enrichment.ts` | Company email cache (persistent CompanyEmail table) + cross-source dedup |
+| `src/lib/scrapers/keyword-aggregator.ts` | Enhanced with ROI-weighted keyword selection for paid mode |
 
 ### File Count Summary
 ```
@@ -595,6 +599,22 @@ Unique: @@unique([sourceId, source])
 Indexes: source, [source,isActive], category, [isActive,createdAt], [isFresh,isActive], createdAt
 ```
 
+### MODEL: CompanyEmail
+Purpose: Persistent company email cache — survives redeployments. Once an email is found for a company, it's stored permanently and reused for all future jobs from that company.
+```
+Fields:
+  id             String   @id @default(cuid())
+  companyNorm    String   @unique              — Normalized company name (lowercase, alphanumeric only)
+  companyDisplay String                        — Original company name for display
+  email          String                        — Cached email address
+  confidence     Int                           — Email confidence score (0-100)
+  source         String                        — How email was found (description_text, careers_page, etc.)
+  lastVerifiedAt DateTime @default(now())      — Last time this email was verified
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+Indexes: companyNorm
+```
+
 ### MODEL: UserJob
 Purpose: Per-user view of a job — tracks stage, score, notes, bookmarks.
 ```
@@ -716,6 +736,8 @@ Indexes: [userId,createdAt], [status,createdAt]
 
 ## 2.2 Entity Relationship Diagram
 ```
+CompanyEmail (standalone — no relations)
+
 User
  ├──→ (1:1)  UserSettings ──→ (1:N) EmailTemplate
  ├──→ (1:N)  Resume
@@ -1019,11 +1041,15 @@ See Quick Reference table above. All server actions use `getAuthUserId()` for au
 
 **Dedup:** `@@unique([sourceId, source])` — upsert by externalId per source.
 
+**In-code rate limiting:** Paid scrapers (JSearch, Indeed, Google Jobs, Rozee) use 150–200ms sleeps between API calls to prevent burst requests that could get API keys suspended.
+
 **Fresh marking:** `isFresh: true` on insert, set to `false` after instant-apply processes.
 
 **LinkedIn Posts scraper (google-hiring-posts.ts):** Keyword-only queries first (global reach), then keyword+city. 7-day window (dateRestrict=d7 for CSE, qdr:w1 for SerpAPI). Broader terms: "hiring", "we are hiring", "looking for", "join our team", etc. Uses all available text fields for email extraction: `title`, `snippet`, `htmlSnippet` (stripped of HTML), `pagemap.metatags[0].og:description`, `pagemap.metatags[0].description`. Emails found in hiring posts get `emailConfidence: 90`, `emailSource: "hiring_post"`. Runs inside scrape-global as `linkedin_posts`.
 
 **scrape-global email extraction:** Extracts emails during job save via `extractEmailFromText(job.description)`. New jobs get `emailSource: "description_text"`, `emailConfidence: 85-95`. Scraper-provided confidence/source (e.g. hiring posts at 90) are preserved when available. Existing jobs without email get enriched on rescrape (`description_text_rescrape`).
+
+**Keyword aggregator (paid mode):** Ranks keywords by application outcomes (sent applications), not just popularity. Keywords that led to sent apps in the last 30 days get 3× weight.
 
 ## 5.2 Matching Engine
 

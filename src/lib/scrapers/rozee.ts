@@ -2,6 +2,7 @@ import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
+import { logApiCall } from "@/lib/api-usage-logger";
 
 /**
  * Fetches Rozee.pk jobs via SerpAPI Google Jobs.
@@ -31,6 +32,7 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
         const url = start === 0 ? baseUrl : `${baseUrl}&start=${start}`;
 
         const res = await fetchWithRetry(url);
+        await logApiCall("serpapi");
         if (!res.ok) break;
 
         const data = await res.json();

@@ -197,7 +197,7 @@ Everything used in the project, why it was chosen, what it replaces, and where i
 | **Purpose** | Extracts company emails from job description text during scrape. Used when job has `description` but no pre-extracted email. Regex finds all emails, filters excluded domains (gmail, linkedin, etc.) and excluded prefixes (noreply, support, etc.), scores by hiring-prefix preference. | `src/lib/extract-email-from-text.ts`, `src/lib/scrapers/scrape-source.ts`, `src/app/api/cron/scrape-global/route.ts` |
 | **Scoring** | Base score 85. +10 for hiring prefixes (hr, careers, jobs, hiring, apply, etc.). -10 for personal pattern (firstname.lastname). Capped at 95. | `extractEmailFromText()` |
 | **Output** | `{ email: string \| null, confidence: number }` — confidence 85–95 for description_text extractions. | Scrape pipeline, backfill-emails |
-| **Relation to email-extractor.ts** | `extract-email-from-text.ts` = sync, text-only, used during scrape. `email-extractor.ts` = async, does careers page scrape + MX/RCPT verification, used at apply-time. | Both feed into `GlobalJob.companyEmail` + `emailConfidence` |
+| **Relation to email-extractor.ts** | `extract-email-from-text.ts` = sync, text-only, used during scrape. `email-extractor.ts` = async, does careers page scrape + MX/RCPT verification, used at apply-time. **company_db** = emailSource from persistent CompanyEmail table lookup (confidence capped at 75). | Both feed into `GlobalJob.companyEmail` + `emailConfidence` |
 
 ---
 
@@ -309,6 +309,8 @@ Everything used in the project, why it was chosen, what it replaces, and where i
 
 **Note:** `mammoth` and `groq-sdk` are in package.json but not actively used in code. `mammoth` was replaced by PDF-only uploads. `groq-sdk` was replaced by a direct `fetch` wrapper in `src/lib/groq.ts`. Both can be safely removed to reduce bundle size.
 
+**Scraper pipeline:** `post-scrape-enrichment.ts` — Company email cache using persistent CompanyEmail table + cross-source dedup.
+
 ---
 
 ## EXTERNAL SERVICES (not npm packages)
@@ -341,6 +343,10 @@ STEP 1: SCRAPING
   fetch() (built-in) → calls Remotive API, Indeed RSS, JSearch, Adzuna, SerpAPI, etc.
   extract-email-from-text.ts → extracts emails from job description (85–95 confidence)
   Prisma → upserts GlobalJob into Neon PostgreSQL
+  post-scrape-enrichment.ts → Company email cache: persist discovered emails to CompanyEmail table, cross-source dedup, backfill jobs from same company
+
+  Rate limiting: 150–200ms sleep between paid API calls (JSearch, Indeed, Google Jobs, Rozee)
+  Company email backfill: after scraping, backfillCompanyEmails() persists discovered emails to CompanyEmail table and backfills jobs from same company
 
   Scraper parameters (boosted):
     JSearch: num_pages=2, 3 cities per keyword, 8 queries max
@@ -355,6 +361,7 @@ STEP 1: SCRAPING
   Scraper runner: default timeout 8s (aligned with Vercel 10s limit)
     Fallback scraper skipped if <1s remains (prevents hard-kill)
 
+  keyword-aggregator.ts → builds search queries; paid mode uses ROI-weighted keyword selection (keywords that led to sent applications in last 30 days get 3x weight vs popularity)
   Stack acronym expansion:
     MERN/MEAN/PERN/LAMP/T3 in job text → expands to component technologies
     e.g. "MERN Developer" matches users with "react", "node.js", "mongodb" keywords
@@ -362,6 +369,7 @@ STEP 1: SCRAPING
 STEP 2: MATCHING
   cron-job.org → hits /api/cron/match-all-users
   Prisma → queries GlobalJob (isFresh) + UserSettings + Resume (with detectedSkills)
+  match-all-users uses userJobs: { none: {} } — only matches genuinely unmatched jobs, keeping workload constant
   Custom score engine → 8 hard filters + 7 scoring factors → score 0-100
     Hard filters: platform, company blacklist, negative keywords, keyword match,
                   category, country (checks all location parts), city, salary
@@ -474,7 +482,7 @@ CRON JOBS (10):
   instant-apply, match-jobs, match-all-users
   send-scheduled → /api/cron/send-scheduled (sends applications past scheduledSendAt)
   send-queued → /api/cron/send-queued (sends applications in READY status)
-  notify-matches, cleanup-stale
+  notify-matches, cleanup-stale → deactivate old jobs; Phase 2 fetches 200-status pages, checks for "position filled" text in first 10KB
   follow-up, check-follow-ups, scrape-global
 
 ADMIN ACTIONS (not crons):
@@ -507,7 +515,7 @@ All crons use:
 
 | Feature | Description | Where Used |
 |---------|-------------|------------|
-| **Email Confidence Scores** | Numeric score (0–100) per email. **description_text** (extract-email-from-text.ts): base 85, +10 for hiring prefixes (hr@, careers@) → 85–95. **hiring_post** (google-hiring-posts.ts): 90 (high-quality context). **careers_page_scrape** (email-extractor.ts): 82. **pattern_guess_rcpt_verified**: 35 (guessed from domain, MX + RCPT verified — lowered due to higher bounce rate). Auto-send only if >= 80. Stored on `GlobalJob.emailConfidence`. | `src/lib/extract-email-from-text.ts`, `src/lib/email-extractor.ts`, `src/lib/scrapers/google-hiring-posts.ts`, `GlobalJob.emailConfidence` |
+| **Email Confidence Scores** | Numeric score (0–100) per email. **description_text** (extract-email-from-text.ts): base 85, +10 for hiring prefixes (hr@, careers@) → 85–95. **hiring_post** (google-hiring-posts.ts): 90. **careers_page_scrape** (email-extractor.ts): 82. **pattern_guess_rcpt_verified**: 35 (guessed from domain, MX + RCPT verified). Auto-send only if >= 80. Stored on `GlobalJob.emailConfidence`. | `src/lib/extract-email-from-text.ts`, `src/lib/email-extractor.ts`, `src/lib/scrapers/google-hiring-posts.ts`, `GlobalJob.emailConfidence` |
 | **Bulk Send Quality Gates** | `/api/applications/bulk-send` applies 3 pre-send filters: (1) quality filter — only apps with `emailConfidence >= 80` AND `recipientEmail`, (2) dedup — first app per recipient email only, (3) cap at 3 per request (Vercel 10s timeout). Response includes `skippedNoEmail`, `skippedLowConfidence`, `duplicatesRemoved` counts. | `src/app/api/applications/bulk-send/route.ts` |
 | **Email Quality Badges** | Per-card badge showing email reliability: Verified (green, >= 80), Guessed (amber, 50-79), Unverified (red, < 50/null). Pre-send summary shows verified/guessed/no-email breakdown when bulk selecting. **Kanban JobCard:** Green Mail icon when `emailConfidence >= 80`, amber when lower, globe icon (🌐) when no email. | `src/components/applications/ApplicationQueue.tsx`, `src/components/kanban/JobCard.tsx` |
 | **Plain Text Emails** | Application emails sent as plain text only (no HTML). **WHY:** Avoids spam triggers from multipart/alternative structure, HTML markup, and image tracking pixels. | `src/lib/send-application.ts` |
@@ -518,6 +526,16 @@ All crons use:
 | **Error Classification** | `classifyError()` categorizes SMTP errors into 5 types: permanent, transient, rate_limit, auth, network. Each type has different retry/failure behavior. **Plain object handling:** `isAddressNotFound()` and `classifyError()` now extract `.message` from plain objects (not just Error instances) before phrase matching — previously `String({message: "..."})` produced `"[object Object]"` and matching failed. | `src/lib/email-errors.ts` |
 | **Provider-Aware Limits** | Detects Gmail/Outlook/Brevo from `emailProvider` or `smtpHost`. Enforces provider-specific daily/hourly caps (Gmail 500/day, Outlook 300/day). | `src/lib/send-limiter.ts` → `detectProvider()` |
 | **AI Name Enforcement** | Three-layer fix: (1) `sanitizeResumeForPrompt` strips candidate name/contact from resume before AI sees it, (2) system prompt has CRITICAL rule to use profile name only, (3) `enforceProfileName` post-processes output to replace any resume-derived name with the correct profile name. | `src/lib/ai-email-generator.ts` |
+
+**Email confidence by source:**
+
+| emailSource | Confidence | Auto-send |
+|-------------|------------|-----------|
+| description_text | 85–95 | ✓ |
+| hiring_post | 90 | ✓ |
+| careers_page_scrape | 82 | ✓ |
+| pattern_guess_rcpt_verified | 35 | ✗ |
+| company_db (CompanyEmail table lookup) | 75 (capped) | ✗ draft only |
 
 ---
 

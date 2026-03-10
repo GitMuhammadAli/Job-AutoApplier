@@ -61,7 +61,7 @@ async function fetchGoogleCSE(
   const url = `https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}&num=10&dateRestrict=d3&sort=date`;
 
   const res = await fetchWithRetry(url);
-  logApiCall("google_cse").catch(() => {});
+  await logApiCall("google_cse");
   if (!res.ok) {
     if (res.status === 429) {
       console.warn("[GoogleHiringPosts] CSE daily quota exhausted");
@@ -103,7 +103,7 @@ async function fetchSerpAPI(
   const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&num=20&tbs=qdr:d3&api_key=${key}`;
 
   const res = await fetchWithRetry(url);
-  logApiCall("serpapi").catch(() => {});
+  await logApiCall("serpapi");
   if (!res.ok) return [];
 
   const data = await res.json();

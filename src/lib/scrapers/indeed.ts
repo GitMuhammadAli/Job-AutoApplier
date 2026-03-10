@@ -47,7 +47,7 @@ export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]>
           deadline,
         );
 
-        logApiCall("jsearch").catch(() => {});
+        await logApiCall("jsearch");
 
         if (!res.ok) {
           console.warn(`[Indeed] HTTP ${res.status} for "${q.keyword}" in "${city}"`);

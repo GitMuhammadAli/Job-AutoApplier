@@ -77,7 +77,7 @@ export async function generateWithGroq(
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) throw new Error("AI returned an empty response. Please try again.");
 
-      logApiCall("groq").catch(() => {});
+      await logApiCall("groq");
       return text;
     } catch (err) {
       lastError = err;

@@ -29,7 +29,7 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
         const url = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&chips=date_posted:today&api_key=${key}`;
 
         const res = await fetchWithRetry(url, undefined, 2, deadline);
-        logApiCall("serpapi").catch(() => {});
+        await logApiCall("serpapi");
         if (!res.ok) continue;
 
         const data = await res.json();

@@ -221,6 +221,9 @@ async function aggregateSearchQueries() {
 // keywords → maybe 30 unique keywords. We search ONCE with 30 keywords,
 // not 20 times. Same cost for 1 user or 20. This is why adding users
 // barely increases API costs — the scrape is shared infrastructure.
+//
+// Paid mode: ROI-weighted selection — keywords that led to sent applications
+// get 3x weight when building the query list.
 ```
 
 ### Block detection (LinkedIn, Indeed)
@@ -232,6 +235,8 @@ Protection measures:
   1. User-Agent rotation — pretend to be different browsers
   2. Rate limiting — 2-5 second delay between requests to same source
   3. Request headers — Accept, Accept-Language headers to look like a real browser
+
+Paid scrapers (JSearch, Indeed, Google Jobs, Rozee) have 150-200ms sleeps between API calls to prevent burst requests.
   4. If blocked (403/429) → log error, skip this source, try next cycle
      Other sources continue working normally
 ```
@@ -307,6 +312,21 @@ Files:
   src/lib/scrapers/scrape-source.ts (per-source)
   src/app/api/cron/scrape-global/route.ts (global enrich)
 ```
+
+### Persistent company email cache
+
+When scraping finds emails, they're persisted to a CompanyEmail table.
+This cache survives redeployments — once an email is found, it's reused forever.
+
+How it works:
+  → After each scrape run, backfillCompanyEmails() runs
+  → Step 1: High-confidence emails from GlobalJob are upserted to CompanyEmail table
+  → Step 2: Jobs without emails are checked against the CompanyEmail cache
+  → Step 3: Matching companies get their email backfilled (confidence capped at 75, source: "company_db")
+  → Result: One email find can cover dozens of jobs from the same company
+
+File: src/lib/scrapers/post-scrape-enrichment.ts
+Table: CompanyEmail (companyNorm unique, email, confidence, source, lastVerifiedAt)
 
 ### Fixed LinkedIn Posts scraper
 
@@ -541,7 +561,9 @@ Matching runs in TWO scenarios:
 
 1. AUTOMATIC (via match-all-users / instant-apply cron):
    → Cron fires
-   → Query all GlobalJobs where isFresh = true
+   → Query all GlobalJobs where isFresh = true AND userJobs: { none: {} }
+   → Only genuinely unmatched jobs are processed (no 3-day window)
+   → Keeps workload constant as the DB grows
    → For EACH active user:
      → For EACH fresh job:
        → Run computeMatchScore(job, userSettings, resume)
@@ -826,6 +848,10 @@ NOTIFICATIONS:
 MAINTENANCE:
   /api/cron/cleanup-stale       → Marks old unseen jobs as inactive
                                   (re-checks userJobs: { none: {} } before delete)
+                                  Position-filled detection: after HEAD requests, pages
+                                  returning 200 are GET-fetched and checked for phrases
+                                  like "position has been filled", "job is closed",
+                                  "no longer accepting applications" in the first 10KB
 
 ADMIN (one-time / manual):
   POST /api/admin/backfill-emails → One-time email extraction from descriptions
@@ -1302,6 +1328,9 @@ BOUNCE (if email fails):
 DEATH (cleanup):
   → 7+ days without scraper seeing this job → lastSeenAt is old
   → /api/cron/cleanup-stale → isActive = false
+  → Position-filled detection: after HEAD requests, pages returning 200 are
+    GET-fetched and checked for "position has been filled", "job is closed",
+    "no longer accepting applications" in the first 10KB
   → deleteMany re-checks userJobs: { none: {} } to prevent race with user saves
   → Existing UserJobs remain (user's history preserved)
 ```
@@ -1411,6 +1440,12 @@ User                     ← NextAuth creates this on sign-in
   ├── UserJob[]          ← Jobs matched TO this user (their Kanban)
   │   └── JobApplication ← Generated email, send status, follow-up drafts
   └── Activity[]         ← Audit log of all actions
+
+CompanyEmail             ← Persistent company email cache
+  ├── companyNorm @unique ← Normalized company name
+  ├── email              ← Cached email address
+  ├── confidence         ← Email confidence score
+  └── source             ← How email was found
 
 GlobalJob                ← ALL scraped jobs (shared across users, no userId)
   ├── sourceId + source  ← @@unique — prevents duplicates
