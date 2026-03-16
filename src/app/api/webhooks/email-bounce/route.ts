@@ -32,8 +32,8 @@ const HARD_BOUNCE_EVENTS = new Set([
 function verifyBrevoSignature(req: NextRequest, rawBody: string): boolean {
   const webhookSecret = process.env.BREVO_WEBHOOK_SECRET;
   if (!webhookSecret) {
-    console.warn("[BounceWebhook] BREVO_WEBHOOK_SECRET not set — accepting unverified webhook");
-    return true;
+    console.error("[BounceWebhook] BREVO_WEBHOOK_SECRET not set — rejecting unverified webhook");
+    return false;
   }
 
   const signature =
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const messageId = body["message-id"];
     const reason = body.reason || `Bounce received (${eventType || "unknown"})`;
 
-    if (!email) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
       return NextResponse.json({ received: true });
     }
 

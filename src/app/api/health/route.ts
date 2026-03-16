@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /** M8: Health check — requires CRON_SECRET or returns minimal status only */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  const provided = req.nextUrl.searchParams.get("secret") || req.headers.get("x-cron-secret");
+  const provided = req.headers.get("authorization")?.replace("Bearer ", "") || req.headers.get("x-cron-secret");
   const isAuthorized = secret && provided === secret;
 
   // Unauthenticated: return minimal ping response (no infrastructure details)

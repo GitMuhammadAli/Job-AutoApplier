@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual, scryptSync, randomBytes } from "crypto";
 
 const COOKIE_NAME = "jobpilot-admin-session";
 const SESSION_TTL = 60 * 60 * 8; // 8 hours
@@ -55,14 +55,36 @@ function safeEqual(a: string, b: string): boolean {
   }
 }
 
+/**
+ * Hash a password for storage (e.g. to generate ADMIN_PASSWORD_HASH env var).
+ * Usage: node -e "const {scryptSync,randomBytes}=require('crypto');const s=randomBytes(16).toString('hex');console.log(s+':'+scryptSync('YOUR_PASSWORD',s,64).toString('hex'))"
+ */
+export function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password: string, stored: string): boolean {
+  // Support both hashed (salt:hash) and legacy plaintext passwords
+  if (stored.includes(":") && stored.length > 100) {
+    const [salt, hash] = stored.split(":");
+    const testHash = scryptSync(password, salt, 64).toString("hex");
+    return safeEqual(testHash, hash);
+  }
+  // Fallback: plaintext comparison (legacy, log warning)
+  console.warn("[AdminAuth] ADMIN_PASSWORD is not hashed — run hashPassword() to generate a secure hash");
+  return safeEqual(password, stored);
+}
+
 export function validateAdminCredentials(
   username: string,
   password: string
 ): boolean {
   const envUser = process.env.ADMIN_USERNAME;
-  const envPass = process.env.ADMIN_PASSWORD;
+  const envPass = process.env.ADMIN_PASSWORD_HASH || process.env.ADMIN_PASSWORD;
   if (!envUser || !envPass || !username || !password) return false;
-  return safeEqual(username, envUser) && safeEqual(password, envPass);
+  return safeEqual(username, envUser) && verifyPassword(password, envPass);
 }
 
 export function createAdminSession(): void {

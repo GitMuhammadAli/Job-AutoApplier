@@ -214,8 +214,9 @@ export async function GET(req: NextRequest) {
     const fireAndForget = (name: string, path: string) => {
       try {
         const url = new URL(path, origin);
-        url.searchParams.set("secret", cronSecret || "");
-        fetch(url.toString()).catch((e) => {
+        fetch(url.toString(), {
+          headers: cronSecret ? { Authorization: `Bearer ${cronSecret}` } : {},
+        }).catch((e) => {
           console.error(`[MatchAllUsers] Fire-and-forget ${name} failed:`, e);
         });
         downstream[name] = "triggered";
