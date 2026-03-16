@@ -66,15 +66,17 @@ export function hashPassword(password: string): string {
 }
 
 function verifyPassword(password: string, stored: string): boolean {
-  // Support both hashed (salt:hash) and legacy plaintext passwords
-  if (stored.includes(":") && stored.length > 100) {
-    const [salt, hash] = stored.split(":");
-    const testHash = scryptSync(password, salt, 64).toString("hex");
-    return safeEqual(testHash, hash);
+  // Require hashed format (salt:hash) — plaintext passwords are rejected
+  if (!stored.includes(":") || stored.length <= 100) {
+    console.error(
+      "[AdminAuth] ADMIN_PASSWORD_HASH is not in hashed format. " +
+      "Generate one with: node -e \"const{scryptSync,randomBytes}=require('crypto');const s=randomBytes(16).toString('hex');console.log(s+':'+scryptSync('YOUR_PASSWORD',s,64).toString('hex'))\""
+    );
+    return false;
   }
-  // Fallback: plaintext comparison (legacy, log warning)
-  console.warn("[AdminAuth] ADMIN_PASSWORD is not hashed — run hashPassword() to generate a secure hash");
-  return safeEqual(password, stored);
+  const [salt, hash] = stored.split(":");
+  const testHash = scryptSync(password, salt, 64).toString("hex");
+  return safeEqual(testHash, hash);
 }
 
 export function validateAdminCredentials(

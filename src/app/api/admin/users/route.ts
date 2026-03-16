@@ -10,8 +10,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const take = Math.min(parseInt(req.nextUrl.searchParams.get("limit") || "100", 10) || 100, 500);
-    const skip = Math.max(parseInt(req.nextUrl.searchParams.get("offset") || "0", 10) || 0, 0);
+    const rawLimit = parseInt(req.nextUrl.searchParams.get("limit") || "100", 10);
+    const take = Math.min(Number.isFinite(rawLimit) ? rawLimit : 100, 500);
+    const rawOffset = parseInt(req.nextUrl.searchParams.get("offset") || "0", 10);
+    const skip = Math.max(Number.isFinite(rawOffset) ? rawOffset : 0, 0);
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
