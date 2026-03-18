@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth";
 import dynamic from "next/dynamic";
 import { Instrument_Serif, DM_Sans } from "next/font/google";
 import { Navbar } from "@/components/landing/Navbar";
@@ -35,7 +36,7 @@ const dmSans = DM_Sans({
 export default async function LandingPage() {
   let session = null;
   try {
-    session = await getServerSession();
+    session = await getServerSession(authOptions);
   } catch {
     // Not authenticated - show landing
   }
