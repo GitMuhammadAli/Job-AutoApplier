@@ -43,7 +43,7 @@ module.exports = {
             value: [
               "default-src 'self'",
               // Next.js requires unsafe-inline for styles; unsafe-eval only in dev
-              "script-src 'self'" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
+              "script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https://*.googleusercontent.com https://*.githubusercontent.com",
               "font-src 'self'",
