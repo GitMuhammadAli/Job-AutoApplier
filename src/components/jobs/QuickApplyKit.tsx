@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -12,11 +12,11 @@ import {
   Linkedin,
   Globe,
   Github,
-  FileText,
   Sparkles,
   Loader2,
   RefreshCw,
 } from "lucide-react";
+import { useStreamingPitch } from "@/hooks/use-streaming-pitch";
 
 interface ProfileData {
   fullName: string | null;
@@ -83,32 +83,31 @@ function CopyButton({
 }
 
 export function QuickApplyKit({ profile, jobId, jobTitle, company }: QuickApplyKitProps) {
-  const [pitch, setPitch] = useState<string | null>(null);
-  const [coverLetter, setCoverLetter] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
+  const pitchStream = useStreamingPitch();
+  const coverLetterStream = useStreamingPitch();
+
   const [copiedPitch, setCopiedPitch] = useState(false);
   const [copiedCL, setCopiedCL] = useState(false);
   const [copiedBundle, setCopiedBundle] = useState(false);
 
   const hasProfile = profile.fullName || profile.applicationEmail;
 
+  const pitch = pitchStream.text || null;
+  const coverLetter = coverLetterStream.text || null;
+  const generating = pitchStream.isStreaming || coverLetterStream.isStreaming;
+
   const generateContent = async () => {
-    setGenerating(true);
-    try {
-      const res = await fetch("/api/jobs/generate-pitch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userJobId: jobId }),
-      });
-      if (!res.ok) throw new Error("Generation failed");
-      const data = await res.json();
-      setPitch(data.pitch || null);
-      setCoverLetter(data.coverLetter || null);
+    pitchStream.reset();
+    coverLetterStream.reset();
+    // Fire both streams in parallel
+    await Promise.all([
+      pitchStream.generate(jobId, "pitch"),
+      coverLetterStream.generate(jobId, "cover_letter"),
+    ]);
+    if (!pitchStream.error && !coverLetterStream.error) {
       toast.success("Cover letter & pitch generated");
-    } catch {
+    } else {
       toast.error("Failed to generate — try again");
-    } finally {
-      setGenerating(false);
     }
   };
 
@@ -190,7 +189,7 @@ export function QuickApplyKit({ profile, jobId, jobTitle, company }: QuickApplyK
 
       {/* AI Content */}
       <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-700/60 space-y-2">
-        {!pitch && !coverLetter && (
+        {!pitch && !pitchStream.isStreaming && !coverLetter && !coverLetterStream.isStreaming && (
           <Button
             variant="outline"
             size="sm"
@@ -207,49 +206,61 @@ export function QuickApplyKit({ profile, jobId, jobTitle, company }: QuickApplyK
           </Button>
         )}
 
-        {pitch && (
+        {(pitch || pitchStream.isStreaming) && (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+              <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
                 Pitch (short)
+                {pitchStream.isStreaming && <Loader2 className="h-2.5 w-2.5 animate-spin text-blue-500" />}
               </span>
-              <button
-                type="button"
-                onClick={() => copyText(pitch, setCopiedPitch)}
-                className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium"
-              >
-                {copiedPitch ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                {copiedPitch ? "Copied" : "Copy"}
-              </button>
+              {!pitchStream.isStreaming && pitch && (
+                <button
+                  type="button"
+                  onClick={() => copyText(pitch, setCopiedPitch)}
+                  className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium"
+                >
+                  {copiedPitch ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {copiedPitch ? "Copied" : "Copy"}
+                </button>
+              )}
             </div>
             <div className="rounded-lg bg-slate-50 dark:bg-zinc-800/60 p-2.5 text-xs text-slate-600 dark:text-zinc-300 leading-relaxed ring-1 ring-slate-100 dark:ring-zinc-700/60 max-h-24 overflow-y-auto">
-              {pitch}
+              {pitchStream.text}
+              {pitchStream.isStreaming && (
+                <span className="inline-block w-0.5 h-3 bg-blue-500 animate-pulse ml-px align-middle" />
+              )}
             </div>
           </div>
         )}
 
-        {coverLetter && (
+        {(coverLetter || coverLetterStream.isStreaming) && (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+              <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1">
                 Cover Letter
+                {coverLetterStream.isStreaming && <Loader2 className="h-2.5 w-2.5 animate-spin text-blue-500" />}
               </span>
-              <button
-                type="button"
-                onClick={() => copyText(coverLetter, setCopiedCL)}
-                className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium"
-              >
-                {copiedCL ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                {copiedCL ? "Copied" : "Copy"}
-              </button>
+              {!coverLetterStream.isStreaming && coverLetter && (
+                <button
+                  type="button"
+                  onClick={() => copyText(coverLetter, setCopiedCL)}
+                  className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium"
+                >
+                  {copiedCL ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {copiedCL ? "Copied" : "Copy"}
+                </button>
+              )}
             </div>
             <div className="rounded-lg bg-slate-50 dark:bg-zinc-800/60 p-2.5 text-xs text-slate-600 dark:text-zinc-300 leading-relaxed ring-1 ring-slate-100 dark:ring-zinc-700/60 max-h-40 overflow-y-auto whitespace-pre-wrap">
-              {coverLetter}
+              {coverLetterStream.text}
+              {coverLetterStream.isStreaming && (
+                <span className="inline-block w-0.5 h-3 bg-blue-500 animate-pulse ml-px align-middle" />
+              )}
             </div>
           </div>
         )}
 
-        {(pitch || coverLetter) && (
+        {(pitch || coverLetter) && !generating && (
           <Button
             variant="ghost"
             size="sm"
@@ -257,7 +268,7 @@ export function QuickApplyKit({ profile, jobId, jobTitle, company }: QuickApplyK
             disabled={generating}
             className="w-full gap-1.5 text-[10px] h-7"
           >
-            {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            <RefreshCw className="h-3 w-3" />
             Regenerate
           </Button>
         )}

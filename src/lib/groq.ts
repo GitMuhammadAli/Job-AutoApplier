@@ -13,6 +13,88 @@ interface GroqOptions {
 
 const MAX_RETRIES = 2;
 
+/**
+ * Returns a ReadableStream of raw text tokens from Groq.
+ * Each chunk written to the stream is a decoded text delta string.
+ */
+export function streamWithGroq(
+  systemPrompt: string,
+  userPrompt: string,
+  options: GroqOptions = {}
+): ReadableStream<Uint8Array> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("GROQ_API_KEY not configured");
+
+  const encoder = new TextEncoder();
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: options.model || "llama-3.1-8b-instant",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: options.temperature ?? 0.7,
+            max_tokens: options.max_tokens ?? 800,
+            stream: true,
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text().catch(() => "Unknown error");
+          controller.error(new Error(`Groq stream error (${response.status}): ${errText.slice(0, 200)}`));
+          return;
+        }
+
+        if (!response.body) {
+          controller.error(new Error("Groq returned no response body"));
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          // SSE lines: "data: {...}\n\n" or "data: [DONE]\n\n"
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data:")) continue;
+            const jsonStr = trimmed.slice(5).trim();
+            if (jsonStr === "[DONE]") break;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                controller.enqueue(encoder.encode(delta));
+              }
+            } catch {
+              // malformed line — skip
+            }
+          }
+        }
+
+        await logApiCall("groq");
+        controller.close();
+      } catch (err) {
+        controller.error(err);
+      }
+    },
+  });
+}
+
 export async function generateWithGroq(
   systemPrompt: string,
   userPrompt: string,
