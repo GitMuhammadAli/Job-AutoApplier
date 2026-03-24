@@ -1,6 +1,7 @@
 import { generateWithGroq } from "./groq";
 import { generateTemplateEmail } from "./ai-fallback";
 import { z } from "zod";
+import type { CompanyResearch } from "./agents/researcher";
 
 function sanitizeForPrompt(text: string): string {
   return text
@@ -76,6 +77,7 @@ export interface GenerateEmailInput {
     subject: string | null;
     body: string | null;
   } | null;
+  companyResearch?: CompanyResearch | null;
 }
 
 export interface GeneratedEmail {
@@ -132,6 +134,7 @@ RULES:
 - If the job description is empty or says "No description available", do NOT invent job requirements — focus on the job title, company, and candidate's own skills
 - Include a clear call-to-action: request for interview, call, or next steps
 - Keep it concise, confident, and specific to THIS job at THIS company
+- If COMPANY RESEARCH is provided, use 1-2 specific details (mission, values, or culture) to show genuine interest — weave them naturally, do not list them robotically
 - The email should read like a real human wrote it, not a template
 - Do NOT start with "Dear Hiring Manager" — use "Hi [actual company name] team" or similar
 - End with the candidate's custom closing if provided, otherwise a short sign-off and their full name
@@ -196,6 +199,22 @@ ${sourceName ? `Found on: ${sourceName}` : ""}
 ${input.job.salary ? `Salary: ${input.job.salary}` : ""}
 Skills Required: ${(input.job.skills ?? []).length > 0 ? (input.job.skills ?? []).join(", ") : "Not listed"}
 Description: ${sanitizeForPrompt(input.job.description || "No description available")}`);
+
+  if (input.companyResearch) {
+    const r = input.companyResearch;
+    const researchParts: string[] = [];
+    if (r.mission) researchParts.push(`Mission: ${r.mission}`);
+    if (r.values?.length) researchParts.push(`Values: ${r.values.join(", ")}`);
+    if (r.techStack?.length) researchParts.push(`Tech Stack: ${r.techStack.join(", ")}`);
+    if (r.culture) researchParts.push(`Culture: ${r.culture}`);
+    if (r.recentNews && r.recentNews !== "No recent news found.") {
+      researchParts.push(`Recent News: ${r.recentNews}`);
+    }
+    if (researchParts.length > 0) {
+      userParts.push(`\nCOMPANY RESEARCH (use 1-2 specific details to personalize the email — do NOT list all of them verbatim):
+${researchParts.join("\n")}`);
+    }
+  }
 
   const profileParts = [`Name: ${input.profile.fullName}`];
   if (input.profile.experienceLevel)

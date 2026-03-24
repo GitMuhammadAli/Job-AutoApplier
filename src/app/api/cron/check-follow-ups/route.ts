@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { generateWithGroq } from "@/lib/groq";
 import { LIMITS, TIMEOUTS, FOLLOW_UP } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
+import { generateFollowUpEmail } from "@/lib/ai/generate-followup";
 
 export const maxDuration = 10;
 export const dynamic = "force-dynamic";
@@ -53,42 +53,24 @@ export async function GET(req: NextRequest) {
 
       try {
         const settings = userJob.user.settings;
-        const langInstruction =
-          settings.emailLanguage && settings.emailLanguage !== "English"
-            ? `Write in ${settings.emailLanguage}.`
-            : "";
 
-        let followUp: string;
-        try {
-          followUp = await generateWithGroq(
-            `You are a professional follow-up email writer. Write a SHORT polite follow-up (50-100 words).
-${langInstruction}
-Return ONLY JSON: {"subject":"Re: ...","body":"..."}`,
-            `Original application:
-Position: ${userJob.globalJob.title} at ${userJob.globalJob.company}
-Applied: ${userJob.application.sentAt?.toISOString() || "recently"}
-Original subject: ${userJob.application.subject}
+        const sentAt = userJob.application.sentAt ?? userJob.application.createdAt;
+        const daysSinceApplied = sentAt
+          ? Math.floor((Date.now() - sentAt.getTime()) / (1000 * 60 * 60 * 24))
+          : 7;
 
-Write a brief, warm follow-up checking on the status.`,
-            { temperature: 0.6, max_tokens: 300 },
-          );
-        } catch (aiErr) {
-          console.warn(`[FollowUp] AI generation failed for job ${userJob.id}, skipping:`, aiErr instanceof Error ? aiErr.message : aiErr);
-          failed++;
-          continue;
-        }
-
-        const cleaned = followUp
-          .replace(/```json\n?/g, "")
-          .replace(/```/g, "")
-          .trim();
         let parsed: { subject: string; body: string };
         try {
-          parsed = JSON.parse(cleaned) as { subject: string; body: string };
-        } catch {
-          console.warn(
-            `[FollowUp] JSON parse failed for job ${userJob.id}, skipping`,
-          );
+          parsed = await generateFollowUpEmail({
+            originalSubject: userJob.application.subject ?? `Application for ${userJob.globalJob.title}`,
+            originalBody: userJob.application.emailBody ?? "",
+            jobTitle: userJob.globalJob.title,
+            companyName: userJob.globalJob.company,
+            daysSinceApplied,
+            emailLanguage: settings.emailLanguage,
+          });
+        } catch (aiErr) {
+          console.warn(`[FollowUp] AI generation failed for job ${userJob.id}, skipping:`, aiErr instanceof Error ? aiErr.message : aiErr);
           failed++;
           continue;
         }

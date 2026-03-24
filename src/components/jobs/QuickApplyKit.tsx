@@ -15,6 +15,7 @@ import {
   Sparkles,
   Loader2,
   RefreshCw,
+  GraduationCap,
 } from "lucide-react";
 import { useStreamingPitch } from "@/hooks/use-streaming-pitch";
 
@@ -271,6 +272,19 @@ export function QuickApplyKit({ profile, jobId, jobTitle, company }: QuickApplyK
             <RefreshCw className="h-3 w-3" />
             Regenerate
           </Button>
+        )}
+
+        {/* Cross-product: Prepare for Interview on DevRadar */}
+        {process.env.NEXT_PUBLIC_DEVRADAR_URL && (
+          <a
+            href={`${process.env.NEXT_PUBLIC_DEVRADAR_URL}/interview?source=jobpilot&title=${encodeURIComponent(jobTitle)}&company=${encodeURIComponent(company)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 w-full rounded-lg px-3 py-2 text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors ring-1 ring-violet-200 dark:ring-violet-800/40"
+          >
+            <GraduationCap className="h-3.5 w-3.5" />
+            Prepare for Interview on DevRadar
+          </a>
         )}
       </div>
     </div>

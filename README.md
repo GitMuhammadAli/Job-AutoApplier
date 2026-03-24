@@ -13,6 +13,15 @@ AI-powered job search platform that finds the best jobs across 8 sources, scores
 - **Negative keywords** &mdash; exclude irrelevant jobs (e.g., "wordpress", "php", "internship")
 - **Company blacklist** &mdash; hide specific companies from results
 
+### Multi-Agent Application Pipeline (NEW)
+- **4-agent pipeline** &mdash; `POST /api/applications/pipeline` orchestrates: Company Researcher → Resume Tailor → Email Writer → QA Checker. Each agent passes structured results to the next. Source: `src/lib/agents/pipeline.ts`.
+- **Company research agent** &mdash; Searches Google CSE for company info, extracts mission/values/tech stack/culture via Groq. Falls back gracefully if search fails. Source: `src/lib/agents/researcher.ts`.
+- **Resume tailor agent** &mdash; Compares user skills to JD, selects most relevant, suggests bullet rewrites with missing keywords. Source: `src/lib/agents/resume-tailor.ts`.
+- **Email writer agent** &mdash; Generates personalized subject + body + cover letter using context from agents 1+2. Source: `src/lib/agents/email-writer.ts`.
+- **QA checker agent** &mdash; Scores the final email on tone, keyword density, personalization, spam triggers. Returns score 1-10 with issues + suggestions. Source: `src/lib/agents/qa-checker.ts`.
+- **Application quality score** &mdash; Pre-send scoring with per-criteria breakdown (keyword match, personalization, length, tone, call-to-action). Source: `src/lib/ai/quality-scorer.ts`.
+- **AI follow-up emails** &mdash; 7 days with no response → AI drafts follow-up referencing original application. Cron: `/api/cron/follow-ups`. Source: `src/lib/ai/generate-followup.ts`.
+
 ### Application Pipeline
 - **Daily Queue ("Today's Jobs")** &mdash; Dashboard shows top 10 highest-scored new jobs from last 48h, split into "Auto-Apply Ready" (verified email) and "Quick Apply" (apply on site). Progress bar shows applied count. Component: `TodaysQueue.tsx`, server action: `getTodaysQueue()`.
 - **Flipped primary action** &mdash; "Apply on Site" is the primary button (blue, prominent) on job cards and job detail; "Email Apply" is secondary, only shown for jobs with verified email (confidence ≥70). Aligns with the reality that ~85% of jobs don't have email.
@@ -29,7 +38,11 @@ AI-powered job search platform that finds the best jobs across 8 sources, scores
 - **Email templates** &mdash; customizable with `{{company}}`, `{{position}}`, `{{name}}` placeholders
 - **Bulk operations** &mdash; dismiss, save, delete multiple jobs; clear old/rejected/failed applications
 
-### Analytics & Insights
+### Analytics, ML & Insights (ENHANCED)
+- **ML job match scorer** &mdash; Learns from save/dismiss behavior using logistic regression. Features: keyword overlap, location match, title relevance, experience fit, salary fit. Retrains weekly. Source: `src/lib/ml/scorer.ts`.
+- **Smart send timing** &mdash; Analyzes historical open rates by day/hour. Recommends optimal send time. Falls back to industry data (Tuesday 10 AM) with <5 samples. Source: `src/lib/analytics/send-timing.ts`.
+- **A/B subject line testing** &mdash; Generates 2 subject variants per application. Tracks opens per variant. Reports winner with statistical significance (30+ samples needed). Source: `src/lib/analytics/ab-testing.ts`.
+- **Weekly performance report** &mdash; Monday email: applications sent/opened/replied, best keywords, response rate, source performance. Cron: `/api/cron/weekly-report`. Source: `src/lib/email/weekly-report.ts`.
 - **Delivery stats dashboard** &mdash; Weekly stats: sent, bounced, failed, drafts, delivery rate with trend indicator, email vs site application breakdown, email availability bar (verified/unverified/none). Component: `DeliveryStats.tsx`, server action: `getDeliveryStats()`.
 - **Analytics dashboard** &mdash; applications over time, source breakdown, score distribution, response rates, speed metrics, keyword effectiveness
 - **Keyword effectiveness** &mdash; per-keyword match/save/dismiss/apply counts to optimize your search
@@ -155,7 +168,10 @@ src/
   lib/
     scrapers/             # 8 job source integrations
     matching/             # Score engine, recommendation engine, resume matcher
-    ai/                   # Groq-powered email/cover letter generation
+    agents/               # Multi-agent pipeline (researcher, tailor, writer, QA, orchestrator)
+    ai/                   # Groq-powered email/cover letter/follow-up/quality scoring
+    analytics/            # Send timing, A/B testing
+    ml/                   # ML job scorer (logistic regression)
     email.ts              # SMTP transporter with connection pooling + caching
     email-extractor.ts    # Company email extraction with confidence scoring
     email-errors.ts       # SMTP error classification (permanent/transient/rate_limit/auth/network)
@@ -181,7 +197,9 @@ These run on a schedule (e.g. via Vercel Cron or cron-job.org). All require `CRO
 | `/api/cron/send-queued` | Send applications in READY status |
 | `/api/cron/send-scheduled` | Send scheduled applications past their send time |
 | `/api/cron/follow-up` | Send follow-up emails |
-| `/api/cron/check-follow-ups` | Find applications sent 7+ days ago, draft follow-ups |
+| `/api/cron/check-follow-ups` | Find applications sent 7+ days ago, draft AI follow-ups |
+| `/api/cron/follow-ups` | Send AI-generated follow-up emails |
+| `/api/cron/weekly-report` | Send weekly performance report to users (Monday 8 AM) |
 | `/api/cron/notify-matches` | Email notifications for new matches |
 | `/api/cron/cleanup-stale` | Archive old inactive jobs |
 
@@ -212,15 +230,27 @@ Works out of the box on [Vercel](https://vercel.com):
 5. Set function region to match your Neon DB (e.g. `iad1` for us-east-1)
 6. Set up cron-job.org (free) to trigger `/api/cron/*` endpoints on schedule
 
+## Testing
+
+```bash
+pnpm test:unit          # Run unit tests (vitest)
+pnpm test:unit:watch    # Watch mode
+```
+
+21 unit tests covering ML scorer (12 tests) and A/B testing analytics (9 tests).
+
+## Cross-Product Integration (with DevRadar)
+
+- **Interview prep link** &mdash; "Prepare for this job" button opens DevRadar interview page with JD pre-filled
+- **Skill sync** &mdash; Skills from DevRadar auto-populate JobPilot user profile
+- **Market-boosted matching** &mdash; Trending skills from DevRadar boost JobPilot match scores
+- **MCP server** &mdash; Query both apps from Claude Desktop
+
 ## Roadmap
 
-See the product strategy for planned features:
-
-- **Fast Manual Apply** &mdash; "Apply on Site" as primary action, copy-to-clipboard kit, daily application queue
-- **Application Tracking** &mdash; Track all applications (email, site, LinkedIn, referral) in one dashboard
 - **Browser Extension** &mdash; Chrome extension for match scoring and one-click apply on LinkedIn/Indeed
-- **Weekly Reports** &mdash; Automated email with performance stats, keyword suggestions, resume gaps
-- **Daily Digest** &mdash; Morning email with top matches and auto-apply results
+- **Voice Applications** &mdash; Record audio cover letters via Whisper transcription
+- **Smart Scheduling UI** &mdash; Visual heatmap of best send times with one-click scheduling
 
 ## License
 
