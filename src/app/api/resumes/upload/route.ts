@@ -138,10 +138,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Resume upload error:", error);
-    const message = error instanceof Error ? error.message : "Upload failed";
-    if (message === "Not authenticated") {
+    const rawMessage = error instanceof Error ? error.message : "";
+    if (rawMessage === "Not authenticated") {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
   }
 }
