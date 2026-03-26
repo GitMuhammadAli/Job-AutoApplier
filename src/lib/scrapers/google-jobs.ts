@@ -8,7 +8,7 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
   if (!key) return [];
 
   const startTime = Date.now();
-  const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;
+  const deadline = startTime + TIMEOUTS.SCRAPER_SLOW_DEADLINE_MS;
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 

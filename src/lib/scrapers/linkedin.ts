@@ -40,7 +40,7 @@ export async function fetchLinkedIn(
   queries: SearchQuery[],
 ): Promise<ScrapedJob[]> {
   const startTime = Date.now();
-  const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;
+  const deadline = startTime + TIMEOUTS.SCRAPER_SLOW_DEADLINE_MS;
   const jobs: ScrapedJob[] = [];
   const seenIds = new Set<string>();
 

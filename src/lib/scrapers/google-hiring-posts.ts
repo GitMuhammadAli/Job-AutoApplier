@@ -33,6 +33,12 @@ const HIRING_TERMS = [
   "job opening",
   "open position",
   "apply now",
+  "urgent hiring",
+  "immediate joiners",
+  "send your resume",
+  "share your profile",
+  "interested candidates",
+  "open role",
 ];
 
 interface SearchResult {
@@ -115,7 +121,7 @@ export async function fetchGoogleHiringPosts(
   maxQueries = 6,
 ): Promise<ScrapedJob[]> {
   const startTime = Date.now();
-  const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;
+  const deadline = startTime + TIMEOUTS.SCRAPER_SLOW_DEADLINE_MS;
   const hasCSE = !!(process.env.GOOGLE_CSE_KEY && process.env.GOOGLE_CSE_ID);
   const hasSerpAPI = !!process.env.SERPAPI_KEY;
 
