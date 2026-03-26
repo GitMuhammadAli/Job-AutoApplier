@@ -420,3 +420,60 @@ Agent 4: "Score this email" → honest assessment
 | ML | Custom logistic regression (TypeScript) |
 
 **Total: 12 features built. 21 tests. 0 TypeScript errors.**
+
+---
+
+## Problems Faced & How We Fixed Them
+
+### Problem 1: Scraper Timeouts
+**What happened:** rozee, google, linkedin_posts all timing out at 9s for 10+ days. Admin showed "Timeout after 9000ms."
+
+**Root cause:** Single `SCRAPER_DEADLINE_MS: 9_000` for all 9 scrapers. SerpAPI/Google CSE need 10-15s.
+
+**Fix:** Per-scraper timeouts. Added `SCRAPER_SLOW_DEADLINE_MS: 25_000`. Slow scrapers (SerpAPI, Google CSE, LinkedIn HTML) use 25s. Fast scrapers keep 9s. `maxDuration` on Vercel routes: 10→30. Added 6 new hiring terms for linkedin_posts coverage.
+
+### Problem 2: Build Failures on Vercel
+**What happened:** Every deployment `● Error`. Build ran `prisma db push` which needs DB connection — unavailable during Vercel build.
+
+**Fix:** Changed build script from `prisma db push && next build` to `prisma generate && next build`. `generate` creates client locally, no DB needed.
+
+### Problem 3: Admin Login Broken
+**What happened:** `{"error":"Invalid credentials"}` with correct password.
+
+**Root cause:** `verifyPassword()` rejects plaintext passwords for security. Requires `salt:hash` format (100+ chars). `ADMIN_PASSWORD` env var was plaintext.
+
+**Fix:** Generated hashed password with `scryptSync` + random salt. Added `ADMIN_PASSWORD_HASH` env var on Vercel.
+
+### Problem 4: LinkedIn Posts Not Captured
+**What happened:** Real recruiter posts (like "Urgent Hiring | Full Stack Engineer | Lahore") not appearing in JobPilot.
+
+**Root cause:** (a) linkedin_posts scraper timing out for 10 days, (b) Google CSE indexes with delay — 3-hour-old posts not indexed yet, (c) search queries didn't include terms like "urgent hiring", "share your profile", "immediate joiners".
+
+**Fix:** Increased timeout to 25s, added 6 new hiring terms to match Pakistan recruiter posting patterns. For immediate needs: Quick Add feature lets users paste any URL.
+
+### Problem 5: CSP Blocking Next.js
+**What happened:** Login page showed gray skeletons — JS not executing.
+
+**Root cause:** Content Security Policy `script-src` blocked Next.js hydration inline scripts.
+
+**Fix:** Added `'unsafe-inline'` to `script-src` in `next.config.js`. Next.js requires this for hydration.
+
+### Problem 6: Missing Environment Variables
+**What happened:** Deployed site blank — header renders but content fails to load.
+
+**Root cause:** Only 6 of 30+ env vars were set on Vercel. Missing: DATABASE_URL, NEXTAUTH_SECRET, OAuth keys, etc.
+
+**Fix:** Bulk-imported all .env variables through Vercel dashboard "Import .env" feature.
+
+---
+
+## Interview-Ready Explanations
+
+### "How do you handle unreliable external APIs?"
+> "I built a scraper pipeline that hits 9 different job sources. Three of them use external services (SerpAPI, Google CSE) with unpredictable latency. My approach: per-service timeouts (9s for fast APIs, 25s for slow ones), `Promise.allSettled()` so one failure doesn't block others, automatic fallbacks (LinkedIn HTML scraper falls back to JSearch API), health tracking in the database with admin dashboard visibility, and graceful degradation — if 2 scrapers fail, users still get 90% of jobs."
+
+### "Tell me about your 4-agent pipeline"
+> "When a user applies to a job, 4 AI agents work in sequence: (1) Company Researcher scrapes the company website for mission/values/tech stack, (2) Resume Tailor selects the most relevant resume bullets and identifies missing keywords, (3) Email Writer generates a personalized email using context from agents 1+2, (4) QA Checker scores the email 1-10 on tone, personalization, keyword density, and spam triggers. Each agent passes structured JSON to the next. If any agent fails, the pipeline continues with what it has."
+
+### "How do you prevent email spam/reputation damage?"
+> "8-layer safety: (1) Progressive warmup: 3 emails/day for 3 days, then 8/day, then unlimited. (2) Bounce detection: 3 address-not-found bounces → 24h pause. (3) RCPT TO pre-verification before sending. (4) Provider-specific rate limits (Gmail 500/day, Outlook 300/day). (5) Hourly caps with 30-minute cooldowns. (6) Email confidence scoring — only auto-send if email confidence >= 70%. (7) Between-send delay (configurable, default 120s). (8) Idempotency keys to prevent duplicate sends."
