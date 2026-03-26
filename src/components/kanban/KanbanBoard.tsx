@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useCallback, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { fadeIn } from "@/lib/motion";
 import {
   DndContext,
   DragEndEvent,
@@ -202,14 +204,23 @@ export function KanbanBoard({ initialJobs }: KanbanBoardProps) {
         </div>
 
         <DragOverlay>
-          {activeJob ? (
-            <div className="w-72 rotate-3 opacity-90">
-              <JobCard
-                job={activeJob}
-                onStageChange={() => {}}
-              />
-            </div>
-          ) : null}
+          <AnimatePresence>
+            {activeJob ? (
+              <motion.div
+                key={activeJob.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 0.9, scale: 1, rotate: 3 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="w-72"
+              >
+                <JobCard
+                  job={activeJob}
+                  onStageChange={() => {}}
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </DragOverlay>
       </DndContext>
     </div>

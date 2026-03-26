@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion, useAnimationControls } from "framer-motion";
+import { shake } from "@/lib/motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,7 @@ export function JobForm() {
   const [description, setDescription] = useState(sharedText);
   const [companyEmail, setCompanyEmail] = useState("");
   const [notes, setNotes] = useState("");
+  const formControls = useAnimationControls();
 
   async function handleExtractUrl() {
     const url = pasteUrl.trim();
@@ -92,6 +95,7 @@ export function JobForm() {
   const handleSubmit = () => {
     if (!title.trim() || !company.trim()) {
       toast.error("Title and company are required");
+      formControls.start("shake");
       return;
     }
 
@@ -120,7 +124,7 @@ export function JobForm() {
   };
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <motion.div className="max-w-2xl space-y-5" variants={shake} animate={formControls}>
       {/* URL Quick Extract */}
       <div className="rounded-xl bg-gradient-to-r from-blue-50 to-violet-50 dark:from-blue-950/30 dark:to-violet-950/30 p-4 ring-1 ring-blue-200/50 dark:ring-blue-800/40 space-y-3">
         <div className="flex items-center gap-2">
@@ -228,6 +232,6 @@ export function JobForm() {
           Cancel
         </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -585,10 +587,16 @@ export function ResumeList({ resumes }: ResumeListProps) {
       </Dialog>
 
       {/* Resume grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <motion.div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+      >
         {resumes.map((r) => (
-          <div
+          <motion.div
             key={r.id}
+            variants={staggerItem}
             className="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-4 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-200/60 dark:ring-zinc-700/50 space-y-3 transition-all hover:shadow-md dark:hover:shadow-zinc-900/50 hover:-translate-y-0.5"
           >
             <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-blue-500" />
@@ -809,9 +817,9 @@ export function ResumeList({ resumes }: ResumeListProps) {
                 </div>
               </>
             )}
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {resumes.length === 0 && (
         <div className="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-10 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-200/60 dark:ring-zinc-700/50 text-center">

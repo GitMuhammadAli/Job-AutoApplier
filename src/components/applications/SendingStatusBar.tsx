@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { Send, AlertTriangle, Clock, PauseCircle, Timer } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -122,13 +123,15 @@ export function SendingStatusBar(props: SendingStatusBarProps) {
             <span className="text-slate-400 dark:text-zinc-500 tabular-nums">{dayPercent}%</span>
           </div>
           <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
+            <motion.div
+              className={`h-full rounded-full ${
                 isWarning
                   ? "bg-gradient-to-r from-amber-400 to-amber-500"
                   : "bg-gradient-to-r from-blue-400 to-blue-600"
               }`}
-              style={{ width: `${Math.min(dayPercent, 100)}%` }}
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(dayPercent, 100)}%` }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             />
           </div>
         </div>
@@ -139,13 +142,15 @@ export function SendingStatusBar(props: SendingStatusBarProps) {
             <span className="text-slate-400 dark:text-zinc-500 tabular-nums">{hourPercent}%</span>
           </div>
           <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
+            <motion.div
+              className={`h-full rounded-full ${
                 hourWarning
                   ? "bg-gradient-to-r from-amber-400 to-amber-500"
                   : "bg-gradient-to-r from-violet-400 to-violet-600"
               }`}
-              style={{ width: `${Math.min(hourPercent, 100)}%` }}
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(hourPercent, 100)}%` }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
             />
           </div>
         </div>

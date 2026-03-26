@@ -1,7 +1,10 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { cn } from "@/lib/utils";
+import { pageTransition } from "@/lib/motion";
 import { UpdateBanner } from "@/components/layout/UpdateBanner";
 
 interface DashboardShellProps {
@@ -12,6 +15,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({ sidebar, header, children }: DashboardShellProps) {
   const collapsed = useSidebarStore((s) => s.collapsed);
+  const pathname = usePathname();
 
   return (
     <>
@@ -25,7 +29,17 @@ export function DashboardShell({ sidebar, header, children }: DashboardShellProp
         <UpdateBanner />
         {header}
         <main id="main-content" className="px-2 py-3 sm:px-4 sm:py-5 md:px-6 md:py-6 max-w-[1400px] mx-auto min-w-0 overflow-x-hidden">
-          {children}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={pathname}
+              variants={pageTransition}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </>

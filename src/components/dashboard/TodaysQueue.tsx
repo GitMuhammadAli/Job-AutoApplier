@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { markAppliedFromSite } from "@/app/actions/job";
@@ -88,8 +90,16 @@ export function TodaysQueue({ autoApply, quickApply, total }: TodaysQueueProps) 
         </div>
       </button>
 
+      <AnimatePresence>
       {expanded && (
-        <div className="border-t border-slate-100 dark:border-zinc-700 px-4 pb-4">
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="border-t border-slate-100 dark:border-zinc-700 overflow-hidden"
+        >
+        <div className="px-4 pb-4">
           <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-2 mb-1">
             Jobs are split by how you can apply
           </p>
@@ -105,17 +115,18 @@ export function TodaysQueue({ autoApply, quickApply, total }: TodaysQueueProps) 
               <p className="text-[10px] text-slate-400 dark:text-zinc-500 mb-2">
                 We found the company email — click to send your application
               </p>
-              <div className="space-y-1.5">
+              <motion.div className="space-y-1.5" variants={staggerContainer} initial="hidden" animate="visible">
                 {autoApply.map((job) => (
-                  <QueueJobRow
-                    key={job.id}
-                    job={job}
-                    isApplied={appliedIds.has(job.id)}
-                    onApplied={() => setAppliedIds((prev) => new Set(prev).add(job.id))}
-                    type="email"
-                  />
+                  <motion.div key={job.id} variants={staggerItem}>
+                    <QueueJobRow
+                      job={job}
+                      isApplied={appliedIds.has(job.id)}
+                      onApplied={() => setAppliedIds((prev) => new Set(prev).add(job.id))}
+                      type="email"
+                    />
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             </div>
           )}
 
@@ -130,21 +141,24 @@ export function TodaysQueue({ autoApply, quickApply, total }: TodaysQueueProps) 
               <p className="text-[10px] text-slate-400 dark:text-zinc-500 mb-2">
                 No email found — apply directly on the job posting
               </p>
-              <div className="space-y-1.5">
+              <motion.div className="space-y-1.5" variants={staggerContainer} initial="hidden" animate="visible">
                 {quickApply.map((job) => (
-                  <QueueJobRow
-                    key={job.id}
-                    job={job}
-                    isApplied={appliedIds.has(job.id)}
-                    onApplied={() => setAppliedIds((prev) => new Set(prev).add(job.id))}
-                    type="site"
-                  />
+                  <motion.div key={job.id} variants={staggerItem}>
+                    <QueueJobRow
+                      job={job}
+                      isApplied={appliedIds.has(job.id)}
+                      onApplied={() => setAppliedIds((prev) => new Set(prev).add(job.id))}
+                      type="site"
+                    />
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             </div>
           )}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

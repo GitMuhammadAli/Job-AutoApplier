@@ -4,9 +4,13 @@ function Bone({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "animate-pulse rounded-lg bg-slate-200/70 dark:bg-zinc-700/70",
+        "animate-pulse rounded-lg bg-gradient-to-r from-slate-200/70 via-slate-100/70 to-slate-200/70 dark:from-zinc-700/70 dark:via-zinc-600/70 dark:to-zinc-700/70 bg-[length:200%_100%] animate-shimmer",
         className
       )}
+      style={{
+        animation: "shimmer 1.5s ease-in-out infinite",
+        backgroundSize: "200% 100%",
+      }}
     />
   );
 }

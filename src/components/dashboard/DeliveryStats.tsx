@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { motion, useInView } from "framer-motion";
+import { fadeInUp, staggerContainer, staggerItem, counterConfig } from "@/lib/motion";
 import {
   Mail,
   CheckCircle2,
@@ -47,14 +50,14 @@ export function DeliveryStats({ stats }: DeliveryStatsProps) {
   if (!hasActivity && emailAvailability.total === 0) return null;
 
   return (
-    <div className="rounded-xl bg-white dark:bg-zinc-800/80 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 p-3 sm:p-4 overflow-hidden min-w-0">
+    <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="rounded-xl bg-white dark:bg-zinc-800/80 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 p-3 sm:p-4 overflow-hidden min-w-0">
       <h2 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-3 flex items-center gap-1.5">
         <Mail className="h-4 w-4 text-blue-500" />
         Application Stats
         <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500 ml-auto">This week</span>
       </h2>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mb-3">
+      <motion.div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mb-3" variants={staggerContainer} initial="hidden" animate="visible">
         <StatCard
           label="Sent"
           value={thisWeek.sent}
@@ -81,7 +84,7 @@ export function DeliveryStats({ stats }: DeliveryStatsProps) {
           icon={<FileText className="h-3.5 w-3.5 text-blue-500" />}
           color="blue"
         />
-      </div>
+      </motion.div>
 
       {/* Delivery rate + channels */}
       <div className="flex flex-wrap items-center gap-3 text-[11px]">
@@ -165,8 +168,29 @@ export function DeliveryStats({ stats }: DeliveryStatsProps) {
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
+}
+
+function AnimatedNumber({ value }: { value: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true });
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    if (!isInView) return;
+    const duration = counterConfig.duration * 1000;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      setDisplay(Math.round(progress * value));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [isInView, value]);
+
+  return <span ref={ref} className="text-lg font-bold text-slate-800 dark:text-zinc-100 tabular-nums">{display}</span>;
 }
 
 function StatCard({
@@ -182,12 +206,12 @@ function StatCard({
   tooltip?: string;
 }) {
   return (
-    <div className="rounded-lg p-2.5 bg-slate-50/80 dark:bg-zinc-800/50 ring-1 ring-slate-100/60 dark:ring-zinc-700/40" title={tooltip}>
+    <motion.div variants={staggerItem} className="rounded-lg p-2.5 bg-slate-50/80 dark:bg-zinc-800/50 ring-1 ring-slate-100/60 dark:ring-zinc-700/40" title={tooltip}>
       <div className="flex items-center gap-1.5 mb-0.5">
         {icon}
         <span className="text-[10px] font-medium text-slate-500 dark:text-zinc-400">{label}</span>
       </div>
-      <span className="text-lg font-bold text-slate-800 dark:text-zinc-100 tabular-nums">{value}</span>
-    </div>
+      <AnimatedNumber value={value} />
+    </motion.div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { AnimateOnScroll } from "./AnimateOnScroll";
 
@@ -72,19 +73,22 @@ export function FAQSection() {
                     }`}
                   />
                 </button>
-                <div
-                  className={`grid transition-all duration-300 ease-out ${
-                    openIdx === i
-                      ? "grid-rows-[1fr] opacity-100 mt-3"
-                      : "grid-rows-[0fr] opacity-0"
-                  }`}
-                >
-                  <div className="overflow-hidden">
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
-                      {faq.a}
-                    </p>
-                  </div>
-                </div>
+                <AnimatePresence initial={false}>
+                  {openIdx === i && (
+                    <motion.div
+                      key="answer"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed mt-3">
+                        {faq.a}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </AnimateOnScroll>
           ))}

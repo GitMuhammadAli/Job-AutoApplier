@@ -252,6 +252,92 @@ pnpm test:unit:watch    # Watch mode
 - **Voice Applications** &mdash; Record audio cover letters via Whisper transcription
 - **Smart Scheduling UI** &mdash; Visual heatmap of best send times with one-click scheduling
 
+## Database
+
+**ORM:** Prisma 5.20 with PostgreSQL (Neon).
+
+### Key Models
+
+| Model | Purpose |
+|-------|---------|
+| User | Auth profile, settings, preferences |
+| GlobalJob | Scraped job postings from all sources |
+| UserJob | Per-user job state (saved, dismissed, applied) |
+| JobApplication | Application records with status tracking |
+| Resume | Uploaded PDFs with extracted skills |
+| UserSettings | User configuration (keywords, filters, SMTP) |
+| EmailTemplate | Customizable email templates |
+| CompanyEmail | Extracted company emails with confidence scores |
+| Activity | User action tracking |
+| ScraperRun | Scraper execution logs |
+| SystemLog | System-wide logging |
+| SystemLock | Distributed locks for cron jobs |
+| PushSubscription | Web push notification subscriptions |
+| UserFeedback | In-app bug reports and suggestions |
+
+### Commands
+
+```bash
+npx prisma db push         # Push schema to DB
+npx prisma migrate dev     # Create migration
+npx prisma migrate deploy  # Run pending migrations
+npx prisma generate        # Regenerate client
+npx prisma studio          # Visual DB browser
+npx prisma migrate reset   # Reset DB (destroys data)
+```
+
+---
+
+## Troubleshooting
+
+### Email Delivery Issues
+- Verify SMTP credentials in settings (test with `/api/email/test`)
+- Check Brevo dashboard for bounces and blocks
+- Email warmup: new accounts start at 5/day, auto-increases over 14 days
+- Bounce detection via `/api/webhooks/bounce` -- configure in Brevo
+- Rate limiter caps sending at configured daily/hourly limits
+
+### Scraper Failures
+- LinkedIn scraping is rate-limited heavily -- uses Google search as proxy
+- JSearch API has daily quota (500 requests on free tier)
+- Adzuna requires valid APP_ID + APP_KEY
+- If a scraper times out, check Vercel function timeout (default 10s, max 60s on Pro)
+- Check admin panel `/admin/scrapers` for per-source health metrics
+
+### Cron Job Debugging
+- All cron endpoints require `Authorization: Bearer CRON_SECRET` header
+- SystemLock prevents duplicate runs -- if stuck, check `SystemLock` table
+- Test locally: `curl -H "Authorization: Bearer YOUR_SECRET" http://localhost:3000/api/cron/scrape-global`
+- Check ScraperRun table for execution history and error logs
+
+### Build Errors
+```bash
+rm -rf .next               # Clear Next.js cache
+npx prisma generate        # Regenerate Prisma client
+npm install                # Reinstall deps
+npm run build
+```
+Ensure Node.js 18+ and that `DATABASE_URL` is set (Prisma generate needs it).
+
+### Database Issues
+- Connection errors: ensure `?pgbouncer=true&connection_limit=5` in DATABASE_URL for Neon
+- Slow queries: enable Prisma query logging in development (`prisma.ts` has it built in)
+- Migration drift: run `npx prisma db push` to sync schema without creating migration files
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a branch: `git checkout -b feat/your-feature`
+3. Install: `npm install`
+4. Run dev: `npm run dev`
+5. Run checks: `npm run lint && npm run build`
+6. Use conventional commits: `feat: add new scraper source`
+7. Open a PR against `main`
+
+---
+
 ## License
 
 MIT

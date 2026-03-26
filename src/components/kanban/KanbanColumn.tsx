@@ -1,6 +1,8 @@
 "use client";
 
 import { memo, useState, useMemo } from "react";
+import { motion } from "framer-motion";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { STAGE_CONFIG } from "@/lib/utils";
@@ -56,9 +58,13 @@ export const KanbanColumn = memo(function KanbanColumn({ stage, jobs, onStageCha
             />
           ) : (
             <>
-              {visibleJobs.map((job) => (
-                <JobCard key={job.id} job={job} onStageChange={onStageChange} />
-              ))}
+              <motion.div className="space-y-2" variants={staggerContainer} initial="hidden" animate="visible">
+                {visibleJobs.map((job) => (
+                  <motion.div key={job.id} variants={staggerItem}>
+                    <JobCard job={job} onStageChange={onStageChange} />
+                  </motion.div>
+                ))}
+              </motion.div>
               {hasMore && (
                 <button
                   onClick={() => setVisibleCount((c) => c + pageSize)}
@@ -97,7 +103,7 @@ export const KanbanColumn = memo(function KanbanColumn({ stage, jobs, onStageCha
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 space-y-2.5 px-2.5 pb-3 min-h-[80px] transition-colors rounded-b-xl scrollbar-thin overflow-y-auto max-h-[68vh]",
+          "flex-1 px-2.5 pb-3 min-h-[80px] transition-colors rounded-b-xl scrollbar-thin overflow-y-auto max-h-[68vh]",
           isOver && "bg-slate-50/50 dark:bg-zinc-800/50"
         )}
       >
@@ -110,9 +116,13 @@ export const KanbanColumn = memo(function KanbanColumn({ stage, jobs, onStageCha
           />
         ) : (
           <>
-            {visibleJobs.map((job) => (
-              <JobCard key={job.id} job={job} onStageChange={onStageChange} />
-            ))}
+            <motion.div className="space-y-2.5" variants={staggerContainer} initial="hidden" animate="visible">
+              {visibleJobs.map((job) => (
+                <motion.div key={job.id} variants={staggerItem}>
+                  <JobCard job={job} onStageChange={onStageChange} />
+                </motion.div>
+              ))}
+            </motion.div>
             {hasMore && (
               <button
                 onClick={() => setVisibleCount((c) => c + pageSize)}

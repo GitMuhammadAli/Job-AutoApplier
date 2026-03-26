@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { motion } from "framer-motion";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 import {
   LayoutDashboard,
   BarChart3,
@@ -72,6 +74,17 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
   const pathname = usePathname();
   const { collapsed, mobileOpen, toggle, setMobileOpen } = useSidebarStore();
   const [accountStatus, setAccountStatus] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement>(null);
+
+  const handleNavKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const links = navRef.current?.querySelectorAll<HTMLAnchorElement>("a[href]");
+    if (!links?.length) return;
+    const idx = Array.from(links).findIndex((l) => l === document.activeElement);
+    const next = e.key === "ArrowDown" ? (idx < links.length - 1 ? idx + 1 : 0) : (idx > 0 ? idx - 1 : links.length - 1);
+    links[next]?.focus();
+  }, []);
 
   useEffect(() => {
     fetch("/api/settings/mode")
@@ -179,22 +192,36 @@ export function Sidebar({ user, isAdmin: adminUser }: SidebarProps) {
         )}
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-3 overflow-y-auto scrollbar-thin flex flex-col">
+        <nav ref={navRef} className="flex-1 px-3 py-3 overflow-y-auto scrollbar-thin flex flex-col" role="navigation" aria-label="Main" onKeyDown={handleNavKeyDown}>
           {/* Main */}
-          <div className="space-y-0.5">
+          <motion.div
+            className="space-y-0.5"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+          >
             {MAIN_NAV.map((item) => (
-              <NavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+              <motion.div key={item.href} variants={staggerItem}>
+                <NavLink item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           {/* Tools */}
           <div className="mt-5">
             <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Tools</p>
-            <div className="space-y-0.5">
+            <motion.div
+              className="space-y-0.5"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+            >
               {TOOLS_NAV.map((item) => (
-                <NavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+                <motion.div key={item.href} variants={staggerItem}>
+                  <NavLink item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
 
           {/* DevRadar — only shows when NEXT_PUBLIC_DEVRADAR_URL is configured */}

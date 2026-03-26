@@ -2,6 +2,8 @@
 
 import { useRef, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { hoverLift } from "@/lib/motion";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -118,11 +120,14 @@ export const JobCard = memo(function JobCard({
   );
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
+      whileHover={isDragging ? undefined : { y: -4, boxShadow: "0 12px 24px -8px rgba(0,0,0,0.15), 0 0 12px rgba(99,102,241,0.08)" }}
+      whileTap={isDragging ? undefined : { scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
       onPointerDown={(e) => {
         handlePointerDown(e);
         const dndHandler = (listeners as Record<string, Function> | undefined)
@@ -130,7 +135,7 @@ export const JobCard = memo(function JobCard({
         if (dndHandler) dndHandler(e);
       }}
       onPointerUp={handlePointerUp}
-      className={`group relative cursor-pointer active:cursor-grabbing rounded-xl bg-white dark:bg-zinc-800 p-3 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-shadow transition-transform duration-200 hover:shadow-md hover:-translate-y-0.5 hover:ring-slate-200/80 dark:hover:ring-zinc-600/80 touch-manipulation ${
+      className={`group relative cursor-pointer active:cursor-grabbing rounded-xl bg-white dark:bg-zinc-800 p-3 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-colors duration-200 hover:ring-slate-200/80 dark:hover:ring-zinc-600/80 touch-manipulation ${
         isDragging ? "opacity-50 shadow-lg rotate-2 z-50 ring-blue-300" : ""
       }`}
     >
@@ -299,6 +304,6 @@ export const JobCard = memo(function JobCard({
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 });
