@@ -62,10 +62,12 @@ export const TIMEOUTS = {
   CAREERS_SCRAPE_TIMEOUT_MS: 5_000,
   // INTER_SEND_DELAY_MS and INSTANT_APPLY_DELAY_MS removed —
   // per-user sendDelaySeconds from UserSettings is used instead
-  /** Per-API-call timeout for scrapers (ms) — must be well under Vercel 10s limit */
-  SCRAPER_API_TIMEOUT_MS: 7_000,
-  /** Soft deadline for scrapers to wrap up (ms) — bail and return partial results */
+  /** Per-API-call timeout for scrapers (ms) — default for fast/direct API scrapers */
+  SCRAPER_API_TIMEOUT_MS: 8_000,
+  /** Soft deadline for fast scrapers (ms) — direct APIs like Arbeitnow, Remotive */
   SCRAPER_DEADLINE_MS: 9_000,
+  /** Extended deadline for slow scrapers (ms) — SerpAPI, Google CSE, LinkedIn HTML */
+  SCRAPER_SLOW_DEADLINE_MS: 25_000,
 } as const;
 
 export const MATCHING = {

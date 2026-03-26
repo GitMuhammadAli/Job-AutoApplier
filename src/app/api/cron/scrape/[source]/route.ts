@@ -16,7 +16,7 @@ import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
-export const maxDuration = 10;
+export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;

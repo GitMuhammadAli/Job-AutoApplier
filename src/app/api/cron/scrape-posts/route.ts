@@ -11,7 +11,7 @@ import { computeMatchScore, MATCH_THRESHOLDS } from "@/lib/matching/score-engine
 import { decryptSettingsFields, hasDecryptionFailure } from "@/lib/encryption";
 import type { SearchQuery } from "@/types";
 
-export const maxDuration = 10;
+export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {

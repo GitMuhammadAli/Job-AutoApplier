@@ -41,7 +41,7 @@ function sanitizeScrapedText(text: string | null): string | null {
     .trim();
 }
 
-export const maxDuration = 10;
+export const maxDuration = 30; // 30s — enough for slow scrapers (SerpAPI, Google CSE)
 export const dynamic = "force-dynamic";
 
 type ScraperFn = (queries: SearchQuery[]) => Promise<ScrapedJob[]>;
@@ -126,11 +126,15 @@ export async function GET(req: NextRequest) {
       .filter((source) => SCRAPERS[source])
       .map(async (source) => {
         const fallback = FALLBACKS[source];
+        // Slow scrapers (SerpAPI/Google CSE) get 25s, direct API scrapers get 9s
+        const slowScrapers = ["rozee", "google", "linkedin_posts", "linkedin"];
+        const scraperTimeout = slowScrapers.includes(source) ? 25_000 : TIMEOUTS.SCRAPER_DEADLINE_MS;
+
         const runResult = await runScraper({
           source,
           fn: SCRAPERS[source],
           queries,
-          timeoutMs: TIMEOUTS.SCRAPER_DEADLINE_MS,
+          timeoutMs: scraperTimeout,
           fallbackFn: fallback?.fn,
           fallbackSource: fallback?.source,
         });
