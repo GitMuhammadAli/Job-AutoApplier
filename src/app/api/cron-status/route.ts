@@ -15,15 +15,20 @@ export type CronStatusRow = {
   key: string;
   label: string;
   category: string;
-  schedule: string;
+  /**
+   * Cron expression, or null for manual-only endpoints (scrape-posts, weekly-report).
+   * When null, `nextRunAt` and `intervalMs` are also null and the widget should not
+   * render a countdown or staleness color for this row.
+   */
+  schedule: string | null;
   scheduleLabel: string;
   lastRunAt: string | null;
   lastStatus: "success" | "error" | "skipped" | null;
   lastDurationMs: number | null;
   lastProcessed: number | null;
   lastFailed: number | null;
-  nextRunAt: string;
-  intervalMs: number;
+  nextRunAt: string | null;
+  intervalMs: number | null;
   triggerable: boolean;
 };
 
@@ -81,6 +86,8 @@ export async function GET() {
           ? rawStatus
           : null;
 
+      // Manual-only entries (schedule === null) return null here, which the
+      // widget renders as "Manual only" with no countdown/staleness color.
       const nextRunAt = getNextRunAt(cron.schedule, now);
       const intervalMs = getApproxIntervalMs(cron.schedule);
 
@@ -99,7 +106,7 @@ export async function GET() {
         lastProcessed:
           typeof meta.processed === "number" ? meta.processed : null,
         lastFailed: typeof meta.failed === "number" ? meta.failed : null,
-        nextRunAt: nextRunAt.toISOString(),
+        nextRunAt: nextRunAt ? nextRunAt.toISOString() : null,
         intervalMs,
         triggerable: TRIGGERABLE_CRON_KEYS.has(cron.key),
       };

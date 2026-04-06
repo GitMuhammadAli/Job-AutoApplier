@@ -22,15 +22,17 @@ interface CronRow {
   key: string;
   label: string;
   category: string;
-  schedule: string;
+  // null for manual-only entries (e.g. scrape-posts, weekly-report)
+  schedule: string | null;
   scheduleLabel: string;
   lastRunAt: string | null;
   lastStatus: "success" | "error" | "skipped" | null;
   lastDurationMs: number | null;
   lastProcessed: number | null;
   lastFailed: number | null;
-  nextRunAt: string;
-  intervalMs: number;
+  // null for manual-only entries — no countdown rendered
+  nextRunAt: string | null;
+  intervalMs: number | null;
   triggerable: boolean;
 }
 
@@ -61,8 +63,11 @@ const CATEGORY_ORDER = [
 ];
 
 function classifyHealth(row: CronRow, nowMs: number): Health {
-  if (!row.lastRunAt) return "unknown";
   if (row.lastStatus === "error") return "err";
+  // Manual-only entries: no cadence to compare against. Treat as "unknown"
+  // unless the last run explicitly errored.
+  if (row.intervalMs === null) return "unknown";
+  if (!row.lastRunAt) return "unknown";
   const lastMs = new Date(row.lastRunAt).getTime();
   const age = nowMs - lastMs;
   if (age <= row.intervalMs * 1.2) return "ok";
@@ -202,6 +207,8 @@ export function CronStatusWidget() {
     let soonest: CronRow | null = null;
     let soonestMs = Infinity;
     for (const r of crons) {
+      // Skip manual-only entries — they have no scheduled next run.
+      if (!r.nextRunAt) continue;
       const diff = new Date(r.nextRunAt).getTime() - now;
       if (diff >= 0 && diff < soonestMs) {
         soonestMs = diff;
@@ -402,7 +409,9 @@ function CronRowItem({
   onTrigger,
 }: CronRowItemProps) {
   const health = classifyHealth(row, nowMs);
-  const nextDiff = new Date(row.nextRunAt).getTime() - nowMs;
+  const nextDiff = row.nextRunAt
+    ? new Date(row.nextRunAt).getTime() - nowMs
+    : null;
   const duration = formatDuration(row.lastDurationMs);
 
   const statusIcon =
@@ -464,7 +473,11 @@ function CronRowItem({
         </div>
         <div className="flex items-center gap-1 justify-end tabular-nums">
           <Clock className="h-2.5 w-2.5 shrink-0" />
-          {nextDiff <= 0 ? "due" : formatCountdown(nextDiff)}
+          {nextDiff === null
+            ? "—"
+            : nextDiff <= 0
+            ? "due"
+            : formatCountdown(nextDiff)}
         </div>
         <div className="truncate">
           last: {formatRelative(row.lastRunAt, nowMs)}

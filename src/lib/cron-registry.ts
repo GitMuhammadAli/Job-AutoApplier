@@ -29,7 +29,13 @@ export interface CronDefinition {
   key: string;
   label: string;
   category: CronCategory;
-  schedule: string; // 5-field cron expression (UTC)
+  /**
+   * 5-field cron expression (UTC), or `null` for manual-only endpoints that
+   * exist but are not wired to any scheduler. Manual-only entries still appear
+   * in the widget so their `lastRunAt` is visible, but no next-run countdown
+   * or staleness color is computed for them.
+   */
+  schedule: string | null;
   scheduleLabel: string; // human-readable label
 }
 
@@ -43,11 +49,15 @@ export const CRON_REGISTRY: CronDefinition[] = [
     scheduleLabel: "Every 2 hours",
   },
   {
+    // Manual-only: endpoint exists at /api/cron/scrape-posts but is NOT
+    // registered on cron-job.org and NOT listed in VALID_CRON_ACTIONS, so
+    // the widget cannot trigger it either. It still uses createCronTracker()
+    // so lastRunAt will populate if something fires it directly.
     key: "scrape-posts",
     label: "Scrape Posts",
     category: "scraper",
-    schedule: "0 */4 * * *",
-    scheduleLabel: "Every 4 hours",
+    schedule: null,
+    scheduleLabel: "Manual only",
   },
 
   // Matching
@@ -123,11 +133,15 @@ export const CRON_REGISTRY: CronDefinition[] = [
     scheduleLabel: "Daily 3:00 AM",
   },
   {
+    // Manual-only: endpoint exists at /api/cron/weekly-report but is NOT
+    // scheduled anywhere and does NOT call createCronTracker(), so
+    // lastRunAt will always be null until the route is wrapped. Listed
+    // here for visibility; widget should render "never run / manual only".
     key: "weekly-report",
     label: "Weekly Report",
     category: "maintenance",
-    schedule: "0 8 * * 1",
-    scheduleLabel: "Monday 8:00 AM",
+    schedule: null,
+    scheduleLabel: "Manual only",
   },
 ];
 
@@ -151,10 +165,15 @@ export const TRIGGERABLE_CRON_KEYS = new Set<string>([
 
 /**
  * Compute the next run instant for a cron expression.
+ * Returns null for manual-only entries (schedule === null).
  * Returns the current time + 1 minute as a safe fallback if parsing fails,
  * so the widget never throws on a malformed entry.
  */
-export function getNextRunAt(cronExpression: string, from?: Date): Date {
+export function getNextRunAt(
+  cronExpression: string | null,
+  from?: Date
+): Date | null {
+  if (cronExpression === null) return null;
   try {
     const interval = CronExpressionParser.parse(cronExpression, {
       currentDate: from ?? new Date(),
@@ -169,8 +188,12 @@ export function getNextRunAt(cronExpression: string, from?: Date): Date {
 /**
  * Approximate interval between successive runs for a cron expression, in ms.
  * Used to classify status (green/yellow/red) based on staleness of lastRunAt.
+ * Returns null for manual-only entries — there is no cadence to compare against.
  */
-export function getApproxIntervalMs(cronExpression: string): number {
+export function getApproxIntervalMs(
+  cronExpression: string | null
+): number | null {
+  if (cronExpression === null) return null;
   try {
     const interval = CronExpressionParser.parse(cronExpression, { tz: "UTC" });
     const a = interval.next().toDate().getTime();
