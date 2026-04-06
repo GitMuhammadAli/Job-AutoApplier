@@ -136,6 +136,22 @@ Jobs are scraped from LinkedIn, Indeed, Remotive, Arbeitnow, Adzuna, Rozee, JSea
 
 **cleanup-stale position-filled detection:** 2-phase URL check — Phase 1: HEAD requests (existing). Phase 2: fetch pages that returned 200, check for "position filled" / "job expired" / "no longer accepting" text in first 10KB. Up to 5 pages per run, 3s timeout.
 
+### Cron Status Widget (2026-04-06)
+A header-mounted, live-polling status widget visible on every dashboard page. Surfaces last-run / next-run / status for all 12 cron jobs and exposes a one-click manual trigger to admins.
+
+| Layer | File | Notes |
+|-------|------|-------|
+| Registry | `src/lib/cron-registry.ts` | Single source of truth: key, label, category, cron expression, scheduleLabel, triggerable flag for all 12 crons. Adds `weekly-report` (`0 8 * * 1`) and `scrape-posts` (`0 */4 * * *`) — defaults pending tuning. |
+| Status API | `src/app/api/cron-status/route.ts` | `GET` — auth required (any logged-in user). Single Prisma `systemLog.findMany` (take 300, `type='cron-run'`, `source IN registry`) deduped to latest per source. Returns `{ crons: CronRow[], isAdmin, generatedAt }`. `Cache-Control: private, max-age=15, swr=30`. |
+| Widget UI | `src/components/shared/CronStatusWidget.tsx` | Client component using Radix Popover. Compact pill (status dot + countdown + refresh icon, hidden xs / shown sm+). 30s polling paused when tab hidden, 1s tick for live countdowns. Native `fetch` (matches Header style). Status thresholds: `≤1.2× interval` green, `≤2× interval` yellow, beyond red. |
+| Header mount | `src/components/layout/Header.tsx` | `<CronStatusWidget />` mounted first in the `ml-auto flex items-center gap-2` right cluster. |
+| Admin trigger | `src/app/api/admin/scrapers/trigger/route.ts` | Reused — no server-side changes. Widget POSTs `{ source: cronKey }` to this existing endpoint (admin-only via `data.isAdmin && row.triggerable`). |
+| Source data | `src/lib/cron-tracker.ts` | Existing cron outcome logger; the widget reads what this writes. |
+
+**Dependency added:** `cron-parser@5.5.0` — parses each registry entry's cron expression to compute `nextRunAt`. Used server-side in `/api/cron-status` (not bundled to client).
+
+**Key correction vs plan:** The existing `/api/admin/scrapers/trigger` endpoint reads `body.source` (not `body.action` as the original plan assumed). The widget matches the existing endpoint contract; no server-side changes were needed.
+
 ### All Server Actions (src/app/actions/)
 ```
 | Function                      | File                    | Purpose                              |

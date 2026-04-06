@@ -898,6 +898,34 @@ All crons:
 :30  Next scraper cycle starts...
 ```
 
+### Cron Observability (2026-04-06)
+
+A header-mounted widget gives every signed-in user live visibility into cron health (and admins a one-click trigger). All data flows from the same `SystemLog` rows that `cron-tracker.ts` already writes — no new write paths.
+
+```
+User dashboard → CronStatusWidget (Header)
+     ↓ fetch every 30s (paused when tab hidden, 1s local tick for countdowns)
+GET /api/cron-status (auth required)
+     ↓ Prisma
+SystemLog WHERE type='cron-run' ORDER BY createdAt DESC
+     ↓ dedupe to latest per source
+     ↓ join with cron-registry.ts → compute nextRunAt via cron-parser
+     ↓ return CronRow[] + { isAdmin, generatedAt }
+```
+
+Status colors are derived client-side from `now - lastRunAt` against the registry interval:
+- `≤ 1.2× interval` → green
+- `≤ 2× interval` → yellow
+- beyond → red
+
+Admins see a "Trigger" button next to triggerable rows. The button POSTs `{ source: cronKey }` to the existing `/api/admin/scrapers/trigger` endpoint (admin-only — non-admins never see the button because the API also returns `isAdmin: false`).
+
+**Files:**
+- Registry: `src/lib/cron-registry.ts` (12 entries; adds `weekly-report` and `scrape-posts`)
+- API: `src/app/api/cron-status/route.ts`
+- Widget: `src/components/shared/CronStatusWidget.tsx`
+- Mount: `src/components/layout/Header.tsx`
+
 ---
 
 ## PART 5: HOW EMAIL SENDING WORKS

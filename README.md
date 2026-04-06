@@ -55,6 +55,7 @@ AI-powered job search platform that finds the best jobs across 8 sources, scores
 - **Activity tracking** &mdash; admin visibility into user engagement
 - **Performance optimized** &mdash; parallel data fetching, settings caching, DB connection pooling, lazy-loaded components
 - **PWA installable** &mdash; add to home screen, share jobs from any app directly to JobPilot
+- **Header-mounted cron status widget** &mdash; live countdowns and admin trigger for all 12 cron jobs, visible on every dashboard page
 - **Quick Add from URL** &mdash; paste any job URL (LinkedIn, Indeed, career page) and auto-extract title, company, location, description, email
 - **Stack acronym matching** &mdash; "MERN" automatically matches react, node, mongodb, express keywords (also MEAN, PERN, LAMP, T3, etc.)
 

@@ -131,6 +131,7 @@ Everything used in the project, why it was chosen, what it replaces, and where i
 | **jszip 3** | ZIP file creation in the browser/server | Used for "Export All My Data" feature — bundles jobs, applications, resumes, templates into a downloadable ZIP. | Data export feature in Settings |
 | **react-window** ^2.2.7 | Virtualized list rendering | Renders only visible rows for long lists — reduces DOM nodes and improves performance. | Large job lists, application queues |
 | **web-push** ^3.6.7 | Web Push API for browser notifications | Sends push notifications to subscribed clients. | Push notification support |
+| **cron-parser** ^5.5.0 | Parses standard cron expressions to compute next run timestamps for the cron status widget. | Battle-tested, zero runtime deps, handles every cron quirk (ranges, steps, lists, DOW/DOM). Used server-side only — not bundled to client. | Manual `Date` math (error-prone for ranges/steps), `node-cron` (scheduler, not parser, heavier), `later.js` (unmaintained) | `src/app/api/cron-status/route.ts` — computes `nextRunAt` for each entry in `src/lib/cron-registry.ts` so the header widget can render live countdowns |
 
 ---
 
@@ -268,6 +269,7 @@ Everything used in the project, why it was chosen, what it replaces, and where i
 
   "recharts": "^2.12.0",
   "date-fns": "^3.6.0",
+  "cron-parser": "^5.5.0",
   "jszip": "^3.10.1",
 
   "groq-sdk": "^0.37.0",

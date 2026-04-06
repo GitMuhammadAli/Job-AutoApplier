@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import type { JobStage } from "@prisma/client";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { PauseToggle } from "@/components/shared/PauseToggle";
+import { CronStatusWidget } from "@/components/shared/CronStatusWidget";
 import { AppSwitcher } from "@/components/layout/app-switcher";
 
 export function Header() {
@@ -119,6 +120,7 @@ export function Header() {
         </div>}
 
         <div className="ml-auto flex items-center gap-2">
+          <CronStatusWidget />
           {accountStatus && (
             <div className="hidden sm:block">
               <PauseToggle initialStatus={accountStatus} />
