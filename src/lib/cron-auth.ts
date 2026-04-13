@@ -17,10 +17,11 @@ export function verifyCronSecret(req: NextRequest): boolean {
     return false;
   }
   _cronSecretMissing = false;
-  // Only accept secret via headers (not query params which are logged in URLs)
+  // Accept secret via headers or ?secret= query param (for cron-job.org)
   const secret =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret");
+    req.headers.get("x-cron-secret") ||
+    req.nextUrl.searchParams.get("secret");
   if (!secret) return false;
   try {
     const a = Buffer.from(secret);
