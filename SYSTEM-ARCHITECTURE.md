@@ -8,7 +8,7 @@
 ## QUICK REFERENCE (Part 13)
 
 ### What This App Does
-JobPilot is an AI-powered job application automation platform. It scrapes jobs from 8 sources, matches them to users via a 7-factor scoring engine, generates personalized application emails using Groq AI, and sends them via user-configured SMTP — all orchestrated by cron jobs on a Kanban-style dashboard.
+JobPilot is an AI-powered job application automation platform. It scrapes jobs from 9 sources, matches them to users via a 7-factor scoring engine, generates personalized application emails using Groq AI, and sends them via user-configured SMTP — all orchestrated by cron jobs on a Kanban-style dashboard.
 
 ### Production Numbers (as of last audit)
 | Metric | Value |
@@ -21,7 +21,7 @@ JobPilot is an AI-powered job application automation platform. It scrapes jobs f
 | Delivery rate | 100% |
 | Users | 4 |
 | Source files | 120+ |
-| API routes | 43 |
+| API routes | 52 |
 | Server actions | 40+ |
 
 ### Tech Stack

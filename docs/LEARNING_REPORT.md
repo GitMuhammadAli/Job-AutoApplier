@@ -4,6 +4,30 @@
 
 ---
 
+## How to Explain This Project (2-min version)
+
+**One-liner.** JobPilot is an AI job-application autopilot — it scrapes 9 boards, scores every job against your profile, drafts a personalized email with a 4-agent LLM pipeline, and sends it through *your* SMTP with bounce/rate safety. Free-tier deploy on Vercel + Neon.
+
+**The problem.** Job hunters spend hours rewriting the same cover letter for every posting and miss the 80% of jobs that never make it onto LinkedIn. JobPilot turns that into a passive pipeline: it finds the jobs, writes the outreach, and you approve before send.
+
+**Architecture in five bullets.**
+- **Next.js 14 App Router** (single app, server actions + 52 API routes) on Vercel Hobby.
+- **Postgres on Neon** + Prisma 5.20 — `GlobalJob` (shared scraped pool) + per-user `UserJob` + `JobApplication` lifecycle (DRAFT → READY → SENT/FAILED/BOUNCED).
+- **9 scrapers** (Remotive, Arbeitnow, LinkedIn RSS, LinkedIn Posts via Google CSE, JSearch, Indeed, Adzuna, Google Jobs, Rozee) split into `mode=free` (every 2h) and `mode=paid` (daily 6 AM) — quotas come first.
+- **4-agent AI pipeline** on Groq Llama 3.1 8B: extractor → matcher → email writer → safety reviewer. Template fallback if Groq is out.
+- **Email safety**: encrypted SMTP creds, per-user warmup ramp, hard rate limit, bounce capture, abuse pattern detection — *user's reputation never gets burned*.
+
+**Three hardest calls.**
+1. *Why scrape 9 sources instead of using one paid aggregator.* No single source covers Pakistan + remote + EU + informal LinkedIn posts. Mixing free APIs with one paid quota is what gets coverage to 10K+ jobs at $0.
+2. *Why store SMTP creds encrypted instead of using a sending service.* Resend/Postmark would cap free tier and route through their domain — recruiters auto-filter that. User's own Gmail/SMTP keeps the personal touch and dodges shared-IP reputation.
+3. *Why cron-job.org instead of Vercel Cron.* Vercel Hobby caps cron count and frequency; cron-job.org is free, hits HTTP routes, and lets us run match/instant-apply/send/follow-up on independent schedules.
+
+**Status (April 2026).** Production. 10,620 jobs in pool, 19 emails sent, 100% delivery, 4 users. Centralized message constants migration ~80% done across server actions.
+
+**Lead with this in an interview.** "It's a real product — running for me right now — that I had to make every cost trade-off in. Free-tier scraping at 10K jobs, free LLM via Groq, free Postgres on Neon, free crons via cron-job.org. The interesting engineering is the *constraints*: how do you keep email reputation safe when you can't pay for a sending service? How do you do AI generation when your LLM provider rate-limits you?"
+
+---
+
 ## Table of Contents
 
 1. [Project Overview](#project-overview)

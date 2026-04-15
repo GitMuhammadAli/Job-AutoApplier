@@ -65,7 +65,7 @@ Let's break down EVERY piece.
 Scraping = programmatically visiting job websites and extracting job listings.
 Instead of a human browsing Indeed.com, our code does it and saves the results to our database.
 
-### The 8 Sources
+### The 9 Sources
 
 ```
 FREE SOURCES (no API quota, run every 2 hours via mode=free):
