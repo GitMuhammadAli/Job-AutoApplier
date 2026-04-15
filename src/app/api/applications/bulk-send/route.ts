@@ -4,6 +4,7 @@ import { sendApplication } from "@/lib/send-application";
 import { checkReadiness } from "@/lib/readiness-checker";
 import { prisma } from "@/lib/prisma";
 import { TIMEOUTS } from "@/lib/constants";
+import { APPLICATIONS, GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
       return NextResponse.json(
-        { error: "No applications selected" },
+        { error: APPLICATIONS.NO_APPLICATIONS_SELECTED },
         { status: 400 }
       );
     }
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     if (applications.length === 0) {
       return NextResponse.json(
-        { error: "No sendable applications found" },
+        { error: APPLICATIONS.NO_SENDABLE_APPLICATIONS },
         { status: 400 }
       );
     }
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
     const readiness = await checkReadiness(userId);
     if (!readiness.ready) {
       return NextResponse.json(
-        { error: "Profile not ready for sending" },
+        { error: APPLICATIONS.PROFILE_NOT_READY },
         { status: 400 }
       );
     }
@@ -127,12 +128,12 @@ export async function POST(req: NextRequest) {
       results,
     });
   } catch (error) {
-    if (error instanceof Error && error.message === "Not authenticated") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error instanceof Error && error.message === GENERIC.NOT_AUTHENTICATED) {
+      return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
     console.error("[BulkSend] Error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: GENERIC.INTERNAL_SERVER_ERROR },
       { status: 500 }
     );
   }

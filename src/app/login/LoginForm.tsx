@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Mail, Loader2, AlertCircle } from "lucide-react";
 import { ASMark } from "@/components/ui/as-mark";
+import { GENERIC } from "@/lib/messages";
 
 const AUTH_ERRORS: Record<string, string> = {
   OAuthAccountNotLinked:
@@ -55,7 +56,7 @@ export function LoginForm() {
       const msg = AUTH_ERRORS[result.error] || AUTH_ERRORS.Default;
       toast.error(msg);
     } else {
-      toast.error("Something went wrong. Please try again.");
+      toast.error(GENERIC.SOMETHING_WENT_WRONG_GENERIC);
     }
   };
 

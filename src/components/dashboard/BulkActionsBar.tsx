@@ -15,6 +15,7 @@ import {
   FileX,
   RotateCcw,
 } from "lucide-react";
+import { DASHBOARD, GENERIC } from "@/lib/messages";
 
 export function BulkActionsBar({ jobCount }: { jobCount: number }) {
   const router = useRouter();
@@ -162,23 +163,23 @@ export function BulkActionsBar({ jobCount }: { jobCount: number }) {
                         let result;
                         if (showConfirm.startsWith("old-")) {
                           result = await bulkDeleteOldJobs(parseInt(showConfirm.split("-")[1]));
-                          if (result.success) toast.success(`Cleared ${result.count} old jobs`);
+                          if (result.success) toast.success(DASHBOARD.CLEARED_OLD_JOBS(result.count));
                         } else if (showConfirm.startsWith("stage-")) {
                           const stage = showConfirm.split("-")[1];
                           result = await bulkDismissByStage(stage);
-                          if (result.success) toast.success(`Cleared ${result.count} jobs`);
+                          if (result.success) toast.success(DASHBOARD.CLEARED_JOBS(result.count));
                         } else if (showConfirm.startsWith("app-")) {
                           const status = showConfirm.split("-")[1] as "FAILED" | "BOUNCED" | "CANCELLED";
                           result = await bulkDeleteByStatus(status);
-                          if (result.success) toast.success(`Deleted ${result.count} ${status.toLowerCase()} applications`);
+                          if (result.success) toast.success(DASHBOARD.DELETED_APPS_STATUS(result.count, status.toLowerCase()));
                         } else if (showConfirm === "cancel-drafts") {
                           result = await bulkCancelDrafts();
-                          if (result.success) toast.success(`Cancelled ${result.count} drafts`);
+                          if (result.success) toast.success(DASHBOARD.CANCELLED_DRAFTS(result.count));
                         } else if (showConfirm === "start-fresh") {
                           result = await startFresh();
-                          if (result.success) toast.success("All data cleared — fresh start!");
+                          if (result.success) toast.success(DASHBOARD.ALL_DATA_CLEARED);
                         }
-                        if (result && !result.success) toast.error("error" in result ? result.error : "Failed");
+                        if (result && !result.success) toast.error("error" in result ? result.error : GENERIC.FAILED_GENERIC);
                         router.refresh();
                       });
                     }}

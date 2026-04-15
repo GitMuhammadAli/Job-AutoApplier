@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { LIMITS } from "@/lib/constants";
+import { GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +36,9 @@ export async function GET() {
     response.headers.set("Cache-Control", "private, max-age=60, stale-while-revalidate=120");
     return response;
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    if (message === "Not authenticated") {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    const message = err instanceof Error ? err.message : GENERIC.UNKNOWN_ERROR;
+    if (message === GENERIC.NOT_AUTHENTICATED) {
+      return NextResponse.json({ error: GENERIC.NOT_AUTHENTICATED }, { status: 401 });
     }
     console.error("Analytics API error:", err);
     return NextResponse.json({ error: message }, { status: 500 });

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { ADMIN } from "@/lib/messages";
 
 interface ScraperRecentLog {
   message: string;
@@ -109,7 +110,7 @@ export default function AdminScrapersPage() {
         recentErrors: data.recentErrors || [],
       });
     } catch {
-      toast.error("Failed to load data");
+      toast.error(ADMIN.FAILED_LOAD_DATA);
     }
     setLoading(false);
   }, []);
@@ -130,13 +131,13 @@ export default function AdminScrapersPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Triggered ${source}`);
+        toast.success(ADMIN.TRIGGERED_SOURCE(source));
         setTimeout(fetchData, 5000);
       } else {
-        toast.error(data.error || "Trigger failed");
+        toast.error(data.error || ADMIN.FAILED_TRIGGER);
       }
     } catch {
-      toast.error("Failed to trigger");
+      toast.error(ADMIN.FAILED_TRIGGER);
     }
     setTriggeringSource(null);
   }

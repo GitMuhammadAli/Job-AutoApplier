@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { ADMIN, GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
     if (!(await requireAdmin())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -42,6 +43,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[admin/logs]", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return NextResponse.json({ error: GENERIC.INTERNAL_ERROR }, { status: 500 });
   }
 }

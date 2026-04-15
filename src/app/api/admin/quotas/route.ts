@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { ADMIN, GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const QUOTA_LIMITS: Record<string, { daily: number; monthly: number }> = {
 export async function GET() {
   try {
     if (!(await requireAdmin())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
     }
 
     const todayStart = new Date();
@@ -57,6 +58,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[admin/quotas]", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return NextResponse.json({ error: GENERIC.INTERNAL_ERROR }, { status: 500 });
   }
 }

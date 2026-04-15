@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { GENERIC, PUSH, VALIDATION } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
 
     const body = await req.json();
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     if (!endpoint || !keys?.p256dh || !keys?.auth) {
       return NextResponse.json(
-        { error: "Invalid subscription: missing endpoint or keys" },
+        { error: VALIDATION.INVALID_SUBSCRIPTION },
         { status: 400 },
       );
     }
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[Push Subscribe]", error);
     return NextResponse.json(
-      { error: "Failed to save subscription" },
+      { error: PUSH.FAILED_SAVE_SUBSCRIPTION },
       { status: 500 },
     );
   }
@@ -62,7 +63,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
 
     const body = await req.json();
@@ -93,7 +94,7 @@ export async function DELETE(req: NextRequest) {
   } catch (error) {
     console.error("[Push Unsubscribe]", error);
     return NextResponse.json(
-      { error: "Failed to remove subscription" },
+      { error: PUSH.FAILED_REMOVE_SUBSCRIPTION },
       { status: 500 },
     );
   }

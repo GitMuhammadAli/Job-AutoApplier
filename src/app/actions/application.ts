@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { decryptSettingsFields } from "@/lib/encryption";
 import { z } from "zod";
 import { LIMITS } from "@/lib/constants";
+import { APPLICATIONS } from "@/lib/messages";
 
 const emailSchema = z.string().email("Invalid email address");
 
@@ -69,7 +70,7 @@ export async function getApplications() {
     return deduped;
   } catch (error) {
     console.error("[getApplications]", error);
-    throw new Error("Failed to load applications");
+    throw new Error(APPLICATIONS.FAILED_LOAD);
   }
 }
 
@@ -89,7 +90,7 @@ export async function getApplicationCounts() {
     return { draft, ready, sent, failed, bounced, total };
   } catch (error) {
     console.error("[getApplicationCounts]", error);
-    throw new Error("Failed to load application counts");
+    throw new Error(APPLICATIONS.FAILED_LOAD_COUNTS);
   }
 }
 
@@ -108,8 +109,8 @@ export async function prepareApplication(
     const userId = await getAuthUserId();
 
     emailSchema.parse(data.recipientEmail);
-    if (!data.subject?.trim()) throw new Error("Subject is required");
-    if (!data.emailBody?.trim()) throw new Error("Email body is required");
+    if (!data.subject?.trim()) throw new Error(APPLICATIONS.SUBJECT_REQUIRED);
+    if (!data.emailBody?.trim()) throw new Error(APPLICATIONS.EMAIL_BODY_REQUIRED);
     if (data.subject.length > 500)
       throw new Error("Subject must be 500 characters or less");
     if (data.emailBody.length > 100_000)
@@ -158,11 +159,11 @@ export async function prepareApplication(
     if (error instanceof z.ZodError) throw new Error(error.errors[0].message);
     if (
       error instanceof Error &&
-      [
-        "Job not found",
-        "Subject is required",
-        "Email body is required",
-      ].includes(error.message)
+      ([
+        APPLICATIONS.JOB_NOT_FOUND,
+        APPLICATIONS.SUBJECT_REQUIRED,
+        APPLICATIONS.EMAIL_BODY_REQUIRED,
+      ] as string[]).includes(error.message)
     )
       throw error;
     console.error("[prepareApplication]", error);
@@ -180,13 +181,13 @@ export async function markApplicationReady(applicationId: string): Promise<{ suc
     if (!app) return { success: false, error: "Application not found" };
 
     if (!app.recipientEmail?.trim()) {
-      return { success: false, error: "Recipient email is required before marking ready" };
+      return { success: false, error: APPLICATIONS.RECIPIENT_REQUIRED_MARK_READY };
     }
     if (!app.subject?.trim()) {
-      return { success: false, error: "Subject is required before marking ready" };
+      return { success: false, error: APPLICATIONS.SUBJECT_REQUIRED_MARK_READY };
     }
     if (!app.emailBody?.trim()) {
-      return { success: false, error: "Email body is required before marking ready" };
+      return { success: false, error: APPLICATIONS.EMAIL_BODY_REQUIRED_MARK_READY };
     }
 
     await prisma.jobApplication.update({

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { decryptField } from "@/lib/encryption";
+import { ADMIN, GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ const CRON_NAMES: { key: string; label: string; category: string; schedule: stri
 export async function GET() {
   try {
     if (!(await requireAdmin())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
     }
 
     const now = new Date();
@@ -403,6 +404,6 @@ export async function GET() {
     return response;
   } catch (error) {
     console.error("[admin/stats]", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return NextResponse.json({ error: GENERIC.INTERNAL_ERROR }, { status: 500 });
   }
 }

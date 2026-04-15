@@ -3,6 +3,7 @@ import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decryptSettingsFields } from "@/lib/encryption";
 import { LIMITS } from "@/lib/constants";
+import { EXPORT, GENERIC } from "@/lib/messages";
 import JSZip from "jszip";
 
 export const dynamic = "force-dynamic";
@@ -160,10 +161,10 @@ export async function GET() {
       },
     });
   } catch (error) {
-    if (error instanceof Error && error.message === "Not authenticated") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error instanceof Error && error.message === GENERIC.NOT_AUTHENTICATED) {
+      return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
     console.error("[Export] Error:", error);
-    return NextResponse.json({ error: "Export failed" }, { status: 500 });
+    return NextResponse.json({ error: EXPORT.FAILED }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import {
   createAdminSession,
   destroyAdminSession,
 } from "@/lib/admin-auth";
+import { AUTH } from "@/lib/messages";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,21 +16,21 @@ export async function POST(req: NextRequest) {
 
     if (!username || !password) {
       return NextResponse.json(
-        { error: "Username and password are required" },
+        { error: AUTH.USERNAME_PASSWORD_REQUIRED },
         { status: 400 }
       );
     }
 
     if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
       return NextResponse.json(
-        { error: "Admin credentials not configured on server" },
+        { error: AUTH.ADMIN_CREDENTIALS_NOT_CONFIGURED },
         { status: 503 }
       );
     }
 
     if (!validateAdminCredentials(username, password)) {
       return NextResponse.json(
-        { error: "Invalid credentials" },
+        { error: AUTH.INVALID_CREDENTIALS },
         { status: 401 }
       );
     }
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(
-      { error: "Invalid request" },
+      { error: AUTH.INVALID_REQUEST },
       { status: 400 }
     );
   }

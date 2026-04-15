@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { ADMIN, VALIDATION } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
   }
 
   const status = req.nextUrl.searchParams.get("status");
@@ -30,12 +31,12 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
   }
 
   const { id, status, adminNote } = await req.json();
   if (!id || !status) {
-    return NextResponse.json({ error: "Missing id or status" }, { status: 400 });
+    return NextResponse.json({ error: VALIDATION.MISSING_ID_OR_STATUS }, { status: 400 });
   }
 
   const data: Record<string, unknown> = { status };

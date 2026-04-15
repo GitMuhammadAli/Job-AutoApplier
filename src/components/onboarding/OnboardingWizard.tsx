@@ -15,6 +15,7 @@ import {
   Settings, ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
+import { ONBOARDING, SETTINGS } from "@/lib/messages";
 
 const STEPS = [
   { title: "About You", icon: User, description: "Basic info for personalized applications" },
@@ -109,12 +110,12 @@ export function OnboardingWizard() {
           name: data.resume.name,
           skills: data.resume.detectedSkills || [],
         });
-        toast.success(`Resume uploaded! Detected ${data.resume.detectedSkills?.length || 0} skills.`);
+        toast.success(ONBOARDING.RESUME_UPLOADED(data.resume.detectedSkills?.length || 0));
       } else {
-        toast.error(data.error || "Upload failed");
+        toast.error(data.error || ONBOARDING.UPLOAD_FAILED);
       }
     } catch {
-      toast.error("Upload failed");
+      toast.error(ONBOARDING.UPLOAD_FAILED);
     }
     setUploading(false);
   };
@@ -146,7 +147,7 @@ export function OnboardingWizard() {
         includePortfolio: true,
       });
       if (!settingsResult.success) {
-        toast.error(settingsResult.error || "Failed to save settings");
+        toast.error(settingsResult.error || SETTINGS.FAILED_SAVE);
         setSaving(false);
         return;
       }
@@ -165,11 +166,11 @@ export function OnboardingWizard() {
       }
       setMatching(false);
 
-      toast.success("Profile configured! Jobs will start appearing soon.");
+      toast.success(ONBOARDING.PROFILE_CONFIGURED);
       router.push("/dashboard");
       router.refresh();
     } catch {
-      toast.error("Failed to save. Try again.");
+      toast.error(ONBOARDING.FAILED_SAVE);
     }
     setSaving(false);
   };

@@ -4,6 +4,7 @@ import { getSystemTransporter } from "@/lib/email";
 import { bounceAlertTemplate } from "@/lib/email-templates";
 import { decryptSettingsFields } from "@/lib/encryption";
 import { createHmac, timingSafeEqual } from "crypto";
+import { WEBHOOKS } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -54,14 +55,14 @@ export async function POST(req: NextRequest) {
     const rawBody = await req.text();
 
     if (!verifyBrevoSignature(req, rawBody)) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+      return NextResponse.json({ error: WEBHOOKS.INVALID_SIGNATURE }, { status: 401 });
     }
 
     const body = JSON.parse(rawBody) as BrevoBounceEvent;
     const eventType = body.event;
     const email = body.email;
     const messageId = body["message-id"];
-    const reason = body.reason || `Bounce received (${eventType || "unknown"})`;
+    const reason = body.reason || WEBHOOKS.BOUNCE_REASON_DEFAULT(eventType || "unknown");
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
       return NextResponse.json({ received: true });
@@ -170,6 +171,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ processed: true });
   } catch (error) {
     console.error("[BounceWebhook] Error:", error);
-    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
+    return NextResponse.json({ error: WEBHOOKS.PROCESSING_FAILED }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { generateWithGroq, streamWithGroq } from "@/lib/groq";
 import { getSettings } from "@/app/actions/settings";
+import { APPLICATIONS, JOBS, VALIDATION } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
       req.nextUrl.searchParams.get("stream") === "true" || body.stream === true;
 
     if (!userJobId || typeof userJobId !== "string") {
-      return NextResponse.json({ error: "Missing userJobId" }, { status: 400 });
+      return NextResponse.json({ error: VALIDATION.MISSING_USER_JOB_ID }, { status: 400 });
     }
 
     const [userJob, settings, defaultResume] = await Promise.all([
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     ]);
 
     if (!userJob) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      return NextResponse.json({ error: APPLICATIONS.JOB_NOT_FOUND }, { status: 404 });
     }
 
     const g = userJob.globalJob;
@@ -151,14 +152,14 @@ Generate the pitch and cover letter now.`;
     }
 
     if (!result.pitch && !result.coverLetter) {
-      return NextResponse.json({ error: "AI returned empty content" }, { status: 500 });
+      return NextResponse.json({ error: JOBS.AI_EMPTY_CONTENT }, { status: 500 });
     }
 
     return NextResponse.json(result);
   } catch (error) {
     console.error("[generate-pitch] Error:", error);
     return NextResponse.json(
-      { error: "Failed to generate content" },
+      { error: JOBS.GENERATE_CONTENT_FAILED },
       { status: 500 },
     );
   }

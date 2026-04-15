@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { runApplicationPipeline } from "@/lib/agents/pipeline";
+import { APPLICATIONS, GENERIC, VALIDATION } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
     const { userJobId } = await req.json();
 
     if (!userJobId) {
-      return NextResponse.json({ error: "userJobId required" }, { status: 400 });
+      return NextResponse.json({ error: VALIDATION.USER_JOB_ID_REQUIRED }, { status: 400 });
     }
 
     // Load job details with ownership check
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!userJob) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      return NextResponse.json({ error: APPLICATIONS.JOB_NOT_FOUND }, { status: 404 });
     }
 
     // Load user profile (settings)
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!settings) {
-      return NextResponse.json({ error: "User profile not found. Please complete your profile first." }, { status: 400 });
+      return NextResponse.json({ error: APPLICATIONS.USER_PROFILE_NOT_FOUND }, { status: 400 });
     }
 
     const userName = settings.fullName ?? "Applicant";
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     if (!userEmail) {
       return NextResponse.json(
-        { error: "Application email not configured. Please set it in Settings." },
+        { error: APPLICATIONS.APPLICATION_EMAIL_NOT_CONFIGURED },
         { status: 400 }
       );
     }
@@ -76,8 +77,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Pipeline failed";
-    if (message === "Not authenticated") {
+    const message = error instanceof Error ? error.message : APPLICATIONS.PIPELINE_FAILED;
+    if (message === GENERIC.NOT_AUTHENTICATED) {
       return NextResponse.json({ error: message }, { status: 401 });
     }
     console.error("[PipelineRoute] Error:", error);

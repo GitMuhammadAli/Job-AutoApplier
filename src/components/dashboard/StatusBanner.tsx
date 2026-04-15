@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { JOBS } from "@/lib/messages";
 
 interface StatusData {
   lastScrapeAt: string | null;
@@ -59,7 +60,7 @@ export function StatusBanner() {
         toast.error(result.error || "Search failed — try again later.");
       }
     } catch {
-      toast.error("Search request failed.");
+      toast.error(JOBS.SEARCH_REQUEST_FAILED);
     }
     setScanning(false);
   }, []);

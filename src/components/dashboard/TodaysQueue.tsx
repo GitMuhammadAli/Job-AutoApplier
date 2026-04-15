@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { markAppliedFromSite } from "@/app/actions/job";
 import { toast } from "sonner";
+import { APPLICATIONS } from "@/lib/messages";
 import {
   ExternalLink,
   Mail,
@@ -175,7 +176,7 @@ function QueueJobRow({
       const result = await markAppliedFromSite(job.id, g.source);
       if (result.success) {
         onApplied();
-        toast.success(`Marked as applied — ${g.company}`);
+        toast.success(APPLICATIONS.MARKED_APPLIED_COMPANY(g.company));
       }
     });
   };

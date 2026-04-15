@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { extractJDFromImage } from "@/lib/ai/extract-jd-from-image";
+import { GENERIC, JOBS, VALIDATION } from "@/lib/messages";
 
 export const maxDuration = 30;
 
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     await getAuthUserId();
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
   }
 
   let formData: FormData;
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     formData = await req.formData();
   } catch {
     return NextResponse.json(
-      { error: "Invalid form data" },
+      { error: GENERIC.INVALID_FORM_DATA },
       { status: 400 }
     );
   }
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
   const file = formData.get("image");
   if (!file || !(file instanceof File)) {
     return NextResponse.json(
-      { error: "Image file is required (field name: image)" },
+      { error: VALIDATION.IMAGE_FIELD_REQUIRED },
       { status: 400 }
     );
   }
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
   if (!ALLOWED_MIME_TYPES.has(mimeType)) {
     return NextResponse.json(
       {
-        error: `Unsupported image type: ${mimeType}. Allowed types: jpeg, png, webp, gif`,
+        error: JOBS.IMAGE_TYPE_INVALID(mimeType),
       },
       { status: 400 }
     );
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
   // Validate file size
   if (file.size > MAX_FILE_SIZE_BYTES) {
     return NextResponse.json(
-      { error: "Image must be 10 MB or smaller" },
+      { error: JOBS.IMAGE_TOO_LARGE },
       { status: 400 }
     );
   }
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[extract-from-image] Error:", err);
     const message =
-      err instanceof Error ? err.message : "Failed to extract job description";
+      err instanceof Error ? err.message : JOBS.EXTRACT_IMAGE_FAILED;
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

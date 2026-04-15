@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { ADMIN, GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
     if (!(await requireAdmin())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
     }
 
     const rawLimit = parseInt(req.nextUrl.searchParams.get("limit") || "100", 10);
@@ -67,6 +68,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("[admin/users]", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return NextResponse.json({ error: GENERIC.INTERNAL_ERROR }, { status: 500 });
   }
 }

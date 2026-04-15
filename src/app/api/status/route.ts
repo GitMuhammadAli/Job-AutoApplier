@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { GENERIC, HEALTH } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -75,10 +76,10 @@ export async function GET() {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";
-    if (message === "Not authenticated" || message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (message === GENERIC.NOT_AUTHENTICATED || message.includes("Unauthorized")) {
+      return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
     console.error("[status] Error:", error);
-    return NextResponse.json({ error: "Failed to load status" }, { status: 500 });
+    return NextResponse.json({ error: HEALTH.FAILED_LOAD_STATUS }, { status: 500 });
   }
 }

@@ -20,6 +20,7 @@ import {
   deleteEmailTemplate,
 } from "@/app/actions/email-template";
 import { Star, Plus, Save, Trash2, Pencil, Loader2 } from "lucide-react";
+import { TEMPLATES, VALIDATION } from "@/lib/messages";
 
 const PLACEHOLDER_CHIPS = [
   "{{company}}",
@@ -95,7 +96,7 @@ export function TemplateEditor({
     const subject = subjectRef.current?.value?.trim();
     const body = bodyRef.current?.value?.trim();
     if (!name || !subject || !body) {
-      toast.error("Name, subject, and body are required");
+      toast.error(VALIDATION.NAME_SUBJECT_BODY_REQUIRED);
       return;
     }
     setSaving(true);
@@ -108,9 +109,9 @@ export function TemplateEditor({
       );
       setEditingId(null);
       router.refresh();
-      toast.success("Template updated");
+      toast.success(TEMPLATES.UPDATED);
     } catch {
-      toast.error("Failed to update template");
+      toast.error(TEMPLATES.FAILED_UPDATE);
     }
     setSaving(false);
   };
@@ -128,9 +129,9 @@ export function TemplateEditor({
         })),
       );
       router.refresh();
-      toast.success("Default template updated");
+      toast.success(TEMPLATES.DEFAULT_UPDATED);
     } catch {
-      toast.error("Failed to set default");
+      toast.error(TEMPLATES.FAILED_SET_DEFAULT);
     }
     setSaving(false);
   };
@@ -142,9 +143,9 @@ export function TemplateEditor({
       setTemplates((prev) => prev.filter((t) => t.id !== id));
       if (editingId === id) setEditingId(null);
       router.refresh();
-      toast.success("Template deleted");
+      toast.success(TEMPLATES.DELETED);
     } catch {
-      toast.error("Failed to delete template");
+      toast.error(TEMPLATES.FAILED_DELETE);
     }
     setDeleting(null);
   };
@@ -159,9 +160,9 @@ export function TemplateEditor({
       await createEmailTemplate(data);
       router.refresh();
       setCreateOpen(false);
-      toast.success("Template created");
+      toast.success(TEMPLATES.CREATED);
     } catch {
-      toast.error("Failed to create template");
+      toast.error(TEMPLATES.FAILED_CREATE);
     }
     setSaving(false);
   };
@@ -379,7 +380,7 @@ function CreateTemplateDialog({
 
   const handleSubmit = () => {
     if (!name.trim() || !subject.trim() || !body.trim()) {
-      toast.error("Name, subject, and body are required");
+      toast.error(VALIDATION.NAME_SUBJECT_BODY_REQUIRED);
       return;
     }
     onSave({ name, subject, body });

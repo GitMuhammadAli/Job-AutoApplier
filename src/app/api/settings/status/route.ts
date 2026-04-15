@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { GENERIC, SETTINGS } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export async function PATCH(req: NextRequest) {
 
     if (!["active", "paused"].includes(accountStatus)) {
       return NextResponse.json(
-        { error: "Invalid status" },
+        { error: GENERIC.INVALID_STATUS },
         { status: 400 }
       );
     }
@@ -25,12 +26,12 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ success: true, accountStatus });
   } catch (error) {
-    if (error instanceof Error && error.message === "Not authenticated") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error instanceof Error && error.message === GENERIC.NOT_AUTHENTICATED) {
+      return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
     console.error("[SettingsStatus]", error);
     return NextResponse.json(
-      { error: "Failed to update" },
+      { error: SETTINGS.FAILED_UPDATE },
       { status: 500 }
     );
   }

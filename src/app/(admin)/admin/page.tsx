@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { ADMIN, GENERIC } from "@/lib/messages";
 
 interface ActiveUser {
   id: string;
@@ -97,7 +98,7 @@ export default function AdminDashboard() {
       if (!res.ok) throw new Error();
       setStats(await res.json());
     } catch {
-      toast.error("Failed to load admin stats");
+      toast.error(ADMIN.FAILED_LOAD_STATS);
     }
     setLoading(false);
   }, []);
@@ -118,13 +119,13 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`${source}: ${data.results ? `${data.results.length} sources triggered` : "triggered"}`);
+        toast.success(ADMIN.TRIGGER_SUCCESS(source, data.results ? ADMIN.SOURCES_TRIGGERED(data.results.length) : ADMIN.TRIGGERED));
         setTimeout(fetchStats, 3000);
       } else {
-        toast.error(data.error || "Trigger failed");
+        toast.error(data.error || ADMIN.FAILED_TRIGGER);
       }
     } catch {
-      toast.error("Failed to trigger");
+      toast.error(ADMIN.FAILED_TRIGGER);
     }
     setTriggeringSource(null);
   }
@@ -478,7 +479,7 @@ export default function AdminDashboard() {
                       const data = await res.json();
                       toast.success(data.message || `Cleaned ${data.count} jobs`);
                       setTimeout(fetchStats, 2000);
-                    } catch { toast.error("Failed"); }
+                    } catch { toast.error(GENERIC.FAILED_GENERIC); }
                     setTriggeringSource(null);
                   }}>
                   <Trash2 className="h-3 w-3" /> {a.label}

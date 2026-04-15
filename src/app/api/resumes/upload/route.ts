@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { extractText } from "@/lib/resume-parser";
 import { parseResume } from "@/lib/skill-extractor";
+import { GENERIC, RESUMES, VALIDATION } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
       const totalSize = blobs.blobs.reduce((acc, b) => acc + b.size, 0);
       if (totalSize >= MAX_TOTAL_STORAGE) {
         return NextResponse.json(
-          { error: "Storage limit reached (20 MB). Delete a resume first." },
+          { error: RESUMES.STORAGE_LIMIT },
           { status: 400 }
         );
       }
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     }
     if (existingCount >= MAX_RESUMES) {
       return NextResponse.json(
-        { error: `Maximum ${MAX_RESUMES} resumes allowed. Delete one first.` },
+        { error: RESUMES.MAX_ALLOWED(MAX_RESUMES) },
         { status: 400 }
       );
     }
@@ -46,19 +47,19 @@ export async function POST(req: NextRequest) {
     const isDefaultStr = formData.get("isDefault") as string | null;
 
     if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      return NextResponse.json({ error: VALIDATION.NO_FILE_PROVIDED }, { status: 400 });
     }
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "File must be under 5 MB" },
+        { error: RESUMES.FILE_TOO_LARGE },
         { status: 400 }
       );
     }
 
     if (file.type !== "application/pdf") {
       return NextResponse.json(
-        { error: "Only PDF files are supported. Please convert your resume to PDF first." },
+        { error: RESUMES.PDF_ONLY },
         { status: 400 }
       );
     }
@@ -139,9 +140,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Resume upload error:", error);
     const rawMessage = error instanceof Error ? error.message : "";
-    if (rawMessage === "Not authenticated") {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    if (rawMessage === GENERIC.NOT_AUTHENTICATED) {
+      return NextResponse.json({ error: GENERIC.NOT_AUTHENTICATED }, { status: 401 });
     }
-    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: RESUMES.UPLOAD_FAILED_RETRY }, { status: 500 });
   }
 }

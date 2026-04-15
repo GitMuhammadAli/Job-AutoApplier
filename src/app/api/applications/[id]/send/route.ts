@@ -3,6 +3,7 @@ import { getAuthUserId } from "@/lib/auth";
 import { sendApplication } from "@/lib/send-application";
 import { checkReadiness } from "@/lib/readiness-checker";
 import { prisma } from "@/lib/prisma";
+import { APPLICATIONS, GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +19,11 @@ export async function POST(
       where: { id, userId },
     });
     if (!application) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json({ error: GENERIC.NOT_FOUND }, { status: 404 });
     }
     if (application.status === "SENT") {
       return NextResponse.json(
-        { error: "Already sent" },
+        { error: APPLICATIONS.ALREADY_SENT },
         { status: 400 }
       );
     }
@@ -34,7 +35,7 @@ export async function POST(
         .map((c) => c.name);
       return NextResponse.json(
         {
-          error: `Not ready to send. Missing: ${missing.join(", ")}`,
+          error: APPLICATIONS.NOT_READY_MISSING(missing.join(", ")),
         },
         { status: 400 }
       );
@@ -54,12 +55,12 @@ export async function POST(
       );
     }
   } catch (error) {
-    if (error instanceof Error && error.message === "Not authenticated") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error instanceof Error && error.message === GENERIC.NOT_AUTHENTICATED) {
+      return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
     console.error("[SendRoute] Error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: GENERIC.INTERNAL_SERVER_ERROR },
       { status: 500 }
     );
   }

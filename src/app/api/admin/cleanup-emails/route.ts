@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { ADMIN } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,7 @@ function cleanJsonFromField(value: string, field: "subject" | "body"): string | 
 export async function POST() {
   try {
     if (!(await requireAdmin())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
     }
 
     const stats = {
@@ -158,7 +159,7 @@ export async function POST() {
   } catch (error) {
     console.error("[cleanup-emails]", error);
     return NextResponse.json(
-      { error: "Cleanup failed", details: String(error) },
+      { error: ADMIN.CLEANUP_FAILED, details: String(error) },
       { status: 500 },
     );
   }

@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
+import { ANALYTICS } from "@/lib/messages";
 
 const EMPTY_ANALYTICS = {
   totalJobs: 0,
@@ -349,7 +350,7 @@ export async function getAnalytics() {
     };
   } catch (error) {
     console.error("[getAnalytics] Error:", error);
-    throw new Error("Failed to load analytics");
+    throw new Error(ANALYTICS.LOAD_FAILED);
   }
 }
 

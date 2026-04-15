@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { ADMIN, GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
 export async function DELETE(req: NextRequest) {
   try {
     if (!(await requireAdmin())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
     }
 
     const body = await req.json();
@@ -24,7 +25,7 @@ export async function DELETE(req: NextRequest) {
           userJobs: { none: {} },
         },
       });
-      return NextResponse.json({ success: true, count: deleted.count, message: `Deleted ${deleted.count} inactive jobs with no user links` });
+      return NextResponse.json({ success: true, count: deleted.count, message: ADMIN.DELETED_INACTIVE_JOBS(deleted.count) });
     }
 
     if (action === "clear-old" && olderThanDays) {
@@ -33,7 +34,7 @@ export async function DELETE(req: NextRequest) {
         where: { isActive: true, lastSeenAt: { lt: cutoff } },
         data: { isActive: false },
       });
-      return NextResponse.json({ success: true, count: result.count, message: `Deactivated ${result.count} jobs not seen in ${olderThanDays} days` });
+      return NextResponse.json({ success: true, count: result.count, message: ADMIN.DEACTIVATED_STALE_JOBS(result.count, olderThanDays) });
     }
 
     if (action === "clear-no-email") {
@@ -42,12 +43,12 @@ export async function DELETE(req: NextRequest) {
         where: { isActive: true, companyEmail: null, createdAt: { lt: cutoff }, userJobs: { none: {} } },
         data: { isActive: false },
       });
-      return NextResponse.json({ success: true, count: result.count, message: `Deactivated ${result.count} old jobs without emails` });
+      return NextResponse.json({ success: true, count: result.count, message: ADMIN.DEACTIVATED_NO_EMAIL_JOBS(result.count) });
     }
 
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    return NextResponse.json({ error: GENERIC.INVALID_ACTION }, { status: 400 });
   } catch (error) {
     console.error("[admin/jobs DELETE]", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return NextResponse.json({ error: GENERIC.INTERNAL_ERROR }, { status: 500 });
   }
 }

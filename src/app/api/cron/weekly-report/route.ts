@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buildWeeklyReport } from "@/lib/email/weekly-report";
 import nodemailer from "nodemailer";
+import { CRON } from "@/lib/messages";
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: CRON.UNAUTHORIZED }, { status: 401 });
   }
 
   const users = await prisma.user.findMany({

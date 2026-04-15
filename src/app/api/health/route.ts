@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getScraperHealthStatus } from "@/lib/scrapers/scraper-runner";
 import { sendAlertWebhook } from "@/lib/webhooks";
+import { HEALTH } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -121,7 +122,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[health] Error:", error);
     return NextResponse.json(
-      { overall: "error", error: "Health check failed" },
+      { overall: "error", error: HEALTH.HEALTH_CHECK_FAILED },
       { status: 500 },
     );
   }

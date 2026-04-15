@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
+import { GENERIC, HEALTH } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ export async function GET() {
   try {
     const session = await getAuthSession();
     if (!session?.user?.email) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      return NextResponse.json({ error: GENERIC.AUTHENTICATION_REQUIRED }, { status: 401 });
     }
 
     const userIsAdmin = isAdmin(session.user.email);
@@ -108,6 +109,6 @@ export async function GET() {
     return response;
   } catch (error) {
     console.error("System health error:", error);
-    return NextResponse.json({ error: "Failed to fetch health" }, { status: 500 });
+    return NextResponse.json({ error: HEALTH.FAILED_FETCH_HEALTH }, { status: 500 });
   }
 }

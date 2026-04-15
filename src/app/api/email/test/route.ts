@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { getTransporterForUser } from "@/lib/email";
 import { decryptSettingsFields } from "@/lib/encryption";
+import { EMAIL, GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export async function POST() {
 
     if (!rawSettings) {
       return NextResponse.json(
-        { success: false, error: "Settings not found" },
+        { success: false, error: EMAIL.SETTINGS_NOT_FOUND },
         { status: 404 }
       );
     }
@@ -23,9 +24,8 @@ export async function POST() {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Email not configured. Set up Gmail or Outlook in Settings first.",
-          hint: "Go to Settings → Email Provider and enter your credentials.",
+          error: EMAIL.NOT_CONFIGURED,
+          hint: EMAIL.NOT_CONFIGURED_HINT,
         },
         { status: 400 }
       );
@@ -35,9 +35,8 @@ export async function POST() {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Email provider is set to Brevo. Switch to Gmail or Outlook to send a test.",
-          hint: "Brevo uses the system email server and doesn't need testing.",
+          error: EMAIL.BREVO_SET_PROVIDER,
+          hint: EMAIL.BREVO_HINT,
         },
         { status: 400 }
       );
@@ -46,7 +45,7 @@ export async function POST() {
     const fromEmail = settings.applicationEmail || settings.smtpUser || "";
     if (!fromEmail) {
       return NextResponse.json(
-        { success: false, error: "No sender email configured" },
+        { success: false, error: EMAIL.NO_SENDER },
         { status: 400 }
       );
     }
@@ -58,7 +57,7 @@ export async function POST() {
     await transporter.sendMail({
       from: `${settings.fullName || "JobPilot"} <${fromEmail}>`,
       to: fromEmail,
-      subject: "JobPilot — Your Email is Working!",
+      subject: EMAIL.TEST_SUBJECT,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
           <h2 style="color:#18181b;">Email Verified</h2>
@@ -88,7 +87,7 @@ export async function POST() {
 
     return NextResponse.json({ success: true, sentTo: fromEmail });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const message = error instanceof Error ? error.message : GENERIC.UNKNOWN_ERROR;
     const code =
       error && typeof error === "object" && "code" in error
         ? (error as { code?: string }).code
@@ -98,25 +97,20 @@ export async function POST() {
         ? (error as { responseCode?: number }).responseCode
         : undefined;
 
-    let hint = "Check your SMTP settings.";
+    let hint: string = EMAIL.HINT_DEFAULT;
 
     if (responseCode === 535 || code === "EAUTH") {
-      hint =
-        "Invalid password. For Gmail, use an App Password — not your regular Gmail password. Go to myaccount.google.com → Security → App Passwords.";
+      hint = EMAIL.HINT_GMAIL_APP_PASSWORD;
     } else if (responseCode === 534) {
-      hint =
-        "2-Step Verification is not enabled on your Google account. Enable it first, then create an App Password.";
+      hint = EMAIL.HINT_2FA_REQUIRED;
     } else if (code === "ESOCKET" || code === "ECONNREFUSED") {
-      hint =
-        "Can't connect to mail server. Check host and port settings.";
+      hint = EMAIL.HINT_CANT_CONNECT;
     } else if (code === "ETIMEDOUT") {
-      hint =
-        "Connection timed out. The mail server may be blocking this connection.";
+      hint = EMAIL.HINT_CONNECTION_TIMED_OUT;
     } else if (message.includes("535")) {
-      hint =
-        "Invalid password. For Gmail, use an App Password (not your regular password).";
+      hint = EMAIL.HINT_GMAIL_APP_PASSWORD_SHORT;
     } else if (message.includes("ECONNREFUSED")) {
-      hint = "Cannot connect to SMTP server. Check host and port.";
+      hint = EMAIL.HINT_ECONNREFUSED;
     }
 
     return NextResponse.json(

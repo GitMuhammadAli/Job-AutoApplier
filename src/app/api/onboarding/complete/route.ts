@@ -6,6 +6,7 @@ import {
   MATCH_THRESHOLDS,
 } from "@/lib/matching/score-engine";
 import { STARTER_TEMPLATES } from "@/constants/templates";
+import { GENERIC, ONBOARDING } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -128,12 +129,12 @@ export async function POST() {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";
-    if (message === "Not authenticated" || message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (message === GENERIC.NOT_AUTHENTICATED || message.includes("Unauthorized")) {
+      return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
     console.error("[onboarding/complete] Error:", error);
     return NextResponse.json(
-      { totalScanned: 0, matched: 0, error: "Matching encountered an error" },
+      { totalScanned: 0, matched: 0, error: ONBOARDING.MATCHING_ERROR },
       { status: 500 },
     );
   }

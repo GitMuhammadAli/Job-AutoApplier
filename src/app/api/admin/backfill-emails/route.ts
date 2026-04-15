@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { extractEmailFromText } from "@/lib/extract-email-from-text";
+import { ADMIN } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -16,7 +17,7 @@ export const maxDuration = 60;
 export async function POST() {
   const isAdminUser = await requireAdmin();
   if (!isAdminUser) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
   }
 
   const BATCH_SIZE = 200;

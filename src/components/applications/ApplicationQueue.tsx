@@ -50,6 +50,7 @@ import {
 import { generateApplication } from "@/app/actions/application-email";
 import type { ApplicationStatus } from "@prisma/client";
 import { Mail } from "lucide-react";
+import { APPLICATIONS, GENERIC } from "@/lib/messages";
 
 type ApplicationWithRelations = Awaited<
   ReturnType<typeof import("@/app/actions/application").getApplications>
@@ -187,14 +188,14 @@ const ApplicationCard = memo(function ApplicationCard({
       }
       if (res.ok && data.success) {
         onLocalStatusChange?.(app.id, "SENT");
-        toast.success(`Sent to ${app.recipientEmail}!`);
+        toast.success(APPLICATIONS.SENT_TO(app.recipientEmail || ""));
       } else {
         onLocalStatusChange?.(app.id, app.status);
         toast.error(data.error || res.statusText || "Send failed");
       }
     } catch {
       onLocalStatusChange?.(app.id, app.status);
-      toast.error("Network error");
+      toast.error(GENERIC.NETWORK_ERROR);
     } finally {
       setLoading(null);
     }
@@ -204,11 +205,11 @@ const ApplicationCard = memo(function ApplicationCard({
     setLoading("ready");
     try {
       const result = await markApplicationReady(app.id);
-      if (!result.success) { toast.error(result.error || "Failed to mark ready"); return; }
+      if (!result.success) { toast.error(result.error || APPLICATIONS.FAILED_MARK_READY); return; }
       onLocalStatusChange?.(app.id, "READY");
-      toast.success("Marked as ready");
+      toast.success(APPLICATIONS.MARKED_READY);
     } catch {
-      toast.error("Failed to mark ready");
+      toast.error(APPLICATIONS.FAILED_MARK_READY);
     } finally {
       setLoading(null);
     }
@@ -218,11 +219,11 @@ const ApplicationCard = memo(function ApplicationCard({
     setLoading("manual");
     try {
       const result = await markApplicationManual(app.id);
-      if (!result.success) { toast.error(result.error || "Failed to mark manual"); return; }
+      if (!result.success) { toast.error(result.error || APPLICATIONS.FAILED_MARK_MANUAL); return; }
       onLocalStatusChange?.(app.id, "SENT");
-      toast.success("Marked as manually applied");
+      toast.success(APPLICATIONS.MARKED_MANUAL);
     } catch {
-      toast.error("Failed to mark manual");
+      toast.error(APPLICATIONS.FAILED_MARK_MANUAL);
     } finally {
       setLoading(null);
     }
@@ -232,11 +233,11 @@ const ApplicationCard = memo(function ApplicationCard({
     setLoading("delete");
     try {
       const result = await deleteApplication(app.id);
-      if (!result.success) { toast.error(result.error || "Failed to delete"); return; }
-      toast.success("Application deleted");
+      if (!result.success) { toast.error(result.error || APPLICATIONS.FAILED_DELETE); return; }
+      toast.success(APPLICATIONS.DELETED);
       onRefresh();
     } catch {
-      toast.error("Failed to delete");
+      toast.error(APPLICATIONS.FAILED_DELETE);
     } finally {
       setLoading(null);
     }
@@ -246,11 +247,11 @@ const ApplicationCard = memo(function ApplicationCard({
     setLoading("retry");
     try {
       const result = await markApplicationReady(app.id);
-      if (!result.success) { toast.error(result.error || "Retry failed"); return; }
+      if (!result.success) { toast.error(result.error || APPLICATIONS.RETRY_FAILED); return; }
       onLocalStatusChange?.(app.id, "READY");
-      toast.success("Queued for retry");
+      toast.success(APPLICATIONS.QUEUED_RETRY);
     } catch {
-      toast.error("Retry failed");
+      toast.error(APPLICATIONS.RETRY_FAILED);
     } finally {
       setLoading(null);
     }
@@ -606,7 +607,7 @@ export function ApplicationQueue({
   const handleBulkMarkReady = async () => {
     const ids = selectedDrafts.map((a) => a.id);
     if (ids.length === 0) {
-      toast.error("Select draft applications first");
+      toast.error(APPLICATIONS.SELECT_DRAFTS_FIRST);
       return;
     }
     setBulkLoading(true);
@@ -614,11 +615,11 @@ export function ApplicationQueue({
     try {
       const count = await bulkMarkReady(ids);
       setBulkProgress({ current: ids.length, total: ids.length, label: "Marking ready" });
-      toast.success(`${count} application(s) marked ready`);
+      toast.success(APPLICATIONS.MARKED_READY_COUNT(count));
       setSelectedIds(new Set());
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(e instanceof Error ? e.message : GENERIC.FAILED_GENERIC);
     } finally {
       setBulkLoading(false);
       setTimeout(() => setBulkProgress(null), 1200);
@@ -637,7 +638,7 @@ export function ApplicationQueue({
   const handleBulkSend = async () => {
     const apps = selectedSendable;
     if (apps.length === 0) {
-      toast.error("Select applications with recipient emails first");
+      toast.error(APPLICATIONS.SELECT_WITH_EMAILS_FIRST);
       return;
     }
     setBulkLoading(true);
@@ -674,12 +675,12 @@ export function ApplicationQueue({
         }
       }
       setBulkProgress({ current: apps.length, total: apps.length, label: "Sending" });
-      if (sent > 0) toast.success(`${sent} application(s) sent!`);
-      if (rateLimited > 0) toast.info(`${rateLimited} queued — will be sent by the next cron cycle`);
-      if (failed > 0) toast.error(`${failed} failed to send`);
+      if (sent > 0) toast.success(APPLICATIONS.SENT_COUNT(sent));
+      if (rateLimited > 0) toast.info(APPLICATIONS.QUEUED_COUNT(rateLimited));
+      if (failed > 0) toast.error(APPLICATIONS.FAILED_SEND_COUNT(failed));
       setSelectedIds(new Set());
     } catch {
-      toast.error("Bulk send failed");
+      toast.error(APPLICATIONS.BULK_SEND_FAILED);
     } finally {
       setBulkLoading(false);
       setTimeout(() => setBulkProgress(null), 1200);
@@ -689,7 +690,7 @@ export function ApplicationQueue({
   const handleBulkDelete = async () => {
     const toDelete = filteredApplications.filter((a) => selectedIds.has(a.id)).map((a) => a.id);
     if (toDelete.length === 0) {
-      toast.error("Select applications first");
+      toast.error(APPLICATIONS.SELECT_APPLICATIONS_FIRST);
       return;
     }
     setBulkLoading(true);
@@ -700,11 +701,11 @@ export function ApplicationQueue({
         await deleteApplication(toDelete[i]);
       }
       setBulkProgress({ current: toDelete.length, total: toDelete.length, label: "Deleting" });
-      toast.success(`${toDelete.length} application(s) deleted`);
+      toast.success(APPLICATIONS.DELETED_COUNT(toDelete.length));
       setSelectedIds(new Set());
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(e instanceof Error ? e.message : GENERIC.FAILED_GENERIC);
     } finally {
       setBulkLoading(false);
       setTimeout(() => setBulkProgress(null), 1200);

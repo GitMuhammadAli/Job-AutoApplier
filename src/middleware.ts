@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { RATE_LIMIT } from "@/lib/messages";
 
 // NOTE: In-memory rate limiting is per-instance on Vercel serverless.
 // Each cold start gets a fresh Map, so limits are best-effort, not strict.
@@ -68,7 +69,7 @@ export function middleware(req: NextRequest) {
     const ip = getClientIp(req);
     const result = isRateLimited(`cron:${ip}`, { max: 30, windowMs: 60_000 });
     if (result.limited) {
-      return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+      return NextResponse.json({ error: RATE_LIMIT.TOO_MANY_REQUESTS }, { status: 429 });
     }
     return NextResponse.next();
   }
@@ -86,7 +87,7 @@ export function middleware(req: NextRequest) {
     if (result.limited) {
       return NextResponse.json(
         {
-          error: "Too many requests. Please slow down.",
+          error: RATE_LIMIT.TOO_MANY_REQUESTS_SLOW,
           retryAfterMs: result.retryAfterMs,
         },
         { status: 429 }
@@ -100,7 +101,7 @@ export function middleware(req: NextRequest) {
     const result = isRateLimited(key, DEFAULT_LIMITS.auth);
     if (result.limited) {
       return NextResponse.json(
-        { error: "Too many login attempts. Please try again in a minute." },
+        { error: RATE_LIMIT.TOO_MANY_LOGIN_ATTEMPTS },
         { status: 429 }
       );
     }
@@ -109,7 +110,7 @@ export function middleware(req: NextRequest) {
     const result = isRateLimited(key, DEFAULT_LIMITS.api);
     if (result.limited) {
       return NextResponse.json(
-        { error: "Too many requests. Please slow down." },
+        { error: RATE_LIMIT.TOO_MANY_REQUESTS_SLOW },
         { status: 429 }
       );
     }

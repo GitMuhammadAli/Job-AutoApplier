@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { ADMIN, GENERIC } from "@/lib/messages";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
   }
 
   const { id } = await params;
@@ -39,7 +40,7 @@ export async function PATCH(
 
       default:
         return NextResponse.json(
-          { error: "Unknown action" },
+          { error: GENERIC.UNKNOWN_ACTION },
           { status: 400 }
         );
     }
@@ -48,7 +49,7 @@ export async function PATCH(
   } catch (error) {
     console.error("[AdminUserAction]", error);
     return NextResponse.json(
-      { error: "Action failed" },
+      { error: ADMIN.ACTION_FAILED },
       { status: 500 }
     );
   }
@@ -59,7 +60,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
   }
 
   const { id } = await params;
@@ -82,7 +83,7 @@ export async function DELETE(
   } catch (error) {
     console.error("[AdminDeleteUser]", error);
     return NextResponse.json(
-      { error: "Delete failed" },
+      { error: ADMIN.DELETE_FAILED },
       { status: 500 }
     );
   }

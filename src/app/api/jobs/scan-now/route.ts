@@ -17,6 +17,7 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { LIMITS } from "@/lib/constants";
 import type { ScrapedJob, SearchQuery } from "@/types";
+import { GENERIC, JOBS, RATE_LIMIT } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -29,7 +30,7 @@ export async function POST() {
     if (!rateCheck.allowed) {
       const wait = Math.ceil((rateCheck.retryAfterMs || 60000) / 1000);
       return NextResponse.json(
-        { error: `Please wait ${wait}s before scanning again.` },
+        { error: RATE_LIMIT.PLEASE_WAIT(wait) },
         { status: 429 },
       );
     }
@@ -50,7 +51,7 @@ export async function POST() {
         (LIMITS.SCAN_COOLDOWN_MS - (Date.now() - lastScanLog.createdAt.getTime())) / 1000,
       );
       return NextResponse.json(
-        { error: `Please wait ${wait}s before scanning again.` },
+        { error: RATE_LIMIT.PLEASE_WAIT(wait) },
         { status: 429 },
       );
     }
@@ -61,7 +62,7 @@ export async function POST() {
 
     if (!settings?.keywords?.length) {
       return NextResponse.json(
-        { error: "Add keywords in settings first." },
+        { error: JOBS.ADD_KEYWORDS_FIRST },
         { status: 400 },
       );
     }
@@ -228,12 +229,12 @@ export async function POST() {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";
-    if (message === "Not authenticated" || message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (message === GENERIC.NOT_AUTHENTICATED || message.includes("Unauthorized")) {
+      return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
     console.error("[scan-now] Error:", error);
     return NextResponse.json(
-      { error: "Scan failed. Please try again." },
+      { error: JOBS.SCAN_FAILED },
       { status: 500 },
     );
   }

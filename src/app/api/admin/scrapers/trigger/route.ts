@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
+import { ADMIN } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -34,7 +35,7 @@ function cronPath(action: string): string {
 
 export async function POST(req: NextRequest) {
   if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({}));
@@ -44,14 +45,14 @@ export async function POST(req: NextRequest) {
 
   if (!baseUrl) {
     return NextResponse.json(
-      { error: "NEXT_PUBLIC_APP_URL not configured" },
+      { error: ADMIN.APP_URL_NOT_CONFIGURED },
       { status: 500 },
     );
   }
 
   if (!secret) {
     return NextResponse.json(
-      { error: "CRON_SECRET not configured" },
+      { error: ADMIN.CRON_SECRET_NOT_CONFIGURED },
       { status: 500 },
     );
   }
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ action: source, status: res.status, ...data });
     } catch (err: unknown) {
       return NextResponse.json(
-        { error: `Backfill failed`, details: String(err) },
+        { error: ADMIN.BACKFILL_FAILED, details: String(err) },
         { status: 500 },
       );
     }
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
   if (VALID_CRON_ACTIONS.includes(source)) {
     const path = cronPath(source);
     if (!path) {
-      return NextResponse.json({ error: `Unknown action: ${source}` }, { status: 400 });
+      return NextResponse.json({ error: ADMIN.UNKNOWN_ACTION_NAMED(source) }, { status: 400 });
     }
     try {
       const res = await fetch(`${baseUrl}${path}`, { headers: { authorization: `Bearer ${secret}` } });
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ action: source, status: res.status, ...data });
     } catch (err: unknown) {
       return NextResponse.json(
-        { error: `Trigger failed for ${source}`, details: String(err) },
+        { error: ADMIN.TRIGGER_FAILED(source), details: String(err) },
         { status: 500 },
       );
     }
@@ -113,11 +114,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data);
     } catch (err: unknown) {
       return NextResponse.json(
-        { error: `Trigger failed for ${source}`, details: String(err) },
+        { error: ADMIN.TRIGGER_FAILED(source), details: String(err) },
         { status: 500 },
       );
     }
   }
 
-  return NextResponse.json({ error: `Unknown source: ${source}` }, { status: 400 });
+  return NextResponse.json({ error: ADMIN.UNKNOWN_SOURCE(source) }, { status: 400 });
 }

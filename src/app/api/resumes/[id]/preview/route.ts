@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
+import { GENERIC, RESUMES } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +18,12 @@ export async function GET(
     });
 
     if (!resume?.fileUrl) {
-      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+      return NextResponse.json({ error: RESUMES.NOT_FOUND }, { status: 404 });
     }
 
     const blobResponse = await fetch(resume.fileUrl);
     if (!blobResponse.ok) {
-      return NextResponse.json({ error: "File unavailable" }, { status: 502 });
+      return NextResponse.json({ error: RESUMES.FILE_UNAVAILABLE }, { status: 502 });
     }
 
     const contentType =
@@ -36,9 +37,9 @@ export async function GET(
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Preview failed";
-    if (message === "Not authenticated") {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    const message = error instanceof Error ? error.message : RESUMES.PREVIEW_FAILED;
+    if (message === GENERIC.NOT_AUTHENTICATED) {
+      return NextResponse.json({ error: GENERIC.NOT_AUTHENTICATED }, { status: 401 });
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
+import { GENERIC, JOBS, VALIDATION } from "@/lib/messages";
 
 export const maxDuration = 10;
 
@@ -7,12 +8,12 @@ export async function POST(req: NextRequest) {
   try {
     await getAuthUserId();
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
   }
 
   const { url } = await req.json();
   if (!url || typeof url !== "string") {
-    return NextResponse.json({ error: "URL is required" }, { status: 400 });
+    return NextResponse.json({ error: VALIDATION.URL_REQUIRED }, { status: 400 });
   }
 
   try {
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("[ExtractURL] Error:", err);
     return NextResponse.json(
-      { error: "Failed to extract job details from URL" },
+      { error: JOBS.EXTRACT_URL_FAILED },
       { status: 500 },
     );
   }
