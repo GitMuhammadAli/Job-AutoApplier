@@ -22,6 +22,9 @@ module.exports = {
       "@radix-ui/react-tabs",
       "@radix-ui/react-switch",
       "@radix-ui/react-label",
+      "@radix-ui/react-alert-dialog",
+      "@radix-ui/react-separator",
+      "@radix-ui/react-progress",
       "date-fns",
       "recharts",
       "swr",
@@ -58,25 +61,31 @@ module.exports = {
       {
         source: "/api/applications/send-stats",
         headers: [
-          { key: "Cache-Control", value: "private, max-age=5, stale-while-revalidate=10" },
+          { key: "Cache-Control", value: "private, max-age=5, stale-while-revalidate=10, stale-if-error=60" },
         ],
       },
       {
         source: "/api/health",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=30, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, s-maxage=30, stale-while-revalidate=60, stale-if-error=300" },
         ],
       },
       {
         source: "/api/status",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=30, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, s-maxage=30, stale-while-revalidate=60, stale-if-error=300" },
         ],
       },
       {
         source: "/api/analytics",
         headers: [
-          { key: "Cache-Control", value: "private, max-age=60, stale-while-revalidate=120" },
+          { key: "Cache-Control", value: "private, s-maxage=60, stale-while-revalidate=120, stale-if-error=3600" },
+        ],
+      },
+      {
+        source: "/api/admin/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, s-maxage=30, stale-while-revalidate=60, stale-if-error=3600" },
         ],
       },
       {
@@ -98,5 +107,7 @@ module.exports = {
       { protocol: "https", hostname: "**.googleusercontent.com" },
       { protocol: "https", hostname: "**.githubusercontent.com" },
     ],
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 86400,
   },
 };

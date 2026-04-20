@@ -63,11 +63,18 @@ export async function checkDuplicate(
 
     const normNew = normalizeTitle(globalJob.title);
     const normExisting = normalizeTitle(gj.title);
-    if (
-      normNew === normExisting ||
-      normNew.includes(normExisting) ||
-      normExisting.includes(normNew)
-    ) {
+
+    // Only match if titles are identical or very close (>85% word overlap).
+    // Previous logic used substring includes which falsely matched
+    // "Senior Backend Engineer" ↔ "Backend Engineer" or
+    // "Product Manager" ↔ "Product Manager Platform".
+    const wordsNew = normNew.split(" ").filter(Boolean);
+    const wordsExisting = normExisting.split(" ").filter(Boolean);
+    const longer = Math.max(wordsNew.length, wordsExisting.length);
+    const overlap = wordsNew.filter((w) => wordsExisting.includes(w)).length;
+    const similarity = longer > 0 ? overlap / longer : 0;
+
+    if (normNew === normExisting || similarity >= 0.85) {
       const referenceDate = app.sentAt || app.createdAt;
       const daysAgo = Math.floor((Date.now() - referenceDate.getTime()) / 86400000);
       return {

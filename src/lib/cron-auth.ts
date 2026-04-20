@@ -18,11 +18,18 @@ export function verifyCronSecret(req: NextRequest): boolean {
   }
   _cronSecretMissing = false;
   // Accept secret via headers or ?secret= query param (for cron-job.org)
-  const secret =
+  const fromHeader =
     req.headers.get("authorization")?.replace("Bearer ", "") ||
-    req.headers.get("x-cron-secret") ||
-    req.nextUrl.searchParams.get("secret");
+    req.headers.get("x-cron-secret");
+  const fromQuery = req.nextUrl.searchParams.get("secret");
+  const secret = fromHeader || fromQuery;
   if (!secret) return false;
+
+  if (fromQuery && !fromHeader) {
+    console.warn(
+      `[CronAuth] Secret passed via query param for ${req.nextUrl.pathname} — prefer Authorization header to avoid secret leaking in logs/referrers`,
+    );
+  }
   try {
     const a = Buffer.from(secret);
     const b = Buffer.from(expected);

@@ -462,6 +462,11 @@ export function QuickApplyPanel({
       )}
 
       {/* Resume Selector */}
+      {availableResumes.length === 0 && (
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          No resumes uploaded yet. <a href="/resumes" className="underline font-medium">Upload a resume</a> to enable instant apply.
+        </div>
+      )}
       {availableResumes.length > 0 && (
         <div className="space-y-1.5">
           <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400">
@@ -719,6 +724,11 @@ export function QuickApplyPanel({
         </>
       ) : (
         <div className="space-y-4 py-4">
+          {availableResumes.length === 0 && (
+            <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              No resumes uploaded yet. <a href="/resumes" className="underline font-medium">Upload a resume</a> to enable instant apply.
+            </div>
+          )}
           {availableResumes.length > 0 && (
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400">
