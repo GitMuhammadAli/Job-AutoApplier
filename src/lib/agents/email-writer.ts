@@ -80,10 +80,14 @@ ${jobDescription.slice(0, 800)}
 
 Write the application email and cover letter. Return ONLY JSON.`;
 
+  // 8b-instant produced obvious mad-libs ("Hi [Company] team, I came across
+  // the [Job Title]"). Recruiters spot AI spam in 5 seconds — that's not
+  // just bad copy, it's actively hurting the user's reputation. 70B is
+  // also free on Groq and writes substantially better targeted prose.
   const raw = await generateWithGroq(systemPrompt, userPrompt, {
     temperature: 0.7,
     max_tokens: 1200,
-    model: "llama-3.1-8b-instant",
+    model: "llama-3.3-70b-versatile",
   });
 
   try {

@@ -56,7 +56,7 @@ const settingsSchema = z.object({
   applicationEmail: z.string().email().optional().or(z.literal("")),
   applicationMode: z
     .enum(["MANUAL", "SEMI_AUTO", "FULL_AUTO", "INSTANT"])
-    .default("SEMI_AUTO"),
+    .default("MANUAL"),
   autoApplyEnabled: z.boolean().default(false),
   maxAutoApplyPerDay: z.number().min(1).max(50).default(10),
   minMatchScoreForAutoApply: z.number().min(0).max(100).default(75),

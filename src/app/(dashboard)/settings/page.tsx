@@ -1,9 +1,10 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { getSettings } from "@/app/actions/settings";
 import { getResumeCount, getResumeSkills } from "@/app/actions/resume";
 import { SettingsSkeleton } from "@/components/shared/Skeletons";
 import nextDynamic from "next/dynamic";
-import { Cog, Loader2 } from "lucide-react";
+import { Cog, Loader2, Activity, ChevronRight } from "lucide-react";
 
 const SettingsForm = nextDynamic(
   () => import("@/components/settings/SettingsForm").then((m) => m.SettingsForm),
@@ -32,6 +33,29 @@ export default function SettingsPage() {
           Configure your profile, job preferences, automation behavior, and AI customization.
         </p>
       </div>
+
+      {/* Diagnostics shortcut — surfaces silent scraper failures + API key
+          gaps with one-click "How to fix" guides. Anyone seeing fewer jobs
+          than expected lands here first. */}
+      <Link
+        href="/diagnostics/scrapers"
+        className="flex items-center justify-between gap-3 rounded-xl bg-white dark:bg-zinc-900 ring-1 ring-slate-200/60 dark:ring-zinc-700/50 p-3 hover:ring-blue-200 dark:hover:ring-blue-900/40 transition-colors group"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/30 shrink-0">
+            <Activity className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+              Scraper health
+            </p>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
+              Per-source status + how to fix each broken or quiet source
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-blue-500 dark:text-zinc-500 dark:group-hover:text-blue-400 shrink-0" />
+      </Link>
 
       {/* Async data streams in */}
       <Suspense fallback={<SettingsSkeleton />}>

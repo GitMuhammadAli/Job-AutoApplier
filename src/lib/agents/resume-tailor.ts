@@ -53,7 +53,7 @@ Analyze and return tailored resume recommendations as JSON.`;
   const raw = await generateWithGroq(systemPrompt, userPrompt, {
     temperature: 0.4,
     max_tokens: 700,
-    model: "llama-3.1-8b-instant",
+    model: "llama-3.3-70b-versatile",
   });
 
   try {

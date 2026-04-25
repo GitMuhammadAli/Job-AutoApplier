@@ -345,6 +345,14 @@ export function RecommendedClient({
             <option value="date_asc">Oldest First</option>
           </select>
         </div>
+
+        {/* Bulk open: blast the top N visible jobs into individual tabs so the
+            user can ATS-apply through them in a single sitting. Most browsers
+            allow the first ~10–20 window.open() calls per gesture before the
+            popup blocker steps in; we cap at 10 + warn explicitly. The user
+            must allow popups once for the site — Chrome surfaces a settings
+            shortcut after the first block. */}
+        <BulkOpenButton jobs={visibleJobs} />
       </div>
 
       {/* Filter chips */}
@@ -758,3 +766,56 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
     </div>
   );
 });
+
+function BulkOpenButton({ jobs }: { jobs: RecommendedJob[] }) {
+  const N = 10;
+  const openable = useMemo(
+    () => jobs.filter((j) => j.applyUrl || j.sourceUrl).slice(0, N),
+    [jobs],
+  );
+
+  const handleOpen = useCallback(() => {
+    if (openable.length === 0) {
+      toast.error("No jobs with apply URLs in the current view");
+      return;
+    }
+
+    let opened = 0;
+    let blocked = 0;
+    openable.forEach((job, i) => {
+      const url = job.applyUrl || job.sourceUrl;
+      if (!url) return;
+      // Slight stagger so Chrome doesn't reject the burst as a popup attack.
+      // Browsers consume the user-gesture token across the synchronous loop;
+      // anything past ~5–8 tabs commonly gets blocked. Stagger gives the
+      // user a chance to grant the popup permission and reload.
+      setTimeout(() => {
+        const w = window.open(url, "_blank", "noopener,noreferrer");
+        if (w) opened++;
+        else blocked++;
+        if (i === openable.length - 1) {
+          if (blocked > 0) {
+            toast.warning(
+              `Opened ${opened} of ${openable.length}. Allow popups for this site to open all at once.`,
+            );
+          } else {
+            toast.success(`Opened ${opened} apply pages in new tabs`);
+          }
+        }
+      }, i * 80);
+    });
+  }, [openable]);
+
+  if (openable.length === 0) return null;
+
+  return (
+    <button
+      onClick={handleOpen}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors touch-manipulation"
+      title={`Open the top ${openable.length} jobs' apply pages in new tabs`}
+    >
+      <ExternalLink className="h-3.5 w-3.5" />
+      Open top {openable.length} in tabs
+    </button>
+  );
+}

@@ -225,7 +225,11 @@ model UserSettings {
   smtpPass                 String?
   // Application Automation
   applicationEmail         String?
-  applicationMode          ApplicationMode @default(SEMI_AUTO)
+  // Default = MANUAL: new users skip the SMTP setup gauntlet entirely.
+  // Tool is useful on day 1 (job discovery, ATS forms via "Open apply page",
+  // application tracking) without requiring Gmail app password / SMTP host
+  // / email warmup. Users who want auto-email-send can opt in via Settings.
+  applicationMode          ApplicationMode @default(MANUAL)
   autoApplyEnabled         Boolean         @default(false)
   instantApplyEnabled      Boolean         @default(false)
   maxAutoApplyPerDay       Int             @default(10)
