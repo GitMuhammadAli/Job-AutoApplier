@@ -81,10 +81,7 @@ async function RecommendedJobsList({ searchParams }: { searchParams: PageProps["
 
   return (
     <>
-      <ScraperStatusBanner
-        failures={scraperFailures}
-        totalJobsFound={result.total}
-      />
+      <ScraperStatusBanner failures={scraperFailures} />
       <RecommendedClient
         jobs={result.jobs}
       total={result.total}

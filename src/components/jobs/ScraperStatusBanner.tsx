@@ -7,18 +7,11 @@ import type { ScraperFailure } from "@/lib/scrapers/scraper-status";
 
 interface Props {
   failures: ScraperFailure[];
-  /**
-   * If the user has more than this many jobs already, the banner is hidden —
-   * a couple of broken sources don't matter when the rest are doing their job.
-   * Pass 0 to always show.
-   */
-  hideAboveJobCount?: number;
-  totalJobsFound: number;
 }
 
 const STORAGE_KEY = "jobpilot-scraper-banner-dismissed";
 
-export function ScraperStatusBanner({ failures, hideAboveJobCount = 30, totalJobsFound }: Props) {
+export function ScraperStatusBanner({ failures }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [dismissed, setDismissed] = useState<boolean | null>(null);
 
@@ -28,9 +21,14 @@ export function ScraperStatusBanner({ failures, hideAboveJobCount = 30, totalJob
     setDismissed(stored ? JSON.parse(stored).date === todayKey() : false);
   }
 
-  // No failures, or user has plenty of results, or already dismissed today
+  // No failures or already dismissed today.
+  // The previous version also suppressed the banner when the user had ≥ 30
+  // jobs from the working sources, on the theory that "if you have plenty of
+  // jobs, don't bother them." That was wrong: a user with 33 jobs all from
+  // rozee + jsearch is missing 4 entire sources, doesn't know which keywords
+  // to broaden or which API keys to renew, and assumes the missing sources
+  // simply have no matches. Always show when something is broken.
   if (failures.length === 0) return null;
-  if (totalJobsFound >= hideAboveJobCount) return null;
   if (dismissed === true) return null;
 
   const handleDismiss = () => {
