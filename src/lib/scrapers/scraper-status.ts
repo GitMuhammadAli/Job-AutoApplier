@@ -59,27 +59,46 @@ export async function getRecentScraperFailures(): Promise<ScraperFailure[]> {
   bySource.forEach((srcRuns, source) => {
     if (srcRuns.length === 0) return;
     const mostRecent = srcRuns[0];
-    const isBroken =
-      mostRecent.status === "failed" ||
-      mostRecent.status === "timeout" ||
-      (mostRecent.status === "partial" && mostRecent.jobsFound === 0);
-
-    if (!isBroken) return;
+    // A run is "broken" if it errored OR returned 0 jobs across multiple
+    // consecutive attempts — silent successes-with-0-jobs were the trap the
+    // first version of this code missed (real prod data showed Remotive
+    // returning success with 0 jobs every single time, half the pipeline
+    // dead, banner quiet).
+    const isZero = mostRecent.jobsFound === 0;
+    const isError =
+      mostRecent.status === "failed" || mostRecent.status === "timeout";
+    if (!isError && !isZero) return;
 
     let consecutive = 0;
     for (const r of srcRuns) {
       const broken =
         r.status === "failed" ||
         r.status === "timeout" ||
-        (r.status === "partial" && r.jobsFound === 0);
+        r.jobsFound === 0;
       if (broken) consecutive++;
       else break;
     }
 
+    // Only flag silent-zeros after multiple consecutive empties — a single
+    // empty run for a niche source isn't worth alerting. Errors/timeouts
+    // are flagged immediately.
+    if (!isError && consecutive < 3) return;
+
+    // For silent-zero successes, mark them as "partial" so the UI styles
+    // them differently (less alarming — could just be no matches).
+    const reportedStatus: ScraperFailure["status"] = isError
+      ? (mostRecent.status as "failed" | "timeout")
+      : "partial";
+
     failures.push({
       source,
-      status: mostRecent.status as ScraperFailure["status"],
-      reason: humanizeReason(source, mostRecent.errorMessage, mostRecent.status),
+      status: reportedStatus,
+      reason: humanizeReason(
+        source,
+        mostRecent.errorMessage,
+        reportedStatus,
+        consecutive,
+      ),
       lastTriedAt: mostRecent.startedAt,
       consecutiveFailures: consecutive,
     });
@@ -93,7 +112,12 @@ export async function getRecentScraperFailures(): Promise<ScraperFailure[]> {
  * If the scraper returned a useful message, lightly clean it up. Otherwise
  * fall back to known per-source patterns.
  */
-function humanizeReason(source: string, raw: string | null | undefined, status: string): string {
+function humanizeReason(
+  source: string,
+  raw: string | null | undefined,
+  status: string,
+  consecutive: number,
+): string {
   const msg = raw?.trim();
 
   // Status-first overrides — these are unambiguous regardless of message
@@ -109,22 +133,33 @@ function humanizeReason(source: string, raw: string | null | undefined, status: 
     return msg.length > 140 ? msg.slice(0, 137) + "…" : msg;
   }
 
-  // Generic fallbacks per source
+  // Per-source explanations for silent-zero (status=success, jobsFound=0)
+  // and unrecorded failures — observed behaviour from real prod runs:
+  //   remotive       → curated remote board, often 0 for non-tech keywords
+  //   arbeitnow      → Germany-focused, 0 for non-EU roles
+  //   linkedin_posts → SerpAPI fallback, capped to 3 results by design
   switch (source) {
     case "linkedin":
-    case "linkedin_posts":
       return "Likely captcha or selector change (datacenter IPs blocked by LinkedIn)";
+    case "linkedin_posts":
+      return consecutive >= 3
+        ? "Stuck at 0 — SerpAPI cap or query has no LinkedIn-post matches"
+        : "Limited by SerpAPI cap — only catches recent hiring posts";
+    case "remotive":
+      return "Returned 0 — Remotive only carries remote tech roles; try broader keywords";
+    case "arbeitnow":
+      return "Returned 0 — Arbeitnow is Germany-focused; expect zero for non-EU roles";
     case "indeed":
     case "jsearch":
-      return "Probably missing or rate-limited RAPIDAPI_KEY";
+      return "0 results — RAPIDAPI_KEY may be missing, expired, or rate-limited";
     case "adzuna":
-      return "Probably missing ADZUNA_APP_ID / ADZUNA_APP_KEY";
+      return "0 results — ADZUNA_APP_ID / ADZUNA_APP_KEY may be missing or invalid";
     case "google":
     case "google_jobs":
-      return "Probably missing SERPAPI_KEY";
+      return "0 results — SERPAPI_KEY may be missing or query yielded nothing";
     case "rozee":
       return "Pakistan/MENA-only — quiet for global roles";
     default:
-      return "Failed silently — no error captured";
+      return "Returned 0 across recent runs — source may be down or your keywords are too narrow";
   }
 }

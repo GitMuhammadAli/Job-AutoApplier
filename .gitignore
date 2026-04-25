@@ -15,4 +15,4 @@ e2e-*.ts
 .vercel
 
 # Contains secrets — never commit
-FREE_RESOURCES_AND_ENV.md
+FREE_RESOURCES_AND_ENV.md.env.production.local
