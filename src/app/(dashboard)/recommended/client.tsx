@@ -780,30 +780,33 @@ function BulkOpenButton({ jobs }: { jobs: RecommendedJob[] }) {
       return;
     }
 
+    // Browsers only honour window.open() inside the SYNCHRONOUS user-gesture
+    // frame. The previous setTimeout-staggered version got 0/10 opened
+    // because every async open lost the gesture token. Open them all in
+    // one synchronous burst — Chrome allows ~5–8 before the popup blocker
+    // kicks in, after which the user is prompted to allow popups for this
+    // site (and on reload, the next bulk-open hits the full N).
     let opened = 0;
     let blocked = 0;
-    openable.forEach((job, i) => {
+    for (const job of openable) {
       const url = job.applyUrl || job.sourceUrl;
-      if (!url) return;
-      // Slight stagger so Chrome doesn't reject the burst as a popup attack.
-      // Browsers consume the user-gesture token across the synchronous loop;
-      // anything past ~5–8 tabs commonly gets blocked. Stagger gives the
-      // user a chance to grant the popup permission and reload.
-      setTimeout(() => {
-        const w = window.open(url, "_blank", "noopener,noreferrer");
-        if (w) opened++;
-        else blocked++;
-        if (i === openable.length - 1) {
-          if (blocked > 0) {
-            toast.warning(
-              `Opened ${opened} of ${openable.length}. Allow popups for this site to open all at once.`,
-            );
-          } else {
-            toast.success(`Opened ${opened} apply pages in new tabs`);
-          }
-        }
-      }, i * 80);
-    });
+      if (!url) continue;
+      const w = window.open(url, "_blank", "noopener,noreferrer");
+      if (w) opened++;
+      else blocked++;
+    }
+
+    if (opened === 0) {
+      toast.error(
+        "Browser blocked all popups. Click the popup-blocked icon in the URL bar → 'Always allow' for this site, then try again.",
+      );
+    } else if (blocked > 0) {
+      toast.warning(
+        `Opened ${opened} of ${openable.length}. Allow popups for this site to open all at once.`,
+      );
+    } else {
+      toast.success(`Opened ${opened} apply pages in new tabs`);
+    }
   }, [openable]);
 
   if (openable.length === 0) return null;
