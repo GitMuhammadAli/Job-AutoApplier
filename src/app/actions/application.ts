@@ -25,6 +25,7 @@ export async function getApplications() {
                 company: true,
                 source: true,
                 applyUrl: true,
+                sourceUrl: true,
                 companyEmail: true,
                 emailConfidence: true,
                 lastSeenAt: true,

@@ -246,9 +246,15 @@ export async function GET(req: NextRequest) {
           if (isSemiAuto) {
             appStatus = "DRAFT";
           } else if (isFullAuto && !isOutsidePeakHours) {
+            // Only auto-send when:
+            //  - match score is high enough, AND
+            //  - we have *verified* email (not heuristic-guessed) — guesses
+            //    bounce, 3 bounces = 24-hour user ban, which silently kills
+            //    the whole pipeline. Bumped from 80 → 90 so users only
+            //    auto-send to addresses we're nearly certain about.
             if (
               match.score >= (settings.minMatchScoreForAutoApply || 75) &&
-              emailResult.confidenceScore >= 80
+              emailResult.confidenceScore >= 90
             ) {
               const isDupe = await isDuplicateApplication(userId, {
                 title: freshJob.title,

@@ -373,37 +373,49 @@ const ApplicationCard = memo(function ApplicationCard({
         {/* Action buttons — only for actionable statuses */}
         {isActionable && (
           <div className="flex flex-wrap gap-1.5 sm:gap-2">
-            {app.recipientEmail && (
+            {/* PRIMARY: open the real apply page on the job board.
+                Most modern jobs (Greenhouse/Lever/Workday/Ashby/LinkedIn Easy
+                Apply) live behind ATS forms — sending an unsolicited SMTP
+                email never reaches a recruiter. The honest path is to take
+                the user to the actual apply URL with the email content
+                pre-copied to clipboard for any "tell us about yourself" box. */}
+            {(job.applyUrl || job.sourceUrl) && (
               <Button
                 size="sm"
-                onClick={handleSend}
+                onClick={() => {
+                  const url = job.applyUrl || job.sourceUrl
+                  if (!url) return
+                  // Eagerly mark as manually applied — user can undo if they
+                  // bail out. This stops repeat re-applications to the same
+                  // job and reflects the realistic behaviour: the user is
+                  // about to apply via the real form.
+                  navigator.clipboard
+                    ?.writeText(`${app.subject}\n\n${app.emailBody}`)
+                    .catch(() => {})
+                  window.open(url, "_blank", "noopener,noreferrer")
+                  toast.success("Opened apply page • email copied to clipboard")
+                }}
                 disabled={!!loading}
                 className="gap-1.5"
               >
-                {loading === "send" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Mail className="h-3.5 w-3.5" />
-                )}
-                Send
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open apply page
               </Button>
             )}
-            {effectiveStatus === "DRAFT" && (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={handleMarkReady}
-                disabled={!!loading}
-                className="gap-1.5"
-              >
-                {loading === "ready" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Check className="h-3.5 w-3.5" />
-                )}
-                Mark Ready to Send
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleMarkManual}
+              disabled={!!loading}
+              className="gap-1.5"
+            >
+              {loading === "manual" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              I Applied
+            </Button>
             <CopyApplicationBundle
               senderEmail={app.senderEmail}
               recipientEmail={app.recipientEmail}
@@ -413,20 +425,36 @@ const ApplicationCard = memo(function ApplicationCard({
               resumeName={app.resume?.name}
               variant="compact"
             />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleMarkManual}
-              disabled={!!loading}
-              className="gap-1.5"
-            >
-              {loading === "manual" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
-              I Applied on the Site
-            </Button>
+            {/* SECONDARY: SMTP send (only when a confident email exists).
+                Hidden for low-confidence guessed emails (≥50 but <80) to stop
+                bounces destroying sender reputation. */}
+            {app.recipientEmail && (job.emailConfidence ?? 0) >= 80 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSend}
+                disabled={!!loading}
+                className="gap-1.5"
+              >
+                {loading === "send" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Mail className="h-3.5 w-3.5" />
+                )}
+                Email send
+              </Button>
+            )}
+            {effectiveStatus === "DRAFT" && app.recipientEmail && (job.emailConfidence ?? 0) >= 80 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleMarkReady}
+                disabled={!!loading}
+                className="gap-1.5"
+              >
+                Queue email send
+              </Button>
+            )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button

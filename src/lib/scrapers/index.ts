@@ -80,21 +80,65 @@ export function getScraperHealthAlerts(): ScraperHealthAlert[] {
 }
 
 /**
+ * Per-source diagnostic so the UI/cron can show *why* a source returned 0.
+ * Was: scrapers silently returned `[]` on missing API keys, captcha,
+ * selector breakage, network errors — user saw "0 jobs" and couldn't tell
+ * if they had nothing matching or if the scraper was broken. Now every
+ * source returns a status + reason that we surface upstream.
+ */
+export interface SourceStatus {
+  source: string;
+  jobsFound: number;
+  ok: boolean;
+  reason: string | null;
+}
+
+function inferReason(source: string, jobs: number, errorMessage: string | null): string | null {
+  if (errorMessage) return errorMessage;
+  if (jobs > 0) return null;
+  // Map common silent-empty causes to actionable reasons. Each scraper
+  // currently returns [] on these conditions — until we refactor them to
+  // surface the real cause, we can at least hint at the most likely one.
+  switch (source) {
+    case "jsearch":
+    case "indeed":
+      return "0 results — RAPIDAPI_KEY may be missing or rate-limited";
+    case "linkedin":
+      return "0 results — likely captcha/authwall or selector change (datacenter IPs blocked)";
+    case "adzuna":
+      return "0 results — ADZUNA_APP_ID or ADZUNA_APP_KEY may be missing";
+    case "google":
+      return "0 results — SERPAPI_KEY may be missing or query yielded nothing";
+    case "rozee":
+      return "0 results — only useful for Pakistan/MENA roles";
+    default:
+      return "0 results — no matching jobs or upstream API down";
+  }
+}
+
+/**
  * Orchestrate all scrapers, run in parallel, deduplicate across sources.
  * Keeps the entry with the longer description when duplicates are found.
  */
 export async function scrapeAllSourcesGlobal(
   queries: SearchQuery[],
   sources: string[]
-): Promise<{ jobs: ScrapedJob[]; stats: Record<string, number>; healthAlerts: ScraperHealthAlert[] }> {
+): Promise<{
+  jobs: ScrapedJob[];
+  stats: Record<string, number>;
+  healthAlerts: ScraperHealthAlert[];
+  sourceStatuses: SourceStatus[];
+}> {
   const promises = sources
     .filter((s) => SCRAPERS[s])
     .map(async (source) => {
       try {
         const jobs = await SCRAPERS[source](queries);
-        return { source, jobs, error: false };
-      } catch {
-        return { source, jobs: [] as ScrapedJob[], error: true };
+        return { source, jobs, error: false, errorMessage: null as string | null };
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.warn(`[scrapers] ${source} threw: ${errorMessage}`);
+        return { source, jobs: [] as ScrapedJob[], error: true, errorMessage };
       }
     });
 
@@ -103,15 +147,23 @@ export async function scrapeAllSourcesGlobal(
   const stats: Record<string, number> = {};
   const allJobs: ScrapedJob[] = [];
   const healthAlerts: ScraperHealthAlert[] = [];
+  const sourceStatuses: SourceStatus[] = [];
 
   for (const result of results) {
     if (result.status === "fulfilled") {
-      const { source, jobs, error } = result.value;
+      const { source, jobs, error, errorMessage } = result.value;
       stats[source] = jobs.length;
       allJobs.push(...jobs);
 
       const alert = trackScraperResult(source, jobs.length, error);
       if (alert) healthAlerts.push(alert);
+
+      sourceStatuses.push({
+        source,
+        jobsFound: jobs.length,
+        ok: !error && jobs.length > 0,
+        reason: inferReason(source, jobs.length, errorMessage),
+      });
     }
   }
 
@@ -140,5 +192,6 @@ export async function scrapeAllSourcesGlobal(
     jobs: Array.from(dedupMap.values()),
     stats,
     healthAlerts,
+    sourceStatuses,
   };
 }

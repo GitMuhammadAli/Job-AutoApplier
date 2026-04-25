@@ -3,6 +3,8 @@ import { getAuthUserId } from "@/lib/auth";
 import { getRecommendedJobs, type RecommendationOptions } from "@/lib/matching/recommendation-engine";
 import { RecommendedClient } from "./client";
 import { RecommendedJobsSkeleton } from "@/components/shared/Skeletons";
+import { getRecentScraperFailures } from "@/lib/scrapers/scraper-status";
+import { ScraperStatusBanner } from "@/components/jobs/ScraperStatusBanner";
 
 interface PageProps {
   searchParams: {
@@ -66,11 +68,25 @@ async function RecommendedJobsList({ searchParams }: { searchParams: PageProps["
     }
   }
 
-  const result = await getRecommendedJobs(userId, options);
+  // Fetch jobs + scraper-failure diagnostics in parallel — so when the user's
+  // list looks empty, we can immediately tell them whether it's "no matches"
+  // or "scraper X is broken / API key invalid / blocked by captcha".
+  const [result, scraperFailures] = await Promise.all([
+    getRecommendedJobs(userId, options),
+    getRecentScraperFailures().catch((err) => {
+      console.warn("[recommended] scraper-status fetch failed:", err);
+      return [];
+    }),
+  ]);
 
   return (
-    <RecommendedClient
-      jobs={result.jobs}
+    <>
+      <ScraperStatusBanner
+        failures={scraperFailures}
+        totalJobsFound={result.total}
+      />
+      <RecommendedClient
+        jobs={result.jobs}
       total={result.total}
       page={result.page}
       pageSize={result.pageSize}
@@ -87,6 +103,7 @@ async function RecommendedJobsList({ searchParams }: { searchParams: PageProps["
         email: searchParams.email || null,
         q: searchParams.q || null,
       }}
-    />
+      />
+    </>
   );
 }
