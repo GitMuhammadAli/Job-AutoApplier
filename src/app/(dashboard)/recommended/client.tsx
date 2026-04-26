@@ -28,7 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { FreshnessDot } from "@/components/jobs/FreshnessIndicator";
-import { saveGlobalJob, dismissGlobalJob, undismissGlobalJob } from "@/app/actions/job";
+import { saveGlobalJob, dismissGlobalJob, undismissGlobalJob, bulkMarkAppliedFromSite } from "@/app/actions/job";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { RecommendedJob, RecommendationResult } from "@/lib/matching/recommendation-engine";
@@ -774,38 +774,71 @@ function BulkOpenButton({ jobs }: { jobs: RecommendedJob[] }) {
     [jobs],
   );
 
-  const handleOpen = useCallback(() => {
+  const handleOpen = useCallback(async () => {
     if (openable.length === 0) {
       toast.error("No jobs with apply URLs in the current view");
       return;
     }
 
     // Browsers only honour window.open() inside the SYNCHRONOUS user-gesture
-    // frame. The previous setTimeout-staggered version got 0/10 opened
-    // because every async open lost the gesture token. Open them all in
-    // one synchronous burst — Chrome allows ~5–8 before the popup blocker
-    // kicks in, after which the user is prompted to allow popups for this
-    // site (and on reload, the next bulk-open hits the full N).
+    // frame. Open them all in one synchronous burst — Chrome allows ~5–8
+    // before the popup blocker kicks in, after which the user is prompted
+    // to allow popups for this site (and on reload, the next bulk-open
+    // hits the full N).
     let opened = 0;
     let blocked = 0;
+    const successfullyOpened: typeof openable = [];
     for (const job of openable) {
       const url = job.applyUrl || job.sourceUrl;
       if (!url) continue;
       const w = window.open(url, "_blank", "noopener,noreferrer");
-      if (w) opened++;
-      else blocked++;
+      if (w) {
+        opened++;
+        successfullyOpened.push(job);
+      } else {
+        blocked++;
+      }
     }
 
     if (opened === 0) {
       toast.error(
         "Browser blocked all popups. Click the popup-blocked icon in the URL bar → 'Always allow' for this site, then try again.",
       );
-    } else if (blocked > 0) {
+      return;
+    }
+
+    // Optimistically mark every successfully-opened job as APPLIED so the
+    // user doesn't have to click "I Applied" N times after filling the
+    // forms. They can still undo individually if they bailed on a form.
+    // This is the "blast through 10 forms in one sitting" workflow.
+    try {
+      const result = await bulkMarkAppliedFromSite({
+        globalJobIds: successfullyOpened.filter((j) => !j.userJobId).map((j) => j.id),
+        userJobIds: successfullyOpened
+          .filter((j): j is RecommendedJob & { userJobId: string } => !!j.userJobId)
+          .map((j) => j.userJobId),
+        platform: "bulk_open",
+      });
+      if (result.success) {
+        if (blocked > 0) {
+          toast.warning(
+            `Opened ${opened} of ${openable.length} (${blocked} popup-blocked). ${result.markedCount} marked as applied.`,
+          );
+        } else {
+          toast.success(
+            `Opened ${opened} apply pages and marked them applied. Submit on each ATS form, then undo any you didn't actually apply to.`,
+          );
+        }
+      } else {
+        toast.warning(
+          `Opened ${opened} tabs but couldn't mark them applied: ${result.error || "unknown error"}. Mark manually in /applications.`,
+        );
+      }
+    } catch (err) {
       toast.warning(
-        `Opened ${opened} of ${openable.length}. Allow popups for this site to open all at once.`,
+        `Opened ${opened} tabs but tracking update failed. Mark manually in /applications.`,
       );
-    } else {
-      toast.success(`Opened ${opened} apply pages in new tabs`);
+      console.error("[bulkMarkAppliedFromSite]", err);
     }
   }, [openable]);
 

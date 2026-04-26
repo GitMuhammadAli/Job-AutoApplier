@@ -629,6 +629,124 @@ export async function getTodaysQueue() {
   }
 }
 
+// ── Bulk mark as applied — pairs with the "Open top N in tabs" feature so
+// the user can blast through 10 ATS forms and update tracking once instead
+// of clicking "I Applied" 10 times.
+//
+// Accepts a mix of globalJobIds (job not yet saved) and userJobIds. For
+// global IDs that don't have a UserJob row yet, creates one. For each
+// resulting userJob, sets stage = APPLIED and creates a placeholder
+// JobApplication marked SENT via PLATFORM.
+
+export async function bulkMarkAppliedFromSite(input: {
+  globalJobIds?: string[];
+  userJobIds?: string[];
+  platform?: string;
+}): Promise<{ success: boolean; markedCount: number; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    const totalIds =
+      (input.globalJobIds?.length || 0) + (input.userJobIds?.length || 0);
+    if (totalIds === 0) {
+      return { success: false, markedCount: 0, error: "No jobs provided" };
+    }
+    if (totalIds > 50) {
+      return { success: false, markedCount: 0, error: "Limit 50 per batch" };
+    }
+
+    let markedCount = 0;
+
+    // 1. Promote any globalJobIds → userJobs (create if missing) so we
+    //    have a single shape to mark applied.
+    const userJobIds = new Set<string>(input.userJobIds || []);
+    if (input.globalJobIds?.length) {
+      for (const globalJobId of input.globalJobIds) {
+        const existing = await prisma.userJob.findFirst({
+          where: { userId, globalJobId },
+          select: { id: true },
+        });
+        if (existing) {
+          userJobIds.add(existing.id);
+        } else {
+          const created = await prisma.userJob.create({
+            data: {
+              userId,
+              globalJobId,
+              stage: "APPLIED",
+              isBookmarked: true,
+            },
+            select: { id: true },
+          });
+          userJobIds.add(created.id);
+        }
+      }
+    }
+
+    // 2. For every userJob in scope, set stage + ensure a placeholder
+    //    application row exists.
+    const targets = await prisma.userJob.findMany({
+      where: { userId, id: { in: Array.from(userJobIds) } },
+      include: { globalJob: { select: { title: true, company: true } } },
+    });
+
+    for (const userJob of targets) {
+      await prisma.userJob.update({
+        where: { id: userJob.id },
+        data: { stage: "APPLIED" },
+      });
+
+      const existingApp = await prisma.jobApplication.findUnique({
+        where: { userJobId: userJob.id },
+      });
+
+      if (!existingApp) {
+        await prisma.jobApplication.create({
+          data: {
+            userJobId: userJob.id,
+            userId,
+            senderEmail: "",
+            recipientEmail: "",
+            subject: `Applied to ${userJob.globalJob.title} at ${userJob.globalJob.company}`,
+            emailBody: `Applied via ${input.platform || "job site"} (bulk)`,
+            status: "SENT",
+            appliedVia: "PLATFORM",
+            sentAt: new Date(),
+          },
+        });
+      } else if (existingApp.status !== "SENT") {
+        // Bump existing draft/ready entries to SENT so the queue is clean.
+        await prisma.jobApplication.update({
+          where: { id: existingApp.id },
+          data: {
+            status: "SENT",
+            appliedVia: "PLATFORM",
+            sentAt: new Date(),
+          },
+        });
+      }
+
+      await prisma.activity.create({
+        data: {
+          userId,
+          userJobId: userJob.id,
+          type: "APPLICATION_SENT",
+          description: `Applied via ${input.platform || "job site"} (bulk)`,
+        },
+      });
+
+      markedCount++;
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/recommended");
+    revalidatePath("/applications");
+    return { success: true, markedCount };
+  } catch (error) {
+    console.error("[bulkMarkAppliedFromSite] Error:", error);
+    return { success: false, markedCount: 0, error: "Failed to mark batch applied" };
+  }
+}
+
 // ── Mark as applied from site (quick track without email) ──
 
 export async function markAppliedFromSite(
