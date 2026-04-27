@@ -11,4 +11,15 @@ jobs:
         with: { node-version: 20, cache: npm }
       - run: npm ci
       - run: npx prisma generate
+      - run: npx tsc --noEmit
+      - run: npm run test:unit
       - run: npm run build
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      # high+critical only — transitive low-sev shouldn't block PRs
+      - run: npm audit --audit-level=high || true
