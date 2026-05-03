@@ -402,6 +402,41 @@ export async function GET(req: NextRequest) {
       ? allSettings[allSettings.length - 1].userId
       : null;
 
+    // Self-chain: if there are more users to process, fire-and-forget a call
+    // to ourselves with the next cursor. Without this, throughput is capped
+    // at userBatchSize per 15-min cron tick (50 users/15min = 200 users/hr,
+    // so 1000 users would cycle in 5 hours with stale matches for the tail).
+    // Each chained invocation gets its own 60s budget. Depth cap is defence
+    // in depth — if userBatchSize=50 and we somehow saw 100k users, the
+    // chain would self-terminate at depth=20 instead of running forever.
+    if (nextCursor) {
+      const depth = parseInt(req.nextUrl.searchParams.get("chain") || "0", 10) || 0;
+      const MAX_CHAIN_DEPTH = 50; // 50 batches × 50 users = 2,500 users per cron tick
+      if (depth < MAX_CHAIN_DEPTH) {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL ||
+          (req.headers.get("x-forwarded-host")
+            ? `https://${req.headers.get("x-forwarded-host")}`
+            : req.nextUrl.origin);
+        const cronSecret = process.env.CRON_SECRET;
+        if (cronSecret) {
+          const chainUrl = `${baseUrl}/api/cron/instant-apply?cursor=${encodeURIComponent(nextCursor)}&chain=${depth + 1}`;
+          // Fire and forget — do NOT await. The response below returns
+          // immediately; Node keeps the fetch alive long enough to land.
+          fetch(chainUrl, {
+            method: "GET",
+            headers: { authorization: `Bearer ${cronSecret}` },
+          }).catch((err) => {
+            console.warn("[InstantApply] Chain trigger failed (next batch will pick up on the next 15-min cron tick):", err instanceof Error ? err.message : err);
+          });
+        } else {
+          console.warn("[InstantApply] CRON_SECRET unset — cannot self-chain. Next batch will run on the next 15-min cron tick.");
+        }
+      } else {
+        console.warn(`[InstantApply] Hit MAX_CHAIN_DEPTH=${MAX_CHAIN_DEPTH}; ${nextCursor} and beyond will be picked up on the next 15-min cron tick.`);
+      }
+    }
+
     await prisma.systemLog.create({
       data: {
         type: "apply",
