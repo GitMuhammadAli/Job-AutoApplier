@@ -110,6 +110,11 @@ export async function GET(req: NextRequest) {
       drafted: 0,
       sent: 0,
       skipped: 0,
+      // errors = real exceptions thrown during the per-job try block
+      // (userJob.create unique violations, decryption fails, etc).
+      // Was conflated with `skipped` in the dashboard, where every
+      // below-threshold match was being counted as a "failed" run.
+      errors: 0,
     };
 
     for (const rawSettings of allSettings) {
@@ -337,6 +342,7 @@ export async function GET(req: NextRequest) {
             },
           });
         } catch (err) {
+          stats.errors++;
           console.error(
             `[InstantApply] Error processing job ${freshJob.id} for user ${userId}:`,
             err,
@@ -400,12 +406,17 @@ export async function GET(req: NextRequest) {
       data: {
         type: "apply",
         source: "instant-apply",
-        message: `Processed ${stats.freshJobs} jobs for ${stats.users} users: ${stats.matched} matched, ${stats.drafted} drafted, ${stats.sent} sent${nextCursor ? " (more users pending)" : ""}`,
+        message: `Processed ${stats.freshJobs} jobs for ${stats.users} users: ${stats.matched} matched, ${stats.drafted} drafted, ${stats.sent} sent, ${stats.skipped} below-threshold, ${stats.errors} errors${nextCursor ? " (more users pending)" : ""}`,
         metadata: { ...stats, nextCursor },
       },
     });
 
-    await tracker.success({ processed: stats.sent, failed: stats.skipped, metadata: { matched: stats.matched, drafted: stats.drafted, freshJobs: stats.freshJobs, nextCursor } });
+    // Report `errors` (real exceptions) — not `skipped` (low match score) —
+    // as the dashboard's failed count. With many users × many jobs and a
+    // high match threshold, the previous reporting made every healthy run
+    // look broken (e.g. "0 processed, 1030 failed" when it was actually
+    // "0 sent, 1030 below-threshold-skipped, 0 actual errors").
+    await tracker.success({ processed: stats.sent, failed: stats.errors, metadata: { matched: stats.matched, drafted: stats.drafted, skipped: stats.skipped, freshJobs: stats.freshJobs, nextCursor } });
 
     return NextResponse.json({ success: true, ...stats, nextCursor });
   } catch (error) {
