@@ -12,8 +12,10 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
-  const MAX_QUERIES = 3;
-  const MAX_CITIES = 2;
+  // SerpAPI from Pakistan averages 4-7s per call. With 3×2=6 calls we
+  // routinely blew the 25s deadline. 2×1 leaves real headroom.
+  const MAX_QUERIES = 2;
+  const MAX_CITIES = 1;
   if (queries.length > MAX_QUERIES) {
     console.log(`[GoogleJobs] Truncating ${queries.length} queries to ${MAX_QUERIES} (dropped: ${queries.slice(MAX_QUERIES).map(q => q.keyword).join(", ")})`);
   }

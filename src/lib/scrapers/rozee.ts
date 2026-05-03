@@ -3,35 +3,46 @@ import { fetchWithRetry } from "./fetch-with-retry";
 import { categorizeJob } from "@/lib/job-categorizer";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
 import { logApiCall } from "@/lib/api-usage-logger";
+import { TIMEOUTS } from "@/lib/constants";
 
 /**
  * Fetches Rozee.pk jobs via SerpAPI Google Jobs.
  * Rozee's website is a client-side SPA with CAPTCHA protection, making direct
  * scraping impractical. Google has already indexed Rozee listings, so we
  * search Google Jobs for Pakistan-based roles and identify Rozee-sourced ones.
+ *
+ * Was 5 queries × 2 pages = 10 SerpAPI calls with NO deadline budget — every
+ * run blew the 25s ceiling. Now: 3×1 with deadline awareness + per-call
+ * timeout via fetchWithRetry's deadline param. Tightens worst-case to ~18s.
  */
 export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const key = process.env.SERPAPI_KEY;
   if (!key) return [];
 
+  const startTime = Date.now();
+  const deadline = startTime + TIMEOUTS.SCRAPER_SLOW_DEADLINE_MS;
   const jobs: ScrapedJob[] = [];
   const seen = new Set<string>();
 
   const PK_CITIES = ["lahore", "karachi", "islamabad", "rawalpindi", "faisalabad", "multan", "peshawar", "hyderabad", "quetta", "sialkot"];
 
-  for (const q of queries.slice(0, 5)) {
+  const MAX_QUERIES = 3;
+  for (const q of queries.slice(0, MAX_QUERIES)) {
+    if (Date.now() >= deadline) break;
     try {
       const query = encodeURIComponent(`${q.keyword} jobs Pakistan`);
       const baseUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&chips=date_posted:week&api_key=${key}`;
 
-      // Fetch up to 2 pages (start=0 and start=10) for broader coverage
-      const pages = [0, 10];
+      // Single page only — second-page returns from SerpAPI for Pakistan
+      // queries are usually <5 results and not worth the latency.
+      const pages = [0];
 
       for (const start of pages) {
+        if (Date.now() >= deadline) break;
         if (start > 0) await new Promise((r) => setTimeout(r, 150));
         const url = start === 0 ? baseUrl : `${baseUrl}&start=${start}`;
 
-        const res = await fetchWithRetry(url);
+        const res = await fetchWithRetry(url, undefined, 2, deadline);
         await logApiCall("serpapi");
         if (!res.ok) break;
 
@@ -86,10 +97,12 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
         if (results.length < 10) break;
       }
     } catch (err) {
+      if (err instanceof Error && err.message === "SCRAPER_DEADLINE") break;
       console.warn(`[Rozee] Failed for "${q.keyword}":`, err);
     }
   }
 
+  console.debug(`[Rozee] Total scraped: ${jobs.length} jobs in ${Date.now() - startTime}ms`);
   return jobs;
 }
 

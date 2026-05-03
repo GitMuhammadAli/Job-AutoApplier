@@ -25,9 +25,70 @@ interface RunScraperOptions {
   fallbackSource?: string;
 }
 
+/**
+ * Circuit breaker: after N consecutive timeouts/failures within the look-back
+ * window, suspend a scraper for COOLDOWN_MS so we stop wasting the cron
+ * function's runtime on a known-broken endpoint. State lives in ScraperRun
+ * rows so it survives cold starts — no in-memory map.
+ */
+const CB_FAILURES_TO_OPEN = 3;
+const CB_LOOKBACK_RUNS = 5;
+const CB_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6h
+
+async function isCircuitOpen(source: string): Promise<{ open: boolean; until?: Date; reason?: string }> {
+  const recent = await prisma.scraperRun.findMany({
+    where: { source },
+    orderBy: { startedAt: "desc" },
+    take: CB_LOOKBACK_RUNS,
+    select: { status: true, startedAt: true, errorMessage: true },
+  }).catch(() => [] as Array<{ status: string; startedAt: Date; errorMessage: string | null }>);
+
+  if (recent.length < CB_FAILURES_TO_OPEN) return { open: false };
+
+  const recentFails = recent.slice(0, CB_FAILURES_TO_OPEN);
+  const allFailed = recentFails.every((r) => r.status === "timeout" || r.status === "failed");
+  if (!allFailed) return { open: false };
+
+  const lastFailureAt = recentFails[0].startedAt;
+  const elapsed = Date.now() - lastFailureAt.getTime();
+  if (elapsed >= CB_COOLDOWN_MS) return { open: false };
+
+  return {
+    open: true,
+    until: new Date(lastFailureAt.getTime() + CB_COOLDOWN_MS),
+    reason: recentFails[0].errorMessage ?? "consecutive failures",
+  };
+}
+
 export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunResult> {
   const { source, fn, queries, timeoutMs = 8000, fallbackFn, fallbackSource } = opts;
   const startedAt = new Date();
+
+  // Circuit breaker: short-circuit before spending function time on a
+  // scraper that's been timing out for a while. Recorded as a ScraperRun
+  // so the dashboard / health endpoint can show "tripped" honestly.
+  const breaker = await isCircuitOpen(source);
+  if (breaker.open) {
+    const run = await prisma.scraperRun.create({
+      data: {
+        source,
+        status: "skipped",
+        startedAt,
+        completedAt: new Date(),
+        durationMs: 0,
+        jobsFound: 0,
+        errorMessage: `Circuit breaker OPEN — last failure: ${breaker.reason}. Resumes ${breaker.until?.toISOString() ?? "soon"}.`,
+      },
+    }).catch(() => null);
+    return {
+      source,
+      jobs: [],
+      status: "failed",
+      durationMs: 0,
+      runId: run?.id ?? "unknown",
+      errorMessage: `Circuit breaker open until ${breaker.until?.toISOString() ?? "?"}`,
+    };
+  }
 
   // Create a run record
   const run = await prisma.scraperRun.create({
@@ -246,6 +307,9 @@ export async function getScraperHealthStatus(): Promise<Record<string, {
     let consecutiveFailures = 0;
     for (const r of runs) {
       if (r.status === "success" || r.status === "partial") break;
+      // Skipped runs (circuit-breaker tripped) count as failure days for
+      // health surfacing — the scraper IS broken, the breaker is just
+      // saving us function time.
       consecutiveFailures++;
     }
 

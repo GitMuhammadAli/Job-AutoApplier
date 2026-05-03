@@ -409,7 +409,7 @@ model SystemLog {
 model ScraperRun {
   id           String   @id @default(cuid())
   source       String
-  status       String   @default("running") // running, success, partial, failed, timeout
+  status       String   @default("running") // running, success, partial, failed, timeout, skipped
   jobsFound    Int      @default(0)
   jobsSaved    Int      @default(0)
   errorMessage String?  @db.Text

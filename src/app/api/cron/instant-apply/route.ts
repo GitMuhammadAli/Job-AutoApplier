@@ -23,7 +23,12 @@ import { pushInstantApplyUpdate, isPushConfigured } from "@/lib/push-notificatio
 import { getAppUrl } from "@/lib/email-templates";
 import { checkNotificationLimit as sharedCheckNotificationLimit, logNotificationSent } from "@/lib/notification-limiter";
 
-export const maxDuration = 10;
+// 60s is the Vercel Hobby ceiling. Was 10s, which routinely killed the
+// function mid-work and (before the finally below) leaked the lock for
+// up to 10 minutes via its stale TTL. The actual work — match all fresh
+// jobs against all active users + draft applications — easily takes
+// 20-40s with 7+ users and ~2k fresh jobs.
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
@@ -400,14 +405,17 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    await releaseLock("instant-apply");
     await tracker.success({ processed: stats.sent, failed: stats.skipped, metadata: { matched: stats.matched, drafted: stats.drafted, freshJobs: stats.freshJobs, nextCursor } });
 
     return NextResponse.json({ success: true, ...stats, nextCursor });
   } catch (error) {
-    await releaseLock("instant-apply");
     await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError("InstantApply", error, "Instant apply failed");
+  } finally {
+    // finally — not catch — so the lock releases even if Vercel kills the
+    // function with a runtime cutoff. Previously a maxDuration overrun
+    // could leave the lock held until its 10-min stale TTL.
+    await releaseLock("instant-apply").catch(() => {});
   }
 }
 
