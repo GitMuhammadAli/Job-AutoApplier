@@ -55,9 +55,36 @@ export async function GET(
     );
   }
 
+  // Create ScraperRun row up-front so the diagnostics page (which reads
+  // from prisma.scraperRun) sees this dedicated cron firing. Previously
+  // only scrape-global wrote to ScraperRun via runScraper(), so jsearch
+  // and indeed always showed "Not running" on the health dashboard even
+  // though they fire every 6h via cron-job.org.
+  const startedAt = new Date();
+  const run = await prisma.scraperRun.create({
+    data: { source, status: "running", startedAt },
+  }).catch((err) => {
+    console.error(`[scrape/${source}] Failed to create ScraperRun:`, err);
+    return null;
+  });
+  const runId = run?.id;
+
   try {
     const queries = await aggregateSearchQueries();
     if (queries.length === 0) {
+      if (runId) {
+        await prisma.scraperRun.update({
+          where: { id: runId },
+          data: {
+            status: "success",
+            jobsFound: 0,
+            jobsSaved: 0,
+            durationMs: Date.now() - startedAt.getTime(),
+            errorMessage: "No user keywords configured",
+            completedAt: new Date(),
+          },
+        }).catch(() => {});
+      }
       return NextResponse.json({
         message: "No user keywords configured",
         source,
@@ -66,6 +93,19 @@ export async function GET(
     }
 
     const result = await scrapeAndUpsert(source, scraperFn, queries);
+
+    if (runId) {
+      await prisma.scraperRun.update({
+        where: { id: runId },
+        data: {
+          status: "success",
+          jobsFound: result.newCount + result.updatedCount,
+          jobsSaved: result.newCount,
+          durationMs: Date.now() - startedAt.getTime(),
+          completedAt: new Date(),
+        },
+      }).catch(() => {});
+    }
 
     await prisma.systemLog.create({
       data: {
@@ -84,6 +124,20 @@ export async function GET(
       ...result,
     });
   } catch (error) {
+    if (runId) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      await prisma.scraperRun.update({
+        where: { id: runId },
+        data: {
+          status: "failed",
+          jobsFound: 0,
+          jobsSaved: 0,
+          durationMs: Date.now() - startedAt.getTime(),
+          errorMessage: errMsg,
+          completedAt: new Date(),
+        },
+      }).catch(() => {});
+    }
     await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError(`Scrape/${source}`, error, `Scrape ${source} failed`);
   }
