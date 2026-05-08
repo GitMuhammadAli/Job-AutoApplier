@@ -19,3 +19,11 @@ FREE_RESOURCES_AND_ENV.md
 
 .env.production.local
 .env*.local
+
+# Catch-all for any local env file regardless of suffix.
+# Without these, files like .env.local.tmp / .env.vercel.tmp slip through
+# and become at-risk of an accidental `git add .` commit.
+.env.*
+!.env.example
+*.env.tmp
+.env*.tmp
