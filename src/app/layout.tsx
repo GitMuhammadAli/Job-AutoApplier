@@ -16,10 +16,24 @@ export const metadata: Metadata = {
   title: "JobPilot - Automated Job Application Tracker",
   description:
     "Track job applications with a Kanban board, automated job scraping from 8 sources, per-job email alerts with resume recommendations, and analytics.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "JobPilot",
+  },
+  icons: {
+    icon: [
+      { url: "/icon", type: "image/png" },
+      { url: "/favicon.svg?v=3", type: "image/svg+xml" },
+    ],
+    apple: { url: "/apple-icon", sizes: "180x180" },
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#059669",
+  viewportFit: "cover",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -34,8 +48,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" sizes="any" />
-        <link rel="apple-touch-icon" href="/icon-192.svg" />
+        {/* Favicon + apple-touch-icon now handled by metadata.icons above. */}
         <script
           type="speculationrules"
           dangerouslySetInnerHTML={{
