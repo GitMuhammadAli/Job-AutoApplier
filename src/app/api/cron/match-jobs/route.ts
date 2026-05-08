@@ -9,6 +9,7 @@ import { LIMITS, TIMEOUTS } from "@/lib/constants";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
+import { acquireLock, releaseLock } from "@/lib/system-lock";
 
 export const maxDuration = 10;
 export const dynamic = "force-dynamic";
@@ -19,6 +20,13 @@ export async function GET(req: NextRequest) {
   }
 
   const tracker = createCronTracker("match-jobs");
+
+  const locked = await acquireLock("match-jobs");
+  if (!locked) {
+    await tracker.skipped("Another match-jobs is running");
+    return NextResponse.json({ skipped: true, reason: "Another match-jobs is running" });
+  }
+
   const startTime = Date.now();
   const cursorUserId = req.nextUrl.searchParams.get("cursor") || undefined;
   const batchSize = Math.min(parseInt(req.nextUrl.searchParams.get("batch") || "50", 10) || 50, 500);
@@ -52,13 +60,17 @@ export async function GET(req: NextRequest) {
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
+    // Match against jobs first-seen in the last day. We don't gate on
+    // isFresh — that flag is instant-apply's bookkeeping (true=not yet
+    // processed, false=processed) and tying matching to it created a
+    // dependency where matching only ran for jobs instant-apply finished.
     const rawRecent = await prisma.globalJob.findMany({
       where: {
         isActive: true,
-        isFresh: false,
-        lastSeenAt: { gte: oneDayAgo },
+        firstSeenAt: { gte: oneDayAgo },
       },
-      take: LIMITS.MATCH_BATCH,
+      orderBy: { firstSeenAt: "desc" },
+      take: 200,
     });
 
     // Round-robin by source for fair processing across all platforms
@@ -172,5 +184,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     await tracker.error(error instanceof Error ? error : String(error));
     return handleRouteError("MatchJobs", error, "Match failed");
+  } finally {
+    await releaseLock("match-jobs").catch(() => {});
   }
 }

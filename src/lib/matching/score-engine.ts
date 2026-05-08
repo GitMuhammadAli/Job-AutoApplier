@@ -523,11 +523,17 @@ export function locationMatchesCountryCode(locationLower: string, userCountryLow
  * Extract a numeric salary range from a human-readable salary string.
  * Returns monthly values. Handles K/M suffixes, yearly/hourly conversion.
  */
-function parseSalaryRange(salary: string): { min: number; max: number } | null {
+export function parseSalaryRange(salary: string): { min: number; max: number } | null {
   const lower = salary.toLowerCase();
 
-  // Skip strings that are clearly not a salary
-  if (/market competitive|negotiable|competitive|not specified/i.test(lower)) return null;
+  // Skip strings that are clearly not a salary. Match only when there
+  // are NO digits — many real postings say "Competitive base + $80k bonus"
+  // and we want to keep the $80k. Was: bare-word reject on "competitive"
+  // dropped any string containing the word, even with a real range.
+  const hasDigit = /\d/.test(lower);
+  if (!hasDigit && /(market competitive|negotiable|competitive|not specified)/i.test(lower)) {
+    return null;
+  }
 
   const numberPattern = /(\d[\d,]*(?:\.\d+)?)\s*(k|m|lakh|lac|cr)?/gi;
   const numbers: number[] = [];

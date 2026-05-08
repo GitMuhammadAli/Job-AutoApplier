@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { keywordMatchesText, parseSalaryRange } from "@/lib/matching/score-engine";
 
 interface FeatureVector {
   keywordOverlap: number;
@@ -39,22 +40,60 @@ export function extractFeatures(
   userLocation: string,
   jobSeniority: string,
   userLevel: string,
+  jobSalary?: string | null,
+  userSalaryMin?: number | null,
+  userSalaryMax?: number | null,
 ): FeatureVector {
-  const jobLower = jobSkills.map(s => s.toLowerCase());
-  const userLower = userSkills.map(s => s.toLowerCase());
+  // Symmetric overlap using max-denominator. The original `matching / jobLower.length`
+  // was asymmetric: a JD listing 1 skill the user has scored 1.0, while a JD
+  // listing 10 skills with 5 user-matched scored 0.5 — junior-friendly sparse
+  // JDs ranked impossibly high. Use Math.max so both sides matter.
+  // Variant-aware via keywordMatchesText so node.js↔nodejs, full stack↔fullstack
+  // match — the strict Array.includes was missing all of these.
+  const userLower = Array.from(new Set(userSkills.map(s => s.toLowerCase().trim()).filter(Boolean)));
+  const jobLower = Array.from(new Set(jobSkills.map(s => s.toLowerCase().trim()).filter(Boolean)));
+  const jobSkillsBlob = jobLower.join(" ");
+  const matching = userLower.filter(s => keywordMatchesText(s, jobSkillsBlob)).length;
+  const denom = Math.max(jobLower.length, userLower.length);
+  const keywordOverlap = denom > 0 ? matching / denom : 0;
 
-  const matching = userLower.filter(s => jobLower.includes(s)).length;
-  const keywordOverlap = jobLower.length > 0 ? matching / jobLower.length : 0;
-
-  const titleWords = jobTitle.toLowerCase().split(/\s+/);
-  const roleWords = targetRole.toLowerCase().split(/\s+/);
-  const titleMatching = roleWords.filter(w => titleWords.includes(w)).length;
+  // Title relevance also via keywordMatchesText so "Full Stack Developer"
+  // matches "Fullstack Engineer" via variant table.
+  const titleLower = jobTitle.toLowerCase();
+  const roleWords = Array.from(
+    new Set(
+      targetRole.toLowerCase().split(/\s+/).filter((w) => w.length > 1),
+    ),
+  );
+  const titleMatching = roleWords.filter((w) => keywordMatchesText(w, titleLower)).length;
   const titleRelevance = roleWords.length > 0 ? titleMatching / roleWords.length : 0.5;
 
-  const salaryFit = 0.5; // Default — expand when salary data available
+  // Real salary fit. Was hardcoded 0.5, making the feature constant
+  // (zero variance → SGD weight had no signal to learn from). Now:
+  //   1.0 if user's range fits inside job's range (best)
+  //   partial overlap → fraction of overlap vs union
+  //   0.3 if no salary data on either side (neutral, beats "0 = bad")
+  let salaryFit = 0.3;
+  if (jobSalary) {
+    const range = parseSalaryRange(jobSalary);
+    if (range) {
+      const userMin = userSalaryMin ?? 0;
+      const userMax = userSalaryMax ?? Number.MAX_SAFE_INTEGER;
+      const overlapMin = Math.max(range.min, userMin);
+      const overlapMax = Math.min(range.max, userMax);
+      if (overlapMax >= overlapMin) {
+        const overlap = overlapMax - overlapMin;
+        const span = Math.max(range.max, userMax) - Math.min(range.min, userMin);
+        salaryFit = span > 0 ? Math.min(1, overlap / span + 0.5) : 0.7;
+      } else {
+        salaryFit = 0.1; // ranges disjoint
+      }
+    }
+  }
 
-  const isRemote = jobLocation.toLowerCase().includes("remote");
-  const sameLocation = jobLocation.toLowerCase().includes(userLocation.toLowerCase());
+  const jobLocLower = jobLocation.toLowerCase();
+  const isRemote = jobLocLower.includes("remote");
+  const sameLocation = userLocation && jobLocLower.includes(userLocation.toLowerCase());
   const locationMatch = isRemote ? 1.0 : sameLocation ? 0.8 : 0.2;
 
   const seniorityMap: Record<string, number> = { intern: 0, junior: 1, mid: 2, senior: 3, lead: 4, principal: 5 };
@@ -100,6 +139,9 @@ export async function trainFromUserBehavior(userId: string): Promise<ScorerWeigh
       userLocation,
       uj.globalJob.experienceLevel ?? "",
       userLevel,
+      uj.globalJob.salary,
+      settings.salaryMin,
+      settings.salaryMax,
     );
     const label = ["SAVED", "APPLIED", "INTERVIEW"].includes(uj.stage) ? 1 : 0;
     return { features, label };

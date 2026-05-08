@@ -47,16 +47,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: "No configured users", matched: 0, nextCursor: null });
     }
 
-    // Only match jobs that haven't been matched to ANY user yet.
-    // This keeps workload constant regardless of DB size — only truly new
-    // unmatched jobs are processed, not the entire 3-day window.
+    // Match per-user against the freshest jobs from the last 3 days.
+    // We don't gate on isFresh — that flag is instant-apply's bookkeeping
+    // (true=not yet processed, false=processed) and tying matching to it
+    // created a dependency where matching only ran for jobs instant-apply
+    // had already chewed through. Matching should run independently.
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const rawUnmatched = await prisma.globalJob.findMany({
       where: {
         isActive: true,
-        isFresh: false,
-        userJobs: { none: {} },
+        firstSeenAt: { gte: threeDaysAgo },
       },
-      take: LIMITS.MATCH_BATCH,
+      orderBy: { firstSeenAt: "desc" },
+      take: 150,
     });
 
     // Round-robin by source for fair processing across all platforms

@@ -64,10 +64,13 @@ export const TIMEOUTS = {
   // per-user sendDelaySeconds from UserSettings is used instead
   /** Per-API-call timeout for scrapers (ms) — default for fast/direct API scrapers */
   SCRAPER_API_TIMEOUT_MS: 8_000,
-  /** Soft deadline for fast scrapers (ms) — direct APIs like Arbeitnow, Remotive */
-  SCRAPER_DEADLINE_MS: 9_000,
-  /** Extended deadline for slow scrapers (ms) — SerpAPI, Google CSE, LinkedIn HTML */
-  SCRAPER_SLOW_DEADLINE_MS: 25_000,
+  /** Soft deadline for fast scrapers (ms) — direct APIs like Arbeitnow, Remotive.
+   *  Must be strictly less than the runner's timeoutMs so scrapers self-return
+   *  with partial results before the outer kill discards everything. */
+  SCRAPER_DEADLINE_MS: 7_500,
+  /** Extended deadline for slow scrapers (ms) — SerpAPI, Google CSE, LinkedIn HTML.
+   *  Strictly less than the runner's 25_000ms outer timeout for the same reason. */
+  SCRAPER_SLOW_DEADLINE_MS: 22_000,
 } as const;
 
 export const MATCHING = {

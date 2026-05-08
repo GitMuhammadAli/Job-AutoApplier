@@ -2,10 +2,15 @@ import { prisma } from "@/lib/prisma";
 import type { SearchQuery } from "@/types";
 
 export async function aggregateSearchQueries(mode?: string): Promise<SearchQuery[]> {
+  // Only count keywords from users who can actually receive matches:
+  // active + onboarded. Both downstream consumers (match-all-users,
+  // instant-apply, match-jobs) filter by isOnboarded=true, so scraping
+  // for unboarded users wastes the per-call query budget on noise.
   const allSettings = await prisma.userSettings.findMany({
     where: {
       keywords: { isEmpty: false },
       accountStatus: "active",
+      isOnboarded: true,
     },
     select: {
       keywords: true,

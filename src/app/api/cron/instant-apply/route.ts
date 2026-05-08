@@ -12,6 +12,7 @@ import { sendApplication } from "@/lib/send-application";
 import { sendNotificationEmail, getNotificationFrom } from "@/lib/email";
 import { decryptSettingsFields, hasDecryptionFailure } from "@/lib/encryption";
 import { generateWithGroq } from "@/lib/groq";
+import { checkApplicationQuality } from "@/lib/agents/qa-checker";
 import { acquireLock, releaseLock, isLockHeld } from "@/lib/system-lock";
 import { canSendNow } from "@/lib/send-limiter";
 import { LIMITS, TIMEOUTS } from "@/lib/constants";
@@ -117,6 +118,7 @@ export async function GET(req: NextRequest) {
       errors: 0,
     };
 
+    let brokeEarly = false;
     for (const rawSettings of allSettings) {
       const settings = decryptSettingsFields(rawSettings);
       if (hasDecryptionFailure(settings as Record<string, unknown>, "fullName", "smtpPass", "smtpUser", "applicationEmail")) {
@@ -131,8 +133,14 @@ export async function GET(req: NextRequest) {
 
       if (resumes.length === 0) continue;
 
-      // H6: Use a tighter soft limit (6s) to leave room for final DB writes (isFresh update + systemLog)
-      if (Date.now() - startTime > TIMEOUTS.CRON_SOFT_LIMIT_MS - 2000) break;
+      // Soft limit: leave ~5s of the 60s maxDuration for final DB writes
+      // (isFresh updateMany + systemLog + lock release). Was previously
+      // CRON_SOFT_LIMIT_MS - 2000 = 6s, which capped the loop at 6s of a
+      // 60s budget — only 1-2 of 7 users got processed per tick.
+      if (Date.now() - startTime > 55_000) {
+        brokeEarly = true;
+        break;
+      }
 
       const existingUserJobs = await prisma.userJob.findMany({
         where: { userId },
@@ -272,14 +280,36 @@ export async function GET(req: NextRequest) {
               });
               if (isDupe) {
                 appStatus = "DRAFT";
-              // H4: Use consistent delay value (default 5 min)
-              } else if ((settings.instantApplyDelay ?? 5) > 0) {
-                appStatus = "READY";
-                scheduledSendAt = new Date(
-                  Date.now() + (settings.instantApplyDelay ?? 5) * 60 * 1000,
-                );
               } else {
-                appStatus = "READY";
+                // QA gate before auto-send. Catches low-quality / spammy
+                // emails the heuristic email generator can produce. Only
+                // runs when we're about to set READY (rare, high-stakes
+                // path) — avoids paying the 2-4s LLM call for the 90% of
+                // jobs that go to DRAFT regardless.
+                const qa = await checkApplicationQuality({
+                  subject: emailContent.subject,
+                  body: emailContent.body,
+                  jobDescription: freshJob.description ?? "",
+                  companyName: freshJob.company,
+                }).catch((err) => {
+                  console.warn(`[InstantApply] QA check failed for job ${freshJob.id}, defaulting to DRAFT:`, err);
+                  return null;
+                });
+
+                if (!qa || qa.score < 5 || qa.spamScore >= 6) {
+                  appStatus = "DRAFT";
+                  if (qa) {
+                    console.log(`[InstantApply] QA failed for job ${freshJob.id}: score=${qa.score}/10 spam=${qa.spamScore}/10 → DRAFT`);
+                  }
+                // H4: Use consistent delay value (default 5 min)
+                } else if ((settings.instantApplyDelay ?? 5) > 0) {
+                  appStatus = "READY";
+                  scheduledSendAt = new Date(
+                    Date.now() + (settings.instantApplyDelay ?? 5) * 60 * 1000,
+                  );
+                } else {
+                  appStatus = "READY";
+                }
               }
             }
           }
@@ -386,21 +416,27 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // C3: Mark ALL fetched jobs as processed — even unmatched ones should not be re-processed.
-    // Previously this was flagged as a bug, but it's correct: isFresh means "not yet seen by
-    // instant-apply", not "matched by at least one user". Unmatched jobs should also lose freshness.
-    const freshJobIds = freshJobs.map((j) => j.id);
-    if (freshJobIds.length > 0) {
-      await prisma.globalJob.updateMany({
-        where: { id: { in: freshJobIds } },
-        data: { isFresh: false },
-      });
-    }
-
     // Cursor for next user batch: if we got a full batch, there may be more users
     const nextCursor = allSettings.length === userBatchSize
       ? allSettings[allSettings.length - 1].userId
       : null;
+
+    // Only flip isFresh=false on the TERMINAL chain invocation (no more users
+    // to process AND we didn't hit the soft-limit break). If we flip earlier,
+    // subsequent chain invocations re-fetch freshJobs and find nothing — so
+    // users in later batches never get scored against jobs the first batch
+    // processed. The cron tick repeats every 15min so jobs not flipped this
+    // tick get a clean retry next tick.
+    const isTerminalBatch = !nextCursor && !brokeEarly;
+    if (isTerminalBatch) {
+      const freshJobIds = freshJobs.map((j) => j.id);
+      if (freshJobIds.length > 0) {
+        await prisma.globalJob.updateMany({
+          where: { id: { in: freshJobIds } },
+          data: { isFresh: false },
+        });
+      }
+    }
 
     // Self-chain: if there are more users to process, fire-and-forget a call
     // to ourselves with the next cursor. Without this, throughput is capped

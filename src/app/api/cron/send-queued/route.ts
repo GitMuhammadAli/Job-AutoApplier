@@ -7,7 +7,11 @@ import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
 
-export const maxDuration = 10;
+// Was 10. With SEND_QUEUED_BATCH = 4 and inter-send delays defaulting to
+// 5s (SENDING_SAFETY_DEFAULTS.sendDelaySeconds), 4 sends × 1.5s SMTP +
+// 3 × 5s delays = ~21s, blowing the 10s cap. Vercel killed mid-loop and
+// (before the finally below) leaked the lock for the full stale TTL.
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 const LOCK_TTL_MS = 10 * 60 * 1000; // 10 minutes — auto-expire stale locks
@@ -20,24 +24,24 @@ export async function GET(req: NextRequest) {
   const tracker = createCronTracker("send-queued");
   const startTime = Date.now();
 
-  try {
-    // Try to acquire lock — also steal stale locks older than 10 minutes
-    const staleCutoff = new Date(Date.now() - LOCK_TTL_MS);
-    const acquired = await prisma.$queryRaw<{ name: string }[]>`
-      INSERT INTO "SystemLock" ("name", "isRunning", "startedAt")
-      VALUES ('send-queued', true, now())
-      ON CONFLICT ("name") DO UPDATE SET "isRunning" = true, "startedAt" = now()
-      WHERE "SystemLock"."isRunning" = false
-         OR "SystemLock"."startedAt" < ${staleCutoff}
-      RETURNING "name"
-    `;
-    if (acquired.length === 0) {
-      return NextResponse.json({
-        skipped: true,
-        reason: "Another send cron is running",
-      });
-    }
+  // Try to acquire lock — also steal stale locks older than 10 minutes
+  const staleCutoff = new Date(Date.now() - LOCK_TTL_MS);
+  const acquired = await prisma.$queryRaw<{ name: string }[]>`
+    INSERT INTO "SystemLock" ("name", "isRunning", "startedAt")
+    VALUES ('send-queued', true, now())
+    ON CONFLICT ("name") DO UPDATE SET "isRunning" = true, "startedAt" = now()
+    WHERE "SystemLock"."isRunning" = false
+       OR "SystemLock"."startedAt" < ${staleCutoff}
+    RETURNING "name"
+  `;
+  if (acquired.length === 0) {
+    return NextResponse.json({
+      skipped: true,
+      reason: "Another send cron is running",
+    });
+  }
 
+  try {
     // Dead letter recovery: unstick SENDING apps older than 10 min
     const stuckCutoff = new Date(Date.now() - STUCK_SENDING_TIMEOUT_MS);
     const stuckRecovered = await prisma.jobApplication.updateMany({
@@ -97,11 +101,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    await prisma.systemLock.update({
-      where: { name: "send-queued" },
-      data: { isRunning: false, completedAt: new Date() },
-    });
-
     await prisma.systemLog.create({
       data: {
         type: "send",
@@ -121,14 +120,18 @@ export async function GET(req: NextRequest) {
       stuckRecovered: stuckRecovered.count,
     });
   } catch (error) {
+    await tracker.error(error instanceof Error ? error : String(error));
+    return handleRouteError("SendQueued", error, "Send failed");
+  } finally {
+    // Always release the lock, even on Vercel timeout / unexpected throws.
+    // Was previously released in success and catch paths separately, which
+    // missed the "Vercel killed us mid-loop" case → lock leaked for the
+    // full 10-min stale TTL.
     await prisma.systemLock
       .update({
         where: { name: "send-queued" },
         data: { isRunning: false, completedAt: new Date() },
       })
       .catch((lockErr) => console.error("[SendQueued] Failed to release lock:", lockErr));
-
-    await tracker.error(error instanceof Error ? error : String(error));
-    return handleRouteError("SendQueued", error, "Send failed");
   }
 }

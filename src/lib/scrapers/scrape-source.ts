@@ -85,6 +85,46 @@ export async function scrapeAndUpsert(
   const crossDupes = await findCrossSourceDuplicates(candidateNew).catch(() => new Map<string, string>());
   const newJobs = candidateNew.filter((j) => !crossDupes.has(`${j.source}:${j.sourceId}`));
 
+  // 3b. For cross-source dupes (incoming job mirrors an existing one from a
+  // different source), don't just drop them — they're still proof the job
+  // is live. Bump lastSeenAt on the existing row so cleanup-stale doesn't
+  // mark it inactive. If the incoming version has a richer description or
+  // a companyEmail the existing row lacks, merge those fields in.
+  if (crossDupes.size > 0) {
+    const dupeJobsBySource = new Map(
+      candidateNew
+        .filter((j) => crossDupes.has(`${j.source}:${j.sourceId}`))
+        .map((j) => [`${j.source}:${j.sourceId}`, j]),
+    );
+    const dupeUpdatePromises: Promise<unknown>[] = [];
+    for (const [incomingKey, existingId] of Array.from(crossDupes.entries())) {
+      const incoming = dupeJobsBySource.get(incomingKey);
+      if (!incoming) continue;
+      const extraction = emailExtractions.get(incomingKey);
+      const updateData: Record<string, unknown> = {
+        lastSeenAt: new Date(),
+        isActive: true,
+      };
+      if (incoming.description && incoming.description.length > 200) {
+        updateData.description = incoming.description;
+      }
+      if (incoming.companyEmail && extraction) {
+        updateData.companyEmail = incoming.companyEmail;
+        updateData.emailSource = extraction.source || "cross_source_merge";
+        updateData.emailConfidence = extraction.confidence;
+      }
+      dupeUpdatePromises.push(
+        prisma.globalJob.update({
+          where: { id: existingId },
+          data: updateData,
+        }).catch((err) =>
+          console.warn(`[${sourceName}] Cross-source merge update failed for ${existingId}:`, err),
+        ),
+      );
+    }
+    await Promise.allSettled(dupeUpdatePromises);
+  }
+
   // 4. Batch create new jobs (single query)
   let newCount = 0;
   if (newJobs.length > 0) {

@@ -93,7 +93,7 @@ export async function POST() {
     }[] = [
       { name: "indeed", fn: fetchIndeed },
       { name: "remotive", fn: fetchRemotive },
-      { name: "arbeitnow", fn: () => fetchArbeitnow() },
+      { name: "arbeitnow", fn: fetchArbeitnow },
       { name: "linkedin", fn: fetchLinkedIn },
       { name: "rozee", fn: fetchRozee },
       { name: "jsearch", fn: fetchJSearch, needsKey: "RAPIDAPI_KEY" },

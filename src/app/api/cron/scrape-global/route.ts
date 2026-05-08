@@ -50,7 +50,7 @@ const SCRAPERS: Record<string, ScraperFn> = {
   jsearch: (q) => fetchJSearch(q),
   indeed: (q) => fetchIndeed(q),
   remotive: (q) => fetchRemotive(q),
-  arbeitnow: () => fetchArbeitnow(),
+  arbeitnow: (q) => fetchArbeitnow(q),
   adzuna: (q) => fetchAdzuna(q),
   linkedin: (q) => fetchLinkedIn(q),
   rozee: (q) => fetchRozee(q),
@@ -126,9 +126,13 @@ export async function GET(req: NextRequest) {
       .filter((source) => SCRAPERS[source])
       .map(async (source) => {
         const fallback = FALLBACKS[source];
-        // Slow scrapers (SerpAPI/Google CSE) get 25s, direct API scrapers get 9s
+        // Outer kill must be strictly greater than the scraper's inner
+        // deadline (TIMEOUTS.SCRAPER_DEADLINE_MS / SCRAPER_SLOW_DEADLINE_MS),
+        // so scrapers self-return with partial results before the runner's
+        // timeout discards the whole in-flight Promise. ~1.5s slack covers
+        // the final fetch + parse + sort happening inside scrapers.
         const slowScrapers = ["rozee", "google", "linkedin_posts", "linkedin"];
-        const scraperTimeout = slowScrapers.includes(source) ? 25_000 : TIMEOUTS.SCRAPER_DEADLINE_MS;
+        const scraperTimeout = slowScrapers.includes(source) ? 25_000 : 9_000;
 
         const runResult = await runScraper({
           source,
@@ -144,7 +148,7 @@ export async function GET(req: NextRequest) {
         let updatedCount = 0;
 
         // Sanitize, categorize, and extract emails from all jobs
-        const emailExtractions = new Map<string, { email: string; confidence: number }>();
+        const emailExtractions = new Map<string, { email: string; confidence: number; source?: string }>();
         for (const job of runResult.jobs) {
           job.description = sanitizeScrapedText(job.description);
           job.title = sanitizeScrapedText(job.title) || job.title;
@@ -158,6 +162,18 @@ export async function GET(req: NextRequest) {
               job.companyEmail = extracted.email;
               emailExtractions.set(`${job.source}:${job.sourceId}`, extracted as { email: string; confidence: number });
             }
+          }
+          // Honor scraper-provided email confidence/source. google-hiring-posts
+          // sets emailConfidence: 90, emailSource: "hiring_post" — the only path
+          // that hits the 90+ confidence threshold instant-apply requires for
+          // auto-send. Previously this orchestrator overwrote those values
+          // with description_text/70 from extractEmailFromText.
+          if (job.companyEmail && job.emailConfidence && job.emailSource) {
+            emailExtractions.set(`${job.source}:${job.sourceId}`, {
+              email: job.companyEmail,
+              confidence: job.emailConfidence,
+              source: job.emailSource,
+            });
           }
         }
 
@@ -207,7 +223,7 @@ export async function GET(req: NextRequest) {
                     companyUrl: job.companyUrl,
                     companyEmail: job.companyEmail,
                     ...(extraction ? {
-                      emailSource: "description_text",
+                      emailSource: extraction.source || "description_text",
                       emailConfidence: extraction.confidence,
                     } : {}),
                     isActive: true,
