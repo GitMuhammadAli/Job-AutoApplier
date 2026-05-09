@@ -282,7 +282,7 @@ export function RecommendedClient({
             Showing jobs matching &ldquo;{currentFilters.q}&rdquo;
           </span>
           <a
-            href="https://dev-radar-web-j2jq.vercel.app"
+            href="https://dev-radar-web.vercel.app"
             className="ml-auto text-xs font-medium text-purple-500 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
           >
             &larr; Back to DevRadar
@@ -738,7 +738,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
                 company: job.company,
                 source: 'jobpilot',
               });
-              window.open(`https://dev-radar-web-j2jq.vercel.app/resume?${params}`, '_blank');
+              window.open(`https://dev-radar-web.vercel.app/resume?${params}`, '_blank');
             }}
             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors touch-manipulation"
           >
@@ -754,7 +754,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
                 company: job.company,
                 source: 'jobpilot',
               });
-              window.open(`https://dev-radar-web-j2jq.vercel.app/interview?${params}`, '_blank');
+              window.open(`https://dev-radar-web.vercel.app/interview?${params}`, '_blank');
             }}
             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors touch-manipulation"
           >

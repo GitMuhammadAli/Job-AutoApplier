@@ -274,7 +274,7 @@ export const JobCard = memo(function JobCard({
                 jd: g.description?.slice(0, 1000) ?? '',
                 source: 'jobpilot',
               });
-              window.open(`https://dev-radar-web-j2jq.vercel.app/resume?${params}`, '_blank');
+              window.open(`https://dev-radar-web.vercel.app/resume?${params}`, '_blank');
             }}
             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors touch-manipulation"
           >
@@ -290,7 +290,7 @@ export const JobCard = memo(function JobCard({
                 jd: g.description?.slice(0, 1500) ?? '',
                 source: 'jobpilot',
               });
-              window.open(`https://dev-radar-web-j2jq.vercel.app/interview?${params}`, '_blank');
+              window.open(`https://dev-radar-web.vercel.app/interview?${params}`, '_blank');
             }}
             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors touch-manipulation"
           >

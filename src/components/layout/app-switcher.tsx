@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Grid2X2, Rocket, Radar, ExternalLink, Check, X } from 'lucide-react'
 
-const DEVRADAR_URL = 'https://dev-radar-web-j2jq.vercel.app'
+const DEVRADAR_URL = 'https://dev-radar-web.vercel.app'
 
 export function AppSwitcher() {
   const [open, setOpen] = useState(false)

@@ -43,7 +43,7 @@ export function DevRadarBanner() {
 
       <div className="flex gap-2 flex-shrink-0">
         <a
-          href="https://dev-radar-web-j2jq.vercel.app/resume"
+          href="https://dev-radar-web.vercel.app/resume"
           target="_blank"
           rel="noopener noreferrer"
           className="px-3 py-1.5 text-xs font-medium rounded-lg
@@ -53,7 +53,7 @@ export function DevRadarBanner() {
           Check my gaps
         </a>
         <a
-          href="https://dev-radar-web-j2jq.vercel.app"
+          href="https://dev-radar-web.vercel.app"
           target="_blank"
           rel="noopener noreferrer"
           className="px-3 py-1.5 text-xs font-medium rounded-lg
