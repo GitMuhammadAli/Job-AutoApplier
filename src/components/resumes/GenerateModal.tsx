@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, Download, Sparkle, X, FileText, FloppyDisk, Warning } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, Download, Sparkle, X, FileText, FloppyDisk, Warning, MagnifyingGlass } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { resumeClient, type GenerateDiff } from "@/lib/resume/client";
 import { DEFAULT_TEMPLATE_ID } from "@/lib/resume/templates/registry";
+import type { RecommendExistingResumeResult } from "@/lib/resume/types";
 
 interface GenerateModalProps {
   open: boolean;
@@ -224,7 +225,7 @@ function ConfigureStep({
       <section>
         <Label
           title="Job description (optional)"
-          hint="Phase 2: paste a JD and we'll tailor ordering and selection. In Phase 1 this is captured but ordering uses defaults."
+          hint="Paste a JD and we'll reorder your skills, pick top projects by stack overlap, and choose your best summary. Bullets stay verbatim."
         />
         <Textarea
           value={jdText}
@@ -233,6 +234,7 @@ function ConfigureStep({
           rows={4}
           className="font-mono text-xs"
         />
+        <RecommendExisting jdText={jdText} />
       </section>
 
       {/* Template picker */}
@@ -498,6 +500,74 @@ function DiffBlock({
             {s}
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Recommend-existing — Phase 4 surface.
+ * When user pastes a JD ≥ 80 chars, ping /api/resumes/recommend-existing
+ * with light debounce. Shows the best-fit existing uploaded PDF + reasoning,
+ * for the user who prefers attaching one of their 8 PDFs over generating fresh.
+ */
+function RecommendExisting({ jdText }: { jdText: string }) {
+  const [result, setResult] = useState<RecommendExistingResumeResult | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const trimmed = jdText.trim();
+    if (trimmed.length < 80) {
+      setResult(null);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const r = await resumeClient.recommendExisting({ jdText: trimmed });
+        setResult(r);
+      } catch {
+        setResult(null);
+      } finally {
+        setLoading(false);
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [jdText]);
+
+  if (!result || result.candidates.length === 0) return null;
+  const top = result.candidates[0];
+  if (top.score <= 0) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+      <div className="flex items-start gap-2.5">
+        <MagnifyingGlass size={14} weight="fill" className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-200">
+            Or use an existing upload
+            {loading && <span className="ml-1.5 text-zinc-500 font-normal">scanning…</span>}
+          </p>
+          <p className="mt-0.5 text-[11px] text-amber-800/80 dark:text-amber-200/80">
+            <strong>{top.resumeName}</strong> — {top.reason}
+          </p>
+          {top.matchedSkills.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {top.matchedSkills.slice(0, 6).map((s) => (
+                <span
+                  key={s}
+                  className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 ring-1 ring-amber-200/50 dark:ring-amber-800/30"
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="mt-1.5 text-[10px] text-amber-700/60 dark:text-amber-400/60">
+            Tailored generation below is recommended — it picks your projects per JD.
+            This option is for when you'd rather attach a static PDF.
+          </p>
+        </div>
       </div>
     </div>
   );

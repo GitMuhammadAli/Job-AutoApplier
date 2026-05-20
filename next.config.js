@@ -4,7 +4,7 @@ module.exports = {
   poweredByHeader: false,
   compress: true,
   experimental: {
-    serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist"],
+    serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist", "playwright-core", "@sparticuz/chromium"],
     serverActions: {
       allowedOrigins: [
         process.env.NEXT_PUBLIC_APP_URL
@@ -14,6 +14,7 @@ module.exports = {
     },
     optimizePackageImports: [
       "lucide-react",
+      "@phosphor-icons/react",
       "@radix-ui/react-dialog",
       "@radix-ui/react-dropdown-menu",
       "@radix-ui/react-popover",
@@ -47,10 +48,10 @@ module.exports = {
               "default-src 'self'",
               // Next.js requires unsafe-inline for styles; unsafe-eval only in dev
               "script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com",
               "img-src 'self' data: blob: https://*.googleusercontent.com https://*.githubusercontent.com",
-              "font-src 'self'",
-              "connect-src 'self' https://api.groq.com",
+              "font-src 'self' https://fonts.gstatic.com https://cdn.fontshare.com",
+              "connect-src 'self' https://api.groq.com https://generativelanguage.googleapis.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

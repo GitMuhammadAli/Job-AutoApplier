@@ -17,8 +17,10 @@ interface UploadedResume {
   id: string;
   name: string;
   fileName: string | null;
-  createdAt: Date;
+  createdAt: Date | string;
   isDefault: boolean;
+  // additional fields from getResumesWithStats are tolerated
+  [key: string]: unknown;
 }
 
 interface ResumeOnboardingWizardProps {
