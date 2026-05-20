@@ -2,8 +2,13 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import dynamic from "next/dynamic";
-import { Instrument_Serif, DM_Sans } from "next/font/google";
 import { Navbar } from "@/components/landing/Navbar";
+
+// Fonts come from src/app/layout.tsx via next/font/local:
+//   --font-display  = Clash Display
+//   --font-body     = General Sans (default body, applied at <body>)
+//   --font-mono     = JetBrains Mono
+// Read tokens via @/styles/tokens. No raw font names in components.
 
 const Hero = dynamic(() => import("@/components/landing/Hero").then(m => ({ default: m.Hero })), { ssr: true });
 const ProblemSolution = dynamic(() => import("@/components/landing/ProblemSolution").then(m => ({ default: m.ProblemSolution })));
@@ -13,20 +18,6 @@ const Safety = dynamic(() => import("@/components/landing/Safety").then(m => ({ 
 const FAQSection = dynamic(() => import("@/components/landing/FAQ").then(m => ({ default: m.FAQSection })));
 const CTA = dynamic(() => import("@/components/landing/CTA").then(m => ({ default: m.CTA })));
 const Footer = dynamic(() => import("@/components/landing/Footer").then(m => ({ default: m.Footer })));
-
-const instrumentSerif = Instrument_Serif({
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-serif",
-  display: "swap",
-});
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-dm-sans",
-  display: "swap",
-});
 
 export default async function LandingPage() {
   let session = null;
@@ -41,9 +32,7 @@ export default async function LandingPage() {
   }
 
   return (
-    <div
-      className={`${instrumentSerif.variable} ${dmSans.variable} ${dmSans.className} scroll-smooth`}
-    >
+    <div className="scroll-smooth">
       <Navbar />
       <main>
         <Hero />

@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { ModuleSection } from "./ModuleSection";
+import { fonts } from "@/styles/tokens";
 
 /**
  * Modules showcase — the full product told as 7 module-by-module scenes.
@@ -44,25 +45,30 @@ const SystemStatusAnimation = dynamic(
 export function ModulesShowcase() {
   return (
     <div id="modules">
-      {/* Section intro */}
-      <section className="relative py-24 md:py-28 bg-gradient-to-b from-white to-zinc-50/60 dark:from-zinc-950 dark:to-zinc-950">
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 mb-4">
-            How it actually works
-          </p>
-          <h2
-            className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white leading-[1.05]"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
-            Seven modules. One pipeline.
-            <br />
-            <span className="text-zinc-500 dark:text-zinc-500">No tabs to juggle.</span>
-          </h2>
-          <p className="mt-6 text-base md:text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            Most job search tools give you one thing. JobPilot owns the whole loop —
-            from scraping a fresh role to landing the reply in your inbox. Scroll to
-            see each module live.
-          </p>
+      {/* Section intro — asymmetric, left-aligned. No centered theatre. */}
+      <section className="relative py-32 md:py-40 bg-white dark:bg-zinc-950 border-t border-zinc-100 dark:border-zinc-900">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="grid lg:grid-cols-[1fr_1fr] gap-12 items-end">
+            <div>
+              <div className="inline-flex items-center gap-2 mb-7">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-500">
+                  Inside the pipeline
+                </span>
+              </div>
+              <h2
+                className="text-4xl md:text-6xl tracking-[-0.025em] text-zinc-900 dark:text-white leading-[0.95]"
+                style={{ fontFamily: fonts.display, fontWeight: 600 }}
+              >
+                Seven modules.
+                <br />
+                <span className="text-zinc-400 dark:text-zinc-600">One pipeline.</span>
+              </h2>
+            </div>
+            <p className="text-base md:text-lg text-zinc-600 dark:text-zinc-400 leading-[1.55] max-w-md lg:ml-auto">
+              Most job search tools give you one surface. JobPilot owns the whole loop — from scraping a fresh role to landing the reply in your inbox. Each module below runs live below.
+            </p>
+          </div>
         </div>
       </section>
 

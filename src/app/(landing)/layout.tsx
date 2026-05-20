@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "JobPilot — AI-Powered Job Application Platform",
+  title: "JobPilot — Apply to 50 jobs in 30 minutes",
   description:
-    "Stop applying blindly. JobPilot matches jobs to your skills, writes personalized emails, and tracks every application. Free for developers and global job seekers.",
+    "JobPilot scans 9 job sites, scores every role against your resume, drafts a personal email in your voice, and sends it from your Gmail. Open-source, free forever.",
   keywords:
-    "job search, AI applications, job board, Pakistan jobs, remote jobs, React developer jobs, automated job applications",
+    "job search, job applications, job board, remote jobs, ATS resume, automated applications, Pakistan jobs",
   openGraph: {
-    title: "JobPilot — Land Interviews, Not Rejections",
+    title: "JobPilot — Apply to 50 jobs in 30 minutes",
     description:
-      "AI-powered job matching, personalized email generation, and application tracking. 8+ job sources. Free.",
+      "Scans 9 job sites. Scores against your resume. Drafts in your voice. Sends from your Gmail. All in one tab.",
     type: "website",
     url: "https://jobpilot.pk",
   },
   twitter: {
     card: "summary_large_image",
-    title: "JobPilot — AI Job Application Platform",
-    description: "Match → Write → Send → Track. All automated.",
+    title: "JobPilot — Apply to 50 jobs in 30 minutes",
+    description: "9 sources · 16 templates · 4-agent pipeline. Sent from your Gmail.",
   },
 };
 

@@ -4,9 +4,10 @@ export const runtime = "edge";
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
-// JobPilot mark: paper-plane / send arrow on emerald, evoking
-// "applications flying out". Same shape proportions as the rest of
-// Ali's PWA suite (rounded square, central glyph).
+// Verbatim mirror of alishahid-dev portfolio icon — Ali's craftsperson mark.
+// White/zinc background, dark "AS", sky-blue accent dot.
+// (next/og can't read prefers-color-scheme; defaulting to light. SVG favicon
+// handles dark mode via favicon.svg.)
 export default function Icon() {
   return new ImageResponse(
     (
@@ -14,17 +15,32 @@ export default function Icon() {
         style={{
           width: 32,
           height: 32,
-          background: "#059669",
+          background: "#fafafa",
           borderRadius: 8,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          fontFamily: "system-ui",
+          color: "#09090b",
+          fontSize: 15,
+          fontWeight: 800,
+          letterSpacing: -0.5,
+          position: "relative",
+          border: "1px solid rgba(0,0,0,0.10)",
         }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M3 11 L21 3 L13 21 L11 13 L3 11 Z" fill="white" />
-          <path d="M11 13 L21 3" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        AS
+        <div
+          style={{
+            position: "absolute",
+            right: 4,
+            bottom: 4,
+            width: 4,
+            height: 4,
+            borderRadius: 4,
+            background: "#0ea5e9",
+          }}
+        />
       </div>
     ),
     { ...size },

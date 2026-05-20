@@ -2,11 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Landing fonts (Fontshare CDN, loaded in layout.tsx <head>) ── */
-:root {
-  --font-display: "Clash Display", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-sans-pro: "General Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-}
+/*
+ * Font CSS variables (--font-display, --font-body, --font-mono) are injected
+ * by next/font/local + next/font/google in src/app/layout.tsx.
+ * Read tokens via src/styles/tokens.ts — never hardcode font names here.
+ */
 
 @layer base {
   :root {

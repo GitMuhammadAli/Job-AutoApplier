@@ -33,7 +33,7 @@ export function ProblemSolution() {
         <AnimateOnScroll variant="blur-in">
           <p
             className="text-center text-2xl md:text-3xl lg:text-4xl text-white/90 max-w-2xl mx-auto leading-snug font-medium italic"
-            style={{ fontFamily: "var(--font-serif)" }}
+            style={{ fontFamily: "var(--font-display)" }}
           >
             &ldquo;Job searching shouldn&apos;t feel like a second job.&rdquo;
           </p>
@@ -64,7 +64,7 @@ export function ProblemSolution() {
             </div>
             <p
               className="text-2xl md:text-3xl font-bold text-white"
-              style={{ fontFamily: "var(--font-serif)" }}
+              style={{ fontFamily: "var(--font-display)" }}
             >
               JobPilot does all of this.{" "}
               <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent animate-gradient-shift bg-[length:200%_200%]">

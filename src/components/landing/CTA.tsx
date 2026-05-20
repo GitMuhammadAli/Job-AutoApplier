@@ -38,7 +38,7 @@ export function CTA() {
         <AnimateOnScroll variant="zoom">
           <h2
             className="text-3xl md:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-tight"
-            style={{ fontFamily: "var(--font-serif)" }}
+            style={{ fontFamily: "var(--font-display)" }}
           >
             Ready to stop wasting time on{" "}
             <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent animate-gradient-shift bg-[length:200%_200%]">

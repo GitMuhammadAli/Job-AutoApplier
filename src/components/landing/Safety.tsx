@@ -24,7 +24,7 @@ export function Safety() {
           </p>
           <h2
             className="text-3xl md:text-4xl font-bold text-center text-white tracking-tight"
-            style={{ fontFamily: "var(--font-serif)" }}
+            style={{ fontFamily: "var(--font-display)" }}
           >
             Built with your reputation in mind.
           </h2>

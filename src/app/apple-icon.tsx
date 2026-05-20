@@ -4,6 +4,7 @@ export const runtime = "edge";
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
+// Verbatim mirror of alishahid-dev portfolio apple-icon — Ali's craftsperson mark.
 export default function AppleIcon() {
   return new ImageResponse(
     (
@@ -11,17 +12,32 @@ export default function AppleIcon() {
         style={{
           width: 180,
           height: 180,
-          background: "#059669",
+          background: "#fafafa",
           borderRadius: 40,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          fontFamily: "system-ui",
+          color: "#09090b",
+          fontSize: 88,
+          fontWeight: 800,
+          letterSpacing: -3,
+          position: "relative",
+          border: "2px solid rgba(0,0,0,0.10)",
         }}
       >
-        <svg width="110" height="110" viewBox="0 0 24 24" fill="none">
-          <path d="M3 11 L21 3 L13 21 L11 13 L3 11 Z" fill="white" />
-          <path d="M11 13 L21 3" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        AS
+        <div
+          style={{
+            position: "absolute",
+            right: 22,
+            bottom: 22,
+            width: 18,
+            height: 18,
+            borderRadius: 18,
+            background: "#0ea5e9",
+          }}
+        />
       </div>
     ),
     { ...size },

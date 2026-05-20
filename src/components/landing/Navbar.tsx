@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, Send } from "lucide-react";
+import { List, X, PaperPlaneTilt } from "@phosphor-icons/react";
 
 const NAV_LINKS = [
-  { href: "#features", label: "Features" },
-  { href: "#how-it-works", label: "How It Works" },
-  { href: "#modes", label: "Modes" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/features", label: "Features" },
+  { href: "/how-it-works", label: "How It Works" },
+  { href: "/modes", label: "Modes" },
+  { href: "/faq", label: "FAQ" },
 ];
 
 const DEVRADAR_URL = process.env.NEXT_PUBLIC_DEVRADAR_URL;

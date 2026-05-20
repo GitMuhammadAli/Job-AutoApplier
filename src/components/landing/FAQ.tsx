@@ -47,7 +47,7 @@ export function FAQSection() {
       <div className="mx-auto max-w-3xl px-6">
         <AnimateOnScroll>
           <h2 className="text-3xl md:text-4xl font-bold text-center text-zinc-900 dark:text-white tracking-tight mb-4"
-              style={{ fontFamily: "var(--font-serif)" }}>
+              style={{ fontFamily: "var(--font-display)" }}>
             Frequently Asked Questions
           </h2>
           <p className="text-center text-zinc-500 dark:text-zinc-400 mb-12 max-w-lg mx-auto">

@@ -21,7 +21,7 @@ export function Pakistan() {
             <span className="text-5xl block hover:scale-110 transition-transform duration-300" role="img" aria-label="Pakistan flag">&#127477;&#127472;</span>
             <h2
               className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight"
-              style={{ fontFamily: "var(--font-serif)" }}
+              style={{ fontFamily: "var(--font-display)" }}
             >
               Built for Pakistan&apos;s tech talent.
             </h2>
@@ -44,7 +44,7 @@ export function Pakistan() {
         <AnimateOnScroll delay={600} variant="blur-in">
           <p
             className="mt-12 text-center text-lg text-zinc-500 dark:text-zinc-400 italic max-w-md mx-auto"
-            style={{ fontFamily: "var(--font-serif)" }}
+            style={{ fontFamily: "var(--font-display)" }}
           >
             &ldquo;Pakistani engineers deserve the same tools as Silicon Valley.&rdquo;
           </p>

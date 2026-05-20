@@ -73,7 +73,7 @@ export function Testimonials() {
           </p>
           <h2
             className="text-3xl md:text-4xl font-bold text-center text-zinc-900 dark:text-white tracking-tight"
-            style={{ fontFamily: "var(--font-serif)" }}
+            style={{ fontFamily: "var(--font-display)" }}
           >
             How people use JobPilot
           </h2>

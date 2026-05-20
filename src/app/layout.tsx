@@ -1,15 +1,41 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
+import { JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { SessionProvider } from "@/components/auth/SessionProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import "./globals.css";
 
-const inter = Inter({
+// Clash Display — display/marquee headlines only (≥24px). Self-hosted from Fontshare.
+const clashDisplay = localFont({
+  src: [
+    { path: "../../public/fonts/ClashDisplay-Medium.woff2",   weight: "500", style: "normal" },
+    { path: "../../public/fonts/ClashDisplay-Semibold.woff2", weight: "600", style: "normal" },
+    { path: "../../public/fonts/ClashDisplay-Bold.woff2",     weight: "700", style: "normal" },
+  ],
+  variable: "--font-display",
+  display: "swap",
+  fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+});
+
+// General Sans — body, UI, small labels. Pairs with Clash Display (same foundry).
+const generalSans = localFont({
+  src: [
+    { path: "../../public/fonts/GeneralSans-Regular.woff2",  weight: "400", style: "normal" },
+    { path: "../../public/fonts/GeneralSans-Medium.woff2",   weight: "500", style: "normal" },
+    { path: "../../public/fonts/GeneralSans-Semibold.woff2", weight: "600", style: "normal" },
+  ],
+  variable: "--font-body",
+  display: "swap",
+  fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+});
+
+// JetBrains Mono — code, file paths, tabular numbers in UI.
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -46,16 +72,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={`${clashDisplay.variable} ${generalSans.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         {/* Favicon + apple-touch-icon now handled by metadata.icons above. */}
-        {/* Display + body fonts from Fontshare (Indian Type Foundry) — free, ATS-safe for the dashboard, distinctive for the landing. */}
-        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
-        <link rel="preconnect" href="https://cdn.fontshare.com" crossOrigin="" />
-        <link
-          rel="stylesheet"
-          href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=general-sans@400,500,600&display=swap"
-        />
         <script
           type="speculationrules"
           dangerouslySetInnerHTML={{
@@ -66,7 +85,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${generalSans.className} antialiased`}>
         <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-lg focus:bg-blue-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg">
           Skip to main content
         </a>

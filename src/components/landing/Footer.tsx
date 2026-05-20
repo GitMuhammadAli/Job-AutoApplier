@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Send } from "lucide-react";
+import { PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
 import { ASMark } from "@/components/ui/as-mark";
 
 const CREATOR = {
@@ -11,10 +11,10 @@ const CREATOR = {
 
 const FOOTER_LINKS = {
   Product: [
-    { label: "Features", href: "#features" },
-    { label: "How It Works", href: "#how-it-works" },
-    { label: "Modes", href: "#modes" },
-    { label: "FAQ", href: "#faq" },
+    { label: "Features", href: "/features" },
+    { label: "How It Works", href: "/how-it-works" },
+    { label: "Modes", href: "/modes" },
+    { label: "FAQ", href: "/faq" },
   ],
   Resources: [
     { label: "GitHub", href: CREATOR.github },
@@ -35,15 +35,15 @@ export function Footer() {
         <div className="grid md:grid-cols-4 gap-10">
           <div>
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-teal-500">
-                <Send className="h-3.5 w-3.5 text-white -translate-x-[1px]" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600">
+                <PaperPlaneTilt size={16} weight="fill" className="text-white" />
               </div>
-              <span className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
+              <span className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
                 JobPilot
               </span>
             </Link>
             <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              AI-powered job application platform. Match, write, send, track.
+              Scrape. Score. Draft. Send. Track. One tab.
             </p>
           </div>
 

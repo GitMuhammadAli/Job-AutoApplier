@@ -23,7 +23,7 @@ export function Stats() {
         <AnimateOnScroll variant="flip-up">
           <h2
             className="text-3xl md:text-4xl font-bold text-center text-zinc-900 dark:text-white tracking-tight mb-16"
-            style={{ fontFamily: "var(--font-serif)" }}
+            style={{ fontFamily: "var(--font-display)" }}
           >
             JobPilot by the numbers.
           </h2>

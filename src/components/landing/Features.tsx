@@ -212,7 +212,7 @@ export function Features() {
           <p className="text-center text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-3">
             Features
           </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-zinc-900 dark:text-white tracking-tight" style={{ fontFamily: "var(--font-serif)" }}>
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-zinc-900 dark:text-white tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
             Everything you need to land your next role.
           </h2>
           <p className="mt-4 text-center text-zinc-500 dark:text-zinc-400 max-w-xl mx-auto">
