@@ -19,6 +19,7 @@ model User {
   sessions          Session[]
   userJobs          UserJob[]
   resumes           Resume[]
+  resumeProfile     ResumeProfile?
   settings          UserSettings?
   activities        Activity[]
   applications      JobApplication[]
@@ -311,6 +312,10 @@ model JobApplication {
   emailBody       String            @db.Text
   resumeId        String?
   resume          Resume?           @relation(fields: [resumeId], references: [id])
+  // Nullable forward-compat for the resume generator. Phase 3 will populate
+  // this when auto-apply renders a fresh PDF; Phase 1 leaves it null.
+  resumeGenerationId String?
+  resumeGeneration   ResumeGeneration? @relation(fields: [resumeGenerationId], references: [id], onDelete: SetNull)
   coverLetter     String?           @db.Text
   templateId      String?
   status          ApplicationStatus @default(DRAFT)
@@ -454,4 +459,190 @@ model UserFeedback {
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// RESUME GENERATOR  (Phase 1)
+//
+// Eight models that hold a user's structured resume profile and the rendered
+// outputs. The hard rule across all of them: AI only reorders / selects from
+// items the user has entered. It never rewrites bullets, titles, dates, or
+// company names. See docs/resume-generator-design.md for the full contract.
+// ──────────────────────────────────────────────────────────────────────────
+
+model ResumeProfile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Header
+  fullName    String
+  headline    String   // "Software Engineer — LLM Evaluation & Agentic Systems"
+  location    String?
+  email       String
+  phone       String?
+  websiteUrl  String?
+  githubUrl   String?
+  linkedinUrl String?
+
+  // Master skills — ordering is the DEFAULT order (used when no JD).
+  // Once `skillsLocked = true`, JD tailoring rejects skills not in this list
+  // instead of silently dropping them — it surfaces an error to the user.
+  skills       String[]
+  skillsLocked Boolean @default(false)
+
+  summaries      ResumeSummary[]
+  experiences    ResumeExperience[]
+  projects       ResumeProject[]
+  education      ResumeEducation[]
+  certifications ResumeCertification[]
+  variants       ResumeVariant[]
+  generations    ResumeGeneration[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ResumeSummary {
+  id          String   @id @default(cuid())
+  profileId   String
+  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  label       String   // "MERN-leaning", "AI-eval-leaning"
+  content     String   @db.Text
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+model ResumeExperience {
+  id          String   @id @default(cuid())
+  profileId   String
+  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  company     String
+  title       String
+  location    String?
+  startDate   String   // "August 2025" — display verbatim, NOT Date (preserves user format)
+  endDate     String?  // "Present" or "August 2025"
+  bullets     String[] // 2–6 bullets per job. ORDER matters; AI may reorder within a job. Each ≤ 280 chars (Zod-enforced).
+
+  order       Int      // user's authored order; default render order
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([profileId, order])
+}
+
+model ResumeProject {
+  id          String   @id @default(cuid())
+  profileId   String
+  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  title       String
+  role        String?  // "Solo", "Lead", "Contributor"
+  oneLiner    String   // single-line description shown when collapsed
+  bullets     String[] // 2–4 bullets, immutable from AI's side
+  stack       String[] // tech tags — used to score project relevance per JD
+  liveUrl     String?
+  repoUrl     String?
+
+  isFeatured  Boolean  @default(false)  // "always include if room"
+  order       Int
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([profileId, order])
+  @@index([profileId, isFeatured])
+}
+
+model ResumeEducation {
+  id          String   @id @default(cuid())
+  profileId   String
+  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  institution String
+  degree      String
+  startDate   String?
+  endDate     String?
+  details     String?  @db.Text
+  order       Int
+  createdAt   DateTime @default(now())
+
+  @@index([profileId, order])
+}
+
+model ResumeCertification {
+  id            String   @id @default(cuid())
+  profileId     String
+  profile       ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  name          String
+  issuer        String?
+  issuedDate    String?
+  credentialUrl String?
+  order         Int
+  createdAt     DateTime @default(now())
+
+  @@index([profileId, order])
+}
+
+// A named saved tailoring. User can save the result of a JD-driven generation
+// as a reusable variant ("AI-eval-leaning", "Backend-leaning", etc.).
+model ResumeVariant {
+  id              String   @id @default(cuid())
+  profileId       String
+  profile         ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  name            String
+  templateId      String   // "T01" | "T02" | ... from the template registry
+  templateVersion String   // "T01@1.0.0" — pinned so future CSS tweaks don't silently rewrite history
+  pageTarget      Int      @default(1)
+
+  // Ordering / selection — the ONLY knobs the AI / user can change.
+  skillsOrder     String[] // ordered subset of profile.skills
+  projectIds      String[] // ordered subset of profile.projects
+  experienceIds   String[] // ordered subset of profile.experiences
+  summaryId       String?  // which ResumeSummary
+  sectionOrder    String[] // ["summary", "skills", "experience", "projects", "education"]
+
+  isDefault       Boolean  @default(false)
+  generatedFromJd Boolean  @default(false)
+  jdSnippet       String?  @db.Text
+
+  generations     ResumeGeneration[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+// A single rendered output. Persists for audit + re-download.
+// Stream-on-demand: PDFs are rendered from `htmlSnapshot` each time the user
+// downloads. We never store the binary PDF in v1. `templateVersion` is pinned
+// so the regenerated PDF is byte-identical to what the user saw originally.
+model ResumeGeneration {
+  id              String   @id @default(cuid())
+  profileId       String
+  profile         ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  variantId       String?
+  variant         ResumeVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  templateId      String
+  templateVersion String   // pinned at generation time
+  pageTarget      Int
+  pdfUrl          String?  // unused in v1 (stream-on-demand). Reserved for future "saved PDF" path.
+  htmlSnapshot    String?  @db.Text  // canonical artifact — regen reads this
+  jdSnippet       String?  @db.Text
+  matchedKeywords String[] // for the diff-preview sidebar
+
+  applications    JobApplication[]
+
+  createdAt       DateTime @default(now())
+
+  @@index([profileId, createdAt])
 }

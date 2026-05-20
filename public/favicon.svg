@@ -1,19 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <style>
-    /* Verbatim from alishahid-dev portfolio favicon — Ali's craftsperson mark. */
-    .bg-fill { fill: #fafafa; }
-    .bg-stroke { stroke: rgba(0, 0, 0, 0.10); }
-    .fg { fill: #09090b; }
-    .accent { fill: #0ea5e9; }
+    /* JP monogram, emerald JobPilot brand.
+       Same design language as alishahid-dev portfolio favicon —
+       rounded square + monogram + accent dot. */
+    .bg-fill { fill: #059669; }
+    .bg-stroke { stroke: rgba(255, 255, 255, 0.18); }
+    .fg { fill: #fafafa; }
+    .accent { fill: #fafafa; }
     @media (prefers-color-scheme: dark) {
-      .bg-fill { fill: #09090b; }
-      .bg-stroke { stroke: rgba(255, 255, 255, 0.18); }
+      .bg-fill { fill: #064e3b; }
+      .bg-stroke { stroke: rgba(255, 255, 255, 0.22); }
       .fg { fill: #fafafa; }
-      .accent { fill: #38bdf8; }
+      .accent { fill: #10b981; }
     }
   </style>
   <rect class="bg-fill" width="64" height="64" rx="16" />
   <rect class="bg-stroke" x="1" y="1" width="62" height="62" rx="15" fill="none" stroke-width="1.5" />
-  <text class="fg" x="30" y="44" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="28" letter-spacing="-1">AS</text>
+  <text class="fg" x="30" y="44" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="28" letter-spacing="-1">JP</text>
   <circle class="accent" cx="53" cy="42" r="3.5" />
 </svg>

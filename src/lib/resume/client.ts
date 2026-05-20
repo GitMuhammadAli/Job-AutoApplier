@@ -1,0 +1,126 @@
+/**
+ * Resume API client — thin typed wrapper over fetch.
+ *
+ * All UI components call through here so:
+ *   - There's one place to add interceptors / error normalization.
+ *   - Responses are typed against the API contracts in `./types`.
+ *   - We never type-cast at call sites.
+ */
+
+import type {
+  ResumeProfile,
+  ResumeRenderInput,
+  GenerateRequest,
+  RecommendExistingResumeRequest,
+  RecommendExistingResumeResult,
+} from "./types";
+import type { TemplateRegistryEntry } from "./templates/registry";
+
+export interface GenerateDiff {
+  matchedKeywords: string[];
+  promotedSkills: string[];
+  featuredProjects: string[];
+  pickedSummaryLabel: string | null;
+  sectionOrderChanged: boolean;
+  missingHardSkills: string[];
+  roleFamily: string;
+}
+
+async function jsonOrThrow<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      msg = body.error ?? msg;
+    } catch {}
+    throw new Error(msg);
+  }
+  return (await res.json()) as T;
+}
+
+export const resumeClient = {
+  async getProfile(): Promise<ResumeProfile | null> {
+    const res = await fetch("/api/resumes/profile", { cache: "no-store" });
+    const data = await jsonOrThrow<{ profile: ResumeProfile | null }>(res);
+    return data.profile;
+  },
+
+  async saveProfile(profile: ResumeProfile): Promise<ResumeProfile> {
+    const res = await fetch("/api/resumes/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
+    });
+    const data = await jsonOrThrow<{ profile: ResumeProfile }>(res);
+    return data.profile;
+  },
+
+  async parsePdf(resumeId: string): Promise<{ candidate: ResumeProfile; warnings?: unknown[] }> {
+    const res = await fetch("/api/resumes/profile/parse-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resumeId }),
+    });
+    return jsonOrThrow<{ candidate: ResumeProfile; warnings?: unknown[] }>(res);
+  },
+
+  async generate(req: GenerateRequest): Promise<{
+    generationId: string;
+    templateId: string;
+    templateVersion: string;
+    pageTarget: number;
+    template: string;
+    previewUrl: string;
+    pdfUrl: string;
+    diff: GenerateDiff | null;
+    warnings: string[];
+    aiProvider: string | null;
+  }> {
+    const res = await fetch("/api/resumes/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+    return jsonOrThrow(res);
+  },
+
+  async listTemplates(): Promise<Array<Pick<TemplateRegistryEntry, "id" | "name" | "description" | "audience" | "layout" | "atsRank" | "available" | "version">>> {
+    const res = await fetch("/api/resumes/templates");
+    const data = await jsonOrThrow<{ templates: Array<Pick<TemplateRegistryEntry, "id" | "name" | "description" | "audience" | "layout" | "atsRank" | "available" | "version">> }>(res);
+    return data.templates;
+  },
+
+  async recommendExisting(req: RecommendExistingResumeRequest): Promise<RecommendExistingResumeResult> {
+    const res = await fetch("/api/resumes/recommend-existing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+    return jsonOrThrow<RecommendExistingResumeResult>(res);
+  },
+};
+
+/**
+ * Empty-state factory — returns a fresh, schema-valid profile for a brand-new user.
+ * Used by Path B (start from scratch) in the onboarding wizard.
+ */
+export function emptyProfile(seedEmail = "", seedName = ""): ResumeProfile {
+  return {
+    header: {
+      fullName: seedName,
+      headline: "",
+      email: seedEmail,
+    },
+    skills: [],
+    skillsLocked: false,
+    summaries: [],
+    experiences: [],
+    projects: [],
+    education: [],
+    certifications: [],
+  };
+}
+
+export function buildRenderInputFromUploadedResume(_resumeId: string): never {
+  throw new Error("Not implemented — only structured ResumeProfile is supported in v1");
+}

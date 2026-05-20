@@ -125,15 +125,15 @@ export function ModulesShowcase() {
             A resume agent that <span className="text-emerald-600 dark:text-emerald-400">manages, never rewrites.</span>
           </>
         }
-        body="Paste a JD. The agent reorders your skills by relevance, picks the top 3 of your projects, selects the best of your pre-written summaries, then renders an ATS-clean PDF. Your bullets, companies, and dates are never touched — only ordering and selection change."
+        body="Three ways in: upload a PDF and we extract a structured profile (you confirm every item), start from scratch, or pick from your existing uploads. Then paste a JD and the agent reorders your skills, picks the top projects, selects the best summary, renders an ATS-clean PDF. Your bullets, companies, and dates are never touched."
         bullets={[
-          "Reorders skills · selects projects · picks summary",
-          "Three templates · 1pg or 2pg target",
-          "Audit-tested: every word in the PDF traces to your profile",
+          "16 ATS-friendly templates — single-column and two-column",
+          "Three onboarding paths · upload, scratch, or pick existing",
+          "On-demand only · two clicks from open to downloaded PDF",
+          "Audit-tested: every visible word in the output traces to your profile",
         ]}
-        ctaLabel="See the design doc"
-        ctaHref="#resumes"
-        comingSoon
+        ctaLabel="Open Resumes"
+        ctaHref="/dashboard/resumes"
       >
         <ResumesAnimation />
       </ModuleSection>

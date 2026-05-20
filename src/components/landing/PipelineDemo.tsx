@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-const SCENE_DURATION_MS = 2800;
-const SCENE_COUNT = 4;
+const SCENE_DURATION_MS = 2600;
+const SCENE_COUNT = 5;
 
 const SOURCES = [
   "LinkedIn", "Indeed", "Remote OK", "Y Combinator",
@@ -14,6 +14,22 @@ const MATCHED = [
   { title: "Senior React Engineer", company: "Vercel", score: 95, color: "emerald" as const },
   { title: "Full-Stack Engineer", company: "Linear", score: 88, color: "emerald" as const },
   { title: "Node.js Backend", company: "Stripe", score: 82, color: "emerald" as const },
+];
+
+// Resume agent micro-flow shown in scene 3 (Tailor).
+// Numbers + ordering only — same hard rule as the dashboard agent: manage, never rewrite.
+const TAILOR_SKILLS = [
+  { label: "React", promoted: true },
+  { label: "TypeScript", promoted: true },
+  { label: "Next.js", promoted: true },
+  { label: "Node.js", promoted: false },
+  { label: "Tailwind", promoted: false },
+  { label: "Prisma", promoted: false },
+];
+const TAILOR_PROJECTS = [
+  { title: "DevRadar", picked: true, score: 95 },
+  { title: "JobPilot", picked: true, score: 88 },
+  { title: "Rate-Guard", picked: false, score: 62 },
 ];
 
 const EMAIL_LINES = [
@@ -178,6 +194,74 @@ function MatchScene({ active }: { active: boolean }) {
   );
 }
 
+function TailorScene({ active }: { active: boolean }) {
+  return (
+    <SceneShell active={active}>
+      <div className="h-full flex flex-col">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+            Resume agent
+          </span>
+        </div>
+        <p className="text-base font-bold text-zinc-900 dark:text-white mb-2.5">
+          Reordering skills · picking top projects
+        </p>
+
+        {/* Skills row — promoted items pulse forward */}
+        <div className="mb-2.5">
+          <p className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">Skills · reordered</p>
+          <div className="flex flex-wrap gap-1">
+            {TAILOR_SKILLS.map((s, i) => (
+              <span
+                key={s.label}
+                className={`text-[9px] font-medium px-1.5 py-0.5 rounded ring-1 transition-all duration-700 ${
+                  s.promoted && active
+                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-emerald-400 dark:ring-emerald-500/50"
+                    : "bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 ring-zinc-200 dark:ring-zinc-700/40"
+                }`}
+                style={{ transitionDelay: `${i * 50}ms` }}
+              >
+                {s.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Projects row — top 2 picked */}
+        <div className="mb-2.5">
+          <p className="text-[9px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">Projects · top picked</p>
+          <div className="space-y-1">
+            {TAILOR_PROJECTS.map((p, i) => (
+              <div
+                key={p.title}
+                className={`flex items-center justify-between rounded-md px-2 py-1 ring-1 transition-all duration-500 ${
+                  p.picked && active
+                    ? "bg-emerald-500/10 ring-emerald-400 dark:ring-emerald-500/50"
+                    : "bg-zinc-50 dark:bg-zinc-800/40 ring-zinc-200 dark:ring-zinc-700/40 opacity-60"
+                }`}
+                style={{ transitionDelay: `${i * 120 + 200}ms` }}
+              >
+                <span className={`text-[10px] font-semibold ${p.picked ? "text-emerald-700 dark:text-emerald-300" : "text-zinc-600 dark:text-zinc-400"}`}>
+                  {p.title}
+                </span>
+                <span className={`text-[9px] font-bold tabular-nums ${p.picked ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400 dark:text-zinc-600"}`}>
+                  {p.score}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-auto pt-2 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800">
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">Verbatim bullets · ATS-clean PDF</span>
+          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Manages, never rewrites</span>
+        </div>
+      </div>
+    </SceneShell>
+  );
+}
+
 function DraftScene({ active }: { active: boolean }) {
   const text = useTypewriter(EMAIL_LINES, active);
   return (
@@ -260,19 +344,21 @@ export function PipelineDemo() {
         </div>
 
         {/* Step indicators */}
-        <div className="grid grid-cols-4 gap-2 px-4 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="grid grid-cols-5 gap-1.5 px-4 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800">
           <StepBadge active={scene === 0} label="Scan" idx={1} />
           <StepBadge active={scene === 1} label="Match" idx={2} />
-          <StepBadge active={scene === 2} label="Draft" idx={3} />
-          <StepBadge active={scene === 3} label="Send" idx={4} />
+          <StepBadge active={scene === 2} label="Tailor" idx={3} />
+          <StepBadge active={scene === 3} label="Draft" idx={4} />
+          <StepBadge active={scene === 4} label="Send" idx={5} />
         </div>
 
         {/* Scene canvas */}
-        <div className="relative h-[280px] bg-white dark:bg-zinc-900">
+        <div className="relative h-[300px] bg-white dark:bg-zinc-900">
           <ScanScene active={scene === 0} />
           <MatchScene active={scene === 1} />
-          <DraftScene active={scene === 2} />
-          <SentScene active={scene === 3} />
+          <TailorScene active={scene === 2} />
+          <DraftScene active={scene === 3} />
+          <SentScene active={scene === 4} />
         </div>
 
         {/* Progress bar */}

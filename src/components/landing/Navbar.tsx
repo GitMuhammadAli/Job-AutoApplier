@@ -33,10 +33,10 @@ export function Navbar() {
     >
       <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-teal-500 shadow-md shadow-emerald-600/20 transition-transform duration-300 group-hover:scale-105 group-hover:shadow-emerald-500/30">
-            <Send className="h-3.5 w-3.5 text-white -translate-x-[1px]" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 transition-transform duration-300 group-hover:scale-105">
+            <PaperPlaneTilt size={16} weight="fill" className="text-white" />
           </div>
-          <span className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
+          <span className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
             JobPilot
           </span>
         </Link>
@@ -87,7 +87,7 @@ export function Navbar() {
           className="md:hidden p-2 -mr-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
           aria-label="Toggle menu"
         >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {mobileOpen ? <X size={20} weight="regular" /> : <List size={20} weight="regular" />}
         </button>
       </div>
 

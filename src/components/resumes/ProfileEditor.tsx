@@ -1,0 +1,648 @@
+"use client";
+
+import { useState } from "react";
+import { Plus, Trash, X, FloppyDisk, ArrowLeft, Star } from "@phosphor-icons/react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { resumeClient } from "@/lib/resume/client";
+import {
+  ResumeProfileSchema,
+  type ResumeProfile,
+  type ResumeExperience,
+  type ResumeProject,
+  type ResumeEducation,
+  type ResumeSummary,
+  RESUME_LIMITS,
+} from "@/lib/resume/types";
+
+interface ProfileEditorProps {
+  initialProfile: ResumeProfile;
+  onCancel: () => void;
+  onSave: (p: ResumeProfile) => void;
+}
+
+export function ProfileEditor({ initialProfile, onCancel, onSave }: ProfileEditorProps) {
+  const [profile, setProfile] = useState<ResumeProfile>(initialProfile);
+  const [saving, setSaving] = useState(false);
+  const [skillInput, setSkillInput] = useState("");
+
+  function update<K extends keyof ResumeProfile>(key: K, value: ResumeProfile[K]) {
+    setProfile((p) => ({ ...p, [key]: value }));
+  }
+
+  async function handleSave() {
+    const parsed = ResumeProfileSchema.safeParse(profile);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0];
+      toast.error(`${first.path.join(".") || "profile"}: ${first.message}`);
+      return;
+    }
+    setSaving(true);
+    try {
+      const saved = await resumeClient.saveProfile(parsed.data);
+      toast.success("Profile saved");
+      onSave(saved);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function addSkill() {
+    const s = skillInput.trim();
+    if (!s) return;
+    if (profile.skills.some((existing) => existing.toLowerCase() === s.toLowerCase())) {
+      setSkillInput("");
+      return;
+    }
+    update("skills", [...profile.skills, s].slice(0, RESUME_LIMITS.MAX_SKILLS_TOTAL));
+    setSkillInput("");
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="sticky top-0 z-10 -mx-1 px-1 py-3 bg-white/95 dark:bg-zinc-950/95 backdrop-blur border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3">
+        <Button onClick={onCancel} variant="ghost" className="gap-1.5">
+          <ArrowLeft size={14} /> Back
+        </Button>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
+        >
+          <FloppyDisk size={14} />
+          {saving ? "Saving…" : "Save profile"}
+        </Button>
+      </div>
+
+      {/* Header */}
+      <SectionCard title="Header" subtitle="Top of every resume. Edits here propagate to all templates.">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Field label="Full name" required>
+            <Input
+              value={profile.header.fullName}
+              onChange={(e) => update("header", { ...profile.header, fullName: e.target.value })}
+              placeholder="Muhammad Ali Shahid"
+            />
+          </Field>
+          <Field label="Headline" required>
+            <Input
+              value={profile.header.headline}
+              onChange={(e) => update("header", { ...profile.header, headline: e.target.value })}
+              placeholder="Software Engineer — Full Stack"
+            />
+          </Field>
+          <Field label="Email" required>
+            <Input
+              type="email"
+              value={profile.header.email}
+              onChange={(e) => update("header", { ...profile.header, email: e.target.value })}
+            />
+          </Field>
+          <Field label="Phone">
+            <Input
+              value={profile.header.phone ?? ""}
+              onChange={(e) => update("header", { ...profile.header, phone: e.target.value || undefined })}
+            />
+          </Field>
+          <Field label="Location">
+            <Input
+              value={profile.header.location ?? ""}
+              onChange={(e) => update("header", { ...profile.header, location: e.target.value || undefined })}
+              placeholder="Lahore, Pakistan"
+            />
+          </Field>
+          <Field label="Website URL">
+            <Input
+              value={profile.header.websiteUrl ?? ""}
+              onChange={(e) => update("header", { ...profile.header, websiteUrl: e.target.value || undefined })}
+              placeholder="https://…"
+            />
+          </Field>
+          <Field label="GitHub URL">
+            <Input
+              value={profile.header.githubUrl ?? ""}
+              onChange={(e) => update("header", { ...profile.header, githubUrl: e.target.value || undefined })}
+              placeholder="https://github.com/…"
+            />
+          </Field>
+          <Field label="LinkedIn URL">
+            <Input
+              value={profile.header.linkedinUrl ?? ""}
+              onChange={(e) => update("header", { ...profile.header, linkedinUrl: e.target.value || undefined })}
+              placeholder="https://linkedin.com/in/…"
+            />
+          </Field>
+        </div>
+      </SectionCard>
+
+      {/* Summaries */}
+      <SectionCard
+        title="Summaries"
+        subtitle={`Write 1–${RESUME_LIMITS.MAX_SUMMARIES} variants. When you paste a JD, the AI picks the best fit — never writes new prose.`}
+      >
+        <div className="space-y-2.5">
+          {profile.summaries.map((s, idx) => (
+            <SummaryRow
+              key={s.id ?? idx}
+              summary={s}
+              onChange={(updated) => {
+                const next = [...profile.summaries];
+                next[idx] = updated;
+                update("summaries", next);
+              }}
+              onSetDefault={() => {
+                update("summaries", profile.summaries.map((x, i) => ({ ...x, isDefault: i === idx })));
+              }}
+              onRemove={() => {
+                update("summaries", profile.summaries.filter((_, i) => i !== idx));
+              }}
+            />
+          ))}
+          {profile.summaries.length < RESUME_LIMITS.MAX_SUMMARIES && (
+            <Button
+              variant="outline"
+              className="w-full gap-1.5"
+              onClick={() =>
+                update("summaries", [
+                  ...profile.summaries,
+                  { label: `Variant ${profile.summaries.length + 1}`, content: "", isDefault: profile.summaries.length === 0 },
+                ])
+              }
+            >
+              <Plus size={14} /> Add summary variant
+            </Button>
+          )}
+        </div>
+      </SectionCard>
+
+      {/* Skills */}
+      <SectionCard
+        title="Skills"
+        subtitle="Your master list — JD tailoring can reorder these but cannot add new ones."
+      >
+        <div className="flex gap-2 mb-3">
+          <Input
+            value={skillInput}
+            onChange={(e) => setSkillInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addSkill();
+              }
+            }}
+            placeholder="Type a skill, press Enter"
+            className="flex-1"
+          />
+          <Button onClick={addSkill} disabled={!skillInput.trim()} className="gap-1.5">
+            <Plus size={14} /> Add
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {profile.skills.map((s) => (
+            <span
+              key={s}
+              className="group inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 ring-1 ring-zinc-200 dark:ring-zinc-700/50"
+            >
+              {s}
+              <button
+                onClick={() => update("skills", profile.skills.filter((x) => x !== s))}
+                className="text-zinc-400 hover:text-red-500 transition-colors"
+                aria-label={`Remove ${s}`}
+              >
+                <X size={12} weight="bold" />
+              </button>
+            </span>
+          ))}
+          {profile.skills.length === 0 && (
+            <p className="text-xs text-zinc-500 italic">No skills yet — add a few to get started.</p>
+          )}
+        </div>
+      </SectionCard>
+
+      {/* Experiences */}
+      <SectionCard
+        title="Experience"
+        subtitle="Job title, company, dates, bullets. AI may reorder bullets within a job, never rewrite them."
+      >
+        <div className="space-y-3">
+          {profile.experiences.map((e, idx) => (
+            <ExperienceRow
+              key={e.id ?? idx}
+              exp={e}
+              onChange={(updated) => {
+                const next = [...profile.experiences];
+                next[idx] = updated;
+                update("experiences", next);
+              }}
+              onRemove={() => {
+                update("experiences", profile.experiences.filter((_, i) => i !== idx));
+              }}
+            />
+          ))}
+          <Button
+            variant="outline"
+            className="w-full gap-1.5"
+            onClick={() =>
+              update("experiences", [
+                ...profile.experiences,
+                {
+                  company: "",
+                  title: "",
+                  startDate: "",
+                  bullets: [""],
+                  order: profile.experiences.length,
+                },
+              ])
+            }
+          >
+            <Plus size={14} /> Add experience
+          </Button>
+        </div>
+      </SectionCard>
+
+      {/* Projects */}
+      <SectionCard
+        title="Projects"
+        subtitle="Star up to a handful as Featured — they're always included if the page has room."
+      >
+        <div className="space-y-3">
+          {profile.projects.map((p, idx) => (
+            <ProjectRow
+              key={p.id ?? idx}
+              project={p}
+              onChange={(updated) => {
+                const next = [...profile.projects];
+                next[idx] = updated;
+                update("projects", next);
+              }}
+              onRemove={() => {
+                update("projects", profile.projects.filter((_, i) => i !== idx));
+              }}
+            />
+          ))}
+          <Button
+            variant="outline"
+            className="w-full gap-1.5"
+            onClick={() =>
+              update("projects", [
+                ...profile.projects,
+                {
+                  title: "",
+                  oneLiner: "",
+                  bullets: [""],
+                  stack: [],
+                  isFeatured: false,
+                  order: profile.projects.length,
+                },
+              ])
+            }
+          >
+            <Plus size={14} /> Add project
+          </Button>
+        </div>
+      </SectionCard>
+
+      {/* Education */}
+      <SectionCard title="Education" subtitle="Institution, degree, dates.">
+        <div className="space-y-3">
+          {profile.education.map((ed, idx) => (
+            <EducationRow
+              key={ed.id ?? idx}
+              edu={ed}
+              onChange={(updated) => {
+                const next = [...profile.education];
+                next[idx] = updated;
+                update("education", next);
+              }}
+              onRemove={() => {
+                update("education", profile.education.filter((_, i) => i !== idx));
+              }}
+            />
+          ))}
+          <Button
+            variant="outline"
+            className="w-full gap-1.5"
+            onClick={() =>
+              update("education", [
+                ...profile.education,
+                { institution: "", degree: "", order: profile.education.length },
+              ])
+            }
+          >
+            <Plus size={14} /> Add education
+          </Button>
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+// ── Subcomponents ────────────────────────────────────────────────────
+
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5">
+      <div className="mb-4">
+        <h3 className="text-base font-bold text-zinc-900 dark:text-white">{title}</h3>
+        {subtitle && <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{subtitle}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Field({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+        {label} {required && <span className="text-red-500">*</span>}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+function SummaryRow({
+  summary,
+  onChange,
+  onSetDefault,
+  onRemove,
+}: {
+  summary: ResumeSummary;
+  onChange: (s: ResumeSummary) => void;
+  onSetDefault: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-900/40">
+      <div className="flex items-center gap-2 mb-2">
+        <Input
+          value={summary.label}
+          onChange={(e) => onChange({ ...summary, label: e.target.value })}
+          placeholder="Label (e.g. AI-eval-leaning)"
+          className="max-w-xs text-sm"
+        />
+        <Button
+          variant={summary.isDefault ? "default" : "ghost"}
+          size="sm"
+          onClick={onSetDefault}
+          className={`gap-1 ${summary.isDefault ? "bg-emerald-600 hover:bg-emerald-500 text-white" : ""}`}
+        >
+          <Star size={12} weight={summary.isDefault ? "fill" : "regular"} />
+          {summary.isDefault ? "Default" : "Set default"}
+        </Button>
+        <Button variant="ghost" size="icon" onClick={onRemove} className="ml-auto text-red-500 hover:text-red-600">
+          <Trash size={14} />
+        </Button>
+      </div>
+      <Textarea
+        value={summary.content}
+        onChange={(e) => onChange({ ...summary, content: e.target.value })}
+        placeholder="2–4 sentences. Will appear verbatim on the PDF."
+        rows={3}
+        maxLength={RESUME_LIMITS.SUMMARY_MAX}
+      />
+      <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-500 text-right tabular-nums">
+        {summary.content.length} / {RESUME_LIMITS.SUMMARY_MAX}
+      </p>
+    </div>
+  );
+}
+
+function ExperienceRow({
+  exp,
+  onChange,
+  onRemove,
+}: {
+  exp: ResumeExperience;
+  onChange: (e: ResumeExperience) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-900/40 space-y-2">
+      <div className="grid sm:grid-cols-2 gap-2">
+        <Input value={exp.title} onChange={(e) => onChange({ ...exp, title: e.target.value })} placeholder="Title (e.g. Software Engineer)" />
+        <Input value={exp.company} onChange={(e) => onChange({ ...exp, company: e.target.value })} placeholder="Company" />
+        <Input value={exp.location ?? ""} onChange={(e) => onChange({ ...exp, location: e.target.value || undefined })} placeholder="Location (optional)" />
+        <div className="flex gap-2">
+          <Input value={exp.startDate} onChange={(e) => onChange({ ...exp, startDate: e.target.value })} placeholder="Start (e.g. Aug 2025)" />
+          <Input value={exp.endDate ?? ""} onChange={(e) => onChange({ ...exp, endDate: e.target.value || undefined })} placeholder="End or 'Present'" />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        {exp.bullets.map((b, i) => (
+          <div key={i} className="flex gap-2">
+            <Textarea
+              value={b}
+              onChange={(e) => {
+                const next = [...exp.bullets];
+                next[i] = e.target.value;
+                onChange({ ...exp, bullets: next });
+              }}
+              placeholder="Bullet point — verbatim in PDF"
+              rows={2}
+              maxLength={RESUME_LIMITS.BULLET_MAX}
+              className="flex-1 text-sm"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onChange({ ...exp, bullets: exp.bullets.filter((_, idx) => idx !== i) })}
+              disabled={exp.bullets.length <= 1}
+              className="text-red-500 hover:text-red-600"
+            >
+              <Trash size={14} />
+            </Button>
+          </div>
+        ))}
+        {exp.bullets.length < RESUME_LIMITS.MAX_BULLETS_PER_EXP && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange({ ...exp, bullets: [...exp.bullets, ""] })}
+            className="gap-1.5"
+          >
+            <Plus size={12} /> Add bullet
+          </Button>
+        )}
+      </div>
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" onClick={onRemove} className="text-red-500 hover:text-red-600 gap-1.5">
+          <Trash size={12} /> Remove experience
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ProjectRow({
+  project,
+  onChange,
+  onRemove,
+}: {
+  project: ResumeProject;
+  onChange: (p: ResumeProject) => void;
+  onRemove: () => void;
+}) {
+  const [stackInput, setStackInput] = useState("");
+
+  function addStack() {
+    const s = stackInput.trim();
+    if (!s) return;
+    if (project.stack.some((x) => x.toLowerCase() === s.toLowerCase())) {
+      setStackInput("");
+      return;
+    }
+    onChange({ ...project, stack: [...project.stack, s] });
+    setStackInput("");
+  }
+
+  return (
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-900/40 space-y-2">
+      <div className="grid sm:grid-cols-2 gap-2">
+        <Input value={project.title} onChange={(e) => onChange({ ...project, title: e.target.value })} placeholder="Project title" />
+        <Input value={project.role ?? ""} onChange={(e) => onChange({ ...project, role: e.target.value || undefined })} placeholder="Role (Solo, Lead, …)" />
+      </div>
+      <Input
+        value={project.oneLiner}
+        onChange={(e) => onChange({ ...project, oneLiner: e.target.value })}
+        placeholder="One-line description"
+        maxLength={200}
+      />
+      <div className="grid sm:grid-cols-2 gap-2">
+        <Input value={project.liveUrl ?? ""} onChange={(e) => onChange({ ...project, liveUrl: e.target.value || undefined })} placeholder="Live URL (optional)" />
+        <Input value={project.repoUrl ?? ""} onChange={(e) => onChange({ ...project, repoUrl: e.target.value || undefined })} placeholder="Repo URL (optional)" />
+      </div>
+
+      {/* Stack */}
+      <div>
+        <div className="flex gap-2 mb-1.5">
+          <Input
+            value={stackInput}
+            onChange={(e) => setStackInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addStack();
+              }
+            }}
+            placeholder="Tech tag, press Enter"
+            className="flex-1 text-sm"
+          />
+          <Button onClick={addStack} variant="outline" size="sm" disabled={!stackInput.trim()}>Add</Button>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {project.stack.map((s) => (
+            <span key={s} className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+              {s}
+              <button onClick={() => onChange({ ...project, stack: project.stack.filter((x) => x !== s) })} className="text-zinc-400 hover:text-red-500">
+                <X size={10} weight="bold" />
+              </button>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Bullets */}
+      <div className="space-y-1.5">
+        {project.bullets.map((b, i) => (
+          <div key={i} className="flex gap-2">
+            <Textarea
+              value={b}
+              onChange={(e) => {
+                const next = [...project.bullets];
+                next[i] = e.target.value;
+                onChange({ ...project, bullets: next });
+              }}
+              placeholder="Bullet point"
+              rows={2}
+              maxLength={RESUME_LIMITS.BULLET_MAX}
+              className="flex-1 text-sm"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onChange({ ...project, bullets: project.bullets.filter((_, idx) => idx !== i) })}
+              disabled={project.bullets.length <= 1}
+              className="text-red-500 hover:text-red-600"
+            >
+              <Trash size={14} />
+            </Button>
+          </div>
+        ))}
+        {project.bullets.length < RESUME_LIMITS.MAX_BULLETS_PER_PROJECT && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange({ ...project, bullets: [...project.bullets, ""] })}
+            className="gap-1.5"
+          >
+            <Plus size={12} /> Add bullet
+          </Button>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between pt-1">
+        <Button
+          variant={project.isFeatured ? "default" : "ghost"}
+          size="sm"
+          onClick={() => onChange({ ...project, isFeatured: !project.isFeatured })}
+          className={`gap-1.5 ${project.isFeatured ? "bg-amber-500 hover:bg-amber-400 text-white" : ""}`}
+        >
+          <Star size={12} weight={project.isFeatured ? "fill" : "regular"} />
+          {project.isFeatured ? "Featured" : "Mark featured"}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onRemove} className="text-red-500 hover:text-red-600 gap-1.5">
+          <Trash size={12} /> Remove
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function EducationRow({
+  edu,
+  onChange,
+  onRemove,
+}: {
+  edu: ResumeEducation;
+  onChange: (e: ResumeEducation) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-900/40 space-y-2">
+      <div className="grid sm:grid-cols-2 gap-2">
+        <Input value={edu.institution} onChange={(e) => onChange({ ...edu, institution: e.target.value })} placeholder="Institution" />
+        <Input value={edu.degree} onChange={(e) => onChange({ ...edu, degree: e.target.value })} placeholder="Degree" />
+        <Input value={edu.startDate ?? ""} onChange={(e) => onChange({ ...edu, startDate: e.target.value || undefined })} placeholder="Start (optional)" />
+        <Input value={edu.endDate ?? ""} onChange={(e) => onChange({ ...edu, endDate: e.target.value || undefined })} placeholder="End (optional)" />
+      </div>
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" onClick={onRemove} className="text-red-500 hover:text-red-600 gap-1.5">
+          <Trash size={12} /> Remove
+        </Button>
+      </div>
+    </div>
+  );
+}

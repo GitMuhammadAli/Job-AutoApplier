@@ -5,6 +5,8 @@ import { checkDuplicate } from "./duplicate-checker";
 import { decryptSettingsFields, hasDecryptionFailure } from "./encryption";
 import { classifyError } from "./email-errors";
 import { verifyRecipient } from "./email-verifier";
+import { ensureTailoredResume } from "./resume/auto-attach";
+import { renderPdfFromHtml, ChromiumNotInstalledError } from "./resume/pdf";
 
 interface SendResult {
   success: boolean;
@@ -81,7 +83,44 @@ export async function sendApplication(
     content: Buffer;
     contentType: string;
   }> = [];
-  if (application.resume?.fileUrl) {
+
+  // ── 1. Try JD-tailored generation first (Phase 3) ─────────────────────
+  // If the user has a structured ResumeProfile, ensureTailoredResume will
+  // either reuse an existing ResumeGeneration or produce a fresh one from
+  // the globalJob's description. Best-effort: any failure here falls
+  // through to the uploaded-PDF path below.
+  try {
+    const tailored = await ensureTailoredResume(applicationId);
+    if (tailored) {
+      const generation = await prisma.resumeGeneration.findUnique({
+        where: { id: tailored.generationId },
+        select: { htmlSnapshot: true, templateId: true, profile: { select: { fullName: true } } },
+      });
+      if (generation?.htmlSnapshot) {
+        const pdf = await renderPdfFromHtml(generation.htmlSnapshot);
+        const namePart = (generation.profile.fullName || "resume").replace(/[^A-Za-z0-9_-]+/g, "_");
+        attachments.push({
+          filename: `${namePart}_${generation.templateId}.pdf`,
+          content: pdf,
+          contentType: "application/pdf",
+        });
+        resumeAttached = true;
+      }
+    }
+  } catch (err) {
+    if (err instanceof ChromiumNotInstalledError) {
+      console.warn("[SendApp] Skipping tailored resume — Chromium not installed. Falling back to uploaded PDF.");
+    } else {
+      console.warn(
+        `[SendApp] Tailored resume failed for ${applicationId}, falling back to uploaded PDF:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+    // proceed to fallback
+  }
+
+  // ── 2. Fallback: existing uploaded Resume PDF ─────────────────────────
+  if (!resumeAttached && application.resume?.fileUrl) {
     try {
       const response = await fetch(application.resume.fileUrl, {
         signal: AbortSignal.timeout(5000),

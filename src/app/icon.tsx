@@ -4,10 +4,8 @@ export const runtime = "edge";
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
-// Verbatim mirror of alishahid-dev portfolio icon — Ali's craftsperson mark.
-// White/zinc background, dark "AS", sky-blue accent dot.
-// (next/og can't read prefers-color-scheme; defaulting to light. SVG favicon
-// handles dark mode via favicon.svg.)
+// JP monogram, emerald JobPilot brand.
+// Same craft pattern as alishahid-dev portfolio: rounded square + monogram + accent dot.
 export default function Icon() {
   return new ImageResponse(
     (
@@ -15,21 +13,20 @@ export default function Icon() {
         style={{
           width: 32,
           height: 32,
-          background: "#fafafa",
+          background: "#059669",
           borderRadius: 8,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontFamily: "system-ui",
-          color: "#09090b",
+          color: "#fafafa",
           fontSize: 15,
           fontWeight: 800,
           letterSpacing: -0.5,
           position: "relative",
-          border: "1px solid rgba(0,0,0,0.10)",
         }}
       >
-        AS
+        JP
         <div
           style={{
             position: "absolute",
@@ -38,7 +35,7 @@ export default function Icon() {
             width: 4,
             height: 4,
             borderRadius: 4,
-            background: "#0ea5e9",
+            background: "#fafafa",
           }}
         />
       </div>
