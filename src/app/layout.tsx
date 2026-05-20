@@ -49,6 +49,13 @@ export default function RootLayout({
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         {/* Favicon + apple-touch-icon now handled by metadata.icons above. */}
+        {/* Display + body fonts from Fontshare (Indian Type Foundry) — free, ATS-safe for the dashboard, distinctive for the landing. */}
+        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
+        <link rel="preconnect" href="https://cdn.fontshare.com" crossOrigin="" />
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=general-sans@400,500,600&display=swap"
+        />
         <script
           type="speculationrules"
           dangerouslySetInnerHTML={{
