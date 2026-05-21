@@ -97,13 +97,20 @@ export function middleware(req: NextRequest) {
   }
 
   if (path.startsWith("/api/auth")) {
-    const key = `auth:${ip}`;
-    const result = isRateLimited(key, DEFAULT_LIMITS.auth);
-    if (result.limited) {
-      return NextResponse.json(
-        { error: RATE_LIMIT.TOO_MANY_LOGIN_ATTEMPTS },
-        { status: 429 }
-      );
+    // /api/auth/session is a public READ endpoint called on EVERY page load
+    // by next-auth's <SessionProvider>. Rate-limiting it tight breaks normal
+    // browsing. Only rate-limit the auth WRITE endpoints (signin/signout/callback).
+    const isSessionRead =
+      path === "/api/auth/session" || path === "/api/auth/csrf";
+    if (!isSessionRead) {
+      const key = `auth:${ip}`;
+      const result = isRateLimited(key, DEFAULT_LIMITS.auth);
+      if (result.limited) {
+        return NextResponse.json(
+          { error: RATE_LIMIT.TOO_MANY_LOGIN_ATTEMPTS },
+          { status: 429 }
+        );
+      }
     }
   } else if (path.startsWith("/api/")) {
     const key = `api:${ip}`;
