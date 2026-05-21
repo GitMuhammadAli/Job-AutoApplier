@@ -22,9 +22,11 @@ interface ProfileEditorProps {
   initialProfile: ResumeProfile;
   onCancel: () => void;
   onSave: (p: ResumeProfile) => void;
+  /** When rendered inside the onboarding wizard, hide the duplicate sticky Back. */
+  embedded?: boolean;
 }
 
-export function ProfileEditor({ initialProfile, onCancel, onSave }: ProfileEditorProps) {
+export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = false }: ProfileEditorProps) {
   const [profile, setProfile] = useState<ResumeProfile>(initialProfile);
   const [saving, setSaving] = useState(false);
   const [skillInput, setSkillInput] = useState("");
@@ -65,10 +67,16 @@ export function ProfileEditor({ initialProfile, onCancel, onSave }: ProfileEdito
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-0 z-10 -mx-1 px-1 py-3 bg-white/95 dark:bg-zinc-950/95 backdrop-blur border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3">
-        <Button onClick={onCancel} variant="ghost" className="gap-1.5">
-          <ArrowLeft size={14} /> Back
-        </Button>
+      <div className="sticky top-0 z-10 -mx-1 px-1 py-3 bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3">
+        {embedded ? (
+          <span className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+            Editing profile
+          </span>
+        ) : (
+          <Button onClick={onCancel} variant="ghost" className="gap-1.5">
+            <ArrowLeft size={14} /> Back
+          </Button>
+        )}
         <Button
           onClick={handleSave}
           disabled={saving}
@@ -354,7 +362,7 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5">
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
       <div className="mb-4">
         <h3 className="text-base font-bold text-zinc-900 dark:text-white">{title}</h3>
         {subtitle && <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{subtitle}</p>}
@@ -395,7 +403,7 @@ function SummaryRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-900/40">
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-800/40">
       <div className="flex items-center gap-2 mb-2">
         <Input
           value={summary.label}
@@ -440,7 +448,7 @@ function ExperienceRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-900/40 space-y-2">
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-800/40 space-y-2">
       <div className="grid sm:grid-cols-2 gap-2">
         <Input value={exp.title} onChange={(e) => onChange({ ...exp, title: e.target.value })} placeholder="Title (e.g. Software Engineer)" />
         <Input value={exp.company} onChange={(e) => onChange({ ...exp, company: e.target.value })} placeholder="Company" />
@@ -519,7 +527,7 @@ function ProjectRow({
   }
 
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-900/40 space-y-2">
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-800/40 space-y-2">
       <div className="grid sm:grid-cols-2 gap-2">
         <Input value={project.title} onChange={(e) => onChange({ ...project, title: e.target.value })} placeholder="Project title" />
         <Input value={project.role ?? ""} onChange={(e) => onChange({ ...project, role: e.target.value || undefined })} placeholder="Role (Solo, Lead, …)" />
@@ -631,7 +639,7 @@ function EducationRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-900/40 space-y-2">
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-800/40 space-y-2">
       <div className="grid sm:grid-cols-2 gap-2">
         <Input value={edu.institution} onChange={(e) => onChange({ ...edu, institution: e.target.value })} placeholder="Institution" />
         <Input value={edu.degree} onChange={(e) => onChange({ ...edu, degree: e.target.value })} placeholder="Degree" />

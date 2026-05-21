@@ -57,7 +57,7 @@ export function MyProfileTab({
 
 function EmptyState({ uploadCount }: { uploadCount: number }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-900/40 p-8 sm:p-12">
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-800/40 p-8 sm:p-12">
       <div className="max-w-2xl">
         <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40 mb-5">
           <ShieldCheck size={14} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
@@ -80,7 +80,7 @@ function EmptyState({ uploadCount }: { uploadCount: number }) {
             title="Upload a PDF"
             description="We extract candidate fields from your existing resume. You confirm every line before save."
             ctaLabel={uploadCount > 0 ? `Pick from ${uploadCount} uploads` : "Upload a resume first"}
-            ctaHref="/dashboard/resumes/setup?path=upload"
+            ctaHref="/resumes/setup?path=upload"
             disabled={uploadCount === 0}
           />
           <PathCard
@@ -88,7 +88,7 @@ function EmptyState({ uploadCount }: { uploadCount: number }) {
             title="Start from scratch"
             description="Empty profile, fill in your sections one by one. Useful if no current resume."
             ctaLabel="Start blank"
-            ctaHref="/dashboard/resumes/setup?path=scratch"
+            ctaHref="/resumes/setup?path=scratch"
           />
           <PathCard
             number="3"
@@ -124,7 +124,7 @@ function PathCard({
 }) {
   return (
     <div
-      className={`flex flex-col rounded-xl border bg-white dark:bg-zinc-950 p-4 transition-colors ${
+      className={`flex flex-col rounded-xl border bg-white dark:bg-zinc-900 p-4 transition-colors ${
         disabled
           ? "border-zinc-100 dark:border-zinc-900 opacity-60"
           : "border-zinc-200 dark:border-zinc-800 hover:border-emerald-300 dark:hover:border-emerald-700"
@@ -167,7 +167,7 @@ function ProfileSummary({
 }) {
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400 mb-1">
             Structured profile
@@ -223,7 +223,7 @@ function ProfileSummary({
 
       <Section title="Experience" empty={profile.experiences.length === 0}>
         {profile.experiences.map((e) => (
-          <div key={e.id} className="rounded-lg bg-white dark:bg-zinc-950 p-3 ring-1 ring-zinc-100 dark:ring-zinc-800">
+          <div key={e.id} className="rounded-lg bg-white dark:bg-zinc-900 p-3 ring-1 ring-zinc-100 dark:ring-zinc-800">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                 {e.title} <span className="font-normal text-zinc-500">· {e.company}</span>
@@ -243,7 +243,7 @@ function ProfileSummary({
 
       <Section title="Projects" empty={profile.projects.length === 0}>
         {profile.projects.map((p) => (
-          <div key={p.id} className="rounded-lg bg-white dark:bg-zinc-950 p-3 ring-1 ring-zinc-100 dark:ring-zinc-800">
+          <div key={p.id} className="rounded-lg bg-white dark:bg-zinc-900 p-3 ring-1 ring-zinc-100 dark:ring-zinc-800">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                 {p.title}
@@ -269,7 +269,7 @@ function ProfileSummary({
 
       <Section title="Education" empty={profile.education.length === 0}>
         {profile.education.map((ed) => (
-          <div key={ed.id} className="rounded-lg bg-white dark:bg-zinc-950 p-3 ring-1 ring-zinc-100 dark:ring-zinc-800 flex items-baseline justify-between gap-2">
+          <div key={ed.id} className="rounded-lg bg-white dark:bg-zinc-900 p-3 ring-1 ring-zinc-100 dark:ring-zinc-800 flex items-baseline justify-between gap-2">
             <p className="text-sm text-zinc-800 dark:text-zinc-200">
               <span className="font-semibold">{ed.institution}</span>
               <span className="text-zinc-500"> — {ed.degree}</span>
@@ -298,7 +298,7 @@ function Tile({
   starred?: number;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3">
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3">
       <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-500">{label}</p>
       <p className="mt-1 text-2xl font-bold tabular-nums text-zinc-900 dark:text-white">{count}</p>
       {hint && <p className="text-[10px] text-zinc-500 dark:text-zinc-500">{hint}</p>}

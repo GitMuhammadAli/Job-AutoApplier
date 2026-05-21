@@ -133,7 +133,7 @@ export function ModulesShowcase() {
           "Audit-tested: every visible word in the output traces to your profile",
         ]}
         ctaLabel="Open Resumes"
-        ctaHref="/dashboard/resumes"
+        ctaHref="/resumes"
       >
         <ResumesAnimation />
       </ModuleSection>

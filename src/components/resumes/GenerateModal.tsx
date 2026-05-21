@@ -295,7 +295,7 @@ function ConfigureStep({
               onClick={() => setPageTarget(n as 1 | 2)}
               className={`px-4 py-1.5 text-sm rounded-md font-semibold transition-colors ${
                 pageTarget === n
-                  ? "bg-white dark:bg-zinc-950 text-zinc-900 dark:text-white shadow-sm"
+                  ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
                   : "text-zinc-500 dark:text-zinc-400"
               }`}
             >
@@ -340,7 +340,7 @@ function PreviewStep({
           className="w-full h-full min-h-[60vh] border-0"
         />
       </div>
-      <aside className="border-l border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-950 space-y-3 text-xs overflow-y-auto max-h-[80vh]">
+      <aside className="border-l border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-900 space-y-3 text-xs overflow-y-auto max-h-[80vh]">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Template</p>
           <p className="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-1.5">

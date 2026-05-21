@@ -55,7 +55,7 @@ export function VariantsTab() {
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-12 text-center">
+      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-12 text-center">
         <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40 mb-4">
           <Sparkle size={20} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
         </div>
@@ -107,7 +107,7 @@ function VariantRow({
   }, [variant.id]);
 
   return (
-    <li className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3">
+    <li className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3">
       <div className="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/40 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40 shrink-0">
         <FileText size={14} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
       </div>

@@ -75,7 +75,7 @@ export function ResumeOnboardingWizard({ initialPath, uploadedResumes }: ResumeO
             setStage("pick-path");
             setDraft(null);
           } else {
-            router.push("/dashboard/resumes");
+            router.push("/resumes");
           }
         }}
       />
@@ -107,11 +107,12 @@ export function ResumeOnboardingWizard({ initialPath, uploadedResumes }: ResumeO
       {stage === "edit" && draft && (
         <ProfileEditor
           initialProfile={draft}
-          onCancel={() => router.push("/dashboard/resumes")}
+          onCancel={() => router.push("/resumes")}
           onSave={() => {
             toast.success("Profile saved");
-            router.push("/dashboard/resumes");
+            router.push("/resumes");
           }}
+          embedded
         />
       )}
     </div>
@@ -191,7 +192,7 @@ function PathCard({
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      className={`text-left rounded-2xl border bg-white dark:bg-zinc-950 p-6 transition-all ${
+      className={`text-left rounded-2xl border bg-white dark:bg-zinc-900 p-6 transition-all ${
         disabled
           ? "opacity-50 cursor-not-allowed border-zinc-200 dark:border-zinc-800"
           : "border-zinc-200 dark:border-zinc-800 hover:border-emerald-400 dark:hover:border-emerald-700 hover:shadow-md"
@@ -221,7 +222,7 @@ function PickPdfStep({
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 text-center">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           You don't have any uploaded resumes yet.{" "}
-          <Link href="/dashboard/resumes" className="font-semibold text-emerald-600 hover:text-emerald-700 underline underline-offset-2">
+          <Link href="/resumes" className="font-semibold text-emerald-600 hover:text-emerald-700 underline underline-offset-2">
             Upload one first
           </Link>{" "}
           and come back.
@@ -236,7 +237,7 @@ function PickPdfStep({
         <li key={r.id}>
           <button
             onClick={() => onPick(r.id)}
-            className="w-full text-left flex items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors"
+            className="w-full text-left flex items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/40 shrink-0">
               <FileText size={16} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
