@@ -172,5 +172,49 @@ export async function generateWithGroq(
     }
   }
 
-  throw lastError || new Error("AI generation failed. Please try again.");
+  // Groq exhausted — try Gemini as a free-tier failover (1500 req/day).
+  // Only triggers if GEMINI_API_KEY (or GOOGLE_AI_API_KEY) is configured.
+  // Auth-style errors on Groq still attempt Gemini; if both fail, throw.
+  try {
+    return await generateWithGeminiFallback(systemPrompt, userPrompt, options);
+  } catch (geminiErr) {
+    if (lastError) throw lastError;
+    throw geminiErr;
+  }
+}
+
+/**
+ * Gemini fallback for `generateWithGroq`. Inlined here (not a separate
+ * provider router) so every existing agent gets fail-over for free.
+ * Silent no-op when no Gemini key is configured — bubbles up the original
+ * Groq error.
+ */
+async function generateWithGeminiFallback(
+  systemPrompt: string,
+  userPrompt: string,
+  options: GroqOptions = {},
+): Promise<string> {
+  const key = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!key) {
+    throw new Error("Gemini fallback not configured (set GOOGLE_AI_API_KEY)");
+  }
+
+  // Dynamic import so the @google/generative-ai dep stays optional.
+  const { GoogleGenerativeAI } = await import("@google/generative-ai");
+  const client = new GoogleGenerativeAI(key);
+  const model = client.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    generationConfig: {
+      temperature: options.temperature ?? 0.7,
+      maxOutputTokens: options.max_tokens ?? 800,
+    },
+    systemInstruction: systemPrompt,
+  });
+
+  const result = await model.generateContent(userPrompt);
+  const text = result.response.text();
+  if (!text) throw new Error("Gemini returned empty response");
+
+  await logApiCall("gemini").catch(() => {});
+  return text;
 }

@@ -94,11 +94,15 @@ export async function sendApplication(
     if (tailored) {
       const generation = await prisma.resumeGeneration.findUnique({
         where: { id: tailored.generationId },
-        select: { htmlSnapshot: true, templateId: true, profile: { select: { fullName: true } } },
+        select: {
+          htmlSnapshot: true,
+          templateId: true,
+          user: { select: { name: true, settings: { select: { fullName: true } } } },
+        },
       });
       if (generation?.htmlSnapshot) {
         const pdf = await renderPdfFromHtml(generation.htmlSnapshot);
-        const namePart = (generation.profile.fullName || "resume").replace(/[^A-Za-z0-9_-]+/g, "_");
+        const namePart = (generation.user.settings?.fullName || generation.user.name || "resume").replace(/[^A-Za-z0-9_-]+/g, "_");
         attachments.push({
           filename: `${namePart}_${generation.templateId}.pdf`,
           content: pdf,

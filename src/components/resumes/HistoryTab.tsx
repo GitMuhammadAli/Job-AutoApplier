@@ -13,7 +13,7 @@ interface GenerationRow {
   createdAt: string;
 }
 
-export function HistoryTab({ profileId: _profileId }: { profileId?: string }) {
+export function HistoryTab() {
   const [rows, setRows] = useState<GenerationRow[] | undefined>(undefined);
 
   useEffect(() => {

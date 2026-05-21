@@ -2,19 +2,24 @@
  * Auto-apply integration — ensure a JobApplication has a JD-tailored resume.
  *
  * Called from `sendApplication` right before the email is composed. If the
- * user has a structured ResumeProfile AND the application doesn't already
- * carry a resumeGeneration, we run the JD ranker + render pipeline against
- * the globalJob.description and save the result. Idempotent: if the
- * application already has a generation, this is a no-op.
+ * user has structured resume data AND the application doesn't already carry
+ * a resumeGeneration, runs the existing agent chain (tailorResume →
+ * fillTemplate) against the globalJob.description and saves the result.
  *
  * Best-effort: any failure returns null and the caller falls back to the
  * existing uploaded Resume PDF. We never block the send on resume generation.
  */
 
 import { prisma } from "@/lib/prisma";
-import { rankForJd, applyRankingToRenderInput } from "./jd-ranker";
-import { buildRenderInput, toResumeProfile } from "./profile-mapper";
+import { tailorResume } from "@/lib/agents/resume-tailor";
+import { fillTemplate } from "@/lib/agents/resume-template-fill";
+import {
+  bundleToResumeProfile,
+  buildRenderInput,
+  applyRanking,
+} from "./profile-mapper";
 import { renderResume } from "./render";
+import { DEFAULT_TEMPLATE_ID } from "./templates/registry";
 
 const MIN_JD_LENGTH = 80;
 
@@ -22,7 +27,7 @@ interface EnsureResult {
   generationId: string;
   templateId: string;
   templateVersion: string;
-  /** True iff this call did the rendering (i.e. wasn't already attached). */
+  /** True iff this call did the rendering (vs reusing an existing one). */
   freshlyGenerated: boolean;
 }
 
@@ -37,17 +42,14 @@ export async function ensureTailoredResume(
       resumeGenerationId: true,
       userJob: {
         select: {
-          globalJob: {
-            select: { description: true, title: true, company: true },
-          },
+          globalJob: { select: { description: true, title: true, company: true } },
         },
       },
     },
   });
-
   if (!application) return null;
 
-  // Already attached — return the existing generation metadata.
+  // Already attached — return the existing metadata.
   if (application.resumeGenerationId) {
     const existing = await prisma.resumeGeneration.findUnique({
       where: { id: application.resumeGenerationId },
@@ -63,36 +65,58 @@ export async function ensureTailoredResume(
     }
   }
 
-  // No profile → can't generate. Caller falls back to uploaded resume.
-  const profileRow = await prisma.resumeProfile.findUnique({
-    where: { userId: application.userId },
-    include: {
-      summaries: true,
-      experiences: true,
-      projects: true,
-      education: true,
-      certifications: true,
-    },
+  // Load the user bundle
+  const userId = application.userId;
+  const [user, settings, summaries, experiences, projects, education, certifications] =
+    await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true } }),
+      prisma.userSettings.findUnique({ where: { userId } }),
+      prisma.resumeSummary.findMany({ where: { userId } }),
+      prisma.resumeExperience.findMany({ where: { userId } }),
+      prisma.resumeProject.findMany({ where: { userId } }),
+      prisma.resumeEducation.findMany({ where: { userId } }),
+      prisma.resumeCertification.findMany({ where: { userId } }),
+    ]);
+
+  if (!user) return null;
+
+  const profile = bundleToResumeProfile({
+    user, settings, summaries, experiences, projects, education, certifications,
   });
-  if (!profileRow) return null;
+
+  // Gate: no name/email or no body content → can't generate, fall back.
+  const meetsGate =
+    profile.header.fullName.trim().length > 0 &&
+    profile.header.email.trim().length > 0 &&
+    (profile.experiences.length > 0 || profile.projects.length > 0);
+  if (!meetsGate) return null;
 
   const jdText = (application.userJob.globalJob.description ?? "").trim();
-  const profile = toResumeProfile(profileRow);
+  let renderInput = buildRenderInput(profile, { templateId: DEFAULT_TEMPLATE_ID, pageTarget: 1 });
 
-  // Build base render input — defaults are fine if no usable JD.
-  let renderInput = buildRenderInput(profile, { templateId: "T01", pageTarget: 1 });
-
-  // Tailor if JD has enough signal to be worth running the LLM on.
   if (jdText.length >= MIN_JD_LENGTH) {
     try {
-      const ranking = await rankForJd(profile, jdText, { maxProjects: 3 });
-      renderInput = applyRankingToRenderInput(renderInput, profile, ranking.ranking);
+      const tailored = await tailorResume({
+        userSkills: profile.skills,
+        jobDescription: jdText,
+        jobTitle: application.userJob.globalJob.title,
+      });
+      const fill = await fillTemplate({
+        profile,
+        tailored,
+        templateId: DEFAULT_TEMPLATE_ID,
+        pageTarget: 1,
+        jdText,
+      });
+      renderInput = applyRanking(renderInput, profile, {
+        skillsOrder: fill.skillsOrder,
+        projectIds: fill.projectIds,
+        summaryId: fill.summaryId,
+        sectionOrder: fill.sectionOrder,
+      });
     } catch (err) {
-      // Ranker down or both providers exhausted — keep default ordering.
-      // We DO NOT abort here; the user still gets a tailored PDF in their
-      // template of choice, just without JD-aware ordering.
       console.warn(
-        `[auto-attach] JD ranker failed for application ${applicationId}, using default order:`,
+        `[auto-attach] Agent chain failed for application ${applicationId}, using default order:`,
         err instanceof Error ? err.message : err,
       );
     }
@@ -114,7 +138,7 @@ export async function ensureTailoredResume(
 
   const generation = await prisma.resumeGeneration.create({
     data: {
-      profileId: profileRow.id,
+      userId,
       templateId: renderInput.templateId,
       templateVersion,
       pageTarget: renderInput.pageTarget,

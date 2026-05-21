@@ -177,9 +177,8 @@ export type ResumeRenderInput = z.infer<typeof ResumeRenderInputSchema>;
 // ── API request shapes ───────────────────────────────────────────────
 
 export const GenerateRequestSchema = z.object({
-  profileId: z.string(),
-  variantId: z.string().optional(),
-  jdText: z.string().max(20_000).optional(), // Phase 2 — present but ignored in P1
+  // Server pulls userId from session, no need to pass it.
+  jdText: z.string().max(20_000).optional(),
   templateId: z.string().default("T01"),
   pageTarget: z.union([z.literal(1), z.literal(2)]).default(1),
 });

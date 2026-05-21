@@ -90,7 +90,7 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
         </TabsContent>
 
         <TabsContent value="history" className="mt-5">
-          <HistoryTab profileId={profile?.id} />
+          <HistoryTab />
         </TabsContent>
       </Tabs>
 
@@ -98,7 +98,6 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
         <GenerateModal
           open={generateOpen}
           onClose={() => setGenerateOpen(false)}
-          profileId={profile.id!}
         />
       )}
     </>

@@ -1,13 +1,25 @@
 /**
  * Pipeline Orchestrator
- * Runs all 4 agents sequentially and passes results forward through the chain.
- * researcher → resume-tailor → email-writer → qa-checker
+ * Runs the 4 auto-apply agents sequentially:
+ *   researcher → resume-tailor → email-writer → qa-checker
+ *
+ * Agent 5 (resume-template-fill) is RE-EXPORTED here for discoverability
+ * but is NOT in the auto-apply chain — it's invoked standalone from the
+ * resume-generator API routes when a user (or auto-apply) wants a tailored
+ * PDF rendered into a chosen template.
  */
 
 import { researchCompany, type CompanyResearch } from "./researcher";
 import { tailorResume, type TailoredResume } from "./resume-tailor";
 import { writeApplicationEmail, type ApplicationEmail } from "./email-writer";
 import { checkApplicationQuality, type QAResult } from "./qa-checker";
+
+// ── Optional standalone step (resume PDF generation) ────────────────
+export { fillTemplate } from "./resume-template-fill";
+export type {
+  TemplateFillInput,
+  TemplateFillResult,
+} from "./resume-template-fill";
 
 export interface PipelineInput {
   companyName: string;

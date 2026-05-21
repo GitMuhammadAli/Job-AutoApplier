@@ -20,13 +20,13 @@ export async function GET(
 
   const generation = await prisma.resumeGeneration.findUnique({
     where: { id: params.id },
-    include: { profile: { select: { userId: true } } },
+    select: { userId: true, htmlSnapshot: true },
   });
 
   if (!generation) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (generation.profile.userId !== userId) {
+  if (generation.userId !== userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!generation.htmlSnapshot) {

@@ -126,7 +126,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "manrope-inter",
     atsRank: 4,
-    available: true,
+    available: false,
     hasAccent: false,
   },
   {
@@ -138,7 +138,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "satoshi-satoshi",
     atsRank: 4,
-    available: true,
+    available: false,
     hasAccent: true,
   },
   {
@@ -150,7 +150,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "geist-inter",
     atsRank: 4,
-    available: true,
+    available: false,
     hasAccent: false,
   },
   {
@@ -162,7 +162,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "inter-inter",
     atsRank: 4,
-    available: true,
+    available: false,
     hasAccent: false,
   },
   {
@@ -174,7 +174,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "berkeleyMono-inter",
     atsRank: 5,
-    available: true,
+    available: false,
     hasAccent: false,
   },
 
@@ -188,7 +188,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "two-column",
     fonts: "inter-inter-sidebar",
     atsRank: 3,
-    available: true,
+    available: false,
     hasAccent: false,
   },
   {
@@ -200,7 +200,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "two-column",
     fonts: "interTight-inter-accent",
     atsRank: 3,
-    available: true,
+    available: false,
     hasAccent: true,
   },
   {
@@ -212,7 +212,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "two-column",
     fonts: "interTight-inter-timeline",
     atsRank: 3,
-    available: true,
+    available: false,
     hasAccent: false,
   },
   {
@@ -224,7 +224,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "two-column",
     fonts: "interTight-inter-metrics",
     atsRank: 3,
-    available: true,
+    available: false,
     hasAccent: true,
   },
 
@@ -238,7 +238,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "georgia-georgia-multipage",
     atsRank: 5,
-    available: true,
+    available: false,
     hasAccent: false,
   },
   {
@@ -250,7 +250,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "timesNewRoman-timesNewRoman",
     atsRank: 5,
-    available: true,
+    available: false,
     hasAccent: false,
   },
 ];

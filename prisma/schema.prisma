@@ -17,10 +17,16 @@ model User {
   image             String?
   accounts          Account[]
   sessions          Session[]
-  userJobs          UserJob[]
-  resumes           Resume[]
-  resumeProfile     ResumeProfile?
-  settings          UserSettings?
+  userJobs              UserJob[]
+  resumes               Resume[]
+  // Resume generator — flat (no ResumeProfile hub). Header lives on UserSettings + User.
+  resumeSummaries       ResumeSummary[]
+  resumeExperiences     ResumeExperience[]
+  resumeProjects        ResumeProject[]
+  resumeEducation       ResumeEducation[]
+  resumeCertifications  ResumeCertification[]
+  resumeGenerations     ResumeGeneration[]
+  settings              UserSettings?
   activities        Activity[]
   applications      JobApplication[]
   feedback          UserFeedback[]
@@ -264,6 +270,10 @@ model UserSettings {
   smtpSetupDate            DateTime?
   // Company Blacklist
   blacklistedCompanies     String[]
+  // Resume Generator (Phase 1 — header lives here, sections in dedicated tables)
+  resumeHeadline           String?         // e.g. "Software Engineer — Full Stack"
+  resumeSkills             String[]        @default([])  // master skill list, ordering is user-default
+  resumeSkillsLocked       Boolean         @default(false) // once onboarded, JD tailoring won't fabricate new skills
   // User Tracking
   lastVisitedAt            DateTime?
   // Relations & State
@@ -462,51 +472,22 @@ model UserFeedback {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// RESUME GENERATOR  (Phase 1)
+// RESUME GENERATOR
 //
-// Eight models that hold a user's structured resume profile and the rendered
-// outputs. The hard rule across all of them: AI only reorders / selects from
-// items the user has entered. It never rewrites bullets, titles, dates, or
-// company names. See docs/resume-generator-design.md for the full contract.
+// Flat layout: NO ResumeProfile hub. Header lives on UserSettings + User.
+// Body sections (Summary/Experience/Project/Education/Certification) hang
+// directly off User via userId. Saved-variant concept folded into
+// ResumeGeneration.{name,isFavorite} — no separate ResumeVariant table.
+//
+// Hard rule across all of them: AI only reorders / selects from items the
+// user has entered. It never rewrites bullets, titles, dates, or company
+// names. See docs/resume-generator-design.md for the full contract.
 // ──────────────────────────────────────────────────────────────────────────
-
-model ResumeProfile {
-  id          String  @id @default(cuid())
-  userId      String  @unique
-  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Header
-  fullName    String
-  headline    String   // "Software Engineer — LLM Evaluation & Agentic Systems"
-  location    String?
-  email       String
-  phone       String?
-  websiteUrl  String?
-  githubUrl   String?
-  linkedinUrl String?
-
-  // Master skills — ordering is the DEFAULT order (used when no JD).
-  // Once `skillsLocked = true`, JD tailoring rejects skills not in this list
-  // instead of silently dropping them — it surfaces an error to the user.
-  skills       String[]
-  skillsLocked Boolean @default(false)
-
-  summaries      ResumeSummary[]
-  experiences    ResumeExperience[]
-  projects       ResumeProject[]
-  education      ResumeEducation[]
-  certifications ResumeCertification[]
-  variants       ResumeVariant[]
-  generations    ResumeGeneration[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
 
 model ResumeSummary {
   id          String   @id @default(cuid())
-  profileId   String
-  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   label       String   // "MERN-leaning", "AI-eval-leaning"
   content     String   @db.Text
@@ -514,13 +495,13 @@ model ResumeSummary {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([profileId])
+  @@index([userId])
 }
 
 model ResumeExperience {
   id          String   @id @default(cuid())
-  profileId   String
-  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   company     String
   title       String
@@ -533,13 +514,13 @@ model ResumeExperience {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([profileId, order])
+  @@index([userId, order])
 }
 
 model ResumeProject {
   id          String   @id @default(cuid())
-  profileId   String
-  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   title       String
   role        String?  // "Solo", "Lead", "Contributor"
@@ -555,14 +536,14 @@ model ResumeProject {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([profileId, order])
-  @@index([profileId, isFeatured])
+  @@index([userId, order])
+  @@index([userId, isFeatured])
 }
 
 model ResumeEducation {
   id          String   @id @default(cuid())
-  profileId   String
-  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   institution String
   degree      String
@@ -572,13 +553,13 @@ model ResumeEducation {
   order       Int
   createdAt   DateTime @default(now())
 
-  @@index([profileId, order])
+  @@index([userId, order])
 }
 
 model ResumeCertification {
   id            String   @id @default(cuid())
-  profileId     String
-  profile       ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name          String
   issuer        String?
@@ -587,50 +568,20 @@ model ResumeCertification {
   order         Int
   createdAt     DateTime @default(now())
 
-  @@index([profileId, order])
-}
-
-// A named saved tailoring. User can save the result of a JD-driven generation
-// as a reusable variant ("AI-eval-leaning", "Backend-leaning", etc.).
-model ResumeVariant {
-  id              String   @id @default(cuid())
-  profileId       String
-  profile         ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-  name            String
-  templateId      String   // "T01" | "T02" | ... from the template registry
-  templateVersion String   // "T01@1.0.0" — pinned so future CSS tweaks don't silently rewrite history
-  pageTarget      Int      @default(1)
-
-  // Ordering / selection — the ONLY knobs the AI / user can change.
-  skillsOrder     String[] // ordered subset of profile.skills
-  projectIds      String[] // ordered subset of profile.projects
-  experienceIds   String[] // ordered subset of profile.experiences
-  summaryId       String?  // which ResumeSummary
-  sectionOrder    String[] // ["summary", "skills", "experience", "projects", "education"]
-
-  isDefault       Boolean  @default(false)
-  generatedFromJd Boolean  @default(false)
-  jdSnippet       String?  @db.Text
-
-  generations     ResumeGeneration[]
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([profileId])
+  @@index([userId, order])
 }
 
 // A single rendered output. Persists for audit + re-download.
 // Stream-on-demand: PDFs are rendered from `htmlSnapshot` each time the user
 // downloads. We never store the binary PDF in v1. `templateVersion` is pinned
 // so the regenerated PDF is byte-identical to what the user saw originally.
+//
+// `name` + `isFavorite` replace the dropped ResumeVariant model — saving a
+// "variant" is just naming a generation and marking it favorite.
 model ResumeGeneration {
   id              String   @id @default(cuid())
-  profileId       String
-  profile         ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  variantId       String?
-  variant         ResumeVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   templateId      String
   templateVersion String   // pinned at generation time
@@ -640,9 +591,15 @@ model ResumeGeneration {
   jdSnippet       String?  @db.Text
   matchedKeywords String[] // for the diff-preview sidebar
 
+  // Variant-as-row: name + isFavorite let a generation act as a saved variant
+  // without a separate table.
+  name            String?  // user-given label, e.g. "AI-eval-leaning"
+  isFavorite      Boolean  @default(false)
+
   applications    JobApplication[]
 
   createdAt       DateTime @default(now())
 
-  @@index([profileId, createdAt])
+  @@index([userId, createdAt])
+  @@index([userId, isFavorite])
 }

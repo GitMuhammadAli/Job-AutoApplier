@@ -1,45 +1,67 @@
 /**
- * GET /api/resumes/profile  → returns user's structured ResumeProfile (or null)
+ * GET /api/resumes/profile  → returns user's structured resume profile (composed)
  * PUT /api/resumes/profile  → upserts the entire profile in a single transaction
  *
- * Auth: required. The profile is keyed 1:1 with User.
+ * Storage layout (after the flatten migration):
+ *   - Header → UserSettings (fullName, phone, links, city, country, resumeHeadline)
+ *              + User (email)
+ *   - Skills → UserSettings.resumeSkills[]
+ *   - Sections → per-user tables (ResumeSummary/Experience/Project/Education/Certification)
  *
  * PUT semantics:
- *   - Replaces all section rows wholesale (delete + recreate).
- *     This is intentional: editing happens client-side, the server sees
- *     the final state and stores it. No partial-update endpoint in v1.
- *   - Wrapped in `prisma.$transaction` so a partial failure can't leave
- *     orphan rows.
+ *   - Wholesale-replace child rows (delete + recreate)
+ *   - Header + skills upsert on UserSettings
+ *   - Single Prisma transaction
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { ResumeProfileSchema } from "@/lib/resume/types";
-import { toResumeProfile } from "@/lib/resume/profile-mapper";
+import { bundleToResumeProfile } from "@/lib/resume/profile-mapper";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const userId = await getAuthUserId();
-  const row = await prisma.resumeProfile.findUnique({
-    where: { userId },
-    include: {
-      summaries: true,
-      experiences: true,
-      projects: true,
-      education: true,
-      certifications: true,
-    },
-  });
-  if (!row) {
-    return NextResponse.json({ profile: null });
-  }
-  return NextResponse.json({ profile: toResumeProfile(row) });
+async function loadBundle(userId: string) {
+  const [user, settings, summaries, experiences, projects, education, certifications] =
+    await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true } }),
+      prisma.userSettings.findUnique({ where: { userId } }),
+      prisma.resumeSummary.findMany({ where: { userId } }),
+      prisma.resumeExperience.findMany({ where: { userId } }),
+      prisma.resumeProject.findMany({ where: { userId } }),
+      prisma.resumeEducation.findMany({ where: { userId } }),
+      prisma.resumeCertification.findMany({ where: { userId } }),
+    ]);
+  if (!user) throw new Error("User not found");
+  return { user, settings, summaries, experiences, projects, education, certifications };
 }
 
-const PutBody = ResumeProfileSchema;
+/**
+ * "Has profile" gate: any structured body content present.
+ * Used by the dashboard to decide whether to show the empty-state picker.
+ */
+function profileIsBlank(bundle: Awaited<ReturnType<typeof loadBundle>>): boolean {
+  return (
+    bundle.summaries.length === 0 &&
+    bundle.experiences.length === 0 &&
+    bundle.projects.length === 0 &&
+    bundle.education.length === 0 &&
+    bundle.certifications.length === 0 &&
+    (!bundle.settings?.resumeSkills || bundle.settings.resumeSkills.length === 0)
+  );
+}
+
+export async function GET() {
+  const userId = await getAuthUserId();
+  const bundle = await loadBundle(userId);
+
+  // If nothing has been entered yet, return null so the UI shows onboarding.
+  if (profileIsBlank(bundle)) {
+    return NextResponse.json({ profile: null });
+  }
+  return NextResponse.json({ profile: bundleToResumeProfile(bundle) });
+}
 
 export async function PUT(req: NextRequest) {
   const userId = await getAuthUserId();
@@ -51,7 +73,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const parsed = PutBody.safeParse(body);
+  const parsed = ResumeProfileSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid profile", issues: parsed.error.issues },
@@ -60,7 +82,7 @@ export async function PUT(req: NextRequest) {
   }
   const input = parsed.data;
 
-  // De-dup skills case-insensitively (server-side enforcement of UI hint)
+  // De-dup skills case-insensitively
   const seen = new Set<string>();
   const skills = input.skills.filter((s) => {
     const lower = s.toLowerCase();
@@ -69,50 +91,48 @@ export async function PUT(req: NextRequest) {
     return true;
   });
 
-  const result = await prisma.$transaction(async (tx) => {
-    // Upsert the profile shell (header + skills)
-    const profile = await tx.resumeProfile.upsert({
+  await prisma.$transaction(async (tx) => {
+    // 1. Upsert UserSettings header + skills
+    await tx.userSettings.upsert({
       where: { userId },
       create: {
         userId,
         fullName: input.header.fullName,
-        headline: input.header.headline,
-        location: input.header.location,
-        email: input.header.email,
+        applicationEmail: input.header.email,
         phone: input.header.phone,
-        websiteUrl: input.header.websiteUrl,
+        portfolioUrl: input.header.websiteUrl,
         githubUrl: input.header.githubUrl,
         linkedinUrl: input.header.linkedinUrl,
-        skills,
-        skillsLocked: input.skillsLocked,
+        resumeHeadline: input.header.headline,
+        resumeSkills: skills,
+        resumeSkillsLocked: input.skillsLocked,
       },
       update: {
         fullName: input.header.fullName,
-        headline: input.header.headline,
-        location: input.header.location,
-        email: input.header.email,
+        applicationEmail: input.header.email,
         phone: input.header.phone,
-        websiteUrl: input.header.websiteUrl,
+        portfolioUrl: input.header.websiteUrl,
         githubUrl: input.header.githubUrl,
         linkedinUrl: input.header.linkedinUrl,
-        skills,
-        skillsLocked: input.skillsLocked,
+        resumeHeadline: input.header.headline,
+        resumeSkills: skills,
+        resumeSkillsLocked: input.skillsLocked,
       },
     });
 
-    // Wholesale-replace all child sections
+    // 2. Wholesale-replace all section rows
     await Promise.all([
-      tx.resumeSummary.deleteMany({ where: { profileId: profile.id } }),
-      tx.resumeExperience.deleteMany({ where: { profileId: profile.id } }),
-      tx.resumeProject.deleteMany({ where: { profileId: profile.id } }),
-      tx.resumeEducation.deleteMany({ where: { profileId: profile.id } }),
-      tx.resumeCertification.deleteMany({ where: { profileId: profile.id } }),
+      tx.resumeSummary.deleteMany({ where: { userId } }),
+      tx.resumeExperience.deleteMany({ where: { userId } }),
+      tx.resumeProject.deleteMany({ where: { userId } }),
+      tx.resumeEducation.deleteMany({ where: { userId } }),
+      tx.resumeCertification.deleteMany({ where: { userId } }),
     ]);
 
     if (input.summaries.length > 0) {
       await tx.resumeSummary.createMany({
         data: input.summaries.map((s) => ({
-          profileId: profile.id,
+          userId,
           label: s.label,
           content: s.content,
           isDefault: s.isDefault,
@@ -123,7 +143,7 @@ export async function PUT(req: NextRequest) {
     if (input.experiences.length > 0) {
       await tx.resumeExperience.createMany({
         data: input.experiences.map((e, idx) => ({
-          profileId: profile.id,
+          userId,
           company: e.company,
           title: e.title,
           location: e.location,
@@ -138,7 +158,7 @@ export async function PUT(req: NextRequest) {
     if (input.projects.length > 0) {
       await tx.resumeProject.createMany({
         data: input.projects.map((p, idx) => ({
-          profileId: profile.id,
+          userId,
           title: p.title,
           role: p.role,
           oneLiner: p.oneLiner,
@@ -155,7 +175,7 @@ export async function PUT(req: NextRequest) {
     if (input.education.length > 0) {
       await tx.resumeEducation.createMany({
         data: input.education.map((e, idx) => ({
-          profileId: profile.id,
+          userId,
           institution: e.institution,
           degree: e.degree,
           startDate: e.startDate,
@@ -169,7 +189,7 @@ export async function PUT(req: NextRequest) {
     if (input.certifications.length > 0) {
       await tx.resumeCertification.createMany({
         data: input.certifications.map((c, idx) => ({
-          profileId: profile.id,
+          userId,
           name: c.name,
           issuer: c.issuer,
           issuedDate: c.issuedDate,
@@ -178,20 +198,8 @@ export async function PUT(req: NextRequest) {
         })),
       });
     }
-
-    return profile.id;
   });
 
-  // Return the fresh profile
-  const fresh = await prisma.resumeProfile.findUnique({
-    where: { id: result },
-    include: {
-      summaries: true,
-      experiences: true,
-      projects: true,
-      education: true,
-      certifications: true,
-    },
-  });
-  return NextResponse.json({ profile: fresh ? toResumeProfile(fresh) : null });
+  const bundle = await loadBundle(userId);
+  return NextResponse.json({ profile: bundleToResumeProfile(bundle) });
 }

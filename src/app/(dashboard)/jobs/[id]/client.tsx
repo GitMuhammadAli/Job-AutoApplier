@@ -612,6 +612,7 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
                 globalJob: {
                   title: g.title,
                   company: g.company,
+                  description: g.description,
                   companyEmail: g.companyEmail,
                   emailConfidence: g.emailConfidence,
                   emailSource: g.emailSource,

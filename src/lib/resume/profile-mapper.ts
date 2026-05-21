@@ -1,22 +1,28 @@
 /**
- * Profile mapper — convert between Prisma row shapes and the typed
- * `ResumeProfile` / `ResumeRenderInput` contracts.
+ * Profile mapper — load/save user-level resume data WITHOUT a ResumeProfile hub.
  *
- * Why a dedicated module:
- *   - Prisma returns optional fields as `string | null`; our Zod types use
- *     `string | undefined`. The mapper normalizes the boundary in one place.
- *   - Render-input assembly applies the selection / ordering logic without
- *     touching the database schema.
+ * After the flatten migration, the resume profile is composed at runtime from:
+ *   - User                       → fullName (User.name), email (User.email)
+ *   - UserSettings               → headline, location, phone, links, skills, skillsLocked
+ *   - ResumeSummary[]            → per-user, by userId
+ *   - ResumeExperience[]         → per-user, by userId
+ *   - ResumeProject[]            → per-user, by userId
+ *   - ResumeEducation[]          → per-user, by userId
+ *   - ResumeCertification[]      → per-user, by userId
+ *
+ * The `id` field on the typed `ResumeProfile` is simply `userId` (1:1).
+ *
+ * Also retains `buildRenderInput` — the pure function the renderer consumes.
  */
 
 import type {
-  ResumeProfile as PrismaResumeProfile,
+  User as PrismaUser,
+  UserSettings as PrismaUserSettings,
   ResumeSummary as PrismaResumeSummary,
   ResumeExperience as PrismaResumeExperience,
   ResumeProject as PrismaResumeProject,
   ResumeEducation as PrismaResumeEducation,
   ResumeCertification as PrismaResumeCertification,
-  ResumeVariant as PrismaResumeVariant,
 } from "@prisma/client";
 
 import type {
@@ -28,42 +34,56 @@ import type {
 
 import { getTemplate, DEFAULT_TEMPLATE_ID } from "./templates/registry";
 
-type ProfileWithRelations = PrismaResumeProfile & {
+// ── Composed shape returned by the per-user loader ───────────────────
+
+export interface UserResumeBundle {
+  user: Pick<PrismaUser, "id" | "name" | "email">;
+  settings: PrismaUserSettings | null;
   summaries: PrismaResumeSummary[];
   experiences: PrismaResumeExperience[];
   projects: PrismaResumeProject[];
   education: PrismaResumeEducation[];
   certifications: PrismaResumeCertification[];
-};
+}
 
-// ── Prisma → typed ResumeProfile ─────────────────────────────────────
+// ── Prisma rows → typed ResumeProfile ────────────────────────────────
 
-function header(p: PrismaResumeProfile): ResumeHeader {
+function header(
+  user: UserResumeBundle["user"],
+  settings: PrismaUserSettings | null,
+): ResumeHeader {
   return {
-    fullName: p.fullName,
-    headline: p.headline,
-    location: p.location ?? undefined,
-    email: p.email,
-    phone: p.phone ?? undefined,
-    websiteUrl: p.websiteUrl ?? undefined,
-    githubUrl: p.githubUrl ?? undefined,
-    linkedinUrl: p.linkedinUrl ?? undefined,
+    fullName: settings?.fullName ?? user.name ?? "",
+    headline: settings?.resumeHeadline ?? "",
+    location: composeLocation(settings),
+    email: settings?.applicationEmail ?? user.email ?? "",
+    phone: settings?.phone ?? undefined,
+    websiteUrl: settings?.portfolioUrl ?? undefined,
+    githubUrl: settings?.githubUrl ?? undefined,
+    linkedinUrl: settings?.linkedinUrl ?? undefined,
   };
 }
 
-export function toResumeProfile(p: ProfileWithRelations): ResumeProfile {
+function composeLocation(s: PrismaUserSettings | null): string | undefined {
+  if (!s) return undefined;
+  const parts = [s.city, s.country].filter(Boolean) as string[];
+  return parts.length ? parts.join(", ") : undefined;
+}
+
+export function bundleToResumeProfile(bundle: UserResumeBundle): ResumeProfile {
+  const s = bundle.settings;
   return {
-    id: p.id,
-    header: header(p),
-    skills: [...p.skills],
-    skillsLocked: p.skillsLocked,
-    summaries: p.summaries.map((s) => ({
-      id: s.id,
-      label: s.label,
-      content: s.content,
-      isDefault: s.isDefault,
+    id: bundle.user.id, // userId == profile id in the flat model
+    header: header(bundle.user, s),
+    skills: [...(s?.resumeSkills ?? [])],
+    skillsLocked: s?.resumeSkillsLocked ?? false,
+    summaries: bundle.summaries.map((sum) => ({
+      id: sum.id,
+      label: sum.label,
+      content: sum.content,
+      isDefault: sum.isDefault,
     })),
-    experiences: p.experiences
+    experiences: bundle.experiences
       .sort((a, b) => a.order - b.order)
       .map((e) => ({
         id: e.id,
@@ -75,21 +95,21 @@ export function toResumeProfile(p: ProfileWithRelations): ResumeProfile {
         bullets: [...e.bullets],
         order: e.order,
       })),
-    projects: p.projects
+    projects: bundle.projects
       .sort((a, b) => a.order - b.order)
-      .map((proj) => ({
-        id: proj.id,
-        title: proj.title,
-        role: proj.role ?? undefined,
-        oneLiner: proj.oneLiner,
-        bullets: [...proj.bullets],
-        stack: [...proj.stack],
-        liveUrl: proj.liveUrl ?? undefined,
-        repoUrl: proj.repoUrl ?? undefined,
-        isFeatured: proj.isFeatured,
-        order: proj.order,
+      .map((p) => ({
+        id: p.id,
+        title: p.title,
+        role: p.role ?? undefined,
+        oneLiner: p.oneLiner,
+        bullets: [...p.bullets],
+        stack: [...p.stack],
+        liveUrl: p.liveUrl ?? undefined,
+        repoUrl: p.repoUrl ?? undefined,
+        isFeatured: p.isFeatured,
+        order: p.order,
       })),
-    education: p.education
+    education: bundle.education
       .sort((a, b) => a.order - b.order)
       .map((ed) => ({
         id: ed.id,
@@ -100,7 +120,7 @@ export function toResumeProfile(p: ProfileWithRelations): ResumeProfile {
         details: ed.details ?? undefined,
         order: ed.order,
       })),
-    certifications: p.certifications
+    certifications: bundle.certifications
       .sort((a, b) => a.order - b.order)
       .map((c) => ({
         id: c.id,
@@ -113,7 +133,10 @@ export function toResumeProfile(p: ProfileWithRelations): ResumeProfile {
   };
 }
 
-// ── ResumeProfile + Variant + options → ResumeRenderInput ────────────
+/** Back-compat alias — old call sites used `toResumeProfile(p)`. */
+export const toResumeProfile = bundleToResumeProfile;
+
+// ── ResumeProfile + options → ResumeRenderInput ──────────────────────
 
 const DEFAULT_SECTION_ORDER: SectionKey[] = [
   "summary",
@@ -126,65 +149,33 @@ const DEFAULT_SECTION_ORDER: SectionKey[] = [
 interface BuildRenderInputOptions {
   templateId?: string;
   pageTarget?: 1 | 2;
-  variant?: PrismaResumeVariant | null;
+  /** Override section order (e.g. JD-driven projects-first). */
+  sectionOrder?: SectionKey[];
 }
 
 /**
- * Build a render input from a structured profile + optional variant.
+ * Build a render input from a profile.
  *
- * In Phase 1 (no JD tailoring): if a variant is provided, use its ordering;
- * otherwise use the profile's natural order with sensible defaults.
- *
- * In Phase 2 (JD tailoring): the ranker will produce a variant-like result
- * and call this with that variant.
+ * In Phase 1 (no JD tailoring): natural order, all sections.
+ * In Phase 2: the chained tailorResume → templateFill agent produces ordering
+ * hints that this function applies (skillsOrder, projectIds, summaryId,
+ * sectionOrder) via dedicated apply-* helpers below.
  */
 export function buildRenderInput(
   profile: ResumeProfile,
   options: BuildRenderInputOptions = {},
 ): ResumeRenderInput {
-  const templateId = options.variant?.templateId ?? options.templateId ?? DEFAULT_TEMPLATE_ID;
+  const templateId = options.templateId ?? DEFAULT_TEMPLATE_ID;
   const tpl = getTemplate(templateId);
-  const pageTarget = (options.variant?.pageTarget as 1 | 2 | undefined) ?? options.pageTarget ?? 1;
+  const pageTarget = options.pageTarget ?? 1;
+  const sectionOrder = options.sectionOrder ?? DEFAULT_SECTION_ORDER;
 
-  // Section order
-  const sectionOrder: SectionKey[] =
-    options.variant?.sectionOrder && options.variant.sectionOrder.length > 0
-      ? (options.variant.sectionOrder.filter((s): s is SectionKey =>
-          DEFAULT_SECTION_ORDER.includes(s as SectionKey),
-        ))
-      : DEFAULT_SECTION_ORDER;
-
-  // Summary
-  let summary: ResumeRenderInput["summary"];
-  if (options.variant?.summaryId) {
-    const picked = profile.summaries.find((s) => s.id === options.variant?.summaryId);
-    if (picked) summary = { content: picked.content, sourceId: picked.id! };
-  } else {
-    const def = profile.summaries.find((s) => s.isDefault) ?? profile.summaries[0];
-    if (def) summary = { content: def.content, sourceId: def.id! };
-  }
-
-  // Skills
-  const skills =
-    options.variant?.skillsOrder && options.variant.skillsOrder.length > 0
-      ? options.variant.skillsOrder.filter((s) => profile.skills.includes(s))
-      : [...profile.skills];
-
-  // Experiences — ordered subset (default: all in profile order)
-  const expSelected =
-    options.variant?.experienceIds && options.variant.experienceIds.length > 0
-      ? options.variant.experienceIds
-          .map((id) => profile.experiences.find((e) => e.id === id))
-          .filter((e): e is NonNullable<typeof e> => Boolean(e))
-      : profile.experiences;
-
-  // Projects — ordered subset
-  const projSelected =
-    options.variant?.projectIds && options.variant.projectIds.length > 0
-      ? options.variant.projectIds
-          .map((id) => profile.projects.find((p) => p.id === id))
-          .filter((p): p is NonNullable<typeof p> => Boolean(p))
-      : profile.projects;
+  // Summary — default to the isDefault one, else first
+  const def =
+    profile.summaries.find((s) => s.isDefault) ?? profile.summaries[0];
+  const summary = def
+    ? { content: def.content, sourceId: def.id! }
+    : undefined;
 
   return {
     templateId,
@@ -192,8 +183,8 @@ export function buildRenderInput(
     pageTarget,
     header: profile.header,
     summary,
-    skills,
-    experiences: expSelected.map((e) => ({
+    skills: [...profile.skills],
+    experiences: profile.experiences.map((e) => ({
       sourceId: e.id!,
       company: e.company,
       title: e.title,
@@ -202,7 +193,7 @@ export function buildRenderInput(
       endDate: e.endDate,
       bullets: e.bullets,
     })),
-    projects: projSelected.map((p) => ({
+    projects: profile.projects.map((p) => ({
       sourceId: p.id!,
       title: p.title,
       role: p.role,
@@ -228,5 +219,71 @@ export function buildRenderInput(
       credentialUrl: c.credentialUrl,
     })),
     sectionOrder,
+  };
+}
+
+// ── Apply a TemplateFillResult ranking to a base render input ────────
+// (See src/lib/agents/resume-template-fill.ts for the agent that produces
+// these orderings. Keeping the application logic here so callers don't need
+// to know about the agent's internals.)
+
+export interface RenderInputRanking {
+  skillsOrder?: string[];
+  projectIds?: string[];
+  summaryId?: string | null;
+  sectionOrder?: SectionKey[];
+}
+
+export function applyRanking(
+  base: ResumeRenderInput,
+  profile: ResumeProfile,
+  ranking: RenderInputRanking,
+): ResumeRenderInput {
+  // Skills: keep only those in profile.skills (the hard rule). Order per
+  // ranking; preserve original ordering for anything not in ranking.
+  const skills = (() => {
+    if (!ranking.skillsOrder || ranking.skillsOrder.length === 0) {
+      return base.skills;
+    }
+    const inProfile = new Set(profile.skills);
+    const ordered = ranking.skillsOrder.filter((s) => inProfile.has(s));
+    const rest = profile.skills.filter((s) => !ordered.includes(s));
+    return [...ordered, ...rest];
+  })();
+
+  // Projects: ordered subset by id
+  const projects = (() => {
+    if (!ranking.projectIds || ranking.projectIds.length === 0) {
+      return base.projects;
+    }
+    const map = new Map(profile.projects.map((p) => [p.id!, p]));
+    return ranking.projectIds
+      .map((id) => map.get(id))
+      .filter((p): p is NonNullable<typeof p> => Boolean(p))
+      .map((p) => ({
+        sourceId: p.id!,
+        title: p.title,
+        role: p.role,
+        oneLiner: p.oneLiner,
+        bullets: p.bullets,
+        stack: p.stack,
+        liveUrl: p.liveUrl,
+        repoUrl: p.repoUrl,
+      }));
+  })();
+
+  // Summary
+  let summary = base.summary;
+  if (ranking.summaryId) {
+    const picked = profile.summaries.find((s) => s.id === ranking.summaryId);
+    if (picked) summary = { content: picked.content, sourceId: picked.id! };
+  }
+
+  return {
+    ...base,
+    summary,
+    skills,
+    projects,
+    sectionOrder: ranking.sectionOrder ?? base.sectionOrder,
   };
 }

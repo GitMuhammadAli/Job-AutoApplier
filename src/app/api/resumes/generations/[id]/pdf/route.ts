@@ -33,13 +33,13 @@ export async function GET(
 
   const generation = await prisma.resumeGeneration.findUnique({
     where: { id: params.id },
-    include: { profile: { select: { userId: true, fullName: true } } },
+    include: { user: { include: { settings: { select: { fullName: true } } } } },
   });
 
   if (!generation) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (generation.profile.userId !== userId) {
+  if (generation.userId !== userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!generation.htmlSnapshot) {
@@ -68,7 +68,7 @@ export async function GET(
   }
 
   const filename = sanitizeFilename(
-    `${generation.profile.fullName ?? "resume"}_${generation.templateId}.pdf`,
+    `${generation.user.settings?.fullName ?? generation.user.name ?? "resume"}_${generation.templateId}.pdf`,
   );
 
   return new NextResponse(new Uint8Array(pdf), {

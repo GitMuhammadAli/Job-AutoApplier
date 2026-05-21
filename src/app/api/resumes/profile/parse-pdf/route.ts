@@ -1,16 +1,14 @@
 /**
  * POST /api/resumes/profile/parse-pdf
  *
- * Input: { resumeId: string }   — existing JobPilot Resume (uploaded PDF)
- * Output: { candidate: ResumeProfile }  — AI-extracted candidate profile
+ * Input:  { resumeId: string }    — existing JobPilot Resume (uploaded PDF)
+ * Output: { candidate: ResumeProfile }  — AI-extracted candidate, NOT saved
  *
  * Critical contract: this endpoint NEVER saves anything. It returns a
  * candidate profile that the user reviews + confirms in the wizard, then
  * the wizard POSTs to PUT /api/resumes/profile to persist.
  *
- * AI's role here: pure extraction from the existing PDF text. No invention.
- * If the PDF text is missing fields, those come back empty — the user fills
- * them in the wizard.
+ * AI's role: pure extraction from the uploaded PDF text. No invention.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -22,16 +20,14 @@ import { ResumeProfileSchema } from "@/lib/resume/types";
 
 export const dynamic = "force-dynamic";
 
-const BodySchema = z.object({
-  resumeId: z.string().min(1),
-});
+const BodySchema = z.object({ resumeId: z.string().min(1) });
 
 const SYSTEM_PROMPT = `You are a resume parser. Given the raw text of a resume, extract a STRICTLY structured JSON object with these fields:
 
 {
   "header": {
     "fullName": string,
-    "headline": string (e.g. "Software Engineer — Full Stack"),
+    "headline": string,
     "location": string (optional),
     "email": string,
     "phone": string (optional),
@@ -39,53 +35,19 @@ const SYSTEM_PROMPT = `You are a resume parser. Given the raw text of a resume, 
     "githubUrl": string (optional, must be https://),
     "linkedinUrl": string (optional, must be https://)
   },
-  "summary": string (the resume's professional summary, or empty),
-  "skills": string[] (each skill ≤ 64 chars),
-  "experiences": [
-    {
-      "company": string,
-      "title": string,
-      "location": string (optional),
-      "startDate": string (e.g. "August 2025"),
-      "endDate": string (e.g. "Present" or "August 2025", optional),
-      "bullets": string[] (each ≤ 280 chars; EXACT bullets from the resume, do NOT rewrite or summarize)
-    }
-  ],
-  "projects": [
-    {
-      "title": string,
-      "role": string (optional, e.g. "Solo"),
-      "oneLiner": string (≤ 200 chars),
-      "bullets": string[] (≤ 280 chars each, EXACT from resume),
-      "stack": string[] (tech tags),
-      "liveUrl": string (optional, https://),
-      "repoUrl": string (optional, https://)
-    }
-  ],
-  "education": [
-    {
-      "institution": string,
-      "degree": string,
-      "startDate": string (optional),
-      "endDate": string (optional),
-      "details": string (optional, ≤ 400 chars)
-    }
-  ],
-  "certifications": [
-    {
-      "name": string,
-      "issuer": string (optional),
-      "issuedDate": string (optional),
-      "credentialUrl": string (optional, https://)
-    }
-  ]
+  "summary": string,
+  "skills": string[],
+  "experiences": [{ "company": string, "title": string, "location": string?, "startDate": string, "endDate": string?, "bullets": string[] }],
+  "projects":    [{ "title": string, "role": string?, "oneLiner": string, "bullets": string[], "stack": string[], "liveUrl": string?, "repoUrl": string? }],
+  "education":   [{ "institution": string, "degree": string, "startDate": string?, "endDate": string?, "details": string? }],
+  "certifications": [{ "name": string, "issuer": string?, "issuedDate": string?, "credentialUrl": string? }]
 }
 
 HARD RULES:
-- Do NOT invent skills, projects, experiences, or any text that isn't in the source.
-- Do NOT rewrite or paraphrase bullets — copy them verbatim.
-- If a field isn't in the source, use empty string or omit (per the schema).
-- Return ONLY the JSON object, no prose, no markdown fence.`;
+- Do NOT invent skills, projects, experiences, or any text not in the source.
+- Do NOT rewrite or paraphrase bullets — copy verbatim.
+- If a field isn't in the source, use empty string or omit.
+- Return ONLY the JSON. No prose, no markdown fence.`;
 
 interface ParsedCandidate {
   header: {
@@ -147,7 +109,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request", issues: parsed.error.issues }, { status: 400 });
   }
 
-  // Authorize: resume must belong to the user
   const resume = await prisma.resume.findFirst({
     where: { id: parsed.data.resumeId, userId, isDeleted: false },
   });
@@ -169,11 +130,12 @@ export async function POST(req: NextRequest) {
       { temperature: 0.1, max_tokens: 2000 },
     );
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "AI request failed";
-    return NextResponse.json({ error: msg }, { status: 502 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "AI request failed" },
+      { status: 502 },
+    );
   }
 
-  // Best-effort JSON extraction (Groq sometimes adds ```json ... ``` fences)
   const jsonText = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/)?.[1] ?? raw;
   let candidate: ParsedCandidate;
   try {
@@ -185,7 +147,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Shape into our ResumeProfile schema (clamp string lengths defensively, drop garbage)
   const summaries = candidate.summary
     ? [
         {
@@ -238,12 +199,11 @@ export async function POST(req: NextRequest) {
     })),
   };
 
-  // Validate through Zod — fields that fail get reported so user can correct in wizard
   const validation = ResumeProfileSchema.safeParse(shaped);
   if (!validation.success) {
     return NextResponse.json(
       {
-        candidate: shaped, // return raw so wizard can show + let user fix
+        candidate: shaped,
         warnings: validation.error.issues.slice(0, 10),
       },
       { status: 200 },

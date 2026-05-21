@@ -2,29 +2,22 @@
  * POST /api/resumes/render-preview
  *
  * Renders a ResumeProfile to HTML WITHOUT persisting a ResumeGeneration row.
- * Used by the Overleaf-style /resumes/editor's right-pane live preview.
+ * Powers the live preview iframe in the Overleaf-style editor.
  *
- * Differences from /api/resumes/generate:
- *   - No DB write — safe to call every keystroke (with debounce).
- *   - Accepts a full ResumeProfile inline (unsaved state) instead of
- *     loading from the DB. This is what lets the preview reflect edits
- *     the user hasn't saved yet.
- *   - Optional jdText (Phase 2 ranker still runs).
- *
- * Audit pass still runs on every render — fabrication protection survives.
+ * Accepts inline profile (unsaved state) so preview reflects edits the user
+ * hasn't saved yet. Optional jdText runs the agent chain (tailorResume →
+ * fillTemplate). Audit pass still runs.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthUserId } from "@/lib/auth";
-import {
-  ResumeProfileSchema,
-  type ResumeProfile,
-} from "@/lib/resume/types";
-import { buildRenderInput } from "@/lib/resume/profile-mapper";
+import { ResumeProfileSchema, type ResumeProfile } from "@/lib/resume/types";
+import { buildRenderInput, applyRanking } from "@/lib/resume/profile-mapper";
 import { renderResume, TemplateNotAvailableError } from "@/lib/resume/render";
 import { FabricationError } from "@/lib/resume/audit";
-import { rankForJd, applyRankingToRenderInput } from "@/lib/resume/jd-ranker";
+import { tailorResume } from "@/lib/agents/resume-tailor";
+import { fillTemplate } from "@/lib/agents/resume-template-fill";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +29,6 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  // Auth — same as /generate. Required to keep this endpoint from being
-  // a public render service.
   await getAuthUserId();
 
   let body: unknown;
@@ -55,21 +46,33 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { profile, templateId, pageTarget, jdText } = parsed.data;
+  const { profile: rawProfile, templateId, pageTarget, jdText } = parsed.data;
+  const profile = stampIds(rawProfile);
 
-  // Profile arrived from the editor with `id` fields possibly missing for
-  // newly-added rows. Mint synthetic ids so the render input stays typed.
-  const stamped: ResumeProfile = stampIds(profile);
-
-  let renderInput = buildRenderInput(stamped, { templateId, pageTarget });
+  let renderInput = buildRenderInput(profile, { templateId, pageTarget });
 
   if (jdText && jdText.trim().length >= 20) {
     try {
-      const maxProjects = pageTarget === 2 ? 5 : 3;
-      const ranking = await rankForJd(stamped, jdText, { maxProjects });
-      renderInput = applyRankingToRenderInput(renderInput, stamped, ranking.ranking);
+      const tailored = await tailorResume({
+        userSkills: profile.skills,
+        jobDescription: jdText,
+        jobTitle: jdText.split(/\r?\n/).slice(0, 2).join(" ").trim().slice(0, 200),
+      });
+      const fill = await fillTemplate({
+        profile,
+        tailored,
+        templateId,
+        pageTarget,
+        jdText,
+      });
+      renderInput = applyRanking(renderInput, profile, {
+        skillsOrder: fill.skillsOrder,
+        projectIds: fill.projectIds,
+        summaryId: fill.summaryId,
+        sectionOrder: fill.sectionOrder,
+      });
     } catch {
-      // Live preview falls back silently to default order on ranker failure.
+      // Silent fall-back in preview path; the user can still see the doc.
     }
   }
 
@@ -102,11 +105,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * Newly-added items in the editor don't have an id yet. The render input
- * type requires `sourceId` strings, so we synthesize them here. The audit
- * pass doesn't care about ids — only visible text.
- */
+/** Mint synthetic ids for unsaved rows so the render-input type stays clean. */
 function stampIds(p: ResumeProfile): ResumeProfile {
   let counter = 0;
   const mint = () => `tmp_${++counter}`;

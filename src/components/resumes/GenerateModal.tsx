@@ -14,7 +14,6 @@ import type { RecommendExistingResumeResult } from "@/lib/resume/types";
 interface GenerateModalProps {
   open: boolean;
   onClose: () => void;
-  profileId: string;
   /** Optional starter JD (e.g. when triggered from a job apply page). */
   initialJd?: string;
 }
@@ -42,7 +41,7 @@ interface GenerationResult {
 
 type Step = "configure" | "preview";
 
-export function GenerateModal({ open, onClose, profileId, initialJd }: GenerateModalProps) {
+export function GenerateModal({ open, onClose, initialJd }: GenerateModalProps) {
   const [step, setStep] = useState<Step>("configure");
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [templateId, setTemplateId] = useState(DEFAULT_TEMPLATE_ID);
@@ -72,7 +71,6 @@ export function GenerateModal({ open, onClose, profileId, initialJd }: GenerateM
     setGenerating(true);
     try {
       const r = await resumeClient.generate({
-        profileId,
         templateId,
         pageTarget,
         jdText: jdText.trim() || undefined,

@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,6 +117,7 @@ interface QuickApplyPanelProps {
     globalJob: {
       title: string;
       company: string;
+      description?: string | null;  // Full JD text — feeds the resume tailoring CTA
       companyEmail: string | null;
       emailConfidence: number | null;
       emailSource: string | null;
@@ -489,7 +491,7 @@ export function QuickApplyPanel({
 
       {/* AI Resume Recommendation */}
       {matchInfo && (
-        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/30 p-3 ring-1 ring-blue-100 dark:ring-blue-800/40">
+        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/30 p-3 ring-1 ring-blue-100 dark:ring-blue-800/40 space-y-2.5">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
             <div className="min-w-0">
@@ -503,6 +505,7 @@ export function QuickApplyPanel({
               </p>
             </div>
           </div>
+          <TailorResumeCTA jdText={userJob.globalJob.description ?? ""} />
         </div>
       )}
 
@@ -794,5 +797,85 @@ export function QuickApplyPanel({
         </div>
       )}
     </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Tailor Resume CTA — extends the AI Resume Recommendation block.
+// Opens GenerateModal pre-loaded with this job's JD. Three states based
+// on whether the user has a structured profile:
+//   - loading:    subtle pulse
+//   - no profile: link to /resumes/setup
+//   - has profile: emerald CTA → modal opens with initialJd=jdText
+// ────────────────────────────────────────────────────────────────────
+
+function TailorResumeCTA({ jdText }: { jdText: string }) {
+  const [hasProfile, setHasProfile] = useState<boolean | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  // Lazy-load GenerateModal so its heavy iframe code doesn't ship with the
+  // QuickApplyPanel bundle until the user actually opens it.
+  const [GenerateModal, setGenerateModal] = useState<
+    null | React.ComponentType<{ open: boolean; onClose: () => void; initialJd?: string }>
+  >(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/resumes/profile", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { profile: null }))
+      .then((d) => { if (!cancelled) setHasProfile(d.profile != null); })
+      .catch(() => { if (!cancelled) setHasProfile(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  async function openModal() {
+    if (!GenerateModal) {
+      const mod = await import("@/components/resumes/GenerateModal");
+      setGenerateModal(() => mod.GenerateModal);
+    }
+    setModalOpen(true);
+  }
+
+  if (hasProfile === null) {
+    return (
+      <div className="text-[10px] text-blue-700 dark:text-blue-300 italic">
+        Checking your resume profile…
+      </div>
+    );
+  }
+
+  if (!hasProfile) {
+    return (
+      <Link
+        href="/resumes/setup?path=scratch"
+        className="group flex items-center justify-between gap-2 rounded-md border border-blue-200/60 dark:border-blue-800/40 bg-white/60 dark:bg-zinc-900/40 px-2.5 py-2 text-[11px] hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
+      >
+        <span className="text-zinc-700 dark:text-zinc-300">
+          Want a JD-tailored resume? <strong className="font-semibold">Build your profile</strong>
+        </span>
+        <ArrowRight className="h-3 w-3 text-zinc-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+      </Link>
+    );
+  }
+
+  return (
+    <>
+      <button
+        onClick={openModal}
+        className="group w-full flex items-center justify-between gap-2 rounded-md bg-emerald-600 hover:bg-emerald-500 px-2.5 py-2 text-[11px] text-white shadow-sm transition-colors"
+      >
+        <span className="flex items-center gap-1.5">
+          <Sparkles className="h-3 w-3" />
+          <strong className="font-semibold">Tailor a resume for this JD</strong>
+        </span>
+        <span className="text-[10px] opacity-80">5 templates · ATS-clean PDF</span>
+      </button>
+      {GenerateModal && (
+        <GenerateModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          initialJd={jdText}
+        />
+      )}
+    </>
   );
 }
