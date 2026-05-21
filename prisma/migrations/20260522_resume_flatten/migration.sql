@@ -10,11 +10,41 @@
 -- child tables (see migration tooling output). No data movement required.
 --
 -- Reversibility: tables can be re-created from a prior schema.prisma; row
--- data is permanently lost (was empty). Down-migration SQL is in the comment
--- block at the bottom of this file for emergency rollback.
+-- data is permanently lost (was empty). Rollback SQL lives in the sibling
+-- file `rollback.sql` (operator escape hatch — NOT run by `prisma migrate`).
 -- ─────────────────────────────────────────────────────────────────────────
 
 BEGIN;
+
+-- 0. Pre-flight guard — abort if destructive-drop targets are not empty.
+-- Belt-and-suspenders: the operator pre-flight count check is time-of-write;
+-- this guard runs at time-of-apply so a row that landed in between cannot
+-- be silently dropped. EXECUTE is used so the COUNT is only planned when
+-- the table actually exists (avoids "relation does not exist" on replay
+-- after the tables have already been dropped).
+DO $$
+DECLARE
+  v_count int;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ResumeProfile'
+  ) THEN
+    EXECUTE 'SELECT COUNT(*) FROM "ResumeProfile"' INTO v_count;
+    IF v_count > 0 THEN
+      RAISE EXCEPTION 'ResumeProfile has % row(s) — aborting destructive migration', v_count;
+    END IF;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ResumeVariant'
+  ) THEN
+    EXECUTE 'SELECT COUNT(*) FROM "ResumeVariant"' INTO v_count;
+    IF v_count > 0 THEN
+      RAISE EXCEPTION 'ResumeVariant has % row(s) — aborting destructive migration', v_count;
+    END IF;
+  END IF;
+END $$;
 
 -- 1. Add resume-specific columns to UserSettings (the new home for header data)
 ALTER TABLE "UserSettings"
@@ -102,33 +132,3 @@ DROP TABLE IF EXISTS "ResumeVariant";
 DROP TABLE IF EXISTS "ResumeProfile";
 
 COMMIT;
-
--- ─────────────────────────────────────────────────────────────────────────
--- DOWN MIGRATION (manual rollback — restore prior schema)
--- ─────────────────────────────────────────────────────────────────────────
--- BEGIN;
--- CREATE TABLE "ResumeProfile" (
---   id TEXT PRIMARY KEY, userId TEXT UNIQUE NOT NULL, fullName TEXT NOT NULL,
---   headline TEXT NOT NULL, location TEXT, email TEXT NOT NULL, phone TEXT,
---   websiteUrl TEXT, githubUrl TEXT, linkedinUrl TEXT, skills TEXT[],
---   "skillsLocked" BOOLEAN DEFAULT false, "createdAt" TIMESTAMP, "updatedAt" TIMESTAMP
--- );
--- CREATE TABLE "ResumeVariant" (
---   id TEXT PRIMARY KEY, "profileId" TEXT NOT NULL, name TEXT NOT NULL,
---   "templateId" TEXT NOT NULL, "templateVersion" TEXT NOT NULL, "pageTarget" INT DEFAULT 1,
---   "skillsOrder" TEXT[], "projectIds" TEXT[], "experienceIds" TEXT[],
---   "summaryId" TEXT, "sectionOrder" TEXT[], "isDefault" BOOLEAN DEFAULT false,
---   "generatedFromJd" BOOLEAN DEFAULT false, "jdSnippet" TEXT,
---   "createdAt" TIMESTAMP, "updatedAt" TIMESTAMP
--- );
--- ALTER TABLE "ResumeSummary"       ADD COLUMN "profileId" TEXT NOT NULL, DROP COLUMN "userId";
--- ALTER TABLE "ResumeExperience"    ADD COLUMN "profileId" TEXT NOT NULL, DROP COLUMN "userId";
--- ALTER TABLE "ResumeProject"       ADD COLUMN "profileId" TEXT NOT NULL, DROP COLUMN "userId";
--- ALTER TABLE "ResumeEducation"     ADD COLUMN "profileId" TEXT NOT NULL, DROP COLUMN "userId";
--- ALTER TABLE "ResumeCertification" ADD COLUMN "profileId" TEXT NOT NULL, DROP COLUMN "userId";
--- ALTER TABLE "ResumeGeneration"    ADD COLUMN "profileId" TEXT NOT NULL, DROP COLUMN "userId",
---                                   DROP COLUMN "name", DROP COLUMN "isFavorite";
--- ALTER TABLE "UserSettings" DROP COLUMN "resumeSkills", DROP COLUMN "resumeSkillsLocked",
---                            DROP COLUMN "resumeHeadline";
--- -- (Plus re-add all FKs + indexes pointing at profileId. Empty rows = no data loss.)
--- COMMIT;
