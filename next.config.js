@@ -3,6 +3,10 @@ module.exports = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  // NFT doesn't trace runtime fs.readFile() — chromium tar must be explicitly included
+  outputFileTracingIncludes: {
+    "/api/resumes/**": ["node_modules/@sparticuz/chromium/bin/**"],
+  },
   experimental: {
     serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist", "playwright-core", "@sparticuz/chromium"],
     serverActions: {
