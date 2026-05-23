@@ -20,12 +20,26 @@ interface ResumesPageShellProps {
 export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
   const [profile, setProfile] = useState<ResumeProfile | null | undefined>(undefined);
   const [generateOpen, setGenerateOpen] = useState(false);
+  // Defer the tabs rendering until after mount. Radix Tabs Provider's SSR
+  // output doesn't match the first client render's DOM tree (known issue —
+  // <div> in <div> mismatch). Hydrating after mount avoids the warning and
+  // the "Switched to client rendering" cascade.
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     resumeClient.getProfile().then(setProfile).catch(() => setProfile(null));
   }, []);
 
   const hasProfile = profile != null;
+
+  if (!mounted) {
+    return (
+      <div className="w-full">
+        <div className="h-9 w-full max-w-md animate-pulse rounded-md bg-zinc-100 dark:bg-zinc-800" />
+      </div>
+    );
+  }
 
   return (
     <>
