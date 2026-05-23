@@ -26,27 +26,31 @@ const OnboardingWizard = nextDynamic(
 );
 
 export default async function DashboardPage() {
-  // Settings load first — fast query, needed for onboarding gate
+  // Settings load first — fast query, needed for onboarding gate.
+  // null here means EITHER no UserSettings row exists yet (brand-new OAuth user,
+  // pre-onboarding) OR a real DB error. Both cases should land on onboarding —
+  // a fresh user with no row should see the wizard, not a fatal error.
   const settings = await getSettingsLite().catch(() => null);
 
-  if (!settings) {
-    return (
-      <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30 p-8 text-center">
-        <h3 className="text-base font-bold text-red-800 dark:text-red-200">
-          Failed to load dashboard
-        </h3>
-        <p className="mt-2 text-sm text-red-600 dark:text-red-300">
-          We couldn&apos;t load your settings. Please refresh the page or try
-          again later.
-        </p>
-      </div>
-    );
-  }
-
-  if (!settings.isOnboarded) {
+  if (!settings || !settings.isOnboarded) {
+    // Pre-fill from any existing settings — saves re-entry for legacy users
+    // and users whose OAuth provider gave us a name.
     return (
       <div className="animate-slide-up">
-        <OnboardingWizard />
+        <OnboardingWizard
+          prefill={
+            settings
+              ? {
+                  fullName: settings.fullName,
+                  city: settings.city,
+                  country: settings.country,
+                  experienceLevel: settings.experienceLevel,
+                  keywords: settings.keywords,
+                  categories: settings.preferredCategories,
+                }
+              : undefined
+          }
+        />
       </div>
     );
   }

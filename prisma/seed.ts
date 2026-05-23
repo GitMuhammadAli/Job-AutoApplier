@@ -327,18 +327,187 @@ BS Computer Science, FAST NUCES, 2020 - 2024`;
     }),
   );
 
-  // Mint sessions so we can log in by setting a cookie
+  // ─── Scenario D — LEGACY ONLY: PDF uploads, no structured profile ───
+  // Caught the "Generate resume" button visibility bug. Realistic for any
+  // user who joined before the resume-profile flow shipped.
+  const legacy = await prisma.user.upsert({
+    where: { email: "legacy@demo.com" },
+    update: {},
+    create: { email: "legacy@demo.com", name: "Ayesha Khan", emailVerified: new Date() },
+  });
+  await prisma.userSettings.upsert({
+    where: { userId: legacy.id },
+    update: {},
+    create: {
+      userId: legacy.id,
+      fullName: "Ayesha Khan",
+      applicationEmail: "legacy@demo.com",
+      keywords: ["JavaScript", "Frontend"],
+      preferredCategories: ["Frontend Development"],
+      preferredPlatforms: [],
+      isOnboarded: false, // never completed onboarding
+    },
+  });
+  await Promise.all(
+    ["FE-old", "Old-CV", "JS-2024", "React-2023"].map((name, i) =>
+      prisma.resume.upsert({
+        where: { id: `seed-legacy-${name}` },
+        update: {},
+        create: {
+          id: `seed-legacy-${name}`,
+          userId: legacy.id,
+          name,
+          fileName: `${name.toLowerCase()}.pdf`,
+          fileUrl: `https://example.com/seed/${name}.pdf`,
+          fileType: "application/pdf",
+          content: "JavaScript Frontend Developer with React experience...",
+          textQuality: "good",
+          detectedSkills: ["JavaScript", "React", "CSS"],
+          targetCategories: ["Frontend Development"],
+          isDefault: i === 0,
+        },
+      }),
+    ),
+  );
+
+  // ─── Scenario E — FRESH OAUTH: no UserSettings row at all ───
+  // Right after Google sign-in, before any onboarding step or API call.
+  // Tests code paths that do `settings.fullName` without null-check.
+  const fresh = await prisma.user.upsert({
+    where: { email: "fresh@demo.com" },
+    update: {},
+    create: { email: "fresh@demo.com", name: "Fresh User", emailVerified: new Date() },
+  });
+  // DELIBERATELY skip creating UserSettings, ResumeProfile, anything.
+
+  // ─── Scenario F — QUOTA-CAPPED: TokenUsage today > softCap ───
+  // Verifies the 429 UX honesty pattern and AiUsageWidget red state.
+  const capped = await prisma.user.upsert({
+    where: { email: "capped@demo.com" },
+    update: {},
+    create: { email: "capped@demo.com", name: "Cap Reached", emailVerified: new Date() },
+  });
+  await prisma.userSettings.upsert({
+    where: { userId: capped.id },
+    update: {},
+    create: {
+      userId: capped.id,
+      fullName: "Cap Reached",
+      applicationEmail: "capped@demo.com",
+      keywords: ["Python", "ML"],
+      preferredCategories: ["Data Science"],
+      preferredPlatforms: [],
+      isOnboarded: true,
+      resumeSkills: ["Python", "PyTorch", "scikit-learn"],
+      resumeHeadline: "ML Engineer",
+    },
+  });
+  await prisma.resumeSummary.upsert({
+    where: { id: "seed-capped-summary" },
+    update: {},
+    create: { id: "seed-capped-summary", userId: capped.id, label: "Default", content: "ML engineer.", isDefault: true },
+  });
+  // Insert TokenUsage row at 2.5M today (over 2M softCap when active=1)
+  const utcDay = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
+  await prisma.tokenUsage.upsert({
+    where: { userId_day_provider: { userId: capped.id, day: utcDay, provider: "groq" } },
+    update: { inputTokens: 1_800_000, outputTokens: 700_000, totalCalls: 50, rejectedCalls: 3 },
+    create: { userId: capped.id, day: utcDay, provider: "groq", inputTokens: 1_800_000, outputTokens: 700_000, totalCalls: 50, rejectedCalls: 3 },
+  });
+
+  // ─── Scenario G — SMTP-READY: full profile + Gmail SMTP + draft application ───
+  const smtpReady = await prisma.user.upsert({
+    where: { email: "smtp-ready@demo.com" },
+    update: {},
+    create: { email: "smtp-ready@demo.com", name: "Zara Iqbal", emailVerified: new Date() },
+  });
+  await prisma.userSettings.upsert({
+    where: { userId: smtpReady.id },
+    update: {},
+    create: {
+      userId: smtpReady.id,
+      fullName: "Zara Iqbal",
+      applicationEmail: "zara.iqbal@gmail.com",
+      keywords: ["TypeScript", "Next.js"],
+      preferredCategories: ["Full Stack Development"],
+      preferredPlatforms: [],
+      isOnboarded: true,
+      resumeSkills: ["TypeScript", "Next.js", "Prisma"],
+      resumeHeadline: "Full Stack Engineer",
+      emailProvider: "gmail",
+      smtpHost: "smtp.gmail.com",
+      smtpPort: 587,
+      smtpUser: "zara.iqbal@gmail.com",
+      smtpPass: "encrypted-placeholder-not-used",
+      applicationMode: "FULL_AUTO",
+    },
+  });
+  await prisma.resumeSummary.upsert({
+    where: { id: "seed-smtp-summary" },
+    update: {},
+    create: { id: "seed-smtp-summary", userId: smtpReady.id, label: "Default", content: "Full stack TS engineer.", isDefault: true },
+  });
+  await prisma.resume.upsert({
+    where: { id: "seed-smtp-main" },
+    update: {},
+    create: {
+      id: "seed-smtp-main", userId: smtpReady.id, name: "Zara-FS-2026",
+      fileName: "zara-fs.pdf", fileUrl: "https://example.com/seed/zara.pdf", fileType: "application/pdf",
+      content: "TypeScript Next.js Prisma Engineer...",
+      textQuality: "good", detectedSkills: ["TypeScript", "Next.js"], isDefault: true,
+    },
+  });
+  // Give smtp-ready a saved job with a draft application
+  const gj = await prisma.globalJob.findFirst({ where: { sourceId: "rmt-001", source: "seed" } });
+  if (gj) {
+    const userJob = await prisma.userJob.upsert({
+      where: { userId_globalJobId: { userId: smtpReady.id, globalJobId: gj.id } },
+      update: {},
+      create: {
+        userId: smtpReady.id, globalJobId: gj.id, stage: "SAVED",
+        matchScore: 78, matchReasons: ["TS overlap"],
+      },
+    });
+    await prisma.jobApplication.upsert({
+      where: { userJobId: userJob.id },
+      update: {},
+      create: {
+        userJobId: userJob.id,
+        userId: smtpReady.id,
+        resumeId: "seed-smtp-main",
+        subject: "Application for Senior Full Stack Engineer",
+        emailBody: "Hi team, I'm Zara — a full stack TS engineer. Saw your Senior FS role and wanted to apply. I've shipped Next.js + Prisma apps to production for 4 years.",
+        recipientEmail: "hiring@linearlite.example.com",
+        senderEmail: "zara.iqbal@gmail.com",
+        status: "DRAFT",
+      },
+    });
+  }
+
+  // Mint sessions
   const aliSession = await mintSession(ali.id);
   const newbieSession = await mintSession(newbie.id);
   const preparedSession = await mintSession(prepared.id);
+  const legacySession = await mintSession(legacy.id);
+  const freshSession = await mintSession(fresh.id);
+  const cappedSession = await mintSession(capped.id);
+  const smtpReadySession = await mintSession(smtpReady.id);
 
   console.log("\n=== Seed complete ===\n");
   console.log("Scenario A — power user with empty profile (the bug):");
-  console.log(`  email: ali@demo.com    sessionToken: ${aliSession}`);
+  console.log(`  email: ali@demo.com         sessionToken: ${aliSession}`);
   console.log("Scenario B — first-time user, no resumes:");
-  console.log(`  email: newbie@demo.com sessionToken: ${newbieSession}`);
+  console.log(`  email: newbie@demo.com      sessionToken: ${newbieSession}`);
   console.log("Scenario C — fully-prepared user:");
-  console.log(`  email: prepared@demo.com sessionToken: ${preparedSession}`);
+  console.log(`  email: prepared@demo.com    sessionToken: ${preparedSession}`);
+  console.log("Scenario D — legacy uploads only, NO structured profile:");
+  console.log(`  email: legacy@demo.com      sessionToken: ${legacySession}`);
+  console.log("Scenario E — fresh OAuth, NO UserSettings row at all:");
+  console.log(`  email: fresh@demo.com       sessionToken: ${freshSession}`);
+  console.log("Scenario F — quota-capped (TokenUsage > softCap today):");
+  console.log(`  email: capped@demo.com      sessionToken: ${cappedSession}`);
+  console.log("Scenario G — SMTP-ready (Gmail + draft application + AUTO mode):");
+  console.log(`  email: smtp-ready@demo.com  sessionToken: ${smtpReadySession}`);
   console.log("\nLog in by setting cookie 'next-auth.session-token' to the token above.\n");
 }
 

@@ -24,28 +24,45 @@ const STEPS = [
   { title: "You're Ready!", icon: Rocket, description: "Let's find your first matches" },
 ];
 
-export function OnboardingWizard() {
+/**
+ * Pre-fill values for users who have partial settings already (e.g. legacy
+ * users who skipped onboarding the first time, or users whose OAuth profile
+ * brought a name). The wizard hydrates state on mount from these.
+ */
+export interface OnboardingPrefill {
+  fullName?: string | null;
+  linkedinUrl?: string | null;
+  githubUrl?: string | null;
+  city?: string | null;
+  country?: string | null;
+  experienceLevel?: string | null;
+  keywords?: string[];
+  categories?: string[];
+  workTypes?: string[];
+}
+
+export function OnboardingWizard({ prefill }: { prefill?: OnboardingPrefill } = {}) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [matching, setMatching] = useState(false);
   const [matchResult, setMatchResult] = useState<{ totalScanned: number; matched: number } | null>(null);
 
-  // Step 0: About You
-  const [fullName, setFullName] = useState("");
-  const [linkedinUrl, setLinkedinUrl] = useState("");
-  const [githubUrl, setGithubUrl] = useState("");
+  // Step 0: About You — hydrate from existing settings if user has them
+  const [fullName, setFullName] = useState(prefill?.fullName ?? "");
+  const [linkedinUrl, setLinkedinUrl] = useState(prefill?.linkedinUrl ?? "");
+  const [githubUrl, setGithubUrl] = useState(prefill?.githubUrl ?? "");
 
   // Step 1: What You Want
-  const [keywords, setKeywords] = useState<string[]>([]);
+  const [keywords, setKeywords] = useState<string[]>(prefill?.keywords ?? []);
   const [keywordInput, setKeywordInput] = useState("");
-  const [city, setCity] = useState("");
-  const [country, setCountry] = useState("");
-  const [experienceLevel, setExperienceLevel] = useState("");
-  const [workTypes, setWorkTypes] = useState<string[]>([]);
+  const [city, setCity] = useState(prefill?.city ?? "");
+  const [country, setCountry] = useState(prefill?.country ?? "");
+  const [experienceLevel, setExperienceLevel] = useState(prefill?.experienceLevel ?? "");
+  const [workTypes, setWorkTypes] = useState<string[]>(prefill?.workTypes ?? []);
 
   // Step 2: Categories
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>(prefill?.categories ?? []);
 
   // Step 3: Resume
   const [uploading, setUploading] = useState(false);
