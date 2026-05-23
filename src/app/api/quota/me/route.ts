@@ -82,5 +82,10 @@ export async function GET() {
       1000,
   );
 
-  return NextResponse.json({ breakdown, nextResetSeconds });
+  // Widget polls this every 60s. Cache for 15s on the user's browser to
+  // collapse focus/blur-driven re-renders and back-nav refetches.
+  return NextResponse.json(
+    { breakdown, nextResetSeconds },
+    { headers: { "Cache-Control": "private, max-age=15" } },
+  );
 }

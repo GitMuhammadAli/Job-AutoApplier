@@ -301,6 +301,11 @@ function NavLink({
   return (
     <Link
       href={item.href}
+      // Eagerly fetch the RSC payload of each sidebar route on render.
+      // Default Next behavior prefetches on hover; this makes the next nav
+      // feel instant even before the user hovers because the payload is
+      // already in the Router Cache.
+      prefetch={true}
       onClick={onNavigate}
       className={cn(
         "group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200",

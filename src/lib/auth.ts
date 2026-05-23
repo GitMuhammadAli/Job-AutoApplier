@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
@@ -71,14 +72,21 @@ export class UnauthenticatedError extends Error {
   }
 }
 
+// React's `cache()` dedupes the result within a single server request.
+// Without this, every server action that calls getAuthUserId triggers a
+// fresh DB hit on the Session table. A typical dashboard nav makes 4-6
+// of these — collapsing them to 1 saves multiple Postgres round-trips
+// per page render.
+const cachedSession = cache(async () => getServerSession(authOptions));
+
 export async function getAuthUserId(): Promise<string> {
-  const session = await getServerSession(authOptions);
+  const session = await cachedSession();
   if (!session?.user?.id) throw new UnauthenticatedError();
   return session.user.id;
 }
 
 export async function getAuthSession() {
-  return getServerSession(authOptions);
+  return cachedSession();
 }
 
 /**
@@ -88,7 +96,7 @@ export async function getAuthSession() {
 export async function requireAuthUserId(): Promise<
   { userId: string; response?: never } | { userId?: never; response: Response }
 > {
-  const session = await getServerSession(authOptions);
+  const session = await cachedSession();
   if (!session?.user?.id) {
     return { response: NextResponse.json({ error: "Not authenticated" }, { status: 401 }) };
   }

@@ -4,7 +4,10 @@ import { ResumesPageShell } from "@/components/resumes/ResumesPageShell";
 import { ResumesSkeleton } from "@/components/shared/Skeletons";
 import { getResumesWithStats } from "@/app/actions/resume";
 
-export const dynamic = "force-dynamic";
+// Default dynamic-via-cookies is enough — `force-dynamic` was opting out of
+// the Router Cache (client-side RSC cache) and forcing a fresh server render
+// on every tab switch. Removing it lets Next reuse the cached RSC payload
+// for ~30 seconds, making back-nav near-instant.
 
 export default function ResumesPage() {
   return (

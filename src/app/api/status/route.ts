@@ -50,10 +50,16 @@ export async function GET() {
       }),
     ]);
 
-    await prisma.userSettings.update({
-      where: { userId },
-      data: { lastVisitedAt: new Date() },
-    });
+    // Only refresh lastVisitedAt if it's been >5 min since last refresh.
+    // Without this, every 30s SWR poll wrote to UserSettings, invalidating
+    // the row cache and forcing extra round-trips.
+    const lastVisitedAt = settings?.lastVisitedAt;
+    if (!lastVisitedAt || Date.now() - lastVisitedAt.getTime() > 5 * 60 * 1000) {
+      await prisma.userSettings.update({
+        where: { userId },
+        data: { lastVisitedAt: new Date() },
+      });
+    }
 
     const lastScrapeAt = lastScrape?.createdAt ?? null;
     let nextScrapeIn = 30;
