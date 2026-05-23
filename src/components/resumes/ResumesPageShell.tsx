@@ -53,13 +53,26 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
             </TabsTrigger>
           </TabsList>
 
-          {hasProfile && (
+          {hasProfile ? (
             <Button
               onClick={() => setGenerateOpen(true)}
               className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
             >
               <Sparkles size={16} />
               Generate resume
+            </Button>
+          ) : (
+            // Users with only legacy PDF uploads (no structured profile yet) need
+            // to set one up before generating. Don't hide the entry point — link
+            // them straight to the setup flow so they can discover the feature.
+            <Button
+              asChild
+              className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
+            >
+              <Link href="/resumes/setup">
+                <Sparkles size={16} />
+                Generate resume
+              </Link>
             </Button>
           )}
         </div>
