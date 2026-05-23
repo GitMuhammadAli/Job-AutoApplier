@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash, X, FloppyDisk, ArrowLeft, Star } from "@phosphor-icons/react";
+import { Plus, Trash2, X, Save, ArrowLeft, Star, Sparkles, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,7 +82,7 @@ export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = fal
           disabled={saving}
           className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
         >
-          <FloppyDisk size={14} />
+          <Save size={14} />
           {saving ? "Saving…" : "Save profile"}
         </Button>
       </div>
@@ -222,7 +222,7 @@ export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = fal
                 className="text-zinc-400 hover:text-red-500 transition-colors"
                 aria-label={`Remove ${s}`}
               >
-                <X size={12} weight="bold" />
+                <X size={12} />
               </button>
             </span>
           ))}
@@ -242,6 +242,7 @@ export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = fal
             <ExperienceRow
               key={e.id ?? idx}
               exp={e}
+              userSkills={profile.skills}
               onChange={(updated) => {
                 const next = [...profile.experiences];
                 next[idx] = updated;
@@ -283,6 +284,7 @@ export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = fal
             <ProjectRow
               key={p.id ?? idx}
               project={p}
+              userSkills={profile.skills}
               onChange={(updated) => {
                 const next = [...profile.projects];
                 next[idx] = updated;
@@ -417,11 +419,11 @@ function SummaryRow({
           onClick={onSetDefault}
           className={`gap-1 ${summary.isDefault ? "bg-emerald-600 hover:bg-emerald-500 text-white" : ""}`}
         >
-          <Star size={12} weight={summary.isDefault ? "fill" : "regular"} />
+          <Star size={12} fill={summary.isDefault ? "currentColor" : "none"} />
           {summary.isDefault ? "Default" : "Set default"}
         </Button>
         <Button variant="ghost" size="icon" onClick={onRemove} className="ml-auto text-red-500 hover:text-red-600">
-          <Trash size={14} />
+          <Trash2 size={14} />
         </Button>
       </div>
       <Textarea
@@ -438,14 +440,118 @@ function SummaryRow({
   );
 }
 
+/**
+ * BulletCoachButton — inline AI rewriter for a single bullet.
+ * Shows the suggestion in a small inline diff with Accept / Edit / Dismiss.
+ * Quietly silent on quota 429 (toast already covers it).
+ */
+function BulletCoachButton({
+  bullet,
+  role,
+  userSkills,
+  onAccept,
+}: {
+  bullet: string;
+  role: { title: string; company: string };
+  userSkills: string[];
+  onAccept: (improved: string) => void;
+}) {
+  const [state, setState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "ready"; improved: string; rationale: string }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
+
+  async function run() {
+    if (bullet.trim().length < 3) {
+      toast.error("Write a draft bullet first, then coach it.");
+      return;
+    }
+    setState({ kind: "loading" });
+    try {
+      const r = await fetch("/api/resumes/coach-bullet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bullet, role, userSkills, mode: "tighten" }),
+      });
+      const body = await r.json();
+      if (r.status === 429) {
+        toast.warning(body.message ?? "AI quota hit. Try again later.");
+        setState({ kind: "idle" });
+        return;
+      }
+      if (!r.ok) {
+        setState({ kind: "error", message: body.error ?? `HTTP ${r.status}` });
+        return;
+      }
+      setState({ kind: "ready", improved: body.improved, rationale: body.rationale });
+    } catch (e) {
+      setState({ kind: "error", message: e instanceof Error ? e.message : "Network error" });
+    }
+  }
+
+  if (state.kind === "loading") {
+    return (
+      <Button variant="ghost" size="icon" disabled className="text-emerald-600">
+        <Loader2 size={14} className="animate-spin" />
+      </Button>
+    );
+  }
+
+  if (state.kind === "ready") {
+    return (
+      <div className="mt-1 rounded-md border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/60 dark:bg-emerald-950/30 p-2 text-xs space-y-1.5">
+        <p className="text-emerald-900 dark:text-emerald-200 leading-snug">{state.improved}</p>
+        <p className="text-[10px] text-emerald-700 dark:text-emerald-400/80 italic">{state.rationale}</p>
+        <div className="flex gap-1.5">
+          <Button
+            size="sm"
+            onClick={() => {
+              onAccept(state.improved);
+              setState({ kind: "idle" });
+              toast.success("Bullet updated.");
+            }}
+            className="h-6 px-2 text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white gap-1"
+          >
+            <Check size={11} /> Accept
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setState({ kind: "idle" })}
+            className="h-6 px-2 text-[10px]"
+          >
+            Dismiss
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={run}
+      title="AI coach — improve this bullet without inventing facts"
+      className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+    >
+      <Sparkles size={14} />
+    </Button>
+  );
+}
+
 function ExperienceRow({
   exp,
   onChange,
   onRemove,
+  userSkills,
 }: {
   exp: ResumeExperience;
   onChange: (e: ResumeExperience) => void;
   onRemove: () => void;
+  userSkills: string[];
 }) {
   return (
     <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50/40 dark:bg-zinc-800/40 space-y-2">
@@ -460,28 +566,42 @@ function ExperienceRow({
       </div>
       <div className="space-y-1.5">
         {exp.bullets.map((b, i) => (
-          <div key={i} className="flex gap-2">
-            <Textarea
-              value={b}
-              onChange={(e) => {
-                const next = [...exp.bullets];
-                next[i] = e.target.value;
-                onChange({ ...exp, bullets: next });
-              }}
-              placeholder="Bullet point — verbatim in PDF"
-              rows={2}
-              maxLength={RESUME_LIMITS.BULLET_MAX}
-              className="flex-1 text-sm"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onChange({ ...exp, bullets: exp.bullets.filter((_, idx) => idx !== i) })}
-              disabled={exp.bullets.length <= 1}
-              className="text-red-500 hover:text-red-600"
-            >
-              <Trash size={14} />
-            </Button>
+          <div key={i} className="space-y-1">
+            <div className="flex gap-2">
+              <Textarea
+                value={b}
+                onChange={(e) => {
+                  const next = [...exp.bullets];
+                  next[i] = e.target.value;
+                  onChange({ ...exp, bullets: next });
+                }}
+                placeholder="Bullet point — verbatim in PDF"
+                rows={2}
+                maxLength={RESUME_LIMITS.BULLET_MAX}
+                className="flex-1 text-sm"
+              />
+              <div className="flex flex-col gap-1">
+                <BulletCoachButton
+                  bullet={b}
+                  role={{ title: exp.title, company: exp.company }}
+                  userSkills={userSkills}
+                  onAccept={(improved) => {
+                    const next = [...exp.bullets];
+                    next[i] = improved;
+                    onChange({ ...exp, bullets: next });
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onChange({ ...exp, bullets: exp.bullets.filter((_, idx) => idx !== i) })}
+                  disabled={exp.bullets.length <= 1}
+                  className="text-red-500 hover:text-red-600"
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            </div>
           </div>
         ))}
         {exp.bullets.length < RESUME_LIMITS.MAX_BULLETS_PER_EXP && (
@@ -497,7 +617,7 @@ function ExperienceRow({
       </div>
       <div className="flex justify-end">
         <Button variant="ghost" size="sm" onClick={onRemove} className="text-red-500 hover:text-red-600 gap-1.5">
-          <Trash size={12} /> Remove experience
+          <Trash2 size={12} /> Remove experience
         </Button>
       </div>
     </div>
@@ -508,10 +628,12 @@ function ProjectRow({
   project,
   onChange,
   onRemove,
+  userSkills,
 }: {
   project: ResumeProject;
   onChange: (p: ResumeProject) => void;
   onRemove: () => void;
+  userSkills: string[];
 }) {
   const [stackInput, setStackInput] = useState("");
 
@@ -565,7 +687,7 @@ function ProjectRow({
             <span key={s} className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
               {s}
               <button onClick={() => onChange({ ...project, stack: project.stack.filter((x) => x !== s) })} className="text-zinc-400 hover:text-red-500">
-                <X size={10} weight="bold" />
+                <X size={10} />
               </button>
             </span>
           ))}
@@ -575,28 +697,42 @@ function ProjectRow({
       {/* Bullets */}
       <div className="space-y-1.5">
         {project.bullets.map((b, i) => (
-          <div key={i} className="flex gap-2">
-            <Textarea
-              value={b}
-              onChange={(e) => {
-                const next = [...project.bullets];
-                next[i] = e.target.value;
-                onChange({ ...project, bullets: next });
-              }}
-              placeholder="Bullet point"
-              rows={2}
-              maxLength={RESUME_LIMITS.BULLET_MAX}
-              className="flex-1 text-sm"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onChange({ ...project, bullets: project.bullets.filter((_, idx) => idx !== i) })}
-              disabled={project.bullets.length <= 1}
-              className="text-red-500 hover:text-red-600"
-            >
-              <Trash size={14} />
-            </Button>
+          <div key={i} className="space-y-1">
+            <div className="flex gap-2">
+              <Textarea
+                value={b}
+                onChange={(e) => {
+                  const next = [...project.bullets];
+                  next[i] = e.target.value;
+                  onChange({ ...project, bullets: next });
+                }}
+                placeholder="Bullet point"
+                rows={2}
+                maxLength={RESUME_LIMITS.BULLET_MAX}
+                className="flex-1 text-sm"
+              />
+              <div className="flex flex-col gap-1">
+                <BulletCoachButton
+                  bullet={b}
+                  role={{ title: project.role ?? "Project", company: project.title }}
+                  userSkills={Array.from(new Set([...project.stack, ...userSkills]))}
+                  onAccept={(improved) => {
+                    const next = [...project.bullets];
+                    next[i] = improved;
+                    onChange({ ...project, bullets: next });
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onChange({ ...project, bullets: project.bullets.filter((_, idx) => idx !== i) })}
+                  disabled={project.bullets.length <= 1}
+                  className="text-red-500 hover:text-red-600"
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            </div>
           </div>
         ))}
         {project.bullets.length < RESUME_LIMITS.MAX_BULLETS_PER_PROJECT && (
@@ -618,11 +754,11 @@ function ProjectRow({
           onClick={() => onChange({ ...project, isFeatured: !project.isFeatured })}
           className={`gap-1.5 ${project.isFeatured ? "bg-amber-500 hover:bg-amber-400 text-white" : ""}`}
         >
-          <Star size={12} weight={project.isFeatured ? "fill" : "regular"} />
+          <Star size={12} fill={project.isFeatured ? "currentColor" : "none"} />
           {project.isFeatured ? "Featured" : "Mark featured"}
         </Button>
         <Button variant="ghost" size="sm" onClick={onRemove} className="text-red-500 hover:text-red-600 gap-1.5">
-          <Trash size={12} /> Remove
+          <Trash2 size={12} /> Remove
         </Button>
       </div>
     </div>
@@ -648,7 +784,7 @@ function EducationRow({
       </div>
       <div className="flex justify-end">
         <Button variant="ghost" size="sm" onClick={onRemove} className="text-red-500 hover:text-red-600 gap-1.5">
-          <Trash size={12} /> Remove
+          <Trash2 size={12} /> Remove
         </Button>
       </div>
     </div>

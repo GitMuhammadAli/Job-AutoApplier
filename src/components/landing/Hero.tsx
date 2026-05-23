@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowDown, Check } from "@phosphor-icons/react";
+import { ArrowRight, ArrowDown, Check } from "lucide-react";
 import { AnimateOnScroll } from "./AnimateOnScroll";
 import { PipelineDemo } from "./PipelineDemo";
 import { fonts } from "@/styles/tokens";
@@ -110,14 +110,14 @@ export function Hero() {
                   className="group inline-flex items-center gap-2 rounded-full bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-100 px-6 sm:px-7 py-3.5 text-sm font-semibold text-white dark:text-zinc-900 transition-colors"
                 >
                   <span>Get started free</span>
-                  <ArrowRight size={16} weight="regular" className="group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
                 </Link>
                 <a
                   href="#modules"
                   className="inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white ring-1 ring-zinc-200 dark:ring-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
                 >
                   See how it works
-                  <ArrowDown size={16} weight="regular" />
+                  <ArrowDown size={16} />
                 </a>
               </div>
             </AnimateOnScroll>
@@ -126,7 +126,7 @@ export function Hero() {
               <div className="mt-8 sm:mt-9 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-5 text-[13px] text-zinc-500 dark:text-zinc-500">
                 {["Free forever", "No credit card", "Sends from your Gmail"].map((t) => (
                   <span key={t} className="flex items-center gap-1.5">
-                    <Check size={14} weight="bold" className="text-emerald-500 flex-shrink-0" />
+                    <Check size={14} className="text-emerald-500 flex-shrink-0" />
                     {t}
                   </span>
                 ))}
@@ -144,7 +144,7 @@ export function Hero() {
       {/* Scroll cue — bottom-left, asymmetric */}
       <div className="absolute bottom-8 left-6 md:left-10 hidden md:flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-zinc-400 dark:text-zinc-600">
         <span>Scroll to see each module</span>
-        <ArrowDown size={12} weight="regular" className="animate-bounce" />
+        <ArrowDown size={12} className="animate-bounce" />
       </div>
     </section>
   );

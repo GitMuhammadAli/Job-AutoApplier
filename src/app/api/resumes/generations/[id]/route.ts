@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const userId = await getAuthUserId();
+  const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
   let body: unknown;
   try {
     body = await req.json();
@@ -53,7 +53,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const userId = await getAuthUserId();
+  const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
   const gen = await prisma.resumeGeneration.findUnique({
     where: { id: params.id },
     select: { userId: true },

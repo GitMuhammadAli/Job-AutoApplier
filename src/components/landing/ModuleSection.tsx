@@ -1,7 +1,7 @@
 "use client";
 
 import { cloneElement, isValidElement, ReactElement, ReactNode, useEffect, useRef, useState } from "react";
-import { ArrowRight, Check } from "@phosphor-icons/react";
+import { ArrowRight, Check } from "lucide-react";
 import { fonts } from "@/styles/tokens";
 
 interface ModuleSectionProps {
@@ -116,7 +116,7 @@ export function ModuleSection({
               <ul className="mt-6 space-y-2.5">
                 {bullets.map((b) => (
                   <li key={b} className="flex items-start gap-2.5 text-sm text-zinc-700 dark:text-zinc-300">
-                    <Check size={16} weight="bold" className="mt-0.5 text-emerald-500 flex-shrink-0" />
+                    <Check size={16} className="mt-0.5 text-emerald-500 flex-shrink-0" />
                     <span>{b}</span>
                   </li>
                 ))}
@@ -130,7 +130,7 @@ export function ModuleSection({
                   className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors group"
                 >
                   {ctaLabel}
-                  <ArrowRight size={16} weight="regular" className="group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
                 </a>
               </div>
             )}

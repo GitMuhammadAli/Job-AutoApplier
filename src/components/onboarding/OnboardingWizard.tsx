@@ -330,7 +330,7 @@ export function OnboardingWizard() {
                       type="button"
                       onClick={() => toggleArr(categories, cat, setCategories)}
                       className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation ${
-                        categories.includes(cat) ? "bg-violet-600 text-white shadow-sm" : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700"
+                        categories.includes(cat) ? "bg-emerald-600 text-white shadow-sm" : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700"
                       }`}
                     >
                       {cat}
@@ -452,7 +452,7 @@ export function OnboardingWizard() {
                 </div>
               ) : (
                 <>
-                  <div className="rounded-2xl bg-gradient-to-br from-blue-50 dark:from-blue-950/40 to-violet-50 dark:to-violet-950/40 p-5 mb-4 inline-block ring-1 ring-blue-100/50">
+                  <div className="rounded-2xl bg-gradient-to-br from-blue-50 dark:from-blue-950/40 to-emerald-50 dark:to-emerald-950/40 p-5 mb-4 inline-block ring-1 ring-blue-100/50">
                     <Sparkles className="h-10 w-10 text-blue-500" />
                   </div>
                   <h3 className="text-base font-bold text-slate-800 dark:text-zinc-100">You&apos;re all set!</h3>

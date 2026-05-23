@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getSettings } from "@/app/actions/settings";
 import { getResumeCount, getResumeSkills } from "@/app/actions/resume";
 import { SettingsSkeleton } from "@/components/shared/Skeletons";
+import { AiUsageWidget } from "@/components/settings/AiUsageWidget";
 import nextDynamic from "next/dynamic";
 import { Cog, Loader2, Activity, ChevronRight } from "lucide-react";
 
@@ -33,6 +34,10 @@ export default function SettingsPage() {
           Configure your profile, job preferences, automation behavior, and AI customization.
         </p>
       </div>
+
+      {/* AI usage — daily token budget, honest "share remaining" messaging
+          so a quota-limited user knows the app isn't broken. */}
+      <AiUsageWidget />
 
       {/* Diagnostics shortcut — surfaces silent scraper failures + API key
           gaps with one-click "How to fix" guides. Anyone seeing fewer jobs

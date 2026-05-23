@@ -73,7 +73,10 @@ async function fetchPageContent(url: string): Promise<string> {
   }
 }
 
-export async function researchCompany(companyName: string): Promise<CompanyResearch> {
+export async function researchCompany(
+  companyName: string,
+  opts: { quota?: { userId: string; route: string } } = {},
+): Promise<CompanyResearch> {
   const query = `${companyName} about careers tech stack company culture`;
   const results = await searchGoogle(query);
 
@@ -116,6 +119,7 @@ Extract company research. Return ONLY JSON.`;
     temperature: 0.3,
     max_tokens: 600,
     model: "llama-3.1-8b-instant",
+    quota: opts.quota,
   });
 
   try {

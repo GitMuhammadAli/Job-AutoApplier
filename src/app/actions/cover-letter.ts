@@ -84,6 +84,7 @@ Applicant name: ${name}`;
     const coverLetter = await generateWithGroq(systemPrompt, userPrompt, {
       temperature: 0.7,
       max_tokens: 800,
+      quota: { userId, route: "/actions/cover-letter" },
     });
 
     if (!coverLetter?.trim()) throw new Error("Empty response from AI");

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Sparkle, FileText, Upload, Clock, User } from "@phosphor-icons/react";
+import { Sparkles, FileText, Upload, Clock, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ResumeList } from "@/components/resumes/ResumeList";
@@ -33,22 +33,22 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <TabsList>
             <TabsTrigger value="profile" className="gap-1.5">
-              <User size={14} weight="regular" />
+              <User size={14} />
               My Profile
             </TabsTrigger>
             <TabsTrigger value="variants" className="gap-1.5">
-              <Sparkle size={14} weight="regular" />
+              <Sparkles size={14} />
               Variants
             </TabsTrigger>
             <TabsTrigger value="uploads" className="gap-1.5">
-              <Upload size={14} weight="regular" />
+              <Upload size={14} />
               Uploads
               <span className="ml-1 rounded-full bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0 text-[10px] font-semibold tabular-nums text-zinc-600 dark:text-zinc-400">
                 {uploadedResumes.length}
               </span>
             </TabsTrigger>
             <TabsTrigger value="history" className="gap-1.5">
-              <Clock size={14} weight="regular" />
+              <Clock size={14} />
               History
             </TabsTrigger>
           </TabsList>
@@ -58,7 +58,7 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
               onClick={() => setGenerateOpen(true)}
               className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
             >
-              <Sparkle size={16} weight="fill" />
+              <Sparkles size={16} />
               Generate resume
             </Button>
           )}

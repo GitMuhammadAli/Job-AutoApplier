@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUserId } from "@/lib/auth";
+import { getAuthUserId, requireAuthUserId } from "@/lib/auth";
 import { GENERIC, JOBS, VALIDATION } from "@/lib/messages";
 
 export const maxDuration = 10;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, Download, Sparkle, X, FileText, FloppyDisk, Warning, MagnifyingGlass } from "@phosphor-icons/react";
+import { ArrowLeft, Download, Sparkles, X, FileText, Save, AlertTriangle, Search, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -136,7 +136,7 @@ export function GenerateModal({ open, onClose, initialJd }: GenerateModalProps) 
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-zinc-200 dark:border-zinc-800">
           <DialogTitle className="flex items-center gap-2">
-            <Sparkle size={18} weight="fill" className="text-emerald-600" />
+            <Sparkles size={18} className="text-emerald-600" />
             {step === "configure" ? "Generate resume" : "Preview & download"}
           </DialogTitle>
           <DialogDescription className="text-xs text-zinc-500">
@@ -175,7 +175,7 @@ export function GenerateModal({ open, onClose, initialJd }: GenerateModalProps) 
                 disabled={generating}
                 className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
               >
-                <Sparkle size={14} weight="fill" />
+                <Sparkles size={14} />
                 {generating ? "Generating…" : "Generate preview"}
               </Button>
             </>
@@ -189,7 +189,7 @@ export function GenerateModal({ open, onClose, initialJd }: GenerateModalProps) 
                 disabled={downloading || !result}
                 className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
               >
-                <Download size={14} weight="bold" />
+                <Download size={14} />
                 {downloading ? "Rendering PDF…" : "Download PDF"}
               </Button>
             </>
@@ -235,49 +235,60 @@ function ConfigureStep({
         <RecommendExisting jdText={jdText} />
       </section>
 
-      {/* Template picker */}
+      {/* Template picker — visual gallery with full-size preview lightbox per template. */}
       <section>
         <Label title="Template" hint={`${templates.filter((t) => t.available).length} available · ${templates.filter((t) => !t.available).length} coming soon`} />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[28rem] overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[28rem] overflow-y-auto pr-1">
           {templates.map((t) => {
             const selected = templateId === t.id;
             return (
-              <button
+              <div
                 key={t.id}
-                onClick={() => t.available && setTemplateId(t.id)}
-                disabled={!t.available}
-                className={`text-left rounded-lg border p-3 transition-all ${
+                className={`group rounded-xl border p-3 transition-all ${
                   !t.available
-                    ? "opacity-50 cursor-not-allowed border-zinc-200 dark:border-zinc-800"
+                    ? "opacity-50 border-zinc-200 dark:border-zinc-800"
                     : selected
-                      ? "border-emerald-500 ring-1 ring-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20"
-                      : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
+                      ? "border-emerald-500 ring-2 ring-emerald-500/40 bg-emerald-50/40 dark:bg-emerald-950/20"
+                      : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-sm"
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
+                <button
+                  onClick={() => t.available && setTemplateId(t.id)}
+                  disabled={!t.available}
+                  className="w-full flex gap-3 text-left disabled:cursor-not-allowed"
+                >
+                  <TemplateThumbnail templateId={t.id} layout={t.layout} available={t.available} />
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold tabular-nums text-zinc-500">{t.id}</span>
+                      <span className="text-[10px] font-bold tabular-nums text-zinc-400 dark:text-zinc-500">{t.id}</span>
                       <span className="text-sm font-semibold text-zinc-900 dark:text-white truncate">{t.name}</span>
                     </div>
                     <p className="mt-0.5 text-[11px] text-zinc-600 dark:text-zinc-400 line-clamp-2">{t.description}</p>
-                    <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-500">{t.audience}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span
-                      className="text-[10px] font-bold text-amber-600 dark:text-amber-400"
-                      title={`ATS rank ${t.atsRank}/5`}
-                    >
-                      {"★".repeat(t.atsRank)}
-                    </span>
+                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-500 truncate">{t.audience}</p>
+                      <span
+                        className="text-[10px] font-bold text-amber-600 dark:text-amber-400 shrink-0"
+                        title={`ATS rank ${t.atsRank}/5`}
+                      >
+                        {"★".repeat(t.atsRank)}
+                      </span>
+                    </div>
                     {!t.available && (
-                      <span className="text-[9px] uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                      <span className="mt-1 inline-block text-[9px] uppercase tracking-wider text-amber-600 dark:text-amber-400">
                         Soon
                       </span>
                     )}
+                    {selected && t.available && (
+                      <span className="mt-1 inline-block text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                        ✓ Selected
+                      </span>
+                    )}
                   </div>
-                </div>
-              </button>
+                </button>
+                {t.available && (
+                  <TemplatePreviewLightbox templateId={t.id} templateName={t.name} />
+                )}
+              </div>
             );
           })}
         </div>
@@ -342,7 +353,7 @@ function PreviewStep({
         <div>
           <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Template</p>
           <p className="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-1.5">
-            <FileText size={14} weight="fill" className="text-emerald-600" />
+            <FileText size={14} className="text-emerald-600" />
             {result.template}
           </p>
         </div>
@@ -383,7 +394,7 @@ function PreviewStep({
               size="sm"
               className="gap-1 bg-emerald-600 hover:bg-emerald-500 text-white shrink-0"
             >
-              <FloppyDisk size={12} weight="bold" />
+              <Save size={12} />
               Save
             </Button>
           </div>
@@ -456,7 +467,7 @@ function DiffPanel({ diff, aiProvider }: { diff: GenerateDiff; aiProvider: strin
       {diff.missingHardSkills.length > 0 && (
         <div className="rounded-lg border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/40 dark:bg-amber-950/20 p-2.5">
           <p className="text-[10px] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-bold mb-1 flex items-center gap-1">
-            <Warning size={12} weight="fill" />
+            <AlertTriangle size={12} />
             Missing in your profile
           </p>
           <ul className="text-[11px] text-amber-800/80 dark:text-amber-200/70 space-y-0.5">
@@ -540,7 +551,7 @@ function RecommendExisting({ jdText }: { jdText: string }) {
   return (
     <div className="mt-3 rounded-lg border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/50 dark:bg-amber-950/20 p-3">
       <div className="flex items-start gap-2.5">
-        <MagnifyingGlass size={14} weight="fill" className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+        <Search size={14} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-200">
             Or use an existing upload
@@ -576,6 +587,106 @@ function Label({ title, hint }: { title: string; hint?: string }) {
     <div className="mb-2">
       <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{title}</p>
       {hint && <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mt-0.5">{hint}</p>}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// TemplateThumbnail — renders the baked PNG for `available: true` templates
+// (built via `scripts/build-template-thumbnails.ts` → public/templates/thumbnails/).
+// Falls back to an abstract CSS wireframe for "coming soon" templates that
+// don't have a baked thumbnail yet. The Set used to be hardcoded — now we
+// gate on the `available` flag passed in from the registry so flipping one
+// template auto-promotes it to a real PNG.
+// ─────────────────────────────────────────────────────────────────────
+
+// "Preview at full size" lightbox — shows the static John-Doe-rendered template
+// PNG at large size so users can read the template character before generating
+// their own resume. Theme: emerald (matches project, not purple).
+function TemplatePreviewLightbox({ templateId, templateName }: { templateId: string; templateName: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 hover:underline"
+      >
+        <Eye size={11} />
+        Preview full size
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden">
+          <DialogHeader className="px-5 py-3 border-b border-zinc-200 dark:border-zinc-800">
+            <DialogTitle className="text-sm">{templateId} · {templateName} — sample preview</DialogTitle>
+            <DialogDescription className="text-[11px]">
+              Rendered with a fixture profile. Your own data will replace it when you generate.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-zinc-50 dark:bg-zinc-950 p-4 max-h-[75vh] overflow-y-auto">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/templates/thumbnails/${templateId}.png`}
+              alt={`${templateName} sample`}
+              className="w-full h-auto rounded-md shadow-md border border-zinc-200 dark:border-zinc-700 bg-white"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function TemplateThumbnail({ templateId, layout, available }: { templateId: string; layout: string; available: boolean }) {
+  if (available) {
+    return (
+      <div className="shrink-0 w-[110px] aspect-[3/4] rounded-md bg-white shadow-sm border border-zinc-200 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/templates/thumbnails/${templateId}.png`}
+          alt=""
+          className="w-full h-full object-cover object-top"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  // Fallback wireframe for "coming soon" templates
+  const isTwoCol = layout === "two-column";
+  return (
+    <div className="shrink-0 w-[68px] aspect-[3/4] rounded-md bg-white dark:bg-zinc-100 shadow-sm border border-zinc-200 dark:border-zinc-300 p-1.5 overflow-hidden">
+      {isTwoCol ? (
+        <div className="flex gap-1 h-full">
+          <div className="w-1/3 bg-zinc-100 rounded-sm p-1 space-y-1">
+            <div className="h-1 bg-zinc-400 rounded-full" />
+            <div className="h-px bg-zinc-300 rounded-full" />
+            <div className="h-px bg-zinc-300 rounded-full w-3/4" />
+          </div>
+          <div className="flex-1 space-y-[2px]">
+            <div className="h-2 bg-zinc-800 rounded-sm w-3/4" />
+            <div className="h-px bg-zinc-300 w-full" />
+            <div className="h-px bg-zinc-300 w-5/6" />
+          </div>
+        </div>
+      ) : (
+        <div className="h-full flex flex-col">
+          <div className="h-2 bg-zinc-800 rounded-sm w-2/3 mb-[2px]" />
+          <div className="h-px bg-zinc-300 rounded-full w-full mb-1.5" />
+          <div className="h-1 bg-zinc-600 rounded-sm w-1/3 mb-[1px]" />
+          <div className="space-y-[3px] mb-1.5">
+            <div className="h-px bg-zinc-300 rounded-full w-full" />
+            <div className="h-px bg-zinc-300 rounded-full w-5/6" />
+            <div className="h-px bg-zinc-300 rounded-full w-11/12" />
+          </div>
+          <div className="h-1 bg-zinc-600 rounded-sm w-2/5 mb-[1px]" />
+          <div className="space-y-[3px]">
+            <div className="h-px bg-zinc-300 rounded-full w-full" />
+            <div className="h-px bg-zinc-300 rounded-full w-4/5" />
+            <div className="h-px bg-zinc-300 rounded-full w-11/12" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

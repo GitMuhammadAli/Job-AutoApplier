@@ -1444,13 +1444,13 @@ export function SettingsForm({
                 onClick={() => setApplicationMode(mode.value)}
                 className={`rounded-xl border-2 p-4 text-left transition-all touch-manipulation ${
                   isActive
-                    ? "border-violet-500 bg-violet-50/50 dark:bg-violet-950/30 ring-1 ring-violet-500/20"
+                    ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 ring-1 ring-emerald-500/20"
                     : "border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600 bg-white dark:bg-zinc-800/50"
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
                   <div
-                    className={`rounded-lg p-1.5 ${isActive ? "bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400" : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400"}`}
+                    className={`rounded-lg p-1.5 ${isActive ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400"}`}
                   >
                     {MODE_ICONS[mode.icon]}
                   </div>
@@ -1493,7 +1493,7 @@ export function SettingsForm({
                   key={i}
                   className="flex items-start gap-2 text-[11px] text-slate-600 dark:text-zinc-400"
                 >
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40 text-[9px] font-bold text-violet-600 dark:text-violet-400 flex-shrink-0 mt-0.5">
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5">
                     {i + 1}
                   </span>
                   {step}
@@ -1551,7 +1551,7 @@ export function SettingsForm({
 
         {/* Full-Auto sub-settings */}
         {(applicationMode === "full_auto" || applicationMode === "instant") && (
-          <div className="mt-4 space-y-4 rounded-xl border border-violet-200 dark:border-violet-800/40 bg-violet-50/30 dark:bg-violet-950/20 p-4">
+          <div className="mt-4 space-y-4 rounded-xl border border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/30 dark:bg-emerald-950/20 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm font-medium">
@@ -1590,7 +1590,7 @@ export function SettingsForm({
                   max={100}
                   value={minMatchScore}
                   onChange={(e) => setMinMatchScore(e.target.value)}
-                  className="w-full h-2 bg-slate-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-violet-600"
+                  className="w-full h-2 bg-slate-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                 />
               </Field>
             </div>
@@ -1814,16 +1814,16 @@ export function SettingsForm({
         <TabsContent value="ai" className="space-y-8" forceMount>
 
       {/* Quick-Start Tips */}
-      <div className="rounded-xl bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-950/30 dark:to-blue-950/30 p-4 ring-1 ring-violet-200/50 dark:ring-violet-800/30">
+      <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 p-4 ring-1 ring-emerald-200/50 dark:ring-emerald-800/30">
         <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-violet-100 dark:bg-violet-900/40 p-2">
-            <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+          <div className="rounded-lg bg-emerald-100 dark:bg-emerald-900/40 p-2">
+            <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
-            <h3 className="text-xs font-bold text-violet-800 dark:text-violet-200 mb-1">
+            <h3 className="text-xs font-bold text-emerald-800 dark:text-emerald-200 mb-1">
               Get better AI emails in 2 minutes
             </h3>
-            <ol className="text-[11px] text-violet-700 dark:text-violet-300 space-y-0.5 list-decimal list-inside">
+            <ol className="text-[11px] text-emerald-700 dark:text-emerald-300 space-y-0.5 list-decimal list-inside">
               <li>Set your <strong>Custom System Prompt</strong> — most impactful setting</li>
               <li>Choose a <strong>Tone</strong> that matches the roles you&apos;re applying to</li>
               <li>Add a <strong>Signature</strong> &amp; <strong>Closing</strong> for a consistent, professional finish</li>
@@ -1976,7 +1976,7 @@ export function SettingsForm({
         <TabsContent value="account" className="space-y-8" forceMount>
 
       {/* ── Notifications ── */}
-      <div className="rounded-xl bg-gradient-to-r from-blue-50 to-violet-50 dark:from-blue-950/30 dark:to-violet-950/30 p-5 shadow-sm ring-1 ring-blue-200/50 dark:ring-blue-800/30">
+      <div className="rounded-xl bg-gradient-to-r from-blue-50 to-emerald-50 dark:from-blue-950/30 dark:to-emerald-950/30 p-5 shadow-sm ring-1 ring-blue-200/50 dark:ring-blue-800/30">
         <div className="mb-4">
           <div className="flex items-center gap-2">
             <div className="rounded-lg bg-blue-100 dark:bg-blue-900/40 p-1.5">
@@ -2052,7 +2052,7 @@ export function SettingsForm({
           <div className="rounded-xl bg-white dark:bg-zinc-800/80 p-4 ring-1 ring-slate-100/80 dark:ring-zinc-700/60">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Smartphone className="h-4 w-4 text-violet-500" />
+                <Smartphone className="h-4 w-4 text-emerald-500" />
                 <Label className="text-sm font-bold">Push Notifications</Label>
               </div>
               <div className="flex items-center gap-2">
@@ -2380,9 +2380,9 @@ function ChipToggle({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none ${
+      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors touch-manipulation focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none ${
         active
-          ? "bg-violet-600 text-white shadow-sm"
+          ? "bg-emerald-600 text-white shadow-sm"
           : "bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600"
       }`}
     >
@@ -2462,17 +2462,17 @@ function ResumeSkillSync({
   };
 
   return (
-    <div className="rounded-xl bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-950/30 dark:to-blue-950/30 p-4 ring-1 ring-violet-200/50 dark:ring-violet-800/30">
+    <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 p-4 ring-1 ring-emerald-200/50 dark:ring-emerald-800/30">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className="rounded-lg bg-violet-100 dark:bg-violet-900/40 p-1.5">
-            <FileText className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+          <div className="rounded-lg bg-emerald-100 dark:bg-emerald-900/40 p-1.5">
+            <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
-            <h3 className="text-xs font-bold text-violet-800 dark:text-violet-200">
+            <h3 className="text-xs font-bold text-emerald-800 dark:text-emerald-200">
               Skills from your Resume
             </h3>
-            <p className="text-[10px] text-violet-600 dark:text-violet-400">
+            <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
               {resumeSkills.length} skills detected from {resumeNames.length === 1 ? resumeNames[0] : `${resumeNames.length} resumes`}
             </p>
           </div>
@@ -2482,7 +2482,7 @@ function ResumeSkillSync({
             type="button"
             size="sm"
             onClick={handleAddAll}
-            className="gap-1 text-[11px] h-7 bg-violet-600 hover:bg-violet-500 text-white"
+            className="gap-1 text-[11px] h-7 bg-emerald-600 hover:bg-emerald-500 text-white"
           >
             <Download className="h-3 w-3" />
             Add All ({newSkills.length})
@@ -2509,8 +2509,8 @@ function ResumeSkillSync({
               onClick={() => handleToggleSkill(skill)}
               className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-all touch-manipulation ${
                 isAdded
-                  ? "bg-violet-600 text-white ring-1 ring-violet-500"
-                  : "bg-white dark:bg-zinc-800 text-violet-700 dark:text-violet-300 ring-1 ring-violet-200 dark:ring-violet-700 hover:ring-violet-400 dark:hover:ring-violet-500"
+                  ? "bg-emerald-600 text-white ring-1 ring-emerald-500"
+                  : "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-700 hover:ring-emerald-400 dark:hover:ring-emerald-500"
               }`}
             >
               {isAdded && <Check className="h-2.5 w-2.5 inline mr-0.5 -mt-0.5" />}
@@ -2521,7 +2521,7 @@ function ResumeSkillSync({
       </div>
 
       {newSkills.length > 0 && (
-        <p className="text-[10px] text-violet-500 dark:text-violet-400 mt-2">
+        <p className="text-[10px] text-emerald-500 dark:text-emerald-400 mt-2">
           Click individual skills to add/remove, or use &ldquo;Add All&rdquo; to sync everything at once. Remember to save settings after.
         </p>
       )}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { generateApplication } from "@/app/actions/application-email";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { APPLICATIONS, GENERIC, RATE_LIMIT, VALIDATION } from "@/lib/messages";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getAuthUserId();
+    const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
     const rateCheck = checkRateLimit(userId, "application-generate");
     if (!rateCheck.allowed) {
       return NextResponse.json(

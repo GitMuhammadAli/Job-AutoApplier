@@ -11,7 +11,7 @@
  *   - Body:    General Sans (self-hosted, same family-feel as Clash)
  *   - Mono:    JetBrains Mono (Google Fonts via next/font/google)
  *   - Inter and Geist are dropped — they read as "AI default"
- *   - Icons:   Phosphor regular weight only (no mixed weights, no duotone)
+ *   - Icons:   Lucide (single weight, consistent stroke)
  *   - Clash Display has narrow x-height — do not use below 24px
  *   - The PDF resume template stays on Space Grotesk + DM Sans (ATS-safe, separate type system)
  *
@@ -33,16 +33,16 @@ export const fonts = {
 export type FontToken = keyof typeof fonts;
 
 /**
- * Icon system: Phosphor regular weight. Imported as a barrel from
- * @phosphor-icons/react with explicit per-icon imports to keep the bundle thin.
+ * Icon system: Lucide. Imported as a barrel from
+ * lucide-react with explicit per-icon imports to keep the bundle thin.
  *
- * Rule: pick one Phosphor weight family-wide. We use `regular` (default).
- * If a callout needs more emphasis, use `bold` text/border around the icon,
- * NOT a different icon weight.
+ * Rule: Lucide has a single stroke weight family-wide. If a callout needs
+ * more emphasis, use `bold` text/border around the icon, NOT a different
+ * icon weight (Lucide doesn't support per-icon weights anyway).
  */
 export const icons = {
   /** Hover/spark accent for badges (never paired with sparkle emoji). */
-  spark: "Sparkle",
+  spark: "Sparkles",
   /** Forward CTA arrow. */
   arrowRight: "ArrowRight",
   /** Scroll cue / accordion expand. */
@@ -56,11 +56,11 @@ export const icons = {
   /** Resume / document. */
   fileText: "FileText",
   /** Email / send. */
-  paperPlane: "PaperPlaneTilt",
+  paperPlane: "Send",
   /** Templates. */
-  envelope: "Envelope",
+  envelope: "Mail",
   /** Analytics. */
-  chartLine: "ChartLineUp",
+  chartLine: "LineChart",
   /** System health / pulse. */
   activity: "Activity",
 } as const;

@@ -50,10 +50,12 @@ export interface TemplateFillInput {
   profile: ResumeProfile;
   tailored: TailoredResume;
   templateId: string;
-  /** Page target — caps project count: 3 for 1pg, 5 for 2pg. */
-  pageTarget?: 1 | 2;
+  /** Page target — caps project count: 3 for 1pg, 5 for 2pg, no cap for "unlimited" (Academic CV). */
+  pageTarget?: 1 | 2 | "unlimited";
   /** Optional JD text — used for soft scoring of layoutBias when present. */
   jdText?: string;
+  /** Per-user token quota scope — pass at every user-initiated entry point. */
+  quota?: { userId: string; route: string };
 }
 
 const SYSTEM_PROMPT = `You arrange resume content for a job. You DO NOT rewrite anything.
@@ -151,7 +153,8 @@ function computeMissingHardSkills(
  */
 export async function fillTemplate(input: TemplateFillInput): Promise<TemplateFillResult> {
   const { profile, tailored } = input;
-  const maxProjects = input.pageTarget === 2 ? 5 : 3;
+  const maxProjects =
+    input.pageTarget === "unlimited" ? Number.MAX_SAFE_INTEGER : input.pageTarget === 2 ? 5 : 3;
   const missingHardSkills = computeMissingHardSkills(tailored, profile);
 
   let model: Ranked;
@@ -159,6 +162,7 @@ export async function fillTemplate(input: TemplateFillInput): Promise<TemplateFi
     const raw = await generateWithGroq(SYSTEM_PROMPT, buildUserPrompt(input), {
       temperature: 0.1,
       max_tokens: 1200,
+      quota: input.quota,
     });
     model = parseModelJson(raw);
   } catch (err) {

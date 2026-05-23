@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put, list } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { extractText } from "@/lib/resume-parser";
 import { parseResume } from "@/lib/skill-extractor";
 import { GENERIC, RESUMES, VALIDATION } from "@/lib/messages";
@@ -14,7 +14,7 @@ const MAX_TOTAL_STORAGE = 20 * 1024 * 1024; // 20 MB per user
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getAuthUserId();
+    const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
 
     const existingCount = await prisma.resume.count({
       where: { userId, isDeleted: false },

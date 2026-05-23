@@ -18,6 +18,8 @@ export async function tailorResume(input: {
   jobDescription: string;
   jobTitle: string;
   jobRequirements?: string;
+  /** Pass to enforce per-user token quota. Routes call sites should always pass it. */
+  quota?: { userId: string; route: string };
 }): Promise<TailoredResume> {
   const { userSkills, jobDescription, jobTitle, jobRequirements } = input;
 
@@ -54,6 +56,7 @@ Analyze and return tailored resume recommendations as JSON.`;
     temperature: 0.4,
     max_tokens: 700,
     model: "llama-3.3-70b-versatile",
+    quota: input.quota,
   });
 
   try {

@@ -21,6 +21,10 @@ const PATH_LIMITS: Record<string, { max: number; windowMs: number }> = {
 const DEFAULT_LIMITS: Record<string, { max: number; windowMs: number }> = {
   auth: { max: 10, windowMs: 60_000 },
   api: { max: 60, windowMs: 60_000 },
+  // /api/auth/session is read by <SessionProvider> on every page load. Cap is
+  // high enough not to break normal browsing across tabs, low enough to stop
+  // a script hammering the endpoint thousands of times/sec.
+  sessionRead: { max: 120, windowMs: 60_000 },
 };
 
 function getClientIp(req: NextRequest): string {
@@ -29,6 +33,24 @@ function getClientIp(req: NextRequest): string {
     req.headers.get("x-real-ip") ||
     "unknown"
   );
+}
+
+/**
+ * Per-user rate-limit dimension to avoid NAT collateral DoS (corporate networks,
+ * mobile carriers, university WiFi).
+ *
+ * NextAuth's database-session cookie is opaque + unguessable, so a short hash of
+ * its value is a stable per-session identifier. Anonymous traffic (no cookie)
+ * falls back to IP, which is the previous behavior.
+ */
+function getUserKey(req: NextRequest): string {
+  const cookie =
+    req.cookies.get("__Secure-next-auth.session-token")?.value ??
+    req.cookies.get("next-auth.session-token")?.value;
+  if (!cookie) return `ip:${getClientIp(req)}`;
+  // Short truncation — cookie itself is high-entropy, prefix is enough to
+  // identify the session without burning a hash in middleware hot path
+  return `usr:${cookie.slice(0, 16)}`;
 }
 
 function isRateLimited(
@@ -74,7 +96,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const ip = getClientIp(req);
+  // Per-user-or-IP key — defeats NAT collateral DoS where many users behind
+  // a single egress IP get rate-limited together
+  const userKey = getUserKey(req);
 
   const matchingRule = Object.entries(PATH_LIMITS).find(([p]) =>
     path.startsWith(p)
@@ -82,7 +106,7 @@ export function middleware(req: NextRequest) {
 
   if (matchingRule) {
     const [, limit] = matchingRule;
-    const key = `${ip}:${path}`;
+    const key = `${userKey}:${path}`;
     const result = isRateLimited(key, limit);
     if (result.limited) {
       return NextResponse.json(
@@ -97,13 +121,21 @@ export function middleware(req: NextRequest) {
   }
 
   if (path.startsWith("/api/auth")) {
-    // /api/auth/session is a public READ endpoint called on EVERY page load
-    // by next-auth's <SessionProvider>. Rate-limiting it tight breaks normal
-    // browsing. Only rate-limit the auth WRITE endpoints (signin/signout/callback).
     const isSessionRead =
       path === "/api/auth/session" || path === "/api/auth/csrf";
-    if (!isSessionRead) {
-      const key = `auth:${ip}`;
+    if (isSessionRead) {
+      // Apply a generous cap so <SessionProvider> works across tabs but
+      // a script hammering thousands/sec still gets stopped (B3 fix).
+      const key = `session-read:${userKey}`;
+      const result = isRateLimited(key, DEFAULT_LIMITS.sessionRead);
+      if (result.limited) {
+        return NextResponse.json(
+          { error: RATE_LIMIT.TOO_MANY_REQUESTS_SLOW },
+          { status: 429 }
+        );
+      }
+    } else {
+      const key = `auth:${userKey}`;
       const result = isRateLimited(key, DEFAULT_LIMITS.auth);
       if (result.limited) {
         return NextResponse.json(
@@ -113,7 +145,7 @@ export function middleware(req: NextRequest) {
       }
     }
   } else if (path.startsWith("/api/")) {
-    const key = `api:${ip}`;
+    const key = `api:${userKey}`;
     const result = isRateLimited(key, DEFAULT_LIMITS.api);
     if (result.limited) {
       return NextResponse.json(

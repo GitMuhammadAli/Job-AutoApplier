@@ -25,6 +25,23 @@ function stripScheme(url: string): string {
   return url.replace(/^https?:\/\//, "");
 }
 
+/**
+ * Normalize all-caps user input ("JOHN DOE", "MARÍA O'CONNOR-LEE") to title case
+ * so the rendered resume doesn't shout. Leaves mixed-case names alone — a user
+ * who intentionally typed "danah boyd" should still get "danah boyd".
+ */
+export function normalizeDisplayName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return trimmed;
+  // Only normalize if 70%+ of the alpha characters are uppercase (catches all-caps
+  // and SCREAMING-with-numbers; leaves "John McDonald" alone)
+  const alpha = trimmed.replace(/[^A-Za-z]/g, "");
+  if (alpha.length < 3) return trimmed;
+  const uppers = alpha.replace(/[^A-Z]/g, "").length;
+  if (uppers / alpha.length < 0.7) return trimmed;
+  return trimmed.toLowerCase().replace(/(^|[\s\-'])([a-z])/g, (_m, sep: string, c: string) => sep + c.toUpperCase());
+}
+
 export function renderHeader(h: ResumeRenderInput["header"]): string {
   const links: string[] = [];
   if (h.websiteUrl) links.push(link(h.websiteUrl, stripScheme(h.websiteUrl)));
@@ -33,10 +50,11 @@ export function renderHeader(h: ResumeRenderInput["header"]): string {
 
   const contactBits = [h.location, h.email, h.phone].filter(Boolean).map((v) => escapeHtml(v!));
   const linkLine = links.length ? links.join(' <span class="dot">·</span> ') : "";
+  const displayName = normalizeDisplayName(h.fullName);
 
   return `
   <header class="rs-header">
-    <h1 class="rs-name">${escapeHtml(h.fullName)}</h1>
+    <h1 class="rs-name">${escapeHtml(displayName)}</h1>
     <p class="rs-headline">${escapeHtml(h.headline)}</p>
     <p class="rs-contact">${contactBits.join(' <span class="dot">·</span> ')}</p>
     ${linkLine ? `<p class="rs-contact">${linkLine}</p>` : ""}

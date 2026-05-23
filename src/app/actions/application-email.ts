@@ -129,7 +129,9 @@ export async function generateApplication(userJobId: string, resumeId?: string) 
     const { input, matchedResume, recipientEmail, senderEmail } =
       await buildEmailInput(userId, userJobId, resumeId);
 
-    const generated = await generateApplicationEmail(input);
+    const generated = await generateApplicationEmail(input, {
+      quota: { userId, route: "/actions/application-email/generate" },
+    });
 
     // If an existing draft has a recipient email (manually entered or from a
     // previous enrichment) and the current globalJob has none, keep the old one.

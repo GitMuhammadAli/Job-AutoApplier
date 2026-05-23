@@ -20,6 +20,7 @@ import {
 } from "./profile-mapper";
 import { renderResume } from "./render";
 import { DEFAULT_TEMPLATE_ID } from "./templates/registry";
+import { passesProfileGate } from "./parse-uploaded-pdf";
 
 const MIN_JD_LENGTH = 80;
 
@@ -84,12 +85,7 @@ export async function ensureTailoredResume(
     user, settings, summaries, experiences, projects, education, certifications,
   });
 
-  // Gate: no name/email or no body content → can't generate, fall back.
-  const meetsGate =
-    profile.header.fullName.trim().length > 0 &&
-    profile.header.email.trim().length > 0 &&
-    (profile.experiences.length > 0 || profile.projects.length > 0);
-  if (!meetsGate) return null;
+  if (!passesProfileGate(profile)) return null;
 
   const jdText = (application.userJob.globalJob.description ?? "").trim();
   let renderInput = buildRenderInput(profile, { templateId: DEFAULT_TEMPLATE_ID, pageTarget: 1 });
@@ -136,12 +132,14 @@ export async function ensureTailoredResume(
     return null;
   }
 
+  const pageTargetInt =
+    renderInput.pageTarget === "unlimited" ? 0 : renderInput.pageTarget;
   const generation = await prisma.resumeGeneration.create({
     data: {
       userId,
       templateId: renderInput.templateId,
       templateVersion,
-      pageTarget: renderInput.pageTarget,
+      pageTarget: pageTargetInt,
       htmlSnapshot: html,
       jdSnippet: jdText ? jdText.slice(0, 4000) : null,
       matchedKeywords: [],

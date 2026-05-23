@@ -86,11 +86,14 @@ export interface GeneratedEmail {
   coverLetter: string | null;
 }
 
+export type EmailQuotaScope = { userId: string; route: string };
+
 export async function generateApplicationEmail(
-  input: GenerateEmailInput
+  input: GenerateEmailInput,
+  opts: { quota?: EmailQuotaScope } = {},
 ): Promise<GeneratedEmail> {
   try {
-    return await generateApplicationEmailWithAI(input);
+    return await generateApplicationEmailWithAI(input, opts.quota);
   } catch (err) {
     console.warn("[AI Email] All AI providers failed, using template fallback:", err instanceof Error ? err.message : err);
     const sourceName = input.job.source
@@ -120,7 +123,8 @@ export async function generateApplicationEmail(
 }
 
 async function generateApplicationEmailWithAI(
-  input: GenerateEmailInput
+  input: GenerateEmailInput,
+  quota?: EmailQuotaScope,
 ): Promise<GeneratedEmail> {
   const systemParts: string[] = [];
 
@@ -239,13 +243,13 @@ Body: ${input.template.body.slice(0, 500)}`);
 
   userParts.push("\nGenerate the application email now. Return ONLY JSON.");
 
-  let parsed = await generateAndParseEmail(systemPrompt, userParts.join("\n"));
+  let parsed = await generateAndParseEmail(systemPrompt, userParts.join("\n"), quota);
 
   const wordCount = parsed.body.split(/\s+/).filter(Boolean).length;
   if (wordCount < 80) {
     const retryPrompt = userParts.join("\n") +
       `\n\nIMPORTANT: Your previous response was only ${wordCount} words. The email body MUST be at least 100 words but no more than 150. Write a concise, specific email.`;
-    parsed = await generateAndParseEmail(systemPrompt, retryPrompt);
+    parsed = await generateAndParseEmail(systemPrompt, retryPrompt, quota);
   }
 
   const validated = EmailOutputSchema.parse(parsed);
@@ -326,11 +330,13 @@ Body: ${input.template.body.slice(0, 500)}`);
 
 async function generateAndParseEmail(
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  quota?: EmailQuotaScope,
 ): Promise<{ subject: string; body: string }> {
   const rawResponse = await generateWithGroq(systemPrompt, userPrompt, {
     temperature: 0.7,
     max_tokens: 800,
+    quota,
   });
 
   const result = extractSubjectAndBody(rawResponse);

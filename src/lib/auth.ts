@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 import EmailProvider from "next-auth/providers/email";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
@@ -58,12 +59,38 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
+/**
+ * Throwable Response sentinel — Next.js route handlers catch a thrown `Response`
+ * and return it verbatim, so this surfaces as a real 401 instead of a 500.
+ */
+export class UnauthenticatedError extends Error {
+  readonly response: Response;
+  constructor() {
+    super("Not authenticated");
+    this.response = NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+}
+
 export async function getAuthUserId(): Promise<string> {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) throw new Error("Not authenticated");
+  if (!session?.user?.id) throw new UnauthenticatedError();
   return session.user.id;
 }
 
 export async function getAuthSession() {
   return getServerSession(authOptions);
+}
+
+/**
+ * Helper for route handlers that want the userId-or-401 pattern without try/catch.
+ * Returns either `{ userId }` or `{ response }` — never both.
+ */
+export async function requireAuthUserId(): Promise<
+  { userId: string; response?: never } | { userId?: never; response: Response }
+> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { response: NextResponse.json({ error: "Not authenticated" }, { status: 401 }) };
+  }
+  return { userId: session.user.id };
 }

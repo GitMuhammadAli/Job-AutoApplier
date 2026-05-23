@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { scrapeAndUpsert } from "@/lib/scrapers/scrape-source";
 import { fetchIndeed } from "@/lib/scrapers/indeed";
@@ -24,7 +24,7 @@ export const maxDuration = 10;
 
 export async function POST() {
   try {
-    const userId = await getAuthUserId();
+    const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
 
     const rateCheck = checkRateLimit(userId, "scan-now");
     if (!rateCheck.allowed) {

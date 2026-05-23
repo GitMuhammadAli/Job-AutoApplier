@@ -6,7 +6,7 @@ export default function AnalyticsLoading() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20">
             <BarChart3 className="h-4 w-4 text-white" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Analytics</h1>

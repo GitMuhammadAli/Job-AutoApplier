@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import {
   computeMatchScore,
   MATCH_THRESHOLDS,
@@ -13,7 +13,7 @@ export const maxDuration = 10;
 
 export async function POST() {
   try {
-    const userId = await getAuthUserId();
+    const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
 
     const settings = await prisma.userSettings.findUnique({
       where: { userId },

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { List, X, PaperPlaneTilt } from "@phosphor-icons/react";
+import { Menu, X, Send } from "lucide-react";
 
 const NAV_LINKS = [
   { href: "/features", label: "Features" },
@@ -34,7 +34,7 @@ export function Navbar() {
       <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 transition-transform duration-300 group-hover:scale-105">
-            <PaperPlaneTilt size={16} weight="fill" className="text-white" />
+            <Send size={16} className="text-white" />
           </div>
           <span className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
             JobPilot
@@ -87,7 +87,7 @@ export function Navbar() {
           className="md:hidden p-2 -mr-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
           aria-label="Toggle menu"
         >
-          {mobileOpen ? <X size={20} weight="regular" /> : <List size={20} weight="regular" />}
+          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 

@@ -12,12 +12,14 @@ import {
   MessageSquare,
   Activity,
   Shield,
+  Gauge,
 } from "lucide-react";
 import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
 
 const ADMIN_NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, desc: "Overview & metrics" },
   { href: "/admin/scrapers", label: "Monitoring", icon: Activity, desc: "Crons & scrapers" },
+  { href: "/admin/quotas", label: "AI Quotas", icon: Gauge, desc: "Token usage per user" },
   { href: "/admin/users", label: "Users", icon: Users, desc: "User management" },
   { href: "/admin/logs", label: "Logs", icon: ScrollText, desc: "System logs" },
   { href: "/admin/feedback", label: "Feedback", icon: MessageSquare, desc: "User feedback" },

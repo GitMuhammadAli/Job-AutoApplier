@@ -31,6 +31,8 @@ model User {
   applications      JobApplication[]
   feedback          UserFeedback[]
   pushSubscriptions PushSubscription[]
+  tokenUsage        TokenUsage[]
+  llmCalls          LlmCallLog[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 }
@@ -602,4 +604,56 @@ model ResumeGeneration {
 
   @@index([userId, createdAt])
   @@index([userId, isFavorite])
+}
+
+// ── TOKEN QUOTA ──────────────────────────────────────────────────────
+// Fair-share token accounting per (user, day, provider). See
+// qa-run-20260522/TOKEN_QUOTA_ARCHITECTURE.md for the design rationale.
+
+model TokenUsage {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day           DateTime @db.Date         // UTC midnight to midnight rollup
+  provider      String                    // "groq" | "gemini" | "anthropic"
+  inputTokens   Int      @default(0)
+  outputTokens  Int      @default(0)
+  totalCalls    Int      @default(0)
+  rejectedCalls Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, day, provider])
+  @@index([day, provider])
+}
+
+// Per-call log — feeds hourly trend chart + per-route breakdown in /admin/quotas.
+// Daily aggregation lives in TokenUsage; prune LlmCallLog after 30d via cron.
+model LlmCallLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider     String
+  model        String                     // "llama-3.1-8b-instant" etc
+  route        String                     // "/api/resumes/generate"
+  inputTokens  Int
+  outputTokens Int
+  latencyMs    Int
+  status       String                     // "ok" | "rejected_quota" | "rejected_global" | "error"
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([route, createdAt])
+  @@index([status, createdAt])
+}
+
+// Runtime-tunable quota knobs. Singleton-per-provider.
+model QuotaConfig {
+  id          String   @id @default(cuid())
+  provider    String   @unique             // "groq" | "gemini" | "anthropic"
+  dailyBudget Int                          // total tokens/day across all users
+  softCapMult Float    @default(2.0)       // user fair-share multiplier (allows 1 user to consume more when others dormant)
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
 }

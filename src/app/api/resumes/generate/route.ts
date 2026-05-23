@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { GenerateRequestSchema, type SectionKey } from "@/lib/resume/types";
 import { renderResume, TemplateNotAvailableError } from "@/lib/resume/render";
 import { FabricationError } from "@/lib/resume/audit";
@@ -26,12 +26,20 @@ import {
 import { getTemplate } from "@/lib/resume/templates/registry";
 import { tailorResume } from "@/lib/agents/resume-tailor";
 import { fillTemplate, type TemplateFillResult } from "@/lib/agents/resume-template-fill";
+import { QuotaExceededError, formatRetryMessage } from "@/lib/quota/quota";
+import {
+  parseUploadedPdfToProfile,
+  pickBestUploadForParse,
+  passesProfileGate,
+} from "@/lib/resume/parse-uploaded-pdf";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+// AI parse-from-PDF fallback can run when no structured profile exists,
+// adding ~5s to the worst-case path on top of tailor + fillTemplate.
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const userId = await getAuthUserId();
+  const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
 
   let body: unknown;
   try {
@@ -63,31 +71,66 @@ export async function POST(req: NextRequest) {
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const profile = bundleToResumeProfile({
+  let profile = bundleToResumeProfile({
     user, settings, summaries, experiences, projects, education, certifications,
   });
 
+  // Track which source the profile came from so the UI can surface
+  // "AI used your uploaded PDF" vs "used your saved profile".
+  let profileSource: "structured" | "parsed-pdf" = "structured";
+  let parsedFromResumeName: string | null = null;
+  const sourceWarnings: string[] = [];
+
   // Gate: minimum content before tailoring is allowed.
-  // Addition E from the brief: PDF-only state should NOT pass this gate.
-  const meetsGate =
-    profile.header.fullName.trim().length > 0 &&
-    profile.header.email.trim().length > 0 &&
-    (profile.experiences.length > 0 || profile.projects.length > 0);
-  if (!meetsGate) {
-    return NextResponse.json(
-      {
-        error: "Profile incomplete. Add at least your name, email, and one experience or project.",
-        code: "PROFILE_INCOMPLETE",
-      },
-      { status: 422 },
-    );
+  // If the structured profile doesn't meet the gate, try the parse-from-upload
+  // fallback so users with only uploaded PDFs (no manual profile entry) can
+  // still generate. This is the "AI auto-uses your existing resume" path.
+  if (!passesProfileGate(profile)) {
+    const bestUpload = await pickBestUploadForParse(userId);
+    if (!bestUpload) {
+      return NextResponse.json(
+        {
+          error:
+            "No profile data found. Upload a resume PDF or fill in your structured profile to generate tailored resumes.",
+          code: "NO_PROFILE_OR_UPLOADS",
+        },
+        { status: 422 },
+      );
+    }
+    try {
+      const parsed = await parseUploadedPdfToProfile(bestUpload.id, userId);
+      if (!parsed.profile || !passesProfileGate(parsed.profile)) {
+        return NextResponse.json(
+          {
+            error:
+              `AI couldn't extract enough structure from "${bestUpload.name}". Try a different upload or fill in your profile manually.`,
+            code: "PARSE_INCOMPLETE",
+          },
+          { status: 422 },
+        );
+      }
+      profile = parsed.profile;
+      profileSource = "parsed-pdf";
+      parsedFromResumeName = parsed.resumeName;
+      sourceWarnings.push(
+        `Used your uploaded resume "${parsed.resumeName}" — AI extracted ${profile.experiences.length} experience(s) and ${profile.projects.length} project(s). Save to your profile so we don't re-extract every time.`,
+      );
+    } catch (err) {
+      return NextResponse.json(
+        {
+          error: err instanceof Error ? err.message : "Failed to parse your uploaded resume",
+          code: "PARSE_FAILED",
+        },
+        { status: 502 },
+      );
+    }
   }
 
   let renderInput = buildRenderInput(profile, { templateId, pageTarget });
 
   // ── Phase 2: JD-aware tailoring via existing agent chain ───────────
   let fillResult: TemplateFillResult | null = null;
-  const warnings: string[] = [];
+  const warnings: string[] = [...sourceWarnings];
 
   if (jdText && jdText.trim().length >= 20) {
     try {
@@ -96,6 +139,7 @@ export async function POST(req: NextRequest) {
         userSkills: profile.skills,
         jobDescription: jdText,
         jobTitle: extractJobTitleFromJD(jdText) ?? "Unknown",
+        quota: { userId, route: "/api/resumes/generate" },
       });
 
       // Agent 5 (new) — template-aware ordering/selection
@@ -105,6 +149,7 @@ export async function POST(req: NextRequest) {
         templateId,
         pageTarget,
         jdText,
+        quota: { userId, route: "/api/resumes/generate" },
       });
 
       if (profile.skillsLocked && fillResult.missingHardSkills.length > 0) {
@@ -120,6 +165,17 @@ export async function POST(req: NextRequest) {
         sectionOrder: fillResult.sectionOrder,
       });
     } catch (err) {
+      if (err instanceof QuotaExceededError) {
+        return NextResponse.json(
+          {
+            error: "ai_quota_exceeded",
+            reason: err.reason,
+            message: formatRetryMessage(err.reason, err.retryAfterSeconds),
+            retryAfterSeconds: err.retryAfterSeconds,
+          },
+          { status: 429 },
+        );
+      }
       warnings.push(
         `JD agent chain failed: ${err instanceof Error ? err.message : "unknown"}. Used default ordering.`,
       );
@@ -148,12 +204,16 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Persist generation row ─────────────────────────────────────────
+  // Encode "unlimited" as 0 so the Int column stays meaningful (1/2 = pages,
+  // 0 = unlimited / multi-page CV).
+  const pageTargetInt =
+    renderInput.pageTarget === "unlimited" ? 0 : renderInput.pageTarget;
   const generation = await prisma.resumeGeneration.create({
     data: {
       userId,
       templateId: renderResult.templateId,
       templateVersion: renderResult.templateVersion,
-      pageTarget: renderInput.pageTarget,
+      pageTarget: pageTargetInt,
       htmlSnapshot: renderResult.html,
       jdSnippet: jdText?.slice(0, 4000) ?? null,
       matchedKeywords: fillResult?.matchedKeywords ?? [],
@@ -174,6 +234,8 @@ export async function POST(req: NextRequest) {
     pdfUrl: `/api/resumes/generations/${generation.id}/pdf`,
     diff,
     warnings,
+    profileSource,
+    parsedFromResumeName,
   });
 }
 

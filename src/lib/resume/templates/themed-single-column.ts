@@ -10,7 +10,7 @@
  */
 
 import type { ResumeRenderInput } from "../types";
-import { escapeHtml, renderHeader, renderBody } from "./sections";
+import { escapeHtml, normalizeDisplayName, renderHeader, renderBody } from "./sections";
 
 export interface SingleColumnTheme {
   id: string;
@@ -69,7 +69,12 @@ export function renderThemedSingleColumn(
   if (input.templateId !== theme.id) {
     throw new Error(`Theme ${theme.id} received templateId=${input.templateId}`);
   }
-  const pageClass = input.pageTarget === 2 ? "rs-page-2" : "rs-page-1";
+  const pageClass =
+    input.pageTarget === "unlimited"
+      ? "rs-page-unlimited"
+      : input.pageTarget === 2
+        ? "rs-page-2"
+        : "rs-page-1";
   const body = renderBody(input, { skillStyle: theme.skillStyle });
 
   const accentUnderlineCss = theme.h2.accentUnderline
@@ -84,7 +89,7 @@ export function renderThemedSingleColumn(
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>${escapeHtml(input.header.fullName)} &mdash; Resume</title>
+  <title>${escapeHtml(normalizeDisplayName(input.header.fullName))} &mdash; Resume</title>
   <meta name="generator" content="JobPilot ${theme.version}" />
   ${theme.googleFontsHref ? `<link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -117,6 +122,9 @@ export function renderThemedSingleColumn(
     }
     .rs-page-1 { font-size: ${theme.type.bodyPt - 0.5}pt; }
     .rs-page-1 .rs-section { margin-top: 10px; }
+    /* Academic CV — let the doc grow as needed; print engine paginates */
+    .rs-page-unlimited { min-height: 0; }
+    .rs-page-unlimited .rs-section { page-break-inside: avoid; margin-top: 14px; }
 
     .rs-header { text-align: left; margin-bottom: 8px; }
     .rs-name {

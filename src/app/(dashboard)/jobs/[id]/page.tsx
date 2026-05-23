@@ -22,8 +22,9 @@ export default async function JobDetailPage({
   let userJob;
   let userResumes: { id: string; name: string; isDefault: boolean }[] = [];
   let settings: Awaited<ReturnType<typeof getSettings>> | null = null;
+  let sessionUser: { name: string | null; email: string | null } | null = null;
   try {
-    [userJob, userResumes, settings] = await Promise.all([
+    [userJob, userResumes, settings, sessionUser] = await Promise.all([
       prisma.userJob.findFirst({
         where: { id: params.id, userId },
         include: {
@@ -70,6 +71,7 @@ export default async function JobDetailPage({
         orderBy: { updatedAt: "desc" },
       }),
       getSettings().catch(() => null),
+      prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } }),
     ]);
   } catch (error) {
     console.error("[JobDetail] DB error:", error);
@@ -133,16 +135,19 @@ export default async function JobDetailPage({
 
   if (!userJob) notFound();
 
-  const profile = settings ? {
-    fullName: settings.fullName ?? null,
-    applicationEmail: settings.applicationEmail ?? null,
-    phone: settings.phone ?? null,
-    linkedinUrl: settings.linkedinUrl ?? null,
-    portfolioUrl: settings.portfolioUrl ?? null,
-    githubUrl: settings.githubUrl ?? null,
-    experienceLevel: settings.experienceLevel ?? null,
-    city: settings.city ?? null,
-    country: settings.country ?? null,
+  // Fall back to the auth-session user when UserSettings has empty header fields.
+  // Otherwise a brand-new user with an OAuth name+email but no Settings save
+  // sees a stale "Set up your profile" prompt even though we already have those bits.
+  const profile = (settings || sessionUser) ? {
+    fullName: settings?.fullName ?? sessionUser?.name ?? null,
+    applicationEmail: settings?.applicationEmail ?? sessionUser?.email ?? null,
+    phone: settings?.phone ?? null,
+    linkedinUrl: settings?.linkedinUrl ?? null,
+    portfolioUrl: settings?.portfolioUrl ?? null,
+    githubUrl: settings?.githubUrl ?? null,
+    experienceLevel: settings?.experienceLevel ?? null,
+    city: settings?.city ?? null,
+    country: settings?.country ?? null,
   } : null;
 
   return (

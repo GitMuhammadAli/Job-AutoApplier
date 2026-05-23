@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { sendApplication } from "@/lib/send-application";
 import { checkReadiness } from "@/lib/readiness-checker";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +12,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = await getAuthUserId();
+    const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
     const { id } = await params;
 
     const application = await prisma.jobApplication.findFirst({

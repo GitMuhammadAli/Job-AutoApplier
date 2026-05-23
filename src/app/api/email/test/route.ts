@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { getTransporterForUser } from "@/lib/email";
 import { decryptSettingsFields } from "@/lib/encryption";
 import { EMAIL, GENERIC } from "@/lib/messages";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
-    const userId = await getAuthUserId();
+    const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
     const rawSettings = await prisma.userSettings.findUnique({ where: { userId } });
 
     if (!rawSettings) {

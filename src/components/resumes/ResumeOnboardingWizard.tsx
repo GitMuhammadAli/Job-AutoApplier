@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, FileText, Sparkle, Upload, PencilSimple, CheckCircle } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, FileText, Sparkles, Upload, Pencil, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ProfileEditor } from "@/components/resumes/ProfileEditor";
@@ -127,7 +127,7 @@ function Header({ path, stage, onBack }: { path: Path; stage: Stage; onBack: () 
       </Button>
       <div className="flex items-center gap-2 mb-1">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600">
-          <Sparkle size={16} weight="fill" className="text-white" />
+          <Sparkles size={16} className="text-white" />
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
           Set up your structured profile
@@ -155,7 +155,7 @@ function PickPathStep({
   return (
     <div className="grid sm:grid-cols-2 gap-4">
       <PathCard
-        icon={<Upload size={20} weight="bold" />}
+        icon={<Upload size={20} />}
         title="Upload (extract from PDF)"
         description="AI reads your existing resume and fills the editor. You confirm every line before save. No silent edits."
         cta={uploadedCount > 0 ? `Pick from your ${uploadedCount} uploads` : "Upload a resume first"}
@@ -163,7 +163,7 @@ function PickPathStep({
         onClick={onPickUpload}
       />
       <PathCard
-        icon={<PencilSimple size={20} weight="bold" />}
+        icon={<Pencil size={20} />}
         title="Start from scratch"
         description="Empty profile. Fill in header, summaries, skills, experience, projects, education one section at a time."
         cta="Open empty profile"
@@ -240,7 +240,7 @@ function PickPdfStep({
             className="w-full text-left flex items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/40 shrink-0">
-              <FileText size={16} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
+              <FileText size={16} className="text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-zinc-900 dark:text-white">
@@ -267,7 +267,7 @@ function ParsingStep() {
   return (
     <div className="rounded-2xl border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/20 p-12 text-center">
       <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 mb-4 shadow-lg shadow-emerald-500/30 animate-pulse">
-        <Sparkle size={22} weight="fill" className="text-white" />
+        <Sparkles size={22} className="text-white" />
       </div>
       <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-1">
         Extracting structure
@@ -277,7 +277,7 @@ function ParsingStep() {
         Nothing is saved yet — you'll review every field on the next step.
       </p>
       <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
-        <CheckCircle size={14} weight="fill" /> Verbatim bullets · no rewriting · no fabrication
+        <CheckCircle2 size={14} /> Verbatim bullets · no rewriting · no fabrication
       </div>
     </div>
   );

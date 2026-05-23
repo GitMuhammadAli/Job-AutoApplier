@@ -148,7 +148,7 @@ const DEFAULT_SECTION_ORDER: SectionKey[] = [
 
 interface BuildRenderInputOptions {
   templateId?: string;
-  pageTarget?: 1 | 2;
+  pageTarget?: 1 | 2 | "unlimited";
   /** Override section order (e.g. JD-driven projects-first). */
   sectionOrder?: SectionKey[];
 }
@@ -167,8 +167,13 @@ export function buildRenderInput(
 ): ResumeRenderInput {
   const templateId = options.templateId ?? DEFAULT_TEMPLATE_ID;
   const tpl = getTemplate(templateId);
-  const pageTarget = options.pageTarget ?? 1;
-  const sectionOrder = options.sectionOrder ?? DEFAULT_SECTION_ORDER;
+  // Templates that opt into multiPage (Academic CV) auto-upgrade to "unlimited"
+  // when no caller override is passed. Otherwise default to 1.
+  const pageTarget = options.pageTarget ?? (tpl.multiPage ? "unlimited" : 1);
+  // Per-template default wins over the global default when no override is passed.
+  // JD-driven ordering still takes precedence (caller passes options.sectionOrder).
+  const sectionOrder =
+    options.sectionOrder ?? (tpl.defaultSectionOrder as SectionKey[] | undefined) ?? DEFAULT_SECTION_ORDER;
 
   // Summary — default to the isDefault one, else first
   const def =

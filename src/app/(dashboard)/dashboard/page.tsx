@@ -72,7 +72,7 @@ export default async function DashboardPage() {
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           <Link
             href="/jobs/new"
-            className="flex items-center gap-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 px-2.5 sm:px-3 py-1.5 text-white transition-colors touch-manipulation shadow-sm shrink-0"
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 sm:px-3 py-1.5 text-white transition-colors touch-manipulation shadow-sm shrink-0"
           >
             <Plus className="h-3.5 w-3.5 shrink-0" />
             <span className="text-[10px] sm:text-[11px] font-semibold">Add Job</span>
@@ -153,7 +153,7 @@ async function DashboardKanban({ settings }: { settings: any }) {
 
       {jobs.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/60 p-8 md:p-12 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-violet-50 dark:from-blue-950/40 dark:to-violet-950/40 ring-1 ring-blue-100/50 dark:ring-blue-800/30">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-emerald-50 dark:from-blue-950/40 dark:to-emerald-950/40 ring-1 ring-blue-100/50 dark:ring-blue-800/30">
             <Zap className="h-7 w-7 text-blue-500" />
           </div>
           <h3 className="text-base font-bold text-slate-800 dark:text-zinc-100">

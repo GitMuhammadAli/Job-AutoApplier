@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, FileText, PencilSimple, ShieldCheck } from "@phosphor-icons/react";
+import { ArrowRight, FileText, Pencil, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProfileEditor } from "@/components/resumes/ProfileEditor";
 import type { ResumeProfile } from "@/lib/resume/types";
@@ -60,7 +60,7 @@ function EmptyState({ uploadCount }: { uploadCount: number }) {
     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-800/40 p-8 sm:p-12">
       <div className="max-w-2xl">
         <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40 mb-5">
-          <ShieldCheck size={14} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
+          <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-400" />
           <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
             We manage, we never rewrite
           </span>
@@ -180,7 +180,7 @@ function ProfileSummary({
           </p>
         </div>
         <Button onClick={onEdit} variant="outline" className="gap-1.5">
-          <PencilSimple size={14} />
+          <Pencil size={14} />
           Edit profile
         </Button>
       </div>

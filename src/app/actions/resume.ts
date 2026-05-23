@@ -419,6 +419,7 @@ RULES:
     const rephrased = await generateWithGroq(systemPrompt, userPrompt, {
       temperature: 0.5,
       max_tokens: 2000,
+      quota: { userId, route: "/actions/resume/rephrase" },
     });
 
     if (!rephrased || rephrased.trim().length < 50) {

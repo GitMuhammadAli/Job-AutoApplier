@@ -23,6 +23,7 @@ export async function writeApplicationEmail(input: {
   jobDescription: string;
   userName: string;
   userEmail: string;
+  quota?: { userId: string; route: string };
 }): Promise<ApplicationEmail> {
   const {
     companyResearch,
@@ -88,6 +89,7 @@ Write the application email and cover letter. Return ONLY JSON.`;
     temperature: 0.7,
     max_tokens: 1200,
     model: "llama-3.3-70b-versatile",
+    quota: input.quota,
   });
 
   try {

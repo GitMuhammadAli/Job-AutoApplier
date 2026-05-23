@@ -4,11 +4,23 @@
 
 import { TIMEOUTS } from "./constants";
 import { logApiCall } from "./api-usage-logger";
+import {
+  checkQuota,
+  estimateTokens,
+  recordUsage,
+  QuotaExceededError,
+} from "./quota/quota";
 
 interface GroqOptions {
   temperature?: number;
   max_tokens?: number;
   model?: string;
+  /**
+   * Pass `{ userId, route }` to enforce the token quota. When omitted the call
+   * skips quota accounting — used by internal/cron paths that don't have a user
+   * scope. Every user-initiated call site SHOULD pass this.
+   */
+  quota?: { userId: string; route: string };
 }
 
 const MAX_RETRIES = 2;
@@ -103,7 +115,27 @@ export async function generateWithGroq(
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY not configured");
 
+  // Pre-flight quota check — only when caller passed a quota scope
+  if (options.quota) {
+    const est = estimateTokens(systemPrompt) + estimateTokens(userPrompt) + (options.max_tokens ?? 800);
+    const gate = await checkQuota(options.quota.userId, "groq", est);
+    if (!gate.allowed) {
+      await recordUsage({
+        userId: options.quota.userId,
+        provider: "groq",
+        model: options.model || "llama-3.1-8b-instant",
+        route: options.quota.route,
+        inputTokens: 0,
+        outputTokens: 0,
+        latencyMs: 0,
+        status: gate.reason === "global_cap" ? "rejected_global" : "rejected_quota",
+      });
+      throw new QuotaExceededError(gate.reason, gate.retryAfterSeconds);
+    }
+  }
+
   let lastError: unknown;
+  const callStartedAt = Date.now();
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -160,6 +192,23 @@ export async function generateWithGroq(
       if (!text) throw new Error("AI returned an empty response. Please try again.");
 
       await logApiCall("groq");
+
+      if (options.quota) {
+        // OpenAI-compatible usage shape returned by Groq
+        const inputTokens = data.usage?.prompt_tokens ?? estimateTokens(systemPrompt) + estimateTokens(userPrompt);
+        const outputTokens = data.usage?.completion_tokens ?? estimateTokens(text);
+        await recordUsage({
+          userId: options.quota.userId,
+          provider: "groq",
+          model: options.model || "llama-3.1-8b-instant",
+          route: options.quota.route,
+          inputTokens,
+          outputTokens,
+          latencyMs: Date.now() - callStartedAt,
+          status: "ok",
+        });
+      }
+
       return text;
     } catch (err) {
       lastError = err;

@@ -27,7 +27,7 @@ export default function AnalyticsPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20">
               <BarChart3 className="h-4 w-4 text-white" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Analytics</h1>
@@ -69,9 +69,9 @@ async function AnalyticsContent() {
   return (
     <>
       <div className="flex justify-end">
-        <div className="flex items-center gap-1.5 rounded-lg bg-violet-50 dark:bg-violet-900/30 px-3 py-1.5 ring-1 ring-violet-100 dark:ring-violet-800/50">
-          <TrendingUp className="h-3.5 w-3.5 text-violet-600 dark:text-violet-300" />
-          <span className="text-[11px] font-semibold text-violet-700 dark:text-violet-300">{interviewRate}% interview rate</span>
+        <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 ring-1 ring-emerald-100 dark:ring-emerald-800/50">
+          <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
+          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">{interviewRate}% interview rate</span>
         </div>
       </div>
 

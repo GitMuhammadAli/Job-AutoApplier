@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, Download, Eye, FileText } from "@phosphor-icons/react";
+import { Clock, Download, Eye, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface GenerationRow {
@@ -55,7 +55,7 @@ export function HistoryTab() {
           className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3"
         >
           <div className="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/40 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40 shrink-0">
-            <FileText size={14} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
+            <FileText size={14} className="text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-zinc-900 dark:text-white">
@@ -82,7 +82,7 @@ export function HistoryTab() {
               href={`/api/resumes/generations/${r.id}/pdf`}
               className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
             >
-              <Download size={12} weight="bold" /> PDF
+              <Download size={12} /> PDF
             </a>
           </div>
         </li>

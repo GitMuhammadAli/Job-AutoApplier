@@ -53,6 +53,7 @@ import {
   RefreshCw,
   Sparkles,
 } from "lucide-react";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface ResumeWithStats {
   id: string;
@@ -742,7 +743,7 @@ export function ResumeList({ resumes }: ResumeListProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 text-[10px] px-2 border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/30"
+                      className="h-7 text-[10px] px-2 border-emerald-300 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                       onClick={() => handleRephrase(r)}
                       disabled={rephrasing === r.id}
                     >
@@ -814,18 +815,12 @@ export function ResumeList({ resumes }: ResumeListProps) {
       </div>
 
       {resumes.length === 0 && (
-        <div className="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-10 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-200/60 dark:ring-zinc-700/50 text-center">
-          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 to-blue-500" />
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-zinc-700 mx-auto mb-3">
-            <FileText className="h-6 w-6 text-slate-300 dark:text-zinc-500" />
-          </div>
-          <p className="text-sm font-medium text-slate-600 dark:text-zinc-400">
-            No resumes yet
-          </p>
-          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">
-            Add your first resume variant to enable smart matching.
-          </p>
-        </div>
+        <EmptyState
+          tone="card"
+          icon={FileText}
+          title="No resumes yet"
+          description="Add your first resume variant to enable smart matching."
+        />
       )}
     </div>
   );

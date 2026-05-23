@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "build:thumbnails": "tsx scripts/build-template-thumbnails.ts",
     "debug-user-jobs": "tsx src/scripts/debug-user-jobs.ts",
     "test-scrapers": "tsx src/scripts/test-scrapers.ts",
     "integration-health-check": "tsx src/scripts/integration-health-check.ts",

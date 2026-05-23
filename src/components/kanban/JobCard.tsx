@@ -192,7 +192,7 @@ export const JobCard = memo(function JobCard({
           </span>
         )}
         {job.application?.status === "DRAFT" && (
-          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
             <FileText className="h-2.5 w-2.5" /> Draft
           </span>
         )}
@@ -276,7 +276,7 @@ export const JobCard = memo(function JobCard({
               });
               window.open(`https://dev-radar-web.vercel.app/resume?${params}`, '_blank');
             }}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors touch-manipulation"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors touch-manipulation"
           >
             <BarChart2 className="h-3 w-3" />
             Analyze Gap
@@ -292,7 +292,7 @@ export const JobCard = memo(function JobCard({
               });
               window.open(`https://dev-radar-web.vercel.app/interview?${params}`, '_blank');
             }}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors touch-manipulation"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors touch-manipulation"
           >
             <MessageSquare className="h-3 w-3" />
             Prep Interview

@@ -27,3 +27,7 @@ FREE_RESOURCES_AND_ENV.md
 !.env.example
 *.env.tmp
 .env*.tmp
+
+# Audit run artifacts — contain internal reports, real PII (fixture profiles),
+# and screenshots. Keep local-only. Repo is public.
+qa-run-*/

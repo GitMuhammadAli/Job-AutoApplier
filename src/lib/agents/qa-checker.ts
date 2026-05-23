@@ -19,6 +19,7 @@ export async function checkApplicationQuality(input: {
   body: string;
   jobDescription: string;
   companyName: string;
+  quota?: { userId: string; route: string };
 }): Promise<QAResult> {
   const { subject, body, jobDescription, companyName } = input;
 
@@ -63,6 +64,7 @@ Evaluate this application email. Return ONLY JSON.`;
     temperature: 0.3,
     max_tokens: 500,
     model: "llama-3.1-8b-instant",
+    quota: input.quota,
   });
 
   try {

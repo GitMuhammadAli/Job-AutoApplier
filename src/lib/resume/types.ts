@@ -26,13 +26,33 @@ const SUMMARY_MAX = 600;
 const trimmedShort = (max: number) =>
   z.string().trim().min(1).max(max);
 
-const optionalUrl = z
-  .string()
-  .trim()
-  .url("must be a valid https?:// URL")
-  .or(z.literal(""))
-  .optional()
-  .transform((v) => (v ? v : undefined));
+// Normalizes bare hostnames ("github.com/x") to "https://github.com/x" so
+// AI extractors (parse-pdf) and free-form form input both pass URL validation.
+// Save endpoint was previously dead-ending users when extractor returned a
+// bare hostname — see qa-run-20260522 B2.
+// Bare-hostname recognizer: requires at least one dot, both sides alphanumeric
+// (rejects "Node.js" — period at end with no extension), at least one path/letter
+// after the TLD or end-of-string, and disallows leading/trailing whitespace.
+// Examples accepted:  github.com/jane, linkedin.com/in/x, sub.domain.co.uk
+// Examples rejected:  Node.js, foo., .com, "1.2.3", hello.world!
+const BARE_HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(\/[^\s]*)?$/i;
+
+const optionalUrl = z.preprocess(
+  (raw) => {
+    if (typeof raw !== "string") return raw;
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (BARE_HOSTNAME_RE.test(trimmed)) return `https://${trimmed}`;
+    return trimmed; // leave invalid input alone so the URL validator fails it
+  },
+  z
+    .string()
+    .url("must be a valid https?:// URL")
+    .or(z.literal(""))
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+);
 
 const bullet = trimmedShort(BULLET_MAX);
 const skill = trimmedShort(SKILL_MAX);
@@ -138,10 +158,17 @@ export const SectionKeySchema = z.enum([
 ]);
 export type SectionKey = z.infer<typeof SectionKeySchema>;
 
+/**
+ * "unlimited" is used by long-form CVs (Academic, T15) where 4-6 pages is
+ * normal. Templates that don't opt in stay 1-2 pages.
+ */
+export const PageTargetSchema = z.union([z.literal(1), z.literal(2), z.literal("unlimited")]);
+export type PageTarget = z.infer<typeof PageTargetSchema>;
+
 export const ResumeRenderInputSchema = z.object({
   templateId: z.string(),
   templateVersion: z.string(),
-  pageTarget: z.union([z.literal(1), z.literal(2)]),
+  pageTarget: PageTargetSchema,
 
   header: ResumeHeaderSchema,
 
@@ -180,7 +207,7 @@ export const GenerateRequestSchema = z.object({
   // Server pulls userId from session, no need to pass it.
   jdText: z.string().max(20_000).optional(),
   templateId: z.string().default("T01"),
-  pageTarget: z.union([z.literal(1), z.literal(2)]).default(1),
+  pageTarget: PageTargetSchema.default(1),
 });
 export type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
 
@@ -201,6 +228,7 @@ export const RecommendExistingResumeResultSchema = z.object({
       resumeName: z.string(),
       score: z.number(),
       matchedSkills: z.array(z.string()),
+      matchedTerms: z.array(z.string()).default([]),
       reason: z.string(),
     }),
   ),

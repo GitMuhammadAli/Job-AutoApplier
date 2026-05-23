@@ -18,7 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -29,7 +29,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const userId = await getAuthUserId();
+  const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
 
   const generation = await prisma.resumeGeneration.findUnique({
     where: { id: params.id },

@@ -139,7 +139,11 @@ export function QuickApplyKit({ profile, jobId, jobTitle, company }: QuickApplyK
     return (
       <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 p-3 ring-1 ring-amber-200 dark:ring-amber-800/40">
         <p className="text-xs text-amber-700 dark:text-amber-300">
-          Set up your profile in Settings to use Quick Apply Kit.
+          Finish your{" "}
+          <a href="/resumes/setup" className="underline font-medium hover:text-amber-900 dark:hover:text-amber-200">
+            resume profile
+          </a>{" "}
+          to unlock Quick Apply Kit.
         </p>
       </div>
     );

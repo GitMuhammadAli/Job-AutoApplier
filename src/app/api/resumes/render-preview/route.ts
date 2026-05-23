@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { ResumeProfileSchema, type ResumeProfile } from "@/lib/resume/types";
 import { buildRenderInput, applyRanking } from "@/lib/resume/profile-mapper";
 import { renderResume, TemplateNotAvailableError } from "@/lib/resume/render";
@@ -29,7 +29,9 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  await getAuthUserId();
+  const __auth = await requireAuthUserId();
+  if (__auth.response) return __auth.response;
+  const userId = __auth.userId;
 
   let body: unknown;
   try {
@@ -57,6 +59,7 @@ export async function POST(req: NextRequest) {
         userSkills: profile.skills,
         jobDescription: jdText,
         jobTitle: jdText.split(/\r?\n/).slice(0, 2).join(" ").trim().slice(0, 200),
+        quota: { userId, route: "/api/resumes/render-preview" },
       });
       const fill = await fillTemplate({
         profile,
@@ -64,6 +67,7 @@ export async function POST(req: NextRequest) {
         templateId,
         pageTarget,
         jdText,
+        quota: { userId, route: "/api/resumes/render-preview" },
       });
       renderInput = applyRanking(renderInput, profile, {
         skillsOrder: fill.skillsOrder,

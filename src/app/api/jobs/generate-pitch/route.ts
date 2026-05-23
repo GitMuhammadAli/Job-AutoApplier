@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { generateWithGroq, streamWithGroq } from "@/lib/groq";
 import { getSettings } from "@/app/actions/settings";
 import { APPLICATIONS, JOBS, VALIDATION } from "@/lib/messages";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getAuthUserId();
+    const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
     const body = await req.json();
     const { userJobId } = body;
     // Support ?stream=true query param OR body field { stream: true }
@@ -133,6 +133,7 @@ Generate the pitch and cover letter now.`;
     const raw = await generateWithGroq(systemPrompt, userPrompt, {
       temperature: 0.7,
       max_tokens: 1000,
+      quota: { userId, route: "/api/jobs/generate-pitch" },
     });
 
     let result: { pitch: string; coverLetter: string };

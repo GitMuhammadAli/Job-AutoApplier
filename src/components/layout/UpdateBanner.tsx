@@ -49,7 +49,7 @@ export function UpdateBanner() {
     <div
       className={cn(
         "sticky top-0 z-50 flex items-center justify-between gap-3 px-4 py-2.5",
-        "bg-gradient-to-r from-blue-600 via-violet-600 to-blue-600 text-white",
+        "bg-gradient-to-r from-blue-600 via-emerald-600 to-blue-600 text-white",
         "shadow-lg shadow-blue-600/20 animate-in slide-in-from-top-2 duration-300",
       )}
     >

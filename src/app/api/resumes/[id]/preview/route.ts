@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { GENERIC, RESUMES } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const userId = await getAuthUserId();
+    const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
     const resume = await prisma.resume.findFirst({
       where: { id, userId, isDeleted: false },
       select: { fileUrl: true, fileName: true, fileType: true },

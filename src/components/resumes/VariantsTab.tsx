@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkle, Trash, ArrowRight, FileText, Download, Eye, Star } from "@phosphor-icons/react";
+import { Sparkles, Trash2, ArrowRight, FileText, Download, Eye, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -69,7 +69,7 @@ export function VariantsTab() {
     return (
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-12 text-center">
         <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40 mb-4">
-          <Star size={20} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
+          <Star size={20} className="text-emerald-600 dark:text-emerald-400" />
         </div>
         <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-1">No favorite resumes yet</h3>
         <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
@@ -92,7 +92,7 @@ export function VariantsTab() {
           className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3"
         >
           <div className="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/40 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40 shrink-0">
-            <FileText size={14} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
+            <FileText size={14} className="text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
@@ -120,7 +120,7 @@ export function VariantsTab() {
               href={`/api/resumes/generations/${v.id}/pdf`}
               className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
             >
-              <Download size={12} weight="bold" /> PDF
+              <Download size={12} /> PDF
             </a>
           </div>
           <Button
@@ -129,7 +129,7 @@ export function VariantsTab() {
             onClick={() => handleUnfavorite(v.id)}
             className="text-red-500 hover:text-red-600 gap-1.5"
           >
-            <Trash size={12} /> Unfavorite
+            <Trash2 size={12} /> Unfavorite
           </Button>
         </li>
       ))}
@@ -137,5 +137,5 @@ export function VariantsTab() {
   );
 }
 
-// Sparkle import kept for backwards compat in case other code imports
-void Sparkle;
+// Sparkles import kept for backwards compat in case other code imports
+void Sparkles;

@@ -147,6 +147,10 @@ export function QuickApplyPanel({
   const [showPlatforms, setShowPlatforms] = useState(false);
   const [applicationMode, setApplicationMode] = useState<string | null>(null);
   const [selectedResumeId, setSelectedResumeId] = useState<string>("");
+  const [resumeScores, setResumeScores] = useState<
+    Record<string, { score: number; matchedTerms: string[]; reason: string }>
+  >({});
+  const [topResumeId, setTopResumeId] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [matchInfo, setMatchInfo] = useState<{
     name: string;
@@ -200,6 +204,46 @@ export function QuickApplyPanel({
       })
       .catch(() => {});
   }, []);
+
+  // Pre-score uploaded resumes against this JD so the dropdown can show a match badge.
+  // Min 20 chars JD or the recommend route 400s.
+  useEffect(() => {
+    const jd = userJob.globalJob.description ?? "";
+    if (jd.trim().length < 20 || availableResumes.length === 0) return;
+
+    let cancelled = false;
+    fetch("/api/resumes/recommend-existing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jdText: jd, globalJobId: userJob.id }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.candidates) return;
+        const map: Record<string, { score: number; matchedTerms: string[]; reason: string }> = {};
+        for (const c of data.candidates as Array<{
+          resumeId: string;
+          score: number;
+          matchedTerms?: string[];
+          reason: string;
+        }>) {
+          map[c.resumeId] = {
+            score: c.score,
+            matchedTerms: c.matchedTerms ?? [],
+            reason: c.reason,
+          };
+        }
+        setResumeScores(map);
+        setTopResumeId(data.resumeId ?? null);
+      })
+      .catch(() => {
+        // Scoring is a UX enhancement only — silent failure is acceptable
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userJob.id, userJob.globalJob.description, availableResumes.length]);
 
   function handleGenerate() {
     setGenerateError(null);
@@ -477,21 +521,48 @@ export function QuickApplyPanel({
           <select
             value={selectedResumeId}
             onChange={(e) => setSelectedResumeId(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <option value="">We&apos;ll pick the best resume</option>
-            {availableResumes.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}{r.isDefault ? " (default)" : ""}
-              </option>
-            ))}
+            <option value="">
+              {topResumeId
+                ? `Auto-pick: ${availableResumes.find((r) => r.id === topResumeId)?.name ?? "best match"}`
+                : "We'll pick the best resume"}
+            </option>
+            {availableResumes.map((r) => {
+              const s = resumeScores[r.id];
+              const isTop = topResumeId === r.id;
+              const parts: string[] = [r.name];
+              if (r.isDefault) parts.push("default");
+              if (s && s.score > 0) parts.push(`${s.score.toFixed(0)} pts`);
+              if (isTop) parts.unshift("★");
+              return (
+                <option key={r.id} value={r.id}>
+                  {parts.join(" · ")}
+                </option>
+              );
+            })}
           </select>
+          {topResumeId && resumeScores[topResumeId] && (
+            <p className="text-[10px] text-emerald-700 dark:text-emerald-400">
+              Recommended:{" "}
+              <span className="font-medium">
+                {availableResumes.find((r) => r.id === topResumeId)?.name}
+              </span>{" "}
+              · {resumeScores[topResumeId].reason}
+            </p>
+          )}
         </div>
       )}
 
-      {/* AI Resume Recommendation */}
+      {/* Tailor-resume CTA — top-level, always visible. The entry point for the
+          per-JD generator. Sits above the email flow so the user sees it before
+          clicking Generate Email. */}
+      <TailorResumeCTA jdText={userJob.globalJob.description ?? ""} />
+
+      {/* AI Resume Recommendation — shown after Generate Email picks one of the
+          user's uploaded PDFs. Separate from the tailored-generation path above. */}
       {matchInfo && (
-        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/30 p-3 ring-1 ring-blue-100 dark:ring-blue-800/40 space-y-2.5">
+        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/30 p-3 ring-1 ring-blue-100 dark:ring-blue-800/40">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
             <div className="min-w-0">
@@ -505,7 +576,6 @@ export function QuickApplyPanel({
               </p>
             </div>
           </div>
-          <TailorResumeCTA jdText={userJob.globalJob.description ?? ""} />
         </div>
       )}
 
@@ -727,30 +797,6 @@ export function QuickApplyPanel({
         </>
       ) : (
         <div className="space-y-4 py-4">
-          {availableResumes.length === 0 && (
-            <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-              No resumes uploaded yet. <a href="/resumes" className="underline font-medium">Upload a resume</a> to enable instant apply.
-            </div>
-          )}
-          {availableResumes.length > 0 && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-600 dark:text-zinc-400">
-                Resume
-              </Label>
-              <select
-                value={selectedResumeId}
-                onChange={(e) => setSelectedResumeId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">We&apos;ll pick the best resume</option>
-                {availableResumes.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}{r.isDefault ? " (default)" : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
           <div className="text-center space-y-3">
             <AlertCircle className="h-8 w-8 text-slate-200 dark:text-zinc-600 mx-auto" />
             <p className="text-sm text-slate-500 dark:text-zinc-400">
@@ -801,30 +847,48 @@ export function QuickApplyPanel({
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Tailor Resume CTA — extends the AI Resume Recommendation block.
-// Opens GenerateModal pre-loaded with this job's JD. Three states based
-// on whether the user has a structured profile:
+// Tailor Resume CTA — top-level standalone card on the job page.
+// Opens GenerateModal pre-loaded with this job's JD. Three states:
 //   - loading:    subtle pulse
-//   - no profile: link to /resumes/setup
+//   - no profile: link to /resumes/setup (path picker, not scratch)
 //   - has profile: emerald CTA → modal opens with initialJd=jdText
 // ────────────────────────────────────────────────────────────────────
 
 function TailorResumeCTA({ jdText }: { jdText: string }) {
-  const [hasProfile, setHasProfile] = useState<boolean | null>(null);
+  // Default to "no profile" so the CTA renders the link version immediately;
+  // upgrades to the modal-button version once the fetch confirms a saved profile.
+  // Prevents the indefinite "Checking your resume profile…" state when the
+  // fetch hangs / 429s / fires before cookies settle (see qa-run-20260522 M1).
+  // Also refetches on window focus so a save in another tab promotes the CTA.
+  const [hasProfile, setHasProfile] = useState<boolean>(false);
   const [modalOpen, setModalOpen] = useState(false);
-  // Lazy-load GenerateModal so its heavy iframe code doesn't ship with the
-  // QuickApplyPanel bundle until the user actually opens it.
   const [GenerateModal, setGenerateModal] = useState<
     null | React.ComponentType<{ open: boolean; onClose: () => void; initialJd?: string }>
   >(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/resumes/profile", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { profile: null }))
-      .then((d) => { if (!cancelled) setHasProfile(d.profile != null); })
-      .catch(() => { if (!cancelled) setHasProfile(false); });
-    return () => { cancelled = true; };
+    let inFlight = false;
+    let lastCheckedAt = 0;
+    const check = () => {
+      // Dedup: skip if a fetch is already in-flight or we checked < 30s ago.
+      const now = Date.now();
+      if (inFlight || now - lastCheckedAt < 30_000) return;
+      inFlight = true;
+      lastCheckedAt = now;
+      fetch("/api/resumes/profile", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : { profile: null }))
+        .then((d) => {
+          if (cancelled) return;
+          const next = d.profile != null;
+          setHasProfile((prev) => (prev === next ? prev : next));
+        })
+        .catch(() => { /* keep prior state — don't downgrade on transient errors */ })
+        .finally(() => { inFlight = false; });
+    };
+    check();
+    window.addEventListener("focus", check);
+    return () => { cancelled = true; window.removeEventListener("focus", check); };
   }, []);
 
   async function openModal() {
@@ -835,24 +899,20 @@ function TailorResumeCTA({ jdText }: { jdText: string }) {
     setModalOpen(true);
   }
 
-  if (hasProfile === null) {
-    return (
-      <div className="text-[10px] text-blue-700 dark:text-blue-300 italic">
-        Checking your resume profile…
-      </div>
-    );
-  }
-
   if (!hasProfile) {
     return (
       <Link
-        href="/resumes/setup?path=scratch"
-        className="group flex items-center justify-between gap-2 rounded-md border border-blue-200/60 dark:border-blue-800/40 bg-white/60 dark:bg-zinc-900/40 px-2.5 py-2 text-[11px] hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
+        href="/resumes/setup"
+        className="group flex items-center justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs hover:border-emerald-400 dark:hover:border-emerald-700 hover:shadow-sm transition-all"
       >
-        <span className="text-zinc-700 dark:text-zinc-300">
-          Want a JD-tailored resume? <strong className="font-semibold">Build your profile</strong>
+        <span className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
+          <Sparkles className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+          <span>
+            <strong className="font-semibold">Tailor for this JD</strong>
+            <span className="block text-[11px] text-zinc-500 mt-0.5">Set up your profile first — takes 2 minutes</span>
+          </span>
         </span>
-        <ArrowRight className="h-3 w-3 text-zinc-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        <ArrowRight className="h-3.5 w-3.5 text-zinc-400 shrink-0 group-hover:translate-x-0.5 group-hover:text-emerald-600 transition-all" />
       </Link>
     );
   }
@@ -861,13 +921,16 @@ function TailorResumeCTA({ jdText }: { jdText: string }) {
     <>
       <button
         onClick={openModal}
-        className="group w-full flex items-center justify-between gap-2 rounded-md bg-emerald-600 hover:bg-emerald-500 px-2.5 py-2 text-[11px] text-white shadow-sm transition-colors"
+        className="group w-full flex items-center justify-between gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2.5 text-xs text-white shadow-sm transition-colors"
       >
-        <span className="flex items-center gap-1.5">
-          <Sparkles className="h-3 w-3" />
-          <strong className="font-semibold">Tailor a resume for this JD</strong>
+        <span className="flex items-center gap-2">
+          <Sparkles className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            <strong className="font-semibold block">Tailor resume for this JD</strong>
+            <span className="block text-[11px] opacity-90 mt-0.5">5 templates · AI picks projects · ATS PDF</span>
+          </span>
         </span>
-        <span className="text-[10px] opacity-80">5 templates · ATS-clean PDF</span>
+        <ArrowRight className="h-3.5 w-3.5 shrink-0 group-hover:translate-x-0.5 transition-transform" />
       </button>
       {GenerateModal && (
         <GenerateModal

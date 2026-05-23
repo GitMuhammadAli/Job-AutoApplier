@@ -28,6 +28,8 @@ export interface PipelineInput {
   userSkills: string[];
   userName: string;
   userEmail: string;
+  /** Per-user token quota scope. Pass at every user-initiated entry point. */
+  quota?: { userId: string; route: string };
 }
 
 export interface PipelineResult {
@@ -40,11 +42,11 @@ export interface PipelineResult {
 export async function runApplicationPipeline(
   input: PipelineInput
 ): Promise<PipelineResult> {
-  const { companyName, jobDescription, jobTitle, userSkills, userName, userEmail } = input;
+  const { companyName, jobDescription, jobTitle, userSkills, userName, userEmail, quota } = input;
 
   // Agent 1: Research the company
   console.log(`[Pipeline] Step 1/4: Researching ${companyName}...`);
-  const companyResearch = await researchCompany(companyName);
+  const companyResearch = await researchCompany(companyName, { quota });
 
   // Agent 2: Tailor resume to job description
   console.log(`[Pipeline] Step 2/4: Tailoring resume for ${jobTitle}...`);
@@ -52,6 +54,7 @@ export async function runApplicationPipeline(
     userSkills,
     jobDescription,
     jobTitle,
+    quota,
   });
 
   // Agent 3: Write personalized application email using agent 1+2 results
@@ -64,6 +67,7 @@ export async function runApplicationPipeline(
     jobDescription,
     userName,
     userEmail,
+    quota,
   });
 
   // Agent 4: QA check the email
@@ -73,6 +77,7 @@ export async function runApplicationPipeline(
     body: email.body,
     jobDescription,
     companyName,
+    quota,
   });
 
   console.log(`[Pipeline] Complete. QA score: ${qa.score}/10, Spam score: ${qa.spamScore}/10`);

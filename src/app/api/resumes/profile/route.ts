@@ -16,7 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { ResumeProfileSchema } from "@/lib/resume/types";
 import { bundleToResumeProfile } from "@/lib/resume/profile-mapper";
 
@@ -53,7 +53,7 @@ function profileIsBlank(bundle: Awaited<ReturnType<typeof loadBundle>>): boolean
 }
 
 export async function GET() {
-  const userId = await getAuthUserId();
+  const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
   const bundle = await loadBundle(userId);
 
   // If nothing has been entered yet, return null so the UI shows onboarding.
@@ -64,7 +64,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  const userId = await getAuthUserId();
+  const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
 
   let body: unknown;
   try {

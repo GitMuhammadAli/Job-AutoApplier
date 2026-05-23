@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUserId } from "@/lib/auth";
+import { requireAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { runApplicationPipeline } from "@/lib/agents/pipeline";
 import { APPLICATIONS, GENERIC, VALIDATION } from "@/lib/messages";
+import { QuotaExceededError, formatRetryMessage } from "@/lib/quota/quota";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getAuthUserId();
+    const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
     const { userJobId } = await req.json();
 
     if (!userJobId) {
@@ -73,10 +74,22 @@ export async function POST(req: NextRequest) {
       userSkills,
       userName,
       userEmail,
+      quota: { userId, route: "/api/applications/pipeline" },
     });
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof QuotaExceededError) {
+      return NextResponse.json(
+        {
+          error: "ai_quota_exceeded",
+          reason: error.reason,
+          message: formatRetryMessage(error.reason, error.retryAfterSeconds),
+          retryAfterSeconds: error.retryAfterSeconds,
+        },
+        { status: 429 },
+      );
+    }
     const message = error instanceof Error ? error.message : APPLICATIONS.PIPELINE_FAILED;
     if (message === GENERIC.NOT_AUTHENTICATED) {
       return NextResponse.json({ error: message }, { status: 401 });

@@ -14,6 +14,19 @@
 
 export type TemplateLayout = "single-column" | "two-column";
 
+/**
+ * Section keys mirror `SectionKeySchema` in src/lib/resume/types.ts.
+ * Duplicated here as a literal type to avoid a circular import (types.ts
+ * imports the registry transitively via render.ts).
+ */
+export type RegistrySectionKey =
+  | "summary"
+  | "skills"
+  | "experience"
+  | "projects"
+  | "education"
+  | "certifications";
+
 export type TemplateFontFamily =
   | "spaceGrotesk-dmSans" // T01
   | "georgia-georgia"     // T02 Harvard
@@ -53,6 +66,18 @@ export interface TemplateRegistryEntry {
   available: boolean;
   /** Whether the template applies an accent color (otherwise pure black/white). */
   hasAccent: boolean;
+  /**
+   * Optional per-template section ordering applied when the caller doesn't
+   * pass `buildRenderInput({ sectionOrder })`. Lets templates like Career
+   * Change (skills-first) or Student (education-first) ship as the default.
+   * JD-driven tailoring still wins — fillTemplate overrides this.
+   */
+  defaultSectionOrder?: RegistrySectionKey[];
+  /**
+   * Allow rendering past 1 page even when pageTarget=1. Used by Academic CV
+   * (T15) where 4-6 pages is normal. Without this flag the audit truncates.
+   */
+  multiPage?: boolean;
 }
 
 export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
@@ -126,7 +151,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "manrope-inter",
     atsRank: 4,
-    available: false,
+    available: true,
     hasAccent: false,
   },
   {
@@ -138,32 +163,34 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "satoshi-satoshi",
     atsRank: 4,
-    available: false,
+    available: true,
     hasAccent: true,
   },
   {
     id: "T08",
     version: "T08@1.0.0",
     name: "Career Change",
-    description: "Geist + Inter, chip skills. Pair with skills-above-experience section order.",
+    description: "Geist + Inter, chip skills. Skills-first ordering — leads with transferable competencies.",
     audience: "Pivot · re-skill",
     layout: "single-column",
     fonts: "geist-inter",
     atsRank: 4,
-    available: false,
+    available: true,
     hasAccent: false,
+    defaultSectionOrder: ["summary", "skills", "experience", "projects", "education"],
   },
   {
     id: "T09",
     version: "T09@1.0.0",
     name: "Student / Internship",
-    description: "Inter, friendly type scale. Pair with education-first section order.",
+    description: "Inter, friendly type scale. Education-first — leads with degree and coursework.",
     audience: "New grad · intern · bootcamp",
     layout: "single-column",
     fonts: "inter-inter",
     atsRank: 4,
-    available: false,
+    available: true,
     hasAccent: false,
+    defaultSectionOrder: ["summary", "education", "experience", "projects", "skills"],
   },
   {
     id: "T10",
@@ -174,7 +201,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "berkeleyMono-inter",
     atsRank: 5,
-    available: false,
+    available: true,
     hasAccent: false,
   },
 
@@ -188,7 +215,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "two-column",
     fonts: "inter-inter-sidebar",
     atsRank: 3,
-    available: false,
+    available: true,
     hasAccent: false,
   },
   {
@@ -200,7 +227,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "two-column",
     fonts: "interTight-inter-accent",
     atsRank: 3,
-    available: false,
+    available: true,
     hasAccent: true,
   },
   {
@@ -212,7 +239,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "two-column",
     fonts: "interTight-inter-timeline",
     atsRank: 3,
-    available: false,
+    available: true,
     hasAccent: false,
   },
   {
@@ -224,7 +251,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "two-column",
     fonts: "interTight-inter-metrics",
     atsRank: 3,
-    available: false,
+    available: true,
     hasAccent: true,
   },
 
@@ -233,13 +260,14 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     id: "T15",
     version: "T15@1.0.0",
     name: "Academic CV",
-    description: "EB Garamond + Lora serif pairing. Multi-page tolerated.",
+    description: "EB Garamond + Lora serif pairing. Multi-page tolerated — every publication and award rendered in full.",
     audience: "Research · PhD · academia",
     layout: "single-column",
     fonts: "georgia-georgia-multipage",
     atsRank: 5,
-    available: false,
+    available: true,
     hasAccent: false,
+    multiPage: true,
   },
   {
     id: "T16",
@@ -250,7 +278,7 @@ export const TEMPLATE_REGISTRY: readonly TemplateRegistryEntry[] = [
     layout: "single-column",
     fonts: "timesNewRoman-timesNewRoman",
     atsRank: 5,
-    available: false,
+    available: true,
     hasAccent: false,
   },
 ];

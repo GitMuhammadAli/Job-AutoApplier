@@ -15,6 +15,7 @@ import type { ResumeRenderInput, SectionKey } from "../types";
 import {
   escapeHtml,
   link,
+  normalizeDisplayName,
   renderSummary,
   renderSkills,
   renderExperience,
@@ -102,7 +103,12 @@ export function renderThemedTwoColumn(
   if (input.templateId !== theme.id) {
     throw new Error(`Theme ${theme.id} received templateId=${input.templateId}`);
   }
-  const pageClass = input.pageTarget === 2 ? "rs-page-2" : "rs-page-1";
+  const pageClass =
+    input.pageTarget === "unlimited"
+      ? "rs-page-unlimited"
+      : input.pageTarget === 2
+        ? "rs-page-2"
+        : "rs-page-1";
 
   const sidebarSet = new Set(theme.sidebarSections);
   const sidebarOrder: SectionKey[] = input.sectionOrder.filter((k) => sidebarSet.has(k));
@@ -129,7 +135,7 @@ export function renderThemedTwoColumn(
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>${escapeHtml(input.header.fullName)} &mdash; Resume</title>
+  <title>${escapeHtml(normalizeDisplayName(input.header.fullName))} &mdash; Resume</title>
   <meta name="generator" content="JobPilot ${theme.version}" />
   ${theme.googleFontsHref ? `<link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -258,7 +264,7 @@ export function renderThemedTwoColumn(
 <body>
   <div class="rs-doc ${pageClass}">
     <header class="rs-tc-header">
-      <h1 class="rs-tc-name">${escapeHtml(input.header.fullName)}</h1>
+      <h1 class="rs-tc-name">${escapeHtml(normalizeDisplayName(input.header.fullName))}</h1>
       <p class="rs-tc-headline">${escapeHtml(input.header.headline)}</p>
     </header>
     <aside class="rs-tc-sidebar">${sidebarHtml}</aside>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PaperPlaneTilt } from "@phosphor-icons/react/dist/ssr";
+import { Send } from "lucide-react";
 import { ASMark } from "@/components/ui/as-mark";
 
 const CREATOR = {
@@ -36,7 +36,7 @@ export function Footer() {
           <div>
             <Link href="/" className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600">
-                <PaperPlaneTilt size={16} weight="fill" className="text-white" />
+                <Send size={16} className="text-white" />
               </div>
               <span className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
                 JobPilot
