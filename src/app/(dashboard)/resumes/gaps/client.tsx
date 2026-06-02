@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronRight, TrendingUp, XCircle } from "lucide-react";
 import type { KeywordGapAnalysis, KeywordGapEntry } from "@/lib/resume/keyword-gaps";
+import { GAPS_COPY } from "@/lib/messages";
 
 export function GapsClient({ analysis }: { analysis: KeywordGapAnalysis }) {
   const { jobCount, entries, summary } = analysis;
@@ -28,7 +29,7 @@ export function GapsClient({ analysis }: { analysis: KeywordGapAnalysis }) {
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
           <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
-              Top missing keywords · ranked by jobs blocked
+              {GAPS_COPY.LIST_HEADER}
             </p>
           </div>
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -40,8 +41,7 @@ export function GapsClient({ analysis }: { analysis: KeywordGapAnalysis }) {
       )}
 
       <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center">
-        Analysis spans your last {jobCount} non-dismissed jobs (saved + recommended +
-        applied). Counts update as your shortlist evolves.
+        {GAPS_COPY.FOOTER(jobCount)}
       </p>
     </div>
   );
@@ -64,13 +64,13 @@ function SummaryBanner({
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Stat label="Jobs analyzed" value={jobCount.toString()} />
+        <Stat label={GAPS_COPY.STATS_JOBS} value={jobCount.toString()} />
         <Stat
-          label="Avg ATS coverage"
+          label={GAPS_COPY.STATS_AVG_COVERAGE}
           value={`${avgPct}%`}
           tone={avgPct >= 70 ? "ok" : avgPct >= 50 ? "warn" : "bad"}
         />
-        <Stat label="Distinct gaps" value={summary.distinctMissing.toString()} />
+        <Stat label={GAPS_COPY.STATS_DISTINCT} value={summary.distinctMissing.toString()} />
       </div>
 
       {summary.topImpact && (
@@ -78,17 +78,15 @@ function SummaryBanner({
           <TrendingUp className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" size={14} />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
-              Top-leverage move:{" "}
+              {GAPS_COPY.TOP_LEVERAGE_PREFIX}{" "}
               <span className="font-bold">{summary.topImpact.keyword}</span>
             </p>
             <p className="text-[11px] text-emerald-700/90 dark:text-emerald-300/90 mt-0.5">
-              Honestly adding this to your profile would unlock{" "}
-              <strong>{summary.topImpact.jobs} of your {jobCount} jobs</strong>{" "}
-              ({topImpactPct}%).
+              {GAPS_COPY.TOP_LEVERAGE_BODY(summary.topImpact.jobs, jobCount, topImpactPct)}
               {summary.topImpact.adjacent && (
                 <>
                   {" "}
-                  You already have related experience — see the row below.
+                  {GAPS_COPY.TOP_LEVERAGE_HAS_RELATED}
                 </>
               )}
             </p>
@@ -155,11 +153,11 @@ function GapRow({
             </span>
             {entry.hasAdjacency ? (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
-                related experience
+                {GAPS_COPY.CHIP_RELATED}
               </span>
             ) : (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300">
-                cold
+                {GAPS_COPY.CHIP_COLD}
               </span>
             )}
             <span className="text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400 ml-auto">
@@ -185,7 +183,7 @@ function GapRow({
           {entry.hasAdjacency ? (
             <div className="rounded-lg bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40 p-2.5">
               <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-200 mb-1.5">
-                You have related experience — worth mentioning where honest:
+                {GAPS_COPY.ROW_RELATED_HEADLINE}
               </p>
               <div className="flex flex-wrap gap-1">
                 {entry.adjacentSkills.slice(0, 8).map((s) => (
@@ -198,8 +196,7 @@ function GapRow({
                 ))}
                 {entry.adjacentProjectIds.length > 0 && (
                   <span className="text-[10px] text-amber-700 dark:text-amber-300">
-                    + {entry.adjacentProjectIds.length} project
-                    {entry.adjacentProjectIds.length !== 1 ? "s" : ""}
+                    {GAPS_COPY.ROW_PROJECT_TAG(entry.adjacentProjectIds.length)}
                   </span>
                 )}
               </div>
@@ -208,10 +205,7 @@ function GapRow({
             <div className="rounded-lg bg-red-50/60 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/40 p-2.5 flex items-start gap-2">
               <XCircle className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" size={12} />
               <p className="text-[11px] text-red-700 dark:text-red-300">
-                Cold — no adjacent experience in your profile. If you can
-                honestly learn this in a weekend (one project, one repo), it
-                unlocks {entry.jobCount}{" "}
-                {entry.jobCount === 1 ? "application" : "applications"}.
+                {GAPS_COPY.ROW_COLD_BODY(entry.jobCount)}
               </p>
             </div>
           )}
@@ -219,7 +213,7 @@ function GapRow({
           {entry.sampleJobs.length > 0 && (
             <div>
               <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-                Sample jobs asking for it
+                {GAPS_COPY.ROW_SAMPLE_LABEL}
               </p>
               <ul className="space-y-0.5">
                 {entry.sampleJobs.slice(0, 5).map((j, i) => (

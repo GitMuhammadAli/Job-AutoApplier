@@ -6,6 +6,7 @@ import type {
   TemplateBreakdown,
   CoverageBucketBreakdown,
 } from "@/lib/resume/outcome-analytics";
+import { OUTCOMES_COPY } from "@/lib/messages";
 
 export function OutcomesClient({ analysis }: { analysis: OutcomeAnalysis }) {
   return (
@@ -15,7 +16,7 @@ export function OutcomesClient({ analysis }: { analysis: OutcomeAnalysis }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BreakdownTable
-          title="By template"
+          title={OUTCOMES_COPY.TABLE_BY_TEMPLATE}
           rows={analysis.byTemplate.map((t) => ({
             key: t.templateId,
             label: t.templateId,
@@ -23,7 +24,7 @@ export function OutcomesClient({ analysis }: { analysis: OutcomeAnalysis }) {
           }))}
         />
         <BreakdownTable
-          title="By ATS keyword coverage"
+          title={OUTCOMES_COPY.TABLE_BY_COVERAGE}
           rows={analysis.byCoverage.map((c) => ({
             key: c.bucket,
             label: c.bucket,
@@ -40,21 +41,21 @@ function RollupBanner({ analysis }: { analysis: OutcomeAnalysis }) {
   const callbackRate = decisive === 0 ? null : analysis.outcomes.positive / decisive;
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <Stat label="Total sent" value={analysis.totalSent.toString()} />
+      <Stat label={OUTCOMES_COPY.STAT_TOTAL} value={analysis.totalSent.toString()} />
       <Stat
-        label="Callbacks"
+        label={OUTCOMES_COPY.STAT_CALLBACKS}
         value={`${analysis.outcomes.positive}`}
         icon={<CheckCircle2 size={12} />}
         tone="ok"
       />
       <Stat
-        label="Rejected/Ghosted"
+        label={OUTCOMES_COPY.STAT_REJECTED}
         value={`${analysis.outcomes.negative}`}
         icon={<XCircle size={12} />}
         tone="bad"
       />
       <Stat
-        label="Callback rate"
+        label={OUTCOMES_COPY.STAT_RATE}
         value={callbackRate === null ? "—" : `${Math.round(callbackRate * 100)}%`}
         tone={
           callbackRate === null
@@ -106,9 +107,7 @@ function WinnersPanel({ analysis }: { analysis: OutcomeAnalysis }) {
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/30 p-4">
         <p className="text-xs text-zinc-600 dark:text-zinc-400">
           <Clock size={12} className="inline mr-1" />
-          Not enough callback data to call winners yet. Send ≥3 applications
-          with at least one positive outcome (INTERVIEW / OFFER) for the system
-          to surface what&apos;s working.
+          {OUTCOMES_COPY.NOT_ENOUGH_DATA}
         </p>
       </div>
     );
@@ -119,17 +118,23 @@ function WinnersPanel({ analysis }: { analysis: OutcomeAnalysis }) {
       {analysis.winningTemplate && (
         <WinnerCard
           icon={<Trophy size={14} />}
-          label="Winning template"
+          label={OUTCOMES_COPY.WINNING_TEMPLATE_LABEL}
           headline={analysis.winningTemplate.templateId}
-          detail={`${analysis.winningTemplate.positive}/${analysis.winningTemplate.positive + analysis.winningTemplate.negative} decisive sends got callbacks (${Math.round((analysis.winningTemplate.callbackRate ?? 0) * 100)}%). Default to this one for similar roles.`}
+          detail={OUTCOMES_COPY.WINNING_TEMPLATE_DETAIL(
+            analysis.winningTemplate.positive,
+            analysis.winningTemplate.positive + analysis.winningTemplate.negative,
+            Math.round((analysis.winningTemplate.callbackRate ?? 0) * 100),
+          )}
         />
       )}
       {analysis.winningCoverageBucket && (
         <WinnerCard
           icon={<CheckCircle2 size={14} />}
-          label="Winning coverage level"
+          label={OUTCOMES_COPY.WINNING_COVERAGE_LABEL}
           headline={analysis.winningCoverageBucket.bucket}
-          detail={`Applications with this coverage bucket got callbacks ${Math.round((analysis.winningCoverageBucket.callbackRate ?? 0) * 100)}% of the time. Consider skipping jobs whose coverage falls below this.`}
+          detail={OUTCOMES_COPY.WINNING_COVERAGE_DETAIL(
+            Math.round((analysis.winningCoverageBucket.callbackRate ?? 0) * 100),
+          )}
         />
       )}
     </div>
@@ -189,11 +194,11 @@ function BreakdownTable({ title, rows }: { title: string; rows: BreakdownRow[] }
       <table className="w-full text-xs">
         <thead className="bg-zinc-50/50 dark:bg-zinc-900/30">
           <tr className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-            <th className="text-left px-3 py-2 font-semibold">Label</th>
-            <th className="text-right px-3 py-2 font-semibold">Sent</th>
-            <th className="text-right px-3 py-2 font-semibold">Callback</th>
-            <th className="text-right px-3 py-2 font-semibold">No</th>
-            <th className="text-right px-3 py-2 font-semibold">Rate</th>
+            <th className="text-left px-3 py-2 font-semibold">{OUTCOMES_COPY.TABLE_COL_LABEL}</th>
+            <th className="text-right px-3 py-2 font-semibold">{OUTCOMES_COPY.TABLE_COL_SENT}</th>
+            <th className="text-right px-3 py-2 font-semibold">{OUTCOMES_COPY.TABLE_COL_CALLBACK}</th>
+            <th className="text-right px-3 py-2 font-semibold">{OUTCOMES_COPY.TABLE_COL_NO}</th>
+            <th className="text-right px-3 py-2 font-semibold">{OUTCOMES_COPY.TABLE_COL_RATE}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">

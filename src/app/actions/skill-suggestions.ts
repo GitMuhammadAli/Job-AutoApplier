@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { bundleToResumeProfile } from "@/lib/resume/profile-mapper";
 import { analyzeKeywordGaps } from "@/lib/resume/keyword-gaps";
+import { SKILL_SUGGESTIONS_COPY } from "@/lib/messages";
 
 export interface SkillSuggestion {
   /** The keyword as extracted from JDs — already lowercased. */
@@ -126,8 +127,8 @@ export async function getSkillSuggestions(
         jobCount: entry.jobCount,
         hasAdjacency: entry.hasAdjacency,
         reason: entry.hasAdjacency
-          ? `Adding this unlocks ${entry.jobCount} job${entry.jobCount === 1 ? "" : "s"} — you already have related experience.`
-          : `Adding this unlocks ${entry.jobCount} job${entry.jobCount === 1 ? "" : "s"}. Only add if you can claim it honestly.`,
+          ? SKILL_SUGGESTIONS_COPY.REASON_RELATED(entry.jobCount)
+          : SKILL_SUGGESTIONS_COPY.REASON_COLD(entry.jobCount),
       });
     }
 

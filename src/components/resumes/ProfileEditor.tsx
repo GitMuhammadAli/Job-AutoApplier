@@ -18,6 +18,7 @@ import {
   RESUME_LIMITS,
 } from "@/lib/resume/types";
 import { getSkillSuggestions, type SkillSuggestion } from "@/app/actions/skill-suggestions";
+import { SKILL_SUGGESTIONS_COPY } from "@/lib/messages";
 
 interface ProfileEditorProps {
   initialProfile: ResumeProfile;
@@ -877,7 +878,7 @@ function SkillSuggestions({
     return (
       <div className="mt-3 flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
         <Loader2 size={10} className="animate-spin" />
-        Looking at your shortlist for top-leverage skills…
+        {SKILL_SUGGESTIONS_COPY.LOADING}
       </div>
     );
   }
@@ -888,12 +889,11 @@ function SkillSuggestions({
       <div className="flex items-center gap-1.5 mb-1.5">
         <TrendingUp size={12} className="text-emerald-600 dark:text-emerald-400" />
         <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-200">
-          Top-leverage skills from your shortlist
+          {SKILL_SUGGESTIONS_COPY.PANEL_TITLE}
         </p>
       </div>
       <p className="text-[10px] text-emerald-700/80 dark:text-emerald-300/80 mb-2">
-        Adding these would unlock the most jobs in your /recommended feed.
-        Only add what you can honestly claim — we won&apos;t fabricate.
+        {SKILL_SUGGESTIONS_COPY.PANEL_BODY}
       </p>
       <div className="space-y-1.5">
         {visible.slice(0, 6).map((s) => (
@@ -907,11 +907,11 @@ function SkillSuggestions({
                   {s.keyword}
                 </span>
                 <span className="text-[10px] tabular-nums text-emerald-700 dark:text-emerald-300">
-                  +{s.jobCount} jobs
+                  {SKILL_SUGGESTIONS_COPY.PLUS_JOBS(s.jobCount)}
                 </span>
                 {s.hasAdjacency && (
                   <span className="text-[10px] px-1 py-0 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
-                    related exp
+                    {SKILL_SUGGESTIONS_COPY.CHIP_RELATED}
                   </span>
                 )}
               </div>

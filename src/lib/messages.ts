@@ -459,6 +459,74 @@ export const ONBOARDING_COPY = {
   KEYWORDS_COUNT_HINT: (n: number) => `${n} · aim for 5–15`,
 } as const
 
+// ─── /resumes/gaps page (strategic missing-keywords view) ──────────────────
+export const GAPS_COPY = {
+  PAGE_TITLE: "Keyword gaps",
+  PAGE_DESCRIPTION:
+    "Across the jobs you've been looking at, here's what your profile is missing the most — fix the top one and you unlock a chunk at once.",
+  STATS_JOBS: "Jobs we looked at",
+  STATS_AVG_COVERAGE: "Avg ATS match",
+  STATS_DISTINCT: "Things missing",
+  TOP_LEVERAGE_PREFIX: "Most-blocking gap right now:",
+  TOP_LEVERAGE_BODY: (jobs: number, total: number, pct: number) =>
+    `Honestly adding this would unlock ${jobs} of your ${total} jobs (${pct}%).`,
+  TOP_LEVERAGE_HAS_RELATED: "You already have related experience — check the row below.",
+  LIST_HEADER: "Top missing keywords · ranked by how many jobs they block",
+  FOOTER: (jobCount: number) =>
+    `Pulled from your last ${jobCount} active jobs (saved, recommended, applied). Updates as your list does.`,
+  CHIP_RELATED: "you have something close",
+  CHIP_COLD: "new to you",
+  ROW_RELATED_HEADLINE: "You have related experience — worth mentioning if it's honest:",
+  ROW_PROJECT_TAG: (count: number) =>
+    `+ ${count} project${count === 1 ? "" : "s"}`,
+  ROW_COLD_BODY: (jobs: number) =>
+    `Brand new to you. A weekend project (one repo, one demo) unlocks ${jobs} job${jobs === 1 ? "" : "s"}.`,
+  ROW_SAMPLE_LABEL: "Jobs asking for this",
+  EMPTY_NOTHING_BLOCKED_HEADLINE: "Nothing's blocking you",
+  EMPTY_NOTHING_BLOCKED_BODY:
+    "Your profile covers every keyword we saw. Save more jobs to find new gaps.",
+} as const
+
+// ─── /resumes/outcomes page ─────────────────────────────────────────────────
+export const OUTCOMES_COPY = {
+  PAGE_TITLE: "What's working",
+  PAGE_DESCRIPTION:
+    "Callback rate by template and ATS match, across what you've actually sent. Lean into what converts.",
+  STAT_TOTAL: "Total sent",
+  STAT_CALLBACKS: "Callbacks",
+  STAT_REJECTED: "Rejected / ghosted",
+  STAT_RATE: "Callback rate",
+  NOT_ENOUGH_DATA:
+    "Not enough callbacks yet to call winners. Send 3+ applications with at least one positive reply and patterns start showing up.",
+  WINNING_TEMPLATE_LABEL: "Winning template",
+  WINNING_TEMPLATE_DETAIL: (positive: number, decisive: number, ratePct: number) =>
+    `${positive} out of ${decisive} got callbacks (${ratePct}%). Lean on this for similar roles.`,
+  WINNING_COVERAGE_LABEL: "Winning coverage level",
+  WINNING_COVERAGE_DETAIL: (ratePct: number) =>
+    `Applications at this coverage got callbacks ${ratePct}% of the time. Skip jobs below this if you can.`,
+  TABLE_BY_TEMPLATE: "By template",
+  TABLE_BY_COVERAGE: "By ATS coverage",
+  TABLE_COL_LABEL: "Label",
+  TABLE_COL_SENT: "Sent",
+  TABLE_COL_CALLBACK: "Callbacks",
+  TABLE_COL_NO: "No",
+  TABLE_COL_RATE: "Rate",
+} as const
+
+// ─── Skill suggestions panel (Profile editor) ──────────────────────────────
+export const SKILL_SUGGESTIONS_COPY = {
+  PANEL_TITLE: "Top-impact skills from your saved jobs",
+  PANEL_BODY:
+    "Adding these would unlock the most jobs in your list. Only add what's honestly true — we won't make things up.",
+  LOADING: "Looking at your saved jobs for the highest-impact skills…",
+  CHIP_RELATED: "you have related work",
+  PLUS_JOBS: (n: number) => `+${n} jobs`,
+  REASON_RELATED: (jobs: number) =>
+    `Unlocks ${jobs} job${jobs === 1 ? "" : "s"} — you already have related experience.`,
+  REASON_COLD: (jobs: number) =>
+    `Unlocks ${jobs} job${jobs === 1 ? "" : "s"}. Only add if you can claim it honestly.`,
+} as const
+
 // ─── Feedback ──────────────────────────────────────────────────────────────
 export const FEEDBACK = {
   MIN_LENGTH: "Please write at least 5 characters",
