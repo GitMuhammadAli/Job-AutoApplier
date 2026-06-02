@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2, X, Save, ArrowLeft, Star, Sparkles, Loader2, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Trash2, X, Save, ArrowLeft, Star, Sparkles, Loader2, Check, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
   type ResumeSummary,
   RESUME_LIMITS,
 } from "@/lib/resume/types";
+import { getSkillSuggestions, type SkillSuggestion } from "@/app/actions/skill-suggestions";
 
 interface ProfileEditorProps {
   initialProfile: ResumeProfile;
@@ -230,6 +231,14 @@ export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = fal
             <p className="text-xs text-zinc-500 italic">No skills yet — add a few to get started.</p>
           )}
         </div>
+
+        <SkillSuggestions
+          existingSkills={profile.skills}
+          onAdd={(s) => {
+            if (profile.skills.some((existing) => existing.toLowerCase() === s.toLowerCase())) return;
+            update("skills", [...profile.skills, s].slice(0, RESUME_LIMITS.MAX_SKILLS_TOTAL));
+          }}
+        />
       </SectionCard>
 
       {/* Experiences */}
@@ -786,6 +795,154 @@ function EducationRow({
         <Button variant="ghost" size="sm" onClick={onRemove} className="text-red-500 hover:text-red-600 gap-1.5">
           <Trash2 size={12} /> Remove
         </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Top missing-keyword suggestions across the user's shortlist. Each
+ * suggestion shows "+N jobs unlocked" and an Add button — clicking adds
+ * the skill straight into the master list (after honest-claim guard
+ * copy). Makes profile-building feel like progress.
+ *
+ * Dismissed suggestions are kept client-side for the session (localStorage)
+ * so the user doesn't get nagged about the same keyword they already
+ * decided to skip.
+ */
+function SkillSuggestions({
+  existingSkills,
+  onAdd,
+}: {
+  existingSkills: string[];
+  onAdd: (skill: string) => void;
+}) {
+  const [suggestions, setSuggestions] = useState<SkillSuggestion[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [addedThisSession, setAddedThisSession] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem("jobpilot.skill-suggestions.dismissed");
+        if (stored) setDismissed(new Set(JSON.parse(stored)));
+      } catch {
+        /* ignore */
+      }
+    }
+    setLoading(true);
+    getSkillSuggestions()
+      .then((rows) => setSuggestions(rows))
+      .catch(() => setSuggestions([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Re-fetch suggestions when the user adds 3+ new skills — the gaps
+  // analysis may have shifted enough to surface new candidates.
+  useEffect(() => {
+    if (addedThisSession.size > 0 && addedThisSession.size % 3 === 0) {
+      getSkillSuggestions()
+        .then((rows) => setSuggestions(rows))
+        .catch(() => {
+          /* keep current */
+        });
+    }
+  }, [addedThisSession]);
+
+  const persistDismiss = (kw: string) => {
+    const next = new Set(dismissed);
+    next.add(kw);
+    setDismissed(next);
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(
+          "jobpilot.skill-suggestions.dismissed",
+          JSON.stringify(Array.from(next)),
+        );
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  // Filter to what's still actionable: not already in profile, not
+  // dismissed, not added this session.
+  const existingLower = new Set(existingSkills.map((s) => s.toLowerCase()));
+  const visible = (suggestions ?? []).filter(
+    (s) => !existingLower.has(s.keyword) && !dismissed.has(s.keyword) && !addedThisSession.has(s.keyword),
+  );
+
+  if (loading) {
+    return (
+      <div className="mt-3 flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+        <Loader2 size={10} className="animate-spin" />
+        Looking at your shortlist for top-leverage skills…
+      </div>
+    );
+  }
+  if (visible.length === 0) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/20 p-3">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <TrendingUp size={12} className="text-emerald-600 dark:text-emerald-400" />
+        <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-200">
+          Top-leverage skills from your shortlist
+        </p>
+      </div>
+      <p className="text-[10px] text-emerald-700/80 dark:text-emerald-300/80 mb-2">
+        Adding these would unlock the most jobs in your /recommended feed.
+        Only add what you can honestly claim — we won&apos;t fabricate.
+      </p>
+      <div className="space-y-1.5">
+        {visible.slice(0, 6).map((s) => (
+          <div
+            key={s.keyword}
+            className="flex items-center justify-between gap-2 rounded-md bg-white/70 dark:bg-zinc-900/30 px-2.5 py-1.5 border border-emerald-100 dark:border-emerald-900/30"
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  {s.keyword}
+                </span>
+                <span className="text-[10px] tabular-nums text-emerald-700 dark:text-emerald-300">
+                  +{s.jobCount} jobs
+                </span>
+                {s.hasAdjacency && (
+                  <span className="text-[10px] px-1 py-0 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
+                    related exp
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-1">
+                {s.reason}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  onAdd(s.keyword);
+                  const next = new Set(addedThisSession);
+                  next.add(s.keyword);
+                  setAddedThisSession(next);
+                }}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+              >
+                <Plus size={10} /> Add
+              </button>
+              <button
+                type="button"
+                onClick={() => persistDismiss(s.keyword)}
+                className="text-zinc-400 hover:text-red-500"
+                aria-label={`Dismiss ${s.keyword}`}
+              >
+                <X size={11} />
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
