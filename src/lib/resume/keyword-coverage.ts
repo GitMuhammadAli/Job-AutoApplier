@@ -393,7 +393,21 @@ export function applyCoverageToRanking(
   currentSkills: string[],
   coverage: KeywordCoverageReport,
   caps: { maxProjects: number; maxSkills: number },
-): { projectIds: string[]; skills: string[]; forcedProjects: string[]; forcedSkills: string[] } {
+): {
+  projectIds: string[];
+  skills: string[];
+  forcedProjects: string[];
+  forcedSkills: string[];
+  /**
+   * Projects that were in the LLM's selection but got pushed past the page
+   * cap by force-include prepending. The caller needs these to detect
+   * silent coverage loss — a project the LLM picked because it covered
+   * JD keyword Y is now off the PDF entirely, and Y may no longer land.
+   */
+  droppedProjects: string[];
+  /** Same for skills, though skill cap is rarely binding in practice. */
+  droppedSkills: string[];
+} {
   const forcedProjects: string[] = [];
   const forcedSkills: string[] = [];
 
@@ -406,6 +420,13 @@ export function applyCoverageToRanking(
     forcedProjects.push(id);
   }
   const cappedProjects = newProjectIds.slice(0, caps.maxProjects);
+  const cappedProjectSet = new Set(cappedProjects);
+  // Anything that was in the LLM's pick but is no longer in the rendered
+  // selection — these are the silent drops we have to surface so the user
+  // can decide whether to bump page-target.
+  const droppedProjects = currentProjectIds.filter(
+    (id) => !cappedProjectSet.has(id),
+  );
 
   const seenSkills = new Set(currentSkills.map(normalize));
   const newSkills = [...currentSkills];
@@ -416,13 +437,73 @@ export function applyCoverageToRanking(
     forcedSkills.push(sk);
   }
   const cappedSkills = newSkills.slice(0, caps.maxSkills);
+  const cappedSkillSet = new Set(cappedSkills.map(normalize));
+  const droppedSkills = currentSkills.filter(
+    (s) => !cappedSkillSet.has(normalize(s)),
+  );
 
   return {
     projectIds: cappedProjects,
     skills: cappedSkills,
     forcedProjects,
     forcedSkills,
+    droppedProjects,
+    droppedSkills,
   };
+}
+
+/**
+ * After applyCoverageToRanking, identify JD keywords that previously
+ * landed via the LLM's picks but no longer will because force-include
+ * pushed those sources past the page cap. These are the trade-offs the
+ * user needs to see — keywords silently lost as a side-effect of
+ * gaining others.
+ *
+ * Returns keywords that would have been ✅ covered without force-include
+ * but now won't render because their carrying project/skill got dropped.
+ * Caller surfaces these with a "Use 2 pages to keep these?" prompt.
+ */
+export function findLostCoverageFromDrops(
+  coverage: KeywordCoverageReport,
+  droppedProjectIds: string[],
+  droppedSkills: string[],
+  remainingProjectIds: string[],
+  remainingSkills: string[],
+): string[] {
+  const droppedProjectSet = new Set(droppedProjectIds);
+  const droppedSkillSetLower = new Set(droppedSkills.map(normalize));
+  const remainingProjectSet = new Set(remainingProjectIds);
+  const remainingSkillSetLower = new Set(remainingSkills.map(normalize));
+
+  const lost: string[] = [];
+  for (const entry of coverage.entries) {
+    if (entry.state !== "covered") continue;
+    // Which carrier(s) made this keyword "covered"? Walk the entry's
+    // projectIds/skills and check whether the carriers survived.
+    const stillCarriedByProject = entry.projectIds.some((pid) =>
+      remainingProjectSet.has(pid),
+    );
+    const stillCarriedBySkill = entry.skills.some((s) =>
+      remainingSkillSetLower.has(normalize(s)),
+    );
+    // experiences always render and summaries always render if selected,
+    // so a keyword sitting on those is not at risk from project/skill
+    // drops.
+    const stillCarriedByExp = entry.experienceIds.length > 0;
+    if (stillCarriedByProject || stillCarriedBySkill || stillCarriedByExp) {
+      continue;
+    }
+    // The keyword's only carriers were among the dropped projects/skills.
+    // Confirm at least one dropped carrier did exist (otherwise the
+    // entry was already noise).
+    const wasOnDropped =
+      entry.projectIds.some((pid) => droppedProjectSet.has(pid)) ||
+      entry.skills.some((s) => droppedSkillSetLower.has(normalize(s)));
+    if (wasOnDropped) {
+      lost.push(entry.keyword);
+    }
+  }
+  return lost;
 }
 
 /**

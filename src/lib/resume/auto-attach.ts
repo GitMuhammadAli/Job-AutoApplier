@@ -17,6 +17,7 @@ import {
   computeKeywordCoverage,
   applyCoverageToRanking,
   auditCoverageAgainstHtml,
+  findLostCoverageFromDrops,
 } from "./keyword-coverage";
 import {
   bundleToResumeProfile,
@@ -135,6 +136,23 @@ export async function ensureTailoredResume(
         console.log(
           `[auto-attach] application ${applicationId}: force-included ${promoted.forcedProjects.length} project(s), ${promoted.forcedSkills.length} skill(s) for JD keywords user has`,
         );
+      }
+      // Trade-off visibility for auto-apply — same detection the user-facing
+      // generate route surfaces in the UI. Auto-apply can't pause for a
+      // "use 2 pages?" prompt, so we just log the silent loss for ops.
+      if (promoted.droppedProjects.length > 0) {
+        const lost = findLostCoverageFromDrops(
+          coverage,
+          promoted.droppedProjects,
+          promoted.droppedSkills,
+          promoted.projectIds,
+          promoted.skills,
+        );
+        if (lost.length > 0) {
+          console.warn(
+            `[auto-attach] application ${applicationId}: force-include trade — lost coverage on ${lost.length} keyword(s): ${lost.slice(0, 10).join(", ")}. Consider switching this user to 2pg default.`,
+          );
+        }
       }
       claimedKeywords = Array.from(
         new Set([...coverage.covered, ...coverage.inProfileNotPicked]),

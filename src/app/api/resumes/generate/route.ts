@@ -36,6 +36,7 @@ import {
   computeKeywordCoverage,
   applyCoverageToRanking,
   auditCoverageAgainstHtml,
+  findLostCoverageFromDrops,
   type KeywordCoverageReport,
 } from "@/lib/resume/keyword-coverage";
 
@@ -139,6 +140,11 @@ export async function POST(req: NextRequest) {
   let coverage: KeywordCoverageReport | null = null;
   let forcedProjects: string[] = [];
   let forcedSkills: string[] = [];
+  // Keywords previously covered by the LLM's pick that were silently
+  // bumped off the PDF when force-include prepended new items beyond the
+  // page cap. Caller surfaces these so the user can decide whether to
+  // bump page-target instead of paying the trade.
+  let lostFromForceInclude: string[] = [];
   const warnings: string[] = [...sourceWarnings];
 
   if (jdText && jdText.trim().length >= 20) {
@@ -198,6 +204,24 @@ export async function POST(req: NextRequest) {
         warnings.push(
           `Force-included ${forcedProjects.length} project(s) and ${forcedSkills.length} skill(s) to cover JD keywords you have${promotedKeywords ? `: ${promotedKeywords}` : ""}.`,
         );
+      }
+
+      // Trade-off detection: did force-include push another project past
+      // the page cap, costing us coverage elsewhere? If yes, the user
+      // probably wants to bump to 2 pages rather than pay the silent loss.
+      if (promoted.droppedProjects.length > 0 || promoted.droppedSkills.length > 0) {
+        lostFromForceInclude = findLostCoverageFromDrops(
+          coverage,
+          promoted.droppedProjects,
+          promoted.droppedSkills,
+          promoted.projectIds,
+          promoted.skills,
+        );
+        if (lostFromForceInclude.length > 0 && pageTarget === 1) {
+          warnings.push(
+            `Force-include trade: ${lostFromForceInclude.length} keyword(s) you had covered no longer fit on 1 page — ${lostFromForceInclude.slice(0, 5).join(", ")}${lostFromForceInclude.length > 5 ? "…" : ""}. Switch to 2 pages to keep both.`,
+          );
+        }
       }
 
       if (coverage.missing.length > 0) {
@@ -323,6 +347,16 @@ export async function POST(req: NextRequest) {
           // land but that grepping the rendered HTML proves didn't (template
           // hid the section, page-fit trimmed, etc). The honest signal.
           auditNotLanded,
+          // Trade-off: keywords previously covered by the LLM's pick that
+          // got bumped off the PDF when force-include prepended new items.
+          // UI shows a "Use 2 pages to keep both" prompt when non-empty.
+          lostFromForceInclude,
+          // Whether the trade-off can be resolved by switching to 2pg.
+          // The UI uses this to gate the "Use 2 pages" CTA — no point
+          // showing it if the user already chose 2pg (cap is wider) or
+          // unlimited.
+          pageBumpRecommended:
+            lostFromForceInclude.length > 0 && renderInput.pageTarget === 1,
         }
       : null,
   });

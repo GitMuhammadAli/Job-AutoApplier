@@ -432,6 +432,43 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
         </div>
       )}
 
+      {coverage.lostFromForceInclude.length > 0 && (
+        <div className="rounded-lg border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-2">
+          <div className="flex items-start gap-1.5">
+            <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-200">
+                Trade-off: force-include cost you {coverage.lostFromForceInclude.length} other keyword{coverage.lostFromForceInclude.length === 1 ? "" : "s"}
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {coverage.lostFromForceInclude.slice(0, 8).map((kw) => (
+                  <span
+                    key={kw}
+                    className="text-[10px] font-medium px-1.5 py-0.5 rounded ring-1 ring-inset bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 ring-amber-300/40"
+                  >
+                    {kw}
+                  </span>
+                ))}
+                {coverage.lostFromForceInclude.length > 8 && (
+                  <span className="text-[10px] text-amber-700 dark:text-amber-300">
+                    +{coverage.lostFromForceInclude.length - 8}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-[10px] text-amber-700/80 dark:text-amber-300/80">
+                These were landing before force-include pushed other projects past the 1-page cap.
+                {coverage.pageBumpRecommended && (
+                  <>
+                    {" "}
+                    Use 2 pages above (page count toggle) and regenerate to keep both groups.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {coverage.auditNotLanded.length > 0 && (
         <div className="rounded-lg border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-2">
           <div className="flex items-start gap-1.5">

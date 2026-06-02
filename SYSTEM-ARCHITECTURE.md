@@ -52,10 +52,23 @@ Jobs are scraped from LinkedIn, Indeed, Remotive, Arbeitnow, Adzuna, Rozee, JSea
                             "Scan Now" button calls /api/jobs/scan-now for one-shot rescue.
 /dashboard/applications   → Email queue manager (protected)          [Server + Client]
 /dashboard/resumes        → Resume manager + JD quick-start (protected) [Server + Client]
+                            ProfileEditor includes "Top-leverage skill
+                            suggestions" panel — top-N missing keywords from
+                            user's shortlist with one-click Add buttons.
 /dashboard/resumes/tailor → Dedicated JD → tailored PDF flow         [Server + Client]
                             JD input + template gallery + page count on left;
                             iframe preview + ATS coverage panel + download on right.
                             Accepts ?jd=<encoded> for pre-fill from /resumes card.
+                            Coverage panel surfaces: ✅ grep-verified (post-render
+                            audit), ⚠ force-include trade-off (lost coverage
+                            when page-cap pushed projects off), ⚠ claimed-but-
+                            didn't-land (template hid section), ❌ missing
+                            with adjacency hints.
+/dashboard/resumes/gaps   → Strategic view: top missing keywords across user's
+                            last 200 non-dismissed jobs ranked by impact.
+                            Adjacency vs cold labels. Sample jobs per keyword.
+/dashboard/resumes/outcomes → "What's working" — callback rate by template +
+                            ATS coverage bucket. Winners panel ≥3 sends.
 /dashboard/templates      → Email template editor (protected)        [Server + Client]
 /dashboard/analytics      → Charts + stats (protected)               [Server + Client]
 /dashboard/settings       → User settings (protected)                [Server + Client]
@@ -99,7 +112,7 @@ Jobs are scraped from LinkedIn, Indeed, Remotive, Arbeitnow, Adzuna, Rozee, JSea
 | /api/onboarding/complete          | POST      | getAuthUserId   | Complete onboarding + match      |
 | /api/resumes/upload               | POST      | getAuthUserId   | Upload resume PDF (per-stage error codes: BLOB_TOKEN_MISSING, BLOB_PUT_FAILED, PDF_PARSE_FAILED, DB_WRITE_FAILED) |
 | /api/resumes/[id]/preview         | GET       | getAuthUserId   | Stream resume file               |
-| /api/resumes/generate             | POST      | getAuthUserId   | Tailor + render. Response gains `coverage: { covered, inProfileNotPicked, missing, forcedProjects, forcedSkills, coverageRatio }` when jdText provided. Deterministic post-pass force-includes projects/skills with verbatim JD keywords (WebRTC-rejection fix). |
+| /api/resumes/generate             | POST      | getAuthUserId   | Tailor + render. Response `coverage` block carries: covered, inProfileNotPicked, missing, forcedProjects, forcedSkills, coverageRatio, missingWithAdjacency, auditNotLanded, lostFromForceInclude, pageBumpRecommended. Deterministic post-pass force-includes JD keywords; post-render audit verifies they actually landed; trade-off detection surfaces keywords lost when force-include bumped other projects past page cap. |
 | /api/settings/mode                | GET       | getAuthUserId   | Get application mode             |
 | /api/settings/status              | PATCH     | getAuthUserId   | Toggle active/paused             |
 | /api/status                       | GET       | getAuthUserId   | Dashboard status bar             |
@@ -924,7 +937,11 @@ See Quick Reference table above. All server actions use `getAuthUserId()` for au
 | `matching/recommendation-engine.ts` | Recommend | `getRecommendedJobs()` — 2000-job query, 2-stage loading. Default `maxDays=14`. `orderBy: [{postedDate desc nulls:last}, {createdAt desc}]` so jobs *actually posted* recently outrank jobs *recently scraped*. URL `fresh=today\|3days\|week` caps server-side. |
 | `scrapers/*.ts` | Scraping | 8 source scrapers + runner + retry + rotation |
 | `scrapers/scraper-status.ts` | Pipeline health | `getRecentScraperFailures()` — per-source failure reasons OR `{status:"pipeline-dead", source:"scheduler"}` when no `ScraperRun` row exists in last 12h (cron-job.org down / never configured). Banner styles pipeline-dead as red + non-dismissable. |
-| `resume/keyword-coverage.ts` | Resume audit | `extractJdKeywords()`, `computeKeywordCoverage()`, `applyCoverageToRanking()` — deterministic post-pass that runs after `fillTemplate()`. Force-includes profile projects/skills containing verbatim JD keywords the LLM would have dropped. Hard rule preserved: only promotes user-authored content, never fabricates. |
+| `resume/keyword-coverage.ts` | Resume audit | `extractJdKeywords()` (alias + noise filter), `computeKeywordCoverage()`, `applyCoverageToRanking()` returning `droppedProjects`/`droppedSkills`, `auditCoverageAgainstHtml()` (post-render grep), `findLostCoverageFromDrops()` (trade-off detection), `computeAtsCoverageLite()` (per-job /recommended badge). Hard rule preserved: only promotes user-authored content. |
+| `resume/keyword-aliases.ts` | Coverage parity | `expandKeywordVariants()` — bidirectional alias map (~60 entries: k8s↔kubernetes, ml↔machine learning, ts↔typescript, ci/cd↔continuous integration etc). Prevents false-negative "missing" claims when JD and resume use different spellings of the same skill. |
+| `resume/keyword-adjacency.ts` | Adjacency surfacing | `findAdjacencies()` — curated ~75-entry map of related-but-distinct skills (webrtc≈socket.io, kubernetes↔docker). Fires only after alias expansion — adjacency is for genuinely different tech in the same problem space, not naming differences. |
+| `resume/keyword-gaps.ts` | Strategic gaps | `analyzeKeywordGaps()` — aggregates `extractJdKeywords` + `findAdjacencies` across the user's last 200 non-dismissed UserJobs. Powers `/resumes/gaps` page + `skill-suggestions` action. |
+| `resume/outcome-analytics.ts` | Outcome learning | `analyzeOutcomes()` — joins JobApplication + UserJob.stage + ResumeGeneration. Per-template + per-coverage-bucket callback rate. Pure read-only, zero schema change. |
 
 ---
 

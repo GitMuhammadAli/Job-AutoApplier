@@ -740,3 +740,191 @@ Two new `warnings[]` strings are pushed when applicable:
 
 These are tracked but explicitly out of scope until the current layer is
 validated in real user flows.
+
+---
+
+## 16. Phase 3 — closing the land-a-job loop (2026-06-02 → 2026-06-03)
+
+User's stated goal reframed: "I'm jobless. JobPilot needs to actually help me
+land a job, not just exist as a product." This phase wires the missing
+connections so the system supports the full loop: see job → tailor → apply →
+learn from outcomes → strengthen profile → repeat.
+
+### 16.1 One-click Tailor & Apply (`tailorAndPrepareApplication`)
+
+`src/app/actions/application-email.ts` — new server action chains:
+1. `saveGlobalJob` upserts UserJob link (stage = SAVED → APPLIED on send).
+2. `generateApplication` runs the existing 4-agent email pipeline + creates
+   the JobApplication draft.
+3. `ensureTailoredResume` runs the resume tailor chain (with the keyword
+   force-include layer) and attaches the generated PDF.
+
+JobCard on `/recommended` renders a "Tailor & Apply" button when the job
+has a verified email + no existing draft. Click → spinner → toast → route
+to `/jobs/<userJobId>?apply=true` with everything pre-populated.
+
+The original ATS ≥ 40% gate was removed — the ATS badge already warns the
+user when coverage is low; blocking on coverage felt paternalistic. The
+user (jobless) is trying anyway; let them.
+
+### 16.2 Cross-JD keyword gaps (`/resumes/gaps`)
+
+Source: `src/lib/resume/keyword-gaps.ts` + `app/(dashboard)/resumes/gaps/`
+
+Aggregates `extractJdKeywords` + `findAdjacencies` across the user's last
+200 non-dismissed UserJobs. Returns:
+- Ranked list of missing keywords with job-count + adjacency status
+- Top-leverage banner: "Adding `<keyword>` would unlock N of M jobs"
+- Sample jobs per keyword (5 each) so the user knows the role family
+
+This is the strategic view: stop chasing per-JD, fix the root that blocks
+the most jobs at once.
+
+### 16.3 Outcome analytics (`/resumes/outcomes`)
+
+Source: `src/lib/resume/outcome-analytics.ts` + `app/(dashboard)/resumes/outcomes/`
+
+Pure read-only analytics joining JobApplication + UserJob.stage +
+ResumeGeneration. Zero schema change. Outcomes derived from stage:
+- `OFFER` / `INTERVIEW` → positive
+- `REJECTED` / `GHOSTED` → negative
+- `APPLIED` → in-flight
+- `SAVED` → not-sent (excluded)
+
+Surfaces per-template + per-coverage-bucket callback rate. Winners panel
+only fires with ≥3 sends + ≥1 positive outcome to avoid noise on small
+samples.
+
+### 16.4 Email writer uses coverage signal
+
+`GenerateEmailInput.jdCoverage` (optional, new field). When present, the
+system prompt gets two strict directives:
+- EMPHASIZE these JD keywords (profile confirms)
+- DO NOT CLAIM these (profile lacks them)
+
+Computed in `buildEmailInput` via `computeAtsCoverageLite` +
+`extractCoveredFromLite` helper. Runs only when JD ≥ 80 chars. Closes the
+overclaiming gap where the LLM previously picked whatever it thought was
+relevant.
+
+### 16.5 Post-render coverage audit
+
+`auditCoverageAgainstHtml(html, claimedKeywords)` — strips style/script
+blocks, replaces tag boundaries with spaces, decodes entities, lowers.
+What an ATS keyword grep would see. Returns `{ landed, notLanded }`.
+
+Wired into:
+- `/api/resumes/generate` — surfaces `coverage.auditNotLanded` to the UI as
+  a separate ⚠ block: "Claimed covered, but didn't land on the PDF — try
+  2 pages or a different template." The confirmed ✅ list relabels to
+  "(grep-verified)".
+- `auto-attach.ts` — logs as `console.warn` for ops visibility on
+  auto-sent resumes.
+
+Pre-existing `FabricationError` prevents the system from inventing content.
+This new audit is the inverse — preventing the system from claiming
+content landed when it didn't. Different failure mode.
+
+### 16.6 Trade-off detection on force-include
+
+`applyCoverageToRanking` now returns `droppedProjects` and `droppedSkills`
+— LLM picks pushed past the page cap by force-include prepending. New
+helper `findLostCoverageFromDrops` returns keywords that previously
+landed via dropped carriers but no longer will.
+
+Wired into:
+- `/api/resumes/generate` — surfaces `coverage.lostFromForceInclude`
+  and `coverage.pageBumpRecommended`. UI shows an amber ⚠ block with
+  the lost keywords + "Use 2 pages above and regenerate" copy.
+- `auto-attach.ts` — logs as warn for ops; auto-apply can't pause for a
+  prompt so we just record the trade.
+
+Without this, force-include could paradoxically lower total coverage by
+silently bumping projects that had different JD keywords.
+
+### 16.7 Keyword alias map (`keyword-aliases.ts`)
+
+~60 curated entries handling SAME-thing-different-name cases:
+- Cloud: k8s↔kubernetes, tf↔terraform, k3s↔kubernetes
+- Languages: ts↔typescript, js↔javascript, py↔python, c#↔csharp/.net
+- AI/ML: ml↔machine learning, ai↔artificial intelligence, llm↔large
+  language model, rag↔retrieval augmented generation
+- Frontend: rn↔react native, nextjs↔next.js, nodejs↔node.js
+- Methodologies: ci/cd↔continuous integration, tdd↔test driven development
+- DB: psql↔postgresql, pg↔postgres
+- Web: ws↔websocket, gql↔graphql
+- Auth: oauth2↔oauth, oidc↔openid connect, sso↔single sign-on
+- Mobile: ios
+
+Bidirectional via `expandKeywordVariants(kw)`. Wired into
+`profileTextContains`, `computeAtsCoverageLite`, `extractCoveredFromLite`.
+
+Semantic split with adjacency:
+- Aliases: K8s == Kubernetes (same thing)
+- Adjacencies: WebRTC ≈ Socket.IO (different things, related space)
+
+Aliases run first to prevent false-negative missing claims; adjacency only
+fires when the keyword is genuinely missing after alias expansion.
+
+### 16.8 Tokenizer noise filter
+
+`PHRASE_NOISE_WORDS` set (~80 entries: "abilities", "qualifications",
+"experience", "responsibilities", "benefits", etc). `extractPhrases`
+rejects any 2-3 word phrase containing ANY noise word.
+
+Observed in browser test of `/resumes/gaps`: noise like "abilities ability",
+"agents python langchain", "benefits hands-on" — all gone. Real tech
+phrases ("Machine Learning", "Apache Kafka", "React Native") still pass.
+
+### 16.9 Profile growth feedback
+
+`src/app/actions/skill-suggestions.ts` — `getSkillSuggestions()` reuses
+`analyzeKeywordGaps`, drops keywords the user already has, requires ≥2
+jobs blocked. Returns ranked suggestions with adjacency tag + reason copy.
+
+`SkillSuggestions` component inside `ProfileEditor.tsx` — emerald panel
+below the Skills list:
+- Each row: skill + "+N jobs" + "related exp" badge + Add button + Dismiss
+- Dismissals persist in localStorage
+- Re-fetches after every 3rd add (gaps may have shifted)
+- Honest-claim guard copy in header
+
+Closes the loop where adding a skill felt invisible. Now: "Adding
+Kubernetes unlocks 18 jobs · you have related experience" → click Add →
+ATS coverage across /recommended improves.
+
+### 16.10 The closed loop
+
+```
+Find job (/recommended)  ←─────────────────────────────────────────┐
+        │                                                          │
+        │  ATS badge per card + Tailor & Apply button             │
+        ▼                                                          │
+Generate tailored resume + email (one click)                      │
+        │                                                          │
+        │  Force-include + post-render audit + trade-off prompt    │
+        ▼                                                          │
+Review draft (/jobs/<id>?apply=true)                              │
+        │                                                          │
+        │  Coverage panel shows confirmed-on-PDF + missing + lost  │
+        ▼                                                          │
+Send                                                              │
+        │                                                          │
+        │  ResumeGeneration linked to JobApplication               │
+        ▼                                                          │
+Track outcome (kanban: APPLIED → INTERVIEW → OFFER/REJECTED/GHOSTED)
+        │                                                          │
+        │  Auto-derived by UserJob.stage                           │
+        ▼                                                          │
+Learn what's working (/resumes/outcomes)                          │
+        │                                                          │
+        │  Per-template + per-coverage callback rates              │
+        ▼                                                          │
+Strategic view (/resumes/gaps)  +  Profile editor suggestions     │
+        │                                                          │
+        │  "WebRTC blocks 24 jobs" → Add to skills (1-click)       │
+        └──────────────────────────────────────────────────────────┘
+```
+
+Every layer integrates with the same alias-aware tokenizer + force-include
+guarantees + adjacency surfacing.

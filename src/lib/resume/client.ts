@@ -60,6 +60,20 @@ export interface GenerateCoverage {
    * and can bump page-target or pick a different template.
    */
   auditNotLanded: string[];
+  /**
+   * Trade-off detection: keywords that WERE landing in the LLM's original
+   * pick but got bumped off the PDF when force-include prepended new
+   * items beyond the page cap. The user paid silent coverage to gain
+   * coverage elsewhere; the UI surfaces these so they can decide whether
+   * to switch to 2 pages to keep both.
+   */
+  lostFromForceInclude: string[];
+  /**
+   * True when the trade-off can be resolved by switching to 2 pages
+   * (currently 1pg + lostFromForceInclude non-empty). UI uses this to
+   * conditionally render the "Use 2 pages to keep both" CTA.
+   */
+  pageBumpRecommended: boolean;
 }
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
