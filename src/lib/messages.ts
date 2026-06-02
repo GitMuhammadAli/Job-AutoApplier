@@ -437,6 +437,28 @@ export const DASHBOARD = {
   NEXT_ACTION_SETUP: "Or set up your profile first →",
 } as const
 
+// ─── Settings page (keywords leverage callout) ─────────────────────────────
+export const SETTINGS_COPY = {
+  KEYWORDS_LEVERAGE_TITLE: "⚡ Highest-impact setting",
+  KEYWORDS_LEVERAGE_BODY:
+    "The keywords below decide what jobs come in and how well each one matches. Get these right and the queue lights up within an hour.",
+  KEYWORDS_LEVERAGE_ZERO: "You haven't added any keywords yet — nothing will match.",
+  KEYWORDS_LEVERAGE_FEW: (count: number) =>
+    `You have ${count} keyword${count === 1 ? "" : "s"} — add a few more for broader matches.`,
+} as const
+
+// ─── Onboarding wizard (keyword step prompt) ───────────────────────────────
+export const ONBOARDING_COPY = {
+  KEYWORDS_STEP_TITLE: "Tell us what you want to be found for",
+  KEYWORDS_STEP_BODY:
+    "These keywords decide both what jobs we pull and how each one scores. Aim for 5–15 specific terms — skills, frameworks, or job titles.",
+  KEYWORDS_INPUT_LABEL: "Skills or job titles",
+  KEYWORDS_INPUT_HINT: "(type and press Enter, or pick presets below)",
+  KEYWORDS_INPUT_PLACEHOLDER: "e.g. React, TypeScript, Next.js, Frontend Engineer…",
+  KEYWORDS_ZERO_WARN: "No keywords yet — your job queue will be empty until you add some.",
+  KEYWORDS_COUNT_HINT: (n: number) => `${n} · aim for 5–15`,
+} as const
+
 // ─── Feedback ──────────────────────────────────────────────────────────────
 export const FEEDBACK = {
   MIN_LENGTH: "Please write at least 5 characters",

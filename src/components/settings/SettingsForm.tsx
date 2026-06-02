@@ -32,6 +32,7 @@ import { APPLICATION_MODES, EMAIL_PROVIDERS } from "@/constants/settings";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { HelpTooltip } from "@/components/shared/HelpTooltip";
+import { SETTINGS_COPY } from "@/lib/messages";
 import {
   Save,
   User,
@@ -627,20 +628,19 @@ export function SettingsForm({
       {/* Highest-impact callout — keywords drive everything downstream.
           Surfacing the "this is the leverage point" message above the form
           makes the priority obvious so a new user spends 5 minutes here
-          instead of skipping to a less consequential setting. */}
+          instead of skipping to a less consequential setting. Copy lives
+          in src/lib/messages.ts (SETTINGS_COPY). */}
       <div className="rounded-xl border border-emerald-200/70 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/20 p-3 sm:p-4">
         <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
-          ⚡ Highest-impact setting
+          {SETTINGS_COPY.KEYWORDS_LEVERAGE_TITLE}
         </p>
         <p className="mt-1 text-[11px] text-emerald-800/90 dark:text-emerald-200/90 leading-relaxed">
-          The keywords below drive what jobs the scrapers fetch AND how each
-          job scores against you. A jobless user with the wrong keywords sees
-          stale, irrelevant jobs forever. Tighten them and the queue lights
-          up within an hour. {keywords.length === 0 && (
-            <strong>You currently have zero keywords — your matches will be empty.</strong>
+          {SETTINGS_COPY.KEYWORDS_LEVERAGE_BODY}{" "}
+          {keywords.length === 0 && (
+            <strong>{SETTINGS_COPY.KEYWORDS_LEVERAGE_ZERO}</strong>
           )}
           {keywords.length > 0 && keywords.length < 5 && (
-            <strong>You have {keywords.length} keyword{keywords.length === 1 ? "" : "s"} — add more for broader matches.</strong>
+            <strong>{SETTINGS_COPY.KEYWORDS_LEVERAGE_FEW(keywords.length)}</strong>
           )}
         </p>
       </div>

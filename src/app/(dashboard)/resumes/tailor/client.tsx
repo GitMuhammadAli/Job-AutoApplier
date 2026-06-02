@@ -654,8 +654,7 @@ function MissingKeywordsBlock({
           <div className="flex items-center gap-1 mb-2">
             <XCircle className="h-3 w-3 text-red-600 dark:text-red-400" />
             <p className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">
-              Missing — but you have related experience{" "}
-              <span className="tabular-nums">({withAdj.length})</span>
+              {RESUME_TAILORING.MISSING_WITH_ADJACENCY_HEADLINE(withAdj.length)}
             </p>
           </div>
           <div className="space-y-2">
@@ -668,9 +667,8 @@ function MissingKeywordsBlock({
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-400">
-                      JD wants {kw}
+                      {RESUME_TAILORING.MISSING_ADJACENCY_PROMPT(kw)}
                     </span>
-                    <span className="text-[10px] text-zinc-500">— you have:</span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {adj.adjacentSkills.slice(0, 6).map((s) => (
@@ -683,14 +681,12 @@ function MissingKeywordsBlock({
                     ))}
                     {adj.adjacentProjectIds.length > 0 && (
                       <span className="text-[10px] text-amber-700 dark:text-amber-300">
-                        + {adj.adjacentProjectIds.length} project
-                        {adj.adjacentProjectIds.length !== 1 ? "s" : ""} with related tech
+                        {RESUME_TAILORING.MISSING_PROJECT_TAG(adj.adjacentProjectIds.length)}
                       </span>
                     )}
                   </div>
                   <p className="mt-1 text-[10px] text-amber-700/80 dark:text-amber-300/70">
-                    Closest match in your profile. Worth mentioning if your work was
-                    genuinely related — you decide.
+                    {RESUME_TAILORING.MISSING_ADJACENCY_HINT}
                   </p>
                 </div>
               );
@@ -703,12 +699,12 @@ function MissingKeywordsBlock({
         <KeywordList
           label={
             withAdj.length > 0
-              ? "Missing — no related experience surfaced"
-              : "JD asks for these but you don't have them"
+              ? RESUME_TAILORING.MISSING_COLD_NEW_HEADLINE
+              : RESUME_TAILORING.MISSING_COLD_HEADLINE
           }
           tone="bad"
           items={withoutAdj}
-          hint="We won't fabricate. Add to your profile if accurate, or skip this job if the gap is too wide."
+          hint={RESUME_TAILORING.MISSING_COLD_HINT}
         />
       )}
     </div>

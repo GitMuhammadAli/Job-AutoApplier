@@ -15,7 +15,7 @@ import {
   Settings, ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
-import { ONBOARDING, SETTINGS } from "@/lib/messages";
+import { ONBOARDING, ONBOARDING_COPY, SETTINGS } from "@/lib/messages";
 
 const STEPS = [
   { title: "About You", icon: User, description: "Basic info for personalized applications" },
@@ -243,38 +243,36 @@ export function OnboardingWizard({ prefill }: { prefill?: OnboardingPrefill } = 
           {/* Step 1: Job Preferences (keywords + categories + location) */}
           {step === 1 && (
             <div className="space-y-4">
-              {/* Why-this-matters callout — same priming as /settings. New
-                  users don't know that keywords drive everything; making
-                  the consequence explicit prevents the "I set up but no
-                  jobs appear" complaint. */}
+              {/* Why-this-matters callout — copy lives in src/lib/messages.ts
+                  (ONBOARDING_COPY) so the same priming reads identically
+                  on /settings and here. Eliminates "I set up but no jobs
+                  appear" by making the consequence explicit upfront. */}
               <div className="rounded-lg border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-2">
                 <p className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-200">
-                  Pick what you want to be found for
+                  {ONBOARDING_COPY.KEYWORDS_STEP_TITLE}
                 </p>
                 <p className="text-[11px] text-emerald-800/90 dark:text-emerald-200/90 mt-0.5">
-                  These keywords drive every scraper + every match score.
-                  Aim for 5–15 specific terms (skills, frameworks, role
-                  titles). Examples below if you&apos;re stuck.
+                  {ONBOARDING_COPY.KEYWORDS_STEP_BODY}
                 </p>
               </div>
 
               <div>
                 <Label htmlFor="ob-keywords" className="text-xs font-medium text-slate-600 dark:text-zinc-300">
-                  Skills or Job Titles
-                  <span className="ml-1 text-[10px] text-zinc-400">(type + Enter, or pick presets below)</span>
+                  {ONBOARDING_COPY.KEYWORDS_INPUT_LABEL}
+                  <span className="ml-1 text-[10px] text-zinc-400">{ONBOARDING_COPY.KEYWORDS_INPUT_HINT}</span>
                 </Label>
                 <Input
                   id="ob-keywords"
                   value={keywordInput}
                   onChange={(e) => setKeywordInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
-                  placeholder="e.g. React, TypeScript, Next.js, Frontend Engineer…"
+                  placeholder={ONBOARDING_COPY.KEYWORDS_INPUT_PLACEHOLDER}
                   autoComplete="off"
                   className="mt-1"
                 />
                 {keywords.length === 0 && (
                   <p className="mt-1.5 text-[10px] text-amber-700 dark:text-amber-400">
-                    No keywords yet — your job queue will be empty until you add some.
+                    {ONBOARDING_COPY.KEYWORDS_ZERO_WARN}
                   </p>
                 )}
                 {keywords.length > 0 && (
@@ -286,7 +284,7 @@ export function OnboardingWizard({ prefill }: { prefill?: OnboardingPrefill } = 
                       </span>
                     ))}
                     <span className="text-[10px] text-zinc-500 dark:text-zinc-400 self-center ml-1">
-                      {keywords.length} · aim for 5–15
+                      {ONBOARDING_COPY.KEYWORDS_COUNT_HINT(keywords.length)}
                     </span>
                   </div>
                 )}
