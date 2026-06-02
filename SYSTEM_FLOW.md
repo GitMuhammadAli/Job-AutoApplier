@@ -365,7 +365,9 @@ The system uses TWO paths for matching, both sharing computeMatchScore():
 
 PATH A — QUERY-TIME (for display on /recommended page):
   User opens page → getRecommendedJobs(userId, filters)
-    → SQL: load up to 2000 active GlobalJobs (last 30 days)
+    → SQL: load up to 2000 active GlobalJobs (last 14 days — was 30)
+    → orderBy: [postedDate desc nulls:last, createdAt desc]
+       so jobs actually posted recently beat jobs we recently scraped
     → JS: HARD FILTER — location (city/country/remote)
     → JS: HARD FILTER — negative keywords (reject matching jobs)
     → JS: HARD FILTER — keywords (at least 1 must match)
@@ -373,8 +375,23 @@ PATH A — QUERY-TIME (for display on /recommended page):
     → JS: deduplicate cross-source
     → Sort, paginate, return
   Descriptions loaded for scoring but stripped before sending to client.
-  URL search params drive server-side filtering (source, sort, minScore, location, jobType, search).
+  URL search params drive server-side filtering (source, sort, minScore, location, jobType, search, fresh).
+  **`fresh=today|3days|week`** caps server-side maxDays to 1/3/7 — chip clicks
+  now do a URL round-trip so the SQL query window shrinks; previously this was
+  a pure client-side trim that still loaded 30-day-old jobs.
   **3-way email filter:** "all" | "verified" | "none" — server-side filtering by emailConfidence; chips show live counts (e.g., "All (247)", "Can Email (43)", "No Email (204)").
+  **Manual rescue:** /recommended renders a "Scan Now" button (emerald, top
+  right) that POSTs /api/jobs/scan-now — 30s timeout, runs all available
+  scrapers in 2-at-a-time batches, matches anything new from the last 6h
+  against the user's profile. Critical when external cron (cron-job.org) is
+  down and the user needs fresh jobs immediately. Rate-limited per user
+  (300s cooldown) via SystemLog.MANUAL_SCAN rows.
+  **Pipeline-dead detection:** a ScraperStatusBanner pulls
+  getRecentScraperFailures(). If no ScraperRun row exists in the last 12h,
+  it returns a single {status:"pipeline-dead", source:"scheduler"} entry and
+  the banner styles RED, non-dismissable, with "Job scraping has stopped"
+  copy + remediation steps. This is the user's first signal when their
+  cron-job.org schedules go offline.
 
 PATH B — BACKGROUND CRON (for auto-apply):
   Cron fires → for each auto-apply user × each fresh job:
@@ -1189,6 +1206,100 @@ If ANY fails → application stays as READY → retry next cron cycle.
      content (full text), detectedSkills (JSON array),
      textQuality, targetCategories, isDefault
    }
+
+8. PER-STAGE ERROR REPORTING (the upload root-fix):
+   The single catch-all that previously returned generic
+   "Upload failed. Please try again." was split into per-stage codes:
+
+     BLOB_TOKEN_MISSING   → 503; Vercel Blob auth missing/rejected
+                            (returned BEFORE any work happens if
+                            process.env.BLOB_READ_WRITE_TOKEN is unset)
+     BAD_FORM_DATA        → 400; FormData parse failed
+     BLOB_PUT_FAILED      → 502; blob.put() network/transport failure
+     PDF_PARSE_FAILED     → NON-FATAL — extract-text errors no longer
+                            block the upload; the file is saved with
+                            textQuality="empty" and user prompted to
+                            paste text manually
+     DB_WRITE_FAILED      → 500; Prisma transaction failed AFTER blob
+                            upload (rare; surfaces as "uploaded but
+                            metadata save failed")
+
+   Each failure path logs the underlying error with the code prefix so
+   prod logs are greppable. The client uses `code` to differentiate
+   "fix your file" (PDF_PARSE etc.) from "server is broken, please
+   report" (BLOB_TOKEN_MISSING, DB_WRITE_FAILED).
+```
+
+### JD-aware tailoring flow (`/resumes/tailor`)
+
+```
+USER PATH (the Indeed-to-PDF funnel):
+  1. User copies a JD from Indeed/LinkedIn
+  2. Opens /resumes — sees the JD quick-start card at top
+  3. Pastes JD into the textarea, clicks "Tailor for this JD"
+  4. Lands on /resumes/tailor?jd=<encoded> with JD pre-filled
+  5. Picks a template + page count
+  6. Clicks "Tailor & preview"
+  7. Sees the rendered PDF + ATS coverage panel
+  8. Downloads PDF named after the JD's first line
+
+SERVER PATH (/api/resumes/generate, JD branch only):
+  1. tailorResume()           — Agent 2 (LLM): extracts relevantSkills,
+                                 missingKeywords from JD
+  2. fillTemplate()           — Agent 5 (LLM): ranks projects,
+                                 reorders skills, picks summary,
+                                 chooses layout bias
+  3. computeKeywordCoverage() — DETERMINISTIC (new):
+                                 extracts JD keywords via regex
+                                 tokenizer + phrase extractor,
+                                 walks the full profile (skills,
+                                 project bullets+stack, experience
+                                 bullets, summaries) to classify each
+                                 keyword as covered / in-profile /
+                                 missing
+  4. applyCoverageToRanking() — DETERMINISTIC (new):
+                                 prepends any project containing an
+                                 "in-profile but LLM-dropped" keyword
+                                 to the selection, dedup'd, respecting
+                                 the page-target cap (3 for 1pg, 5 for
+                                 2pg). Prefers promoting a skill (1
+                                 token) over a project (multi-line)
+                                 when both options exist
+  5. applyRanking()           — projects the final ordering onto the
+                                 ResumeRenderInput
+  6. renderResume()           — React server-render → HTML → audit
+                                 (no fabrication test) → snapshot
+  7. ResumeGeneration row stored with htmlSnapshot + jdSnippet
+  8. Response gains a `coverage` block:
+     {
+       covered:            string[]   — landed on the PDF
+       inProfileNotPicked: string[]   — promoted by force-include
+       missing:            string[]   — not in profile, not invented
+       coverageRatio:      0..1
+       forcedProjects:     string[]   — project ids added by §15.2
+       forcedSkills:       string[]   — skills kept by §15.2
+     }
+  9. Warnings array surfaces:
+     - "Force-included N project(s) and M skill(s) to cover JD
+        keywords you have: WebRTC, Kafka, ..."
+     - "N JD keyword(s) aren't in your profile: Apollo, GraphQL.
+        Add them if accurate — we won't fabricate."
+
+UI — /resumes/tailor right panel (the ATS Coverage panel):
+  - Big 0-100% score bar (green ≥80, amber ≥60, red <60)
+  - "Force-included" badge when forcedProjects/forcedSkills nonempty
+  - ✅ "On your PDF"            (green chips, max 24)
+  - ⚠ "In profile but dropped"  (amber chips with "we force-included")
+  - ❌ "Missing — add to profile?" (red chips + hint about no fabrication)
+
+WHY this fixes the WebRTC-rejection bug:
+  Before: fillTemplate ranked Hassan's "WebRTC peer mesh" project 4th.
+          pageTarget=1 capped at 3 projects → WebRTC dropped from PDF
+          → ATS keyword-grep fails → resume rejected.
+  After:  computeKeywordCoverage sees JD says "WebRTC" + profile has
+          WebRTC (in project bullet AND stack tag) + selection doesn't
+          render it → force-includes the project. Hard rule holds:
+          only items the user authored are promoted.
 ```
 
 ### AI Rephrase feature

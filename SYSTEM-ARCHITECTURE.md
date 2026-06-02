@@ -47,8 +47,15 @@ Jobs are scraped from LinkedIn, Indeed, Remotive, Arbeitnow, Adzuna, Rozee, JSea
 /dashboard/jobs/new       → Add manual job (protected)               [Server Component]
 /dashboard/jobs/[id]      → Job detail + apply panel (protected)     [Server + Client]
 /dashboard/recommended    → AI-recommended jobs (protected)          [Server + Client]
+                            ?fresh=today|3days|week caps server-side maxDays.
+                            Pipeline-dead banner shows when no scraper run in 12h.
+                            "Scan Now" button calls /api/jobs/scan-now for one-shot rescue.
 /dashboard/applications   → Email queue manager (protected)          [Server + Client]
-/dashboard/resumes        → Resume manager (protected)               [Server + Client]
+/dashboard/resumes        → Resume manager + JD quick-start (protected) [Server + Client]
+/dashboard/resumes/tailor → Dedicated JD → tailored PDF flow         [Server + Client]
+                            JD input + template gallery + page count on left;
+                            iframe preview + ATS coverage panel + download on right.
+                            Accepts ?jd=<encoded> for pre-fill from /resumes card.
 /dashboard/templates      → Email template editor (protected)        [Server + Client]
 /dashboard/analytics      → Charts + stats (protected)               [Server + Client]
 /dashboard/settings       → User settings (protected)                [Server + Client]
@@ -90,8 +97,9 @@ Jobs are scraped from LinkedIn, Indeed, Remotive, Arbeitnow, Adzuna, Rozee, JSea
 | /api/jobs/extract-url             | POST      | getAuthUserId   | Extract job from URL             |
 | /api/jobs/generate-pitch          | POST      | getAuthUserId   | AI pitch generation              |
 | /api/onboarding/complete          | POST      | getAuthUserId   | Complete onboarding + match      |
-| /api/resumes/upload               | POST      | getAuthUserId   | Upload resume PDF                |
+| /api/resumes/upload               | POST      | getAuthUserId   | Upload resume PDF (per-stage error codes: BLOB_TOKEN_MISSING, BLOB_PUT_FAILED, PDF_PARSE_FAILED, DB_WRITE_FAILED) |
 | /api/resumes/[id]/preview         | GET       | getAuthUserId   | Stream resume file               |
+| /api/resumes/generate             | POST      | getAuthUserId   | Tailor + render. Response gains `coverage: { covered, inProfileNotPicked, missing, forcedProjects, forcedSkills, coverageRatio }` when jdText provided. Deterministic post-pass force-includes projects/skills with verbatim JD keywords (WebRTC-rejection fix). |
 | /api/settings/mode                | GET       | getAuthUserId   | Get application mode             |
 | /api/settings/status              | PATCH     | getAuthUserId   | Toggle active/paused             |
 | /api/status                       | GET       | getAuthUserId   | Dashboard status bar             |
@@ -913,8 +921,10 @@ See Quick Reference table above. All server actions use `getAuthUserId()` for au
 | `skill-extractor.ts` | Skills | `extractSkillsFromContent()`, `parseResume()` |
 | `matching/score-engine.ts` | Scoring | `computeMatchScore()` — 7 factors, hard filters, 0-100 |
 | `matching/resume-matcher.ts` | Resume pick | `pickBestResumeWithTier()` — category, skill, AI tiebreak |
-| `matching/recommendation-engine.ts` | Recommend | `getRecommendedJobs()` — 2000-job query, 2-stage loading |
+| `matching/recommendation-engine.ts` | Recommend | `getRecommendedJobs()` — 2000-job query, 2-stage loading. Default `maxDays=14`. `orderBy: [{postedDate desc nulls:last}, {createdAt desc}]` so jobs *actually posted* recently outrank jobs *recently scraped*. URL `fresh=today\|3days\|week` caps server-side. |
 | `scrapers/*.ts` | Scraping | 8 source scrapers + runner + retry + rotation |
+| `scrapers/scraper-status.ts` | Pipeline health | `getRecentScraperFailures()` — per-source failure reasons OR `{status:"pipeline-dead", source:"scheduler"}` when no `ScraperRun` row exists in last 12h (cron-job.org down / never configured). Banner styles pipeline-dead as red + non-dismissable. |
+| `resume/keyword-coverage.ts` | Resume audit | `extractJdKeywords()`, `computeKeywordCoverage()`, `applyCoverageToRanking()` — deterministic post-pass that runs after `fillTemplate()`. Force-includes profile projects/skills containing verbatim JD keywords the LLM would have dropped. Hard rule preserved: only promotes user-authored content, never fabricates. |
 
 ---
 

@@ -582,3 +582,161 @@ User signed off; this section locks the contract for Phase 1.
 
 **Gate**: no PR opens against JobPilot until POC output is visually approved by user.
 
+---
+
+## 15. Phase 2.5 — JD-aware keyword coverage + dedicated tailor page (2026-06-02)
+
+### 15.1 The bug that triggered this
+
+A real user's resume was rejected by an ATS because the generated PDF didn't
+contain "WebRTC" even though the user's profile literally had:
+- Project bullet: "WebRTC peer mesh for sub-50ms latency"
+- Project stack: `["React", "TypeScript", "Yjs", "WebRTC"]`
+
+Root cause: `fillTemplate()` (Agent 5) returns LLM-ranked `projectIds`. With
+`pageTarget=1`, only the top 3 projects render. The LLM can decide "this
+project is less relevant" and drop a project even when its bullets/stack
+contain a verbatim JD keyword the user actually has.
+
+There was no deterministic *"force-include any item whose text contains a
+verbatim JD keyword the user has"* pass. Now there is.
+
+### 15.2 The fix — deterministic keyword coverage post-pass
+
+Source: `src/lib/resume/keyword-coverage.ts`
+
+Pipeline insertion:
+```
+tailorResume()           [LLM — signal extraction]
+   ↓
+fillTemplate()           [LLM — ranking + selection]
+   ↓
+computeKeywordCoverage() [DETERMINISTIC — new]
+   ↓
+applyCoverageToRanking() [DETERMINISTIC — new]
+   ↓
+applyRanking()           [final render input]
+```
+
+`computeKeywordCoverage()` walks every JD keyword and classifies it:
+
+| State | Meaning | Action |
+|---|---|---|
+| **covered** | Keyword in JD + in profile + will appear on the rendered PDF (via a selected project, selected skill, any experience, or any summary) | None |
+| **in-profile** | Keyword in JD + in profile but the LLM selection wouldn't include the source | Force-include — prefer the smallest viable promotion: skill (1 token) over project (multi-line) |
+| **missing** | Keyword in JD + NOT in profile | Report to user, do not fabricate |
+
+`applyCoverageToRanking()` prepends force-included items to the LLM's
+ordering (dedup-aware) and applies the same page-target caps (3 projects for
+1pg, 5 for 2pg). The audit invariant from §4.3 still holds: nothing is
+invented; we only promote items the user authored.
+
+### 15.3 Keyword extraction is regex-deterministic, not LLM-driven
+
+```typescript
+extractJdKeywords(jdText) →
+  phrases  = capitalized multi-word ("Machine Learning", "React Native")
+  tokens   = single tech-relevant tokens (preserves +/#/./- so "C++",
+             "Node.js", "CI/CD" survive intact)
+  deduped  = drop single tokens already contained in any phrase
+```
+
+Stopword list mirrors `recommend-existing/route.ts` so JD keyword extraction
+behaves consistently across the app. Match against profile is
+case-insensitive substring — covers `WebRTC` vs `webrtc` vs `Web RTC`.
+
+Profile search index covers 5 places:
+- skills[]
+- experience.bullets + experience.title + experience.company
+- project.bullets + project.stack + project.title + project.role + project.oneLiner
+- summary.label + summary.content
+- (education.details is not searched in v1 — high noise, low signal)
+
+### 15.4 New surface — `/resumes/tailor` (dedicated page)
+
+The modal-based `GenerateModal` still exists for the "from /resumes" CTA and
+auto-apply path, but now there's a dedicated full-page tailor experience for
+the **"I just copied a JD from Indeed and want a tailored PDF"** flow.
+
+Route: `app/(dashboard)/resumes/tailor/page.tsx` (+ `client.tsx`)
+
+Layout (split 50/50 on desktop, stacked on mobile):
+
+```
+┌──────────────────────────────┬──────────────────────────────┐
+│ LEFT — inputs                │ RIGHT — output               │
+│                              │                              │
+│ ┌─ JD textarea ────────────┐ │ ┌─ Empty / Loading / Result┐ │
+│ │ Paste full JD here…      │ │ │                          │ │
+│ │ chars counter            │ │ │ Preview (iframe)         │ │
+│ └──────────────────────────┘ │ │                          │ │
+│                              │ │ [Download] [Try again]    │ │
+│ ┌─ Template gallery ───────┐ │ │                          │ │
+│ │ T01  T03  T08  …         │ │ │ ┌─ ATS Coverage ──────┐  │ │
+│ │ (thumbnail + Preview     │ │ │ │ ATS score: 78%      │  │ │
+│ │  lightbox per template)  │ │ │ │ [progress bar]      │  │ │
+│ └──────────────────────────┘ │ │ │                     │  │ │
+│                              │ │ │ Force-included:     │  │ │
+│ ┌─ Page count ─────────────┐ │ │ │   2 projects, 1     │  │ │
+│ │ [1 page] [2 pages]       │ │ │ │   skill             │  │ │
+│ └──────────────────────────┘ │ │ │                     │  │ │
+│                              │ │ │ ✅ On your PDF       │  │ │
+│ [Tailor & preview] [Back]    │ │ │ ⚠ In-profile, fixed │  │ │
+│                              │ │ │ ❌ Missing — add?    │  │ │
+│                              │ │ └─────────────────────┘  │ │
+│                              │ └──────────────────────────┘ │
+└──────────────────────────────┴──────────────────────────────┘
+```
+
+The page reads `?jd=...` from the URL on mount so the JD quick-start card on
+`/resumes` can drop users directly into the flow with their JD pre-pasted.
+
+### 15.5 New surface — JD quick-start card on `/resumes`
+
+Component: `JdQuickStart` inside `ResumesPageShell.tsx`
+
+A card with a JD textarea at the top of `/resumes` (above the tabs), only
+shown to users with a structured profile. Form submission encodes the JD
+into the URL and pushes to `/resumes/tailor?jd=...`.
+
+This is the funnel match for the actual user behavior: copy JD from Indeed
+→ paste here → tailored PDF in one click chain.
+
+### 15.6 API contract changes — `/api/resumes/generate`
+
+Response gains a `coverage` field:
+
+```typescript
+{
+  // ...existing fields...
+  coverage: null | {
+    covered:            string[]   // keywords on the rendered PDF
+    inProfileNotPicked: string[]   // promoted via force-include
+    missing:            string[]   // user doesn't have these
+    coverageRatio:      number     // 0..1
+    forcedProjects:     string[]   // project ids added by coverage layer
+    forcedSkills:       string[]   // skills kept by coverage layer
+  }
+}
+```
+
+`null` when no JD was passed (no tailoring happened).
+
+Two new `warnings[]` strings are pushed when applicable:
+- `"Force-included N project(s) and M skill(s) to cover JD keywords you have: X, Y, Z."`
+- `"N JD keyword(s) aren't in your profile: X, Y. Add them if accurate — we won't fabricate."`
+
+### 15.7 What's still NOT in scope
+
+- Post-render PDF audit ("did the keyword actually land in the rendered
+  HTML?"). The current force-include logic relies on the fact that a
+  selected project's content will render — but template-specific CSS that
+  hides project bullets in 1pg mode could break this. Track via QA.
+- Visual highlight of JD keywords in the preview iframe (would require
+  injecting `<mark>` spans into rendered HTML).
+- A/B template compare ("show me both T03 and T08 side by side").
+- Per-job resume history ("show me what I sent to JOB X, did it get a
+  callback?"). Existing `ResumeGeneration.jdSnippet` is the building block.
+
+These are tracked but explicitly out of scope until the current layer is
+validated in real user flows.
