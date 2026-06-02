@@ -372,6 +372,9 @@ PATH A — QUERY-TIME (for display on /recommended page):
     → JS: HARD FILTER — negative keywords (reject matching jobs)
     → JS: HARD FILTER — keywords (at least 1 must match)
     → JS: score remaining jobs (computeMatchScore)
+    → JS: per-job ATS coverage (computeAtsCoverageLite with alias
+            expansion) — attaches { covered, total, ratio } to each
+            job for the badge on the card
     → JS: deduplicate cross-source
     → Sort, paginate, return
   Descriptions loaded for scoring but stripped before sending to client.
@@ -1300,6 +1303,127 @@ WHY this fixes the WebRTC-rejection bug:
           WebRTC (in project bullet AND stack tag) + selection doesn't
           render it → force-includes the project. Hard rule holds:
           only items the user authored are promoted.
+```
+
+### One-click Tailor & Apply flow (`tailorAndPrepareApplication`)
+
+```
+TRIGGER: JobCard on /recommended renders "Tailor & Apply" button when
+  job has verified email (≥80% confidence) + no existing draft. Same
+  flow also available via /jobs/[id]?apply=true (autoApply prop).
+
+SERVER (src/app/actions/application-email.ts):
+  tailorAndPrepareApplication(globalJobId):
+    1. saveGlobalJob upserts UserJob link
+    2. generateApplication (existing 4-agent pipeline) creates
+       JobApplication draft with email subject + body. Now passes
+       jdCoverage to GenerateEmailInput so the email writer gets
+       EMPHASIZE/DO NOT CLAIM directives based on profile match.
+    3. ensureTailoredResume runs auto-attach.ts pipeline:
+       tailorResume → fillTemplate → computeKeywordCoverage →
+       applyCoverageToRanking → renderResume → post-render audit
+       → save ResumeGeneration, link to application.
+    4. Return { userJobId, applicationId, resumeGenerationId,
+                tailored: boolean }
+
+CLIENT: router.push(/jobs/<userJobId>?apply=true)
+  → QuickApplyPanel loads with initialApp set
+  → autoApply effect short-circuits (initialApp truthy)
+  → TailoredResumeBadge renders prominently (instead of "Tailor your
+    resume" CTA) showing template ID + matched keywords + Preview/
+    Download links
+  → User reviews subject/body/recipient, hits Send
+  → sendApplication attaches the linked ResumeGeneration PDF
+```
+
+### Post-render coverage audit + force-include trade-off detection
+
+```
+After renderResume() produces HTML:
+
+1. auditCoverageAgainstHtml(html, claimedKeywords):
+   - stripHtmlToAtsText: removes <style>/<script>, replaces tag
+     boundaries with spaces, decodes entities, lowers.
+   - For each keyword in coverage.covered ∪ coverage.inProfileNotPicked,
+     check substring in plain text.
+   - Returns { landed, notLanded }.
+   - notLanded surfaces in UI as ⚠ "Claimed covered, but didn't land"
+     block; auto-attach logs as console.warn for ops.
+
+2. findLostCoverageFromDrops(coverage, droppedProjects, droppedSkills,
+                              remainingProjectIds, remainingSkills):
+   - Walks coverage.entries where state="covered".
+   - For each, checks if any carrier (project or skill that made it
+     covered) is still in the rendered selection. Experience and
+     summary always render so they're safe.
+   - Keywords whose ONLY carriers were dropped surface in
+     coverage.lostFromForceInclude.
+   - UI shows "Trade-off: force-include cost you N other keywords"
+     with "Use 2 pages above and regenerate" CTA when
+     coverage.pageBumpRecommended === true (pageTarget === 1).
+
+Combined effect: force-include can no longer paradoxically lower
+total coverage. Trade-offs are explicit; user picks 1pg vs 2pg with
+full information.
+```
+
+### Keyword alias map (`keyword-aliases.ts`)
+
+```
+~60 curated entries: k8s↔kubernetes, ml↔machine learning, ts↔typescript,
+ci/cd↔continuous integration, oauth2↔oauth, oidc↔openid connect, etc.
+
+expandKeywordVariants(kw) bidirectional lookup:
+  "k8s"        → ["k8s", "kubernetes"]
+  "kubernetes" → ["kubernetes", "k8s"]
+  "react"      → ["react"]   (no alias)
+
+Wired into 3 places so coverage stays consistent across surfaces:
+  - profileTextContains (computeKeywordCoverage full path)
+  - computeAtsCoverageLite (per-job ATS badge on /recommended)
+  - extractCoveredFromLite (email writer's emphasize list)
+
+Semantic split with keyword-adjacency.ts:
+  - Aliases:    SAME thing, different name. K8s == Kubernetes.
+  - Adjacencies: DIFFERENT things, related space. WebRTC ≈ Socket.IO.
+
+Aliases run BEFORE adjacency classification — prevents false negative
+"missing" claims when JD and resume use different spellings of the same
+skill. Adjacency only fires when keyword is genuinely missing.
+```
+
+### Cross-JD strategic views
+
+```
+/resumes/gaps (src/lib/resume/keyword-gaps.ts):
+  - Aggregates extractJdKeywords + findAdjacencies across user's last
+    200 non-dismissed UserJobs.
+  - Returns ranked list with jobCount, hasAdjacency, sampleJobs[5].
+  - Top-leverage banner: "Adding X would unlock N of M jobs".
+
+/resumes/outcomes (src/lib/resume/outcome-analytics.ts):
+  - Joins JobApplication + UserJob.stage + ResumeGeneration.
+  - Outcomes derived from stage: OFFER/INTERVIEW → positive;
+    REJECTED/GHOSTED → negative; APPLIED → in-flight.
+  - Per-template + per-coverage-bucket callback rates.
+  - Winners panel requires ≥3 sends + ≥1 positive (small-sample guard).
+
+Profile editor → SkillSuggestions panel (src/app/actions/skill-suggestions.ts):
+  - getSkillSuggestions() reuses analyzeKeywordGaps, drops keywords
+    user already has, requires ≥2 jobs blocked.
+  - Returns ranked entries with "reason" copy + adjacency tag.
+  - Component shows in /resumes My Profile tab below skills list.
+  - Dismissals persist in localStorage; re-fetches after every 3rd add.
+
+The closed loop:
+  /recommended (ATS badge + Tailor & Apply)
+   → /jobs/[id]?apply=true (review tailored draft + email)
+   → Send (auto-attach with force-include + audit)
+   → kanban tracks stage
+   → /resumes/outcomes shows what's working
+   → /resumes/gaps shows strategic missing
+   → SkillSuggestions adds the highest-leverage skill
+   → back to top with strengthened profile
 ```
 
 ### AI Rephrase feature
