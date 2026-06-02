@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { FreshnessDot } from "@/components/jobs/FreshnessIndicator";
 import { saveGlobalJob, dismissGlobalJob, undismissGlobalJob, bulkMarkAppliedFromSite } from "@/app/actions/job";
+import { tailorAndPrepareApplication } from "@/app/actions/application-email";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { RecommendedJob, RecommendationResult } from "@/lib/matching/recommendation-engine";
@@ -540,11 +541,47 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(!!job.userJobId);
   const [dismissing, setDismissing] = useState(false);
+  const [tailoring, setTailoring] = useState(false);
+  const router = useRouter();
 
 
   const score = job.matchScore;
   const status = getStatusBadge(job.applicationStatus);
   const detailUrl = job.userJobId ? `/jobs/${job.userJobId}` : `/jobs/${job.id}`;
+  // Offer one-click tailor whenever we can email the company. The ATS badge
+  // already warns the user when coverage is low — let them decide. Blocking
+  // on coverage felt right at design time but in practice paternalistic;
+  // the user is jobless and trying anyway is cheap.
+  const canTailorAndApply =
+    !!job.companyEmail &&
+    (job.emailConfidence ?? 0) >= 80 &&
+    !job.applicationStatus; // already have a draft / sent → don't double-create
+
+  const handleTailorAndApply = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (tailoring) return;
+    setTailoring(true);
+    const toastId = toast.loading("Tailoring resume + drafting email…");
+    try {
+      const result = await tailorAndPrepareApplication(job.id);
+      if (result.success && result.userJobId) {
+        toast.success(
+          result.tailored
+            ? "Application draft ready — resume tailored to the JD"
+            : "Application draft ready",
+          { id: toastId },
+        );
+        router.push(`/jobs/${result.userJobId}?apply=true`);
+      } else {
+        toast.error(result.error || "Failed to prepare application", { id: toastId });
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to prepare", { id: toastId });
+    } finally {
+      setTailoring(false);
+    }
+  }, [job.id, tailoring, router]);
 
   const handleSave = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -689,7 +726,19 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
           </button>
         )}
 
-        {job.companyEmail && (job.emailConfidence ?? 0) >= 80 && (
+        {canTailorAndApply && (
+          <button
+            onClick={handleTailorAndApply}
+            disabled={tailoring}
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-emerald-600 text-white hover:bg-emerald-500 active:bg-emerald-700 disabled:bg-emerald-500/60 transition-colors touch-manipulation"
+            title="Generate tailored resume + draft email in one click — review before sending"
+          >
+            {tailoring ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+            {tailoring ? "Preparing…" : "Tailor & Apply"}
+          </button>
+        )}
+
+        {!canTailorAndApply && job.companyEmail && (job.emailConfidence ?? 0) >= 80 && (
           <Link
             href={`${detailUrl}?apply=true`}
             className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 active:bg-emerald-300 transition-colors touch-manipulation"

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, FileText, Upload, Clock, User, Target, ArrowRight } from "lucide-react";
+import { Sparkles, FileText, Upload, Clock, User, Target, ArrowRight, TrendingUp } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ResumeList } from "@/components/resumes/ResumeList";
@@ -72,28 +72,56 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
             </TabsTrigger>
           </TabsList>
 
-          {hasProfile ? (
-            <Button
-              onClick={() => setGenerateOpen(true)}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
-            >
-              <Sparkles size={16} />
-              Generate resume
-            </Button>
-          ) : (
-            // Users with only legacy PDF uploads (no structured profile yet) need
-            // to set one up before generating. Don't hide the entry point — link
-            // them straight to the setup flow so they can discover the feature.
-            <Button
-              asChild
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
-            >
-              <Link href="/resumes/setup">
+          <div className="flex items-center gap-2">
+            {hasProfile && (
+              <>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="gap-1.5"
+                  title="Callback rate by template + coverage across your sent applications"
+                >
+                  <Link href="/resumes/outcomes">
+                    <TrendingUp size={14} />
+                    What&apos;s working
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="gap-1.5"
+                  title="See the keywords blocking the most jobs in your shortlist"
+                >
+                  <Link href="/resumes/gaps">
+                    <Target size={14} />
+                    Gaps
+                  </Link>
+                </Button>
+              </>
+            )}
+            {hasProfile ? (
+              <Button
+                onClick={() => setGenerateOpen(true)}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
+              >
                 <Sparkles size={16} />
                 Generate resume
-              </Link>
-            </Button>
-          )}
+              </Button>
+            ) : (
+              // Users with only legacy PDF uploads (no structured profile yet) need
+              // to set one up before generating. Don't hide the entry point — link
+              // them straight to the setup flow so they can discover the feature.
+              <Button
+                asChild
+                className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
+              >
+                <Link href="/resumes/setup">
+                  <Sparkles size={16} />
+                  Generate resume
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
 
         <TabsContent value="profile" className="mt-5">

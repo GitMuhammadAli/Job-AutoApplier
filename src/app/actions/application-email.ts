@@ -8,6 +8,7 @@ import { generateApplicationEmail } from "@/lib/ai-email-generator";
 import { generateCoverLetterFromInput } from "@/lib/ai-cover-letter-generator";
 import { generatePitchFromInput } from "@/lib/ai-pitch-generator";
 import { pickBestResumeWithTier } from "@/lib/matching/resume-matcher";
+import { ensureTailoredResume } from "@/lib/resume/auto-attach";
 import type { GenerateEmailInput } from "@/lib/ai-email-generator";
 
 async function buildEmailInput(
@@ -413,5 +414,91 @@ export async function markAsManuallyApplied(
         ? error.message
         : "Failed to mark as manually applied",
     );
+  }
+}
+
+/**
+ * One-click Tailor & Apply — the single visible-product-win entry point.
+ *
+ * Called from the JobCard's "Tailor & Apply" button. Does everything in one
+ * server roundtrip so the user only sees: click → spinner → land on a
+ * fully-prepared application draft to review.
+ *
+ * Chains:
+ *   1. saveGlobalJob   — upserts a UserJob linking user → globalJob, stage=SAVED
+ *   2. generateApplication — runs the 4-agent pipeline + email composer,
+ *                            creates JobApplication draft with subject + body
+ *   3. ensureTailoredResume — runs the resume tailor chain + new keyword
+ *                            force-include, generates ResumeGeneration row,
+ *                            attaches to the application
+ *
+ * Each step is idempotent (saveGlobalJob/generateApplication are upserts;
+ * ensureTailoredResume short-circuits if already attached) — retries are
+ * safe. Resume tailoring failure does NOT block the action; user still gets
+ * a draft with the uploaded-PDF fallback resume.
+ */
+export async function tailorAndPrepareApplication(globalJobId: string): Promise<{
+  success: boolean;
+  userJobId?: string;
+  applicationId?: string;
+  resumeGenerationId?: string;
+  tailored?: boolean;
+  error?: string;
+}> {
+  try {
+    const userId = await getAuthUserId();
+
+    // Step 1 — ensure UserJob link exists (or unhide a dismissed one).
+    const userJob = await prisma.userJob.upsert({
+      where: { userId_globalJobId: { userId, globalJobId } },
+      create: { userId, globalJobId, stage: "SAVED" },
+      update: { isDismissed: false },
+    });
+
+    // Step 2 — generate email + create JobApplication draft.
+    // generateApplication is the existing AI-email action; it does its own
+    // best-resume pick and creates/updates the draft.
+    const { application } = await generateApplication(userJob.id);
+
+    // Step 3 — tailor the resume (best-effort). Uses the new keyword
+    // force-include via ensureTailoredResume → auto-attach.ts. Failure here
+    // is logged but doesn't fail the apply flow — user keeps the uploaded
+    // PDF that generateApplication already matched.
+    let resumeGenerationId: string | undefined;
+    let tailored = false;
+    try {
+      const ensured = await ensureTailoredResume(application.id);
+      if (ensured) {
+        await prisma.jobApplication.update({
+          where: { id: application.id },
+          data: { resumeGenerationId: ensured.generationId },
+        });
+        resumeGenerationId = ensured.generationId;
+        tailored = ensured.freshlyGenerated;
+      }
+    } catch (err) {
+      console.warn(
+        `[tailorAndPrepareApplication] resume tailoring failed for application ${application.id}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+
+    revalidatePath("/recommended");
+    revalidatePath("/applications");
+    revalidatePath(`/jobs/${userJob.id}`);
+
+    return {
+      success: true,
+      userJobId: userJob.id,
+      applicationId: application.id,
+      resumeGenerationId,
+      tailored,
+    };
+  } catch (error) {
+    console.error("[tailorAndPrepareApplication]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to prepare application",
+    };
   }
 }
