@@ -13,6 +13,7 @@ import { HistoryTab } from "@/components/resumes/HistoryTab";
 import { GenerateModal } from "@/components/resumes/GenerateModal";
 import { resumeClient } from "@/lib/resume/client";
 import type { ResumeProfile } from "@/lib/resume/types";
+import { TAILOR_CARD } from "@/lib/messages";
 
 interface ResumesPageShellProps {
   uploadedResumes: Awaited<ReturnType<typeof import("@/app/actions/resume").getResumesWithStats>>;
@@ -202,18 +203,19 @@ function JdQuickStart({ hasProfile, hasUploads }: { hasProfile: boolean; hasUplo
   // Status copy depends on what's actually available. The tailor page +
   // /api/resumes/generate already handle both paths via
   // parseUploadedPdfToProfile fallback — we just tell the user what's
-  // about to happen so there are no surprises.
+  // about to happen so there are no surprises. All copy lives in
+  // src/lib/messages.ts so it can be changed in one place.
   const hint = hasProfile
-    ? "Uses your structured profile. Force-includes JD keywords you have, surfaces adjacency for ones you don't, never fabricates."
+    ? TAILOR_CARD.HINT_STRUCTURED
     : hasUploads
-      ? "No structured profile yet — we'll AI-extract from your best uploaded PDF, then tailor against the JD. Setup is optional but faster on repeat use."
-      : "You need at least one uploaded resume (or a built profile) before tailoring. We'll take you to setup first.";
+      ? TAILOR_CARD.HINT_AI_EXTRACT
+      : TAILOR_CARD.HINT_NEEDS_SETUP;
 
   const buttonLabel = !canTailor
-    ? "Set up first"
+    ? TAILOR_CARD.BUTTON_NEEDS_SETUP
     : hasProfile
-      ? "Tailor for this JD"
-      : "Tailor using my upload";
+      ? TAILOR_CARD.BUTTON_STRUCTURED
+      : TAILOR_CARD.BUTTON_AI_EXTRACT;
 
   return (
     <form
@@ -227,7 +229,7 @@ function JdQuickStart({ hasProfile, hasUploads }: { hasProfile: boolean; hasUplo
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Tailor for a specific job
+              {TAILOR_CARD.HEADLINE}
             </p>
             <span
               className={`text-[10px] font-medium px-1.5 py-0.5 rounded ring-1 ring-inset ${
@@ -238,12 +240,15 @@ function JdQuickStart({ hasProfile, hasUploads }: { hasProfile: boolean; hasUplo
                     : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 ring-zinc-200/60 dark:ring-zinc-700/50"
               }`}
             >
-              {hasProfile ? "Structured profile" : hasUploads ? "AI-extract from upload" : "Setup needed"}
+              {hasProfile
+                ? TAILOR_CARD.CHIP_STRUCTURED
+                : hasUploads
+                  ? TAILOR_CARD.CHIP_AI_EXTRACT
+                  : TAILOR_CARD.CHIP_NEEDS_SETUP}
             </span>
           </div>
           <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mt-1">
-            Paste the JD here → pick a template → get an ATS-matched PDF with
-            keyword coverage. Every word traces back to you, no fabrication.
+            {TAILOR_CARD.BODY}
           </p>
           <p className="text-[10px] text-zinc-500 dark:text-zinc-500 mt-1 italic">
             {hint}
@@ -257,7 +262,9 @@ function JdQuickStart({ hasProfile, hasUploads }: { hasProfile: boolean; hasUplo
           />
           <div className="mt-2 flex items-center justify-between">
             <p className="text-[10px] text-zinc-500 dark:text-zinc-500">
-              {jd.trim().length < 20 ? `Need ${20 - jd.trim().length} more chars` : `${jd.length} chars`}
+              {jd.trim().length < 20
+                ? TAILOR_CARD.NEED_MORE_CHARS(20 - jd.trim().length)
+                : `${jd.length} chars`}
             </p>
             <Button
               type="submit"

@@ -12,6 +12,7 @@ import { DevRadarBanner } from "@/components/dashboard/DevRadarBanner";
 import { Zap, Clock, Mail, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
+import { DASHBOARD } from "@/lib/messages";
 
 const OnboardingWizard = nextDynamic(
   () => import("@/components/onboarding/OnboardingWizard").then((m) => m.OnboardingWizard),
@@ -147,33 +148,30 @@ function NextBestActionCard() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Nothing in motion yet
+            {DASHBOARD.NEXT_ACTION_TITLE}
           </p>
           <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            Your auto-search runs every couple hours. Meanwhile, head to
-            Find Jobs to see what&apos;s matched so far, paste a JD on
-            Resumes to tailor for a specific role, or upload a PDF if
-            you haven&apos;t yet.
+            {DASHBOARD.NEXT_ACTION_BODY}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Link
               href="/recommended"
               className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-semibold"
             >
-              Find Jobs
+              {DASHBOARD.NEXT_ACTION_PRIMARY}
               <Plus className="h-3 w-3" />
             </Link>
             <Link
               href="/resumes"
               className="inline-flex items-center gap-1.5 rounded-lg bg-white dark:bg-zinc-900 ring-1 ring-emerald-200 dark:ring-emerald-800/60 text-emerald-700 dark:text-emerald-300 px-3 py-1.5 text-xs font-semibold hover:ring-emerald-300"
             >
-              Tailor for a JD
+              {DASHBOARD.NEXT_ACTION_TAILOR}
             </Link>
             <Link
               href="/resumes/setup"
               className="text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:underline"
             >
-              Or set up your profile first →
+              {DASHBOARD.NEXT_ACTION_SETUP}
             </Link>
           </div>
         </div>

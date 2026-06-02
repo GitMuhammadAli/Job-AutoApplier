@@ -341,6 +341,46 @@ export const RESUME_TAILORING = {
     "Probably hidden by the template at this size. Try a different template or use 2 pages.",
   COVERAGE_DETAILS_SHOW: "Show more detail",
   COVERAGE_DETAILS_HIDE: "Show less",
+
+  // Missing keywords block (tailor coverage panel)
+  MISSING_WITH_ADJACENCY_HEADLINE: (count: number) =>
+    `The job mentioned these, but you have related experience (${count})`,
+  MISSING_ADJACENCY_PROMPT: (jobKw: string) => `Job wants ${jobKw} — you have:`,
+  MISSING_ADJACENCY_HINT:
+    "Worth a quick mention if it's honestly relevant.",
+  MISSING_PROJECT_TAG: (count: number) =>
+    `+ ${count} project${count === 1 ? "" : "s"} with related work`,
+  MISSING_COLD_HEADLINE: "The job asked for these, you don't have them yet",
+  MISSING_COLD_NEW_HEADLINE: "Missing from your profile",
+  MISSING_COLD_HINT:
+    "We won't make these up. Add them under Resumes if they're true, or skip this job if the gap is too wide.",
+
+  // /resumes/tailor page hints
+  TAILOR_HEADER_TITLE: "Tailor your resume for this job",
+  TAILOR_HEADER_BODY:
+    "Paste the JD, pick a template, get an ATS-matched PDF using your own profile content. Every word traces back to you, no fabrication.",
+  TAILOR_AI_EXTRACT_HEADS_UP: (resumeName: string) =>
+    `Heads up: we read your profile from "${resumeName}". For faster runs next time, save your structured profile.`,
+} as const
+
+// ─── JD quick-start card on /resumes ───────────────────────────────────────
+export const TAILOR_CARD = {
+  HEADLINE: "Tailor for a specific job",
+  BODY:
+    "Paste the JD here, pick a template, get an ATS-matched PDF. Every word traces back to you, no fabrication.",
+  HINT_STRUCTURED:
+    "Uses your saved profile. Keeps the keywords you have, flags the ones you don't.",
+  HINT_AI_EXTRACT:
+    "We'll read your best uploaded resume on the fly. Save a profile for faster runs next time.",
+  HINT_NEEDS_SETUP:
+    "You need a resume on file before tailoring. We'll set that up first.",
+  CHIP_STRUCTURED: "Ready to tailor",
+  CHIP_AI_EXTRACT: "Using your upload",
+  CHIP_NEEDS_SETUP: "Setup needed",
+  BUTTON_STRUCTURED: "Tailor for this JD",
+  BUTTON_AI_EXTRACT: "Tailor using my upload",
+  BUTTON_NEEDS_SETUP: "Set up first",
+  NEED_MORE_CHARS: (n: number) => `A bit more (${n} chars to go)`,
 } as const
 
 // ─── Job pipeline (banners + status) ───────────────────────────────────────
@@ -379,14 +419,22 @@ export const TEMPLATES = {
   FAILED_CREATE: "Failed to create template",
 } as const
 
-// ─── Dashboard / Bulk ──────────────────────────────────────────────────────
+// ─── Dashboard / Bulk + Next-best-action greeting ──────────────────────────
 export const DASHBOARD = {
+  // Bulk-action toasts
   CLEARED_OLD_JOBS: (count: number) => `Cleared ${count} old jobs`,
   CLEARED_JOBS: (count: number) => `Cleared ${count} jobs`,
   DELETED_APPS_STATUS: (count: number, status: string) =>
     `Deleted ${count} ${status} applications`,
   CANCELLED_DRAFTS: (count: number) => `Cancelled ${count} drafts`,
   ALL_DATA_CLEARED: "All data cleared — fresh start!",
+  // Next-best-action card (when no queue + no delivery stats yet)
+  NEXT_ACTION_TITLE: "Nothing in motion yet",
+  NEXT_ACTION_BODY:
+    "Auto-search keeps running in the background. Meanwhile, you can browse what's already matched, paste a JD to tailor a resume, or upload a PDF if you haven't yet.",
+  NEXT_ACTION_PRIMARY: "Find jobs",
+  NEXT_ACTION_TAILOR: "Tailor for a JD",
+  NEXT_ACTION_SETUP: "Or set up your profile first →",
 } as const
 
 // ─── Feedback ──────────────────────────────────────────────────────────────
