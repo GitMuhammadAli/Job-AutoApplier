@@ -35,6 +35,7 @@ import {
 import {
   computeKeywordCoverage,
   applyCoverageToRanking,
+  auditCoverageAgainstHtml,
   type KeywordCoverageReport,
 } from "@/lib/resume/keyword-coverage";
 
@@ -250,6 +251,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── Post-render coverage audit ─────────────────────────────────────
+  // The coverage report above is a CLAIM — it's based on which sources
+  // (projects/skills) the agent picked. The render pipeline can later trim
+  // content (1pg page-fit), templates can hide sections in narrow layouts,
+  // and font replacements can break glyphs. The only honest signal of
+  // "did this keyword actually land on the PDF" is grepping the rendered
+  // HTML itself. notLanded entries get surfaced so the user can choose to
+  // bump page-target or pick a different template.
+  let auditNotLanded: string[] = [];
+  if (coverage) {
+    const claimed = Array.from(
+      new Set([...coverage.covered, ...coverage.inProfileNotPicked]),
+    );
+    const audit = auditCoverageAgainstHtml(renderResult.html, claimed);
+    auditNotLanded = audit.notLanded;
+    if (auditNotLanded.length > 0) {
+      warnings.push(
+        `${auditNotLanded.length} keyword(s) didn't land in the PDF despite being claimed: ${auditNotLanded.slice(0, 5).join(", ")}${auditNotLanded.length > 5 ? "…" : ""}. Try a 2-page layout or a different template.`,
+      );
+    }
+  }
+
   // ── Persist generation row ─────────────────────────────────────────
   // Encode "unlimited" as 0 so the Int column stays meaningful (1/2 = pages,
   // 0 = unlimited / multi-page CV).
@@ -296,6 +319,10 @@ export async function POST(req: NextRequest) {
           // has any adjacent content in the profile. Lets the UI render an
           // honest "you have X — closest match" hint per ❌ chip.
           missingWithAdjacency: coverage.missingWithAdjacency,
+          // Post-render integrity check: keywords the report CLAIMED would
+          // land but that grepping the rendered HTML proves didn't (template
+          // hid the section, page-fit trimmed, etc). The honest signal.
+          auditNotLanded,
         }
       : null,
   });

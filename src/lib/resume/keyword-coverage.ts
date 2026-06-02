@@ -379,6 +379,80 @@ export const __internal = { tokenize, extractPhrases, profileTextContains };
 export type { ResumeProject };
 
 /**
+ * Strip HTML tags + style/script blocks down to the plain text an ATS sees.
+ *
+ * Why this exists separately from the rendering pipeline: the renderer
+ * produces HTML; ATS keyword grep operates on text. Coverage claims that
+ * "WebRTC will land on the PDF" can be falsified by a template whose 1pg
+ * mode hides project stack badges, or by a font that substitutes glyphs.
+ * We need a check against the actual rendered output, not just the
+ * intent at fillTemplate time.
+ *
+ * Conservative approach:
+ *   - Remove <style> and <script> blocks entirely (their content is not
+ *     read by ATS but would falsely match keywords if naively included).
+ *   - Replace tag boundaries with spaces so "X</span>Y" becomes "X Y"
+ *     (otherwise we'd never match adjacent inline content).
+ *   - Decode common HTML entities (so &amp;, &lt;, etc. don't break
+ *     matches like "C&amp;C").
+ *   - Lowercase + collapse whitespace.
+ */
+export function stripHtmlToAtsText(html: string): string {
+  return html
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+export interface CoverageAuditResult {
+  /** Keywords the audit confirmed are physically present in the rendered HTML. */
+  landed: string[];
+  /**
+   * Keywords the coverage report claimed were covered or force-included,
+   * but that don't appear in the rendered output. These are the integrity
+   * failures the UI surfaces back to the user so they can decide to
+   * widen the page-target or pick a different template.
+   */
+  notLanded: string[];
+}
+
+/**
+ * Verify that every keyword the coverage report claimed will appear in
+ * the final PDF actually appears in the rendered HTML text. The honest
+ * fallback when claims don't match reality — without this check the
+ * coverage panel can lie to the user (the "covered" badge is theater).
+ *
+ * `expectedKeywords` should be the union of `coverage.covered` +
+ * `coverage.inProfileNotPicked` (the latter being force-include promotions
+ * that the caller already applied to the render input). Both are claims
+ * we're auditing.
+ */
+export function auditCoverageAgainstHtml(
+  html: string,
+  expectedKeywords: string[],
+): CoverageAuditResult {
+  const text = stripHtmlToAtsText(html);
+  const landed: string[] = [];
+  const notLanded: string[] = [];
+  for (const kw of expectedKeywords) {
+    const k = kw.toLowerCase().trim();
+    if (!k) continue;
+    if (text.includes(k)) landed.push(kw);
+    else notLanded.push(kw);
+  }
+  return { landed, notLanded };
+}
+
+/**
  * Lightweight per-job ATS coverage estimate for the /recommended feed.
  *
  * No ResumeProfile required — works off a flat skill set + free-text haystack

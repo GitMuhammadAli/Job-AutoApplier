@@ -52,6 +52,14 @@ export interface GenerateCoverage {
     relatedTerms: string[];
     hasAdjacency: boolean;
   }>;
+  /**
+   * Post-render integrity check — keywords the coverage report claimed
+   * would be on the PDF but that grepping the rendered HTML proves
+   * didn't actually land. Empty when the audit passed clean. UI shows
+   * these as a separate ⚠ block so user knows the claim was overoptimistic
+   * and can bump page-target or pick a different template.
+   */
+  auditNotLanded: string[];
 }
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {

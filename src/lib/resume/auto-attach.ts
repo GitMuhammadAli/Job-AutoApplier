@@ -13,7 +13,11 @@
 import { prisma } from "@/lib/prisma";
 import { tailorResume } from "@/lib/agents/resume-tailor";
 import { fillTemplate } from "@/lib/agents/resume-template-fill";
-import { computeKeywordCoverage, applyCoverageToRanking } from "./keyword-coverage";
+import {
+  computeKeywordCoverage,
+  applyCoverageToRanking,
+  auditCoverageAgainstHtml,
+} from "./keyword-coverage";
 import {
   bundleToResumeProfile,
   buildRenderInput,
@@ -90,6 +94,11 @@ export async function ensureTailoredResume(
 
   const jdText = (application.userJob.globalJob.description ?? "").trim();
   let renderInput = buildRenderInput(profile, { templateId: DEFAULT_TEMPLATE_ID, pageTarget: 1 });
+  // Keywords the coverage layer promises the rendered PDF will contain.
+  // We grep the post-render HTML for these to catch silent dropouts (page
+  // trim, template hiding sections, etc.). Audit only fires on auto-apply
+  // when the JD chain actually ran.
+  let claimedKeywords: string[] = [];
 
   if (jdText.length >= MIN_JD_LENGTH) {
     try {
@@ -127,6 +136,9 @@ export async function ensureTailoredResume(
           `[auto-attach] application ${applicationId}: force-included ${promoted.forcedProjects.length} project(s), ${promoted.forcedSkills.length} skill(s) for JD keywords user has`,
         );
       }
+      claimedKeywords = Array.from(
+        new Set([...coverage.covered, ...coverage.inProfileNotPicked]),
+      );
 
       renderInput = applyRanking(renderInput, profile, {
         skillsOrder: promoted.skills,
@@ -154,6 +166,18 @@ export async function ensureTailoredResume(
       err instanceof Error ? err.message : err,
     );
     return null;
+  }
+
+  // Post-render audit — log silent keyword dropouts. Auto-apply ships
+  // without user review, so we want operational visibility when our
+  // claims don't match the rendered PDF. Cheap (regex strip + substring).
+  if (claimedKeywords.length > 0) {
+    const audit = auditCoverageAgainstHtml(html, claimedKeywords);
+    if (audit.notLanded.length > 0) {
+      console.warn(
+        `[auto-attach] application ${applicationId}: ${audit.notLanded.length} claimed keyword(s) didn't land in the auto-rendered PDF: ${audit.notLanded.slice(0, 10).join(", ")}`,
+      );
+    }
   }
 
   const pageTargetInt =
