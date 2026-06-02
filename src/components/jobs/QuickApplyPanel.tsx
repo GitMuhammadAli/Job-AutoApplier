@@ -101,6 +101,18 @@ interface ApplicationData {
   recipientEmail: string;
   senderEmail: string;
   resume?: { id: string; name: string; fileName: string | null } | null;
+  /**
+   * Linked ResumeGeneration when this application carries a JD-tailored PDF
+   * (created by Tailor & Apply or auto-attach). Lets the panel surface a
+   * clear "Tailored resume ready" badge with template + matched keywords +
+   * a preview link, instead of treating every send as a generic upload.
+   */
+  resumeGeneration?: {
+    id: string;
+    templateId: string;
+    matchedKeywords: string[];
+    createdAt: string | Date;
+  } | null;
 }
 
 interface ResumeOption {
@@ -554,10 +566,18 @@ export function QuickApplyPanel({
         </div>
       )}
 
-      {/* Tailor-resume CTA — top-level, always visible. The entry point for the
-          per-JD generator. Sits above the email flow so the user sees it before
-          clicking Generate Email. */}
-      <TailorResumeCTA jdText={userJob.globalJob.description ?? ""} />
+      {/* When this application landed from Tailor & Apply (or auto-attach),
+          a ResumeGeneration is already linked. Surface it prominently so the
+          user knows their tailored PDF is attached and ready — not a
+          generic upload. Hides the "tailor it yourself" CTA in that case
+          since the work is already done. */}
+      {application?.resumeGeneration ? (
+        <TailoredResumeBadge
+          generation={application.resumeGeneration}
+        />
+      ) : (
+        <TailorResumeCTA jdText={userJob.globalJob.description ?? ""} />
+      )}
 
       {/* AI Resume Recommendation — shown after Generate Email picks one of the
           user's uploaded PDFs. Separate from the tailored-generation path above. */}
@@ -853,6 +873,87 @@ export function QuickApplyPanel({
 //   - no profile: link to /resumes/setup (path picker, not scratch)
 //   - has profile: emerald CTA → modal opens with initialJd=jdText
 // ────────────────────────────────────────────────────────────────────
+
+/**
+ * Tailored-resume badge — shown when the application has a linked
+ * ResumeGeneration (came from Tailor & Apply, or auto-attach for
+ * FULL_AUTO users). Tells the user explicitly: this is the JD-specific
+ * tailored PDF, not a generic upload. Links to the preview so they can
+ * eyeball it before sending. Lists the keywords the audit confirmed
+ * landed so the user has a one-glance summary of what the ATS will see.
+ */
+function TailoredResumeBadge({
+  generation,
+}: {
+  generation: {
+    id: string;
+    templateId: string;
+    matchedKeywords: string[];
+    createdAt: string | Date;
+  };
+}) {
+  const previewUrl = `/api/resumes/generations/${generation.id}/preview`;
+  const pdfUrl = `/api/resumes/generations/${generation.id}/pdf`;
+  const keywords = generation.matchedKeywords ?? [];
+  return (
+    <div className="rounded-lg border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/20 p-3">
+      <div className="flex items-start gap-2.5">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-600 text-white">
+          <FileText className="h-3.5 w-3.5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+              Tailored resume ready
+            </p>
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40">
+              {generation.templateId}
+            </span>
+          </div>
+          <p className="text-[11px] text-emerald-800/90 dark:text-emerald-300/90 mt-0.5">
+            JD-specific PDF generated for this application. Will be attached
+            automatically on send.
+          </p>
+          {keywords.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {keywords.slice(0, 6).map((k) => (
+                <span
+                  key={k}
+                  className="text-[10px] font-medium px-1 py-0 rounded bg-white/60 dark:bg-zinc-900/30 text-emerald-700 dark:text-emerald-300"
+                >
+                  {k}
+                </span>
+              ))}
+              {keywords.length > 6 && (
+                <span className="text-[10px] text-emerald-700/80 dark:text-emerald-300/80">
+                  +{keywords.length - 6}
+                </span>
+              )}
+            </div>
+          )}
+          <div className="mt-2 flex items-center gap-3">
+            <a
+              href={previewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
+            >
+              Preview
+            </a>
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
+            >
+              Download PDF
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function TailorResumeCTA({ jdText }: { jdText: string }) {
   // Default to "no profile" so the CTA renders the link version immediately;

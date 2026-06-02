@@ -460,11 +460,23 @@ function ResultPanel({
 // ── Coverage panel ─────────────────────────────────────────────────
 
 function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
+  const [showDetails, setShowDetails] = useState(false);
   const total = coverage.covered.length + coverage.inProfileNotPicked.length + coverage.missing.length;
   const pct = Math.round(coverage.coverageRatio * 100);
   const renderedCount = coverage.covered.length + coverage.forcedProjects.length + coverage.forcedSkills.length;
   const renderedPct = total === 0 ? 0 : Math.round((renderedCount / total) * 100);
   const adjustedPct = Math.min(100, Math.max(pct, renderedPct));
+
+  // Technical signals are surfaced behind a toggle. First-time users see
+  // the score + on-your-PDF + missing — the actionable summary. Power users
+  // / debug needs see the trade-off + audit detail when they click "Show
+  // details". Most people don't need to know the mechanics; for the ones
+  // who do, the data is one click away.
+  const hasTechnicalSignals =
+    coverage.forcedProjects.length > 0 ||
+    coverage.forcedSkills.length > 0 ||
+    coverage.lostFromForceInclude.length > 0 ||
+    coverage.auditNotLanded.length > 0;
 
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
@@ -496,15 +508,23 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
         />
       </div>
 
-      {(coverage.forcedProjects.length > 0 || coverage.forcedSkills.length > 0) && (
+      {/* Headline summary — the action items. Tech details below the fold. */}
+      {(coverage.forcedProjects.length > 0 || coverage.forcedSkills.length > 0) && !showDetails && (
+        <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+          <strong>{coverage.forcedProjects.length + coverage.forcedSkills.length} item(s) force-included</strong>{" "}
+          so JD keywords you have don&apos;t get dropped.
+        </p>
+      )}
+
+      {showDetails && (coverage.forcedProjects.length > 0 || coverage.forcedSkills.length > 0) && (
         <div className="rounded-lg bg-emerald-50/60 dark:bg-emerald-950/20 px-2.5 py-2 text-[11px] text-emerald-700 dark:text-emerald-300">
           <strong>Force-included</strong> {coverage.forcedProjects.length} project(s)
           {coverage.forcedSkills.length > 0 && `, ${coverage.forcedSkills.length} skill(s)`} so JD
-          keywords you have don't get dropped.
+          keywords you have don&apos;t get dropped.
         </div>
       )}
 
-      {coverage.lostFromForceInclude.length > 0 && (
+      {showDetails && coverage.lostFromForceInclude.length > 0 && (
         <div className="rounded-lg border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-2">
           <div className="flex items-start gap-1.5">
             <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -541,13 +561,13 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
         </div>
       )}
 
-      {coverage.auditNotLanded.length > 0 && (
+      {showDetails && coverage.auditNotLanded.length > 0 && (
         <div className="rounded-lg border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-2">
           <div className="flex items-start gap-1.5">
             <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-200">
-                Claimed covered, but didn't land on the PDF
+                Claimed covered, but didn&apos;t land on the PDF
               </p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {coverage.auditNotLanded.slice(0, 8).map((kw) => (
@@ -596,6 +616,16 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
           missing={coverage.missing}
           adjacency={coverage.missingWithAdjacency}
         />
+      )}
+
+      {hasTechnicalSignals && (
+        <button
+          type="button"
+          onClick={() => setShowDetails((v) => !v)}
+          className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 underline underline-offset-2"
+        >
+          {showDetails ? "Hide technical details" : "Show technical details (trade-offs, audit)"}
+        </button>
       )}
     </div>
   );

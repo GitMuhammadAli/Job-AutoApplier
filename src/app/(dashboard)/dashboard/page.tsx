@@ -116,7 +116,13 @@ async function DashboardWidgets() {
     getDeliveryStats().catch(() => null),
   ]);
 
-  if (todaysQueue.total === 0 && !deliveryStats) return null;
+  // When the user has nothing in motion yet — no queue, no delivery stats —
+  // surface a clear next-step card instead of rendering nothing. A fresh
+  // user on /dashboard with an empty board needs to know "go to
+  // /recommended" not stare at a void.
+  if (todaysQueue.total === 0 && !deliveryStats) {
+    return <NextBestActionCard />;
+  }
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
@@ -128,6 +134,50 @@ async function DashboardWidgets() {
         />
       )}
       {deliveryStats && <DeliveryStats stats={deliveryStats} />}
+    </div>
+  );
+}
+
+function NextBestActionCard() {
+  return (
+    <div className="rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50/60 via-white to-white dark:from-emerald-950/30 dark:via-zinc-900 dark:to-zinc-900 p-4 sm:p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow">
+          <Zap className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Nothing in motion yet
+          </p>
+          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+            Your auto-search runs every couple hours. Meanwhile, head to
+            Find Jobs to see what&apos;s matched so far, paste a JD on
+            Resumes to tailor for a specific role, or upload a PDF if
+            you haven&apos;t yet.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Link
+              href="/recommended"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-semibold"
+            >
+              Find Jobs
+              <Plus className="h-3 w-3" />
+            </Link>
+            <Link
+              href="/resumes"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white dark:bg-zinc-900 ring-1 ring-emerald-200 dark:ring-emerald-800/60 text-emerald-700 dark:text-emerald-300 px-3 py-1.5 text-xs font-semibold hover:ring-emerald-300"
+            >
+              Tailor for a JD
+            </Link>
+            <Link
+              href="/resumes/setup"
+              className="text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:underline"
+            >
+              Or set up your profile first →
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

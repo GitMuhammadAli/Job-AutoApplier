@@ -212,6 +212,37 @@ function PickPathStep({
         </button>
       )}
 
+      {/* Zero-state hint — when user has neither uploads nor a profile,
+          steer them at the fastest path: upload a PDF first, AI does the
+          tedious work, then this same page hands them auto-extract on
+          their next visit. Empty-state friction was the original
+          /resumes/setup pain. */}
+      {!hasUploads && (
+        <div className="rounded-2xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/40 dark:bg-amber-950/20 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white shadow">
+              <Upload size={18} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                No resume on file yet
+              </p>
+              <p className="text-[12px] text-amber-800/90 dark:text-amber-200/90 mt-0.5">
+                Fastest path: upload an existing PDF below, we&apos;ll
+                AI-extract your structured profile in ~5s. Or fill from
+                scratch — your call.
+              </p>
+              <Link
+                href="/resumes"
+                className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-amber-700 dark:text-amber-300 hover:underline"
+              >
+                Upload a resume first <ArrowRight size={12} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Secondary paths */}
       <div className="grid sm:grid-cols-2 gap-4">
         <PathCard

@@ -56,6 +56,14 @@ export default async function JobDetailPage({
           application: {
             include: {
               resume: { select: { id: true, name: true, fileName: true } },
+              resumeGeneration: {
+                select: {
+                  id: true,
+                  templateId: true,
+                  matchedKeywords: true,
+                  createdAt: true,
+                },
+              },
             },
           },
           activities: {
