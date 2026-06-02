@@ -126,6 +126,10 @@ export const resumeClient = {
     warnings: string[];
     aiProvider: string | null;
     coverage: GenerateCoverage | null;
+    /** "structured" = user's typed profile; "parsed-pdf" = AI-extracted from upload. */
+    profileSource?: "structured" | "parsed-pdf";
+    /** When profileSource = "parsed-pdf", the resume.name the AI read. */
+    parsedFromResumeName?: string | null;
   }> {
     const res = await fetch("/api/resumes/generate", {
       method: "POST",

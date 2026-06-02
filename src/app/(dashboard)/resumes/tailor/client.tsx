@@ -40,6 +40,8 @@ interface GenerationResult {
   warnings: string[];
   aiProvider: string | null;
   coverage: GenerateCoverage | null;
+  profileSource?: "structured" | "parsed-pdf";
+  parsedFromResumeName?: string | null;
 }
 
 const MIN_JD_LEN = 20;
@@ -362,6 +364,19 @@ function ResultPanel({
 }) {
   return (
     <div className="space-y-3">
+      {result.profileSource === "parsed-pdf" && result.parsedFromResumeName && (
+        <div className="rounded-lg border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-950/20 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200">
+          <strong>Heads up:</strong> we AI-extracted your profile from your
+          uploaded resume{" "}
+          <strong className="italic">{result.parsedFromResumeName}</strong>.
+          For faster, more accurate tailoring on repeat use, build your
+          structured profile under{" "}
+          <Link href="/resumes/setup" className="underline underline-offset-2">
+            My Profile
+          </Link>
+          .
+        </div>
+      )}
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900">
         <iframe src={result.previewUrl} title="Resume preview" className="w-full h-[500px] border-0" />
       </div>
