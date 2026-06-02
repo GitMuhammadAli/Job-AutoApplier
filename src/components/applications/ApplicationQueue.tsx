@@ -1177,10 +1177,10 @@ function ApplicationList({
       <EmptyState
         tone="card"
         icon={Inbox}
-        title="No applications in this tab"
-        description="Generate drafts from job pages, or browse the dashboard for new opportunities."
-        actionLabel="Browse Jobs"
-        actionHref="/dashboard"
+        title="No applications here yet"
+        description="Use Tailor & Apply on a recommended job (one-click — generates a JD-tailored PDF + email draft for you to review)."
+        actionLabel="Find recommended jobs"
+        actionHref="/recommended"
       />
     );
   }

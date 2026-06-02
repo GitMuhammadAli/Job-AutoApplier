@@ -33,16 +33,23 @@ export function HistoryTab() {
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-12 text-center">
-        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 mb-4">
-          <Clock size={20} className="text-zinc-500" />
+      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-10 text-center">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/40 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40 mb-4">
+          <Clock size={20} className="text-emerald-600 dark:text-emerald-400" />
         </div>
         <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-1">
-          No generations yet
+          No tailored resumes yet
         </h3>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Click "Generate resume" once your profile is set up. Every render is logged here for re-download.
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
+          Every PDF generated via Tailor & Apply or the &ldquo;Tailor for a JD&rdquo; flow
+          shows up here for re-download. Try it on a recommended job.
         </p>
+        <a
+          href="/recommended"
+          className="inline-flex items-center gap-1.5 mt-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white"
+        >
+          Find recommended jobs
+        </a>
       </div>
     );
   }
