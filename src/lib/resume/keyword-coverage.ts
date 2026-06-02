@@ -19,6 +19,7 @@
 
 import type { ResumeProfile, ResumeProject } from "@/lib/resume/types";
 import { findAdjacencies, type MissingKeywordWithAdjacency } from "./keyword-adjacency";
+import { expandKeywordVariants } from "./keyword-aliases";
 
 // Stopwords + tokenizer mirror the recommend-existing route's tokenizer so
 // JD keyword extraction is consistent across the app. Kept inline (not
@@ -159,13 +160,18 @@ export function extractJdKeywords(jdText: string): string[] {
 
 /**
  * Does any of the search-haystacks contain the keyword? Case-insensitive
- * substring match — covers `WebRTC` vs `webrtc` vs `Web RTC` (where the
- * tokenizer already collapsed whitespace).
+ * substring match against EVERY known alias of the keyword too — so JD's
+ * "K8s" hits profile's "Kubernetes" (and vice versa). Without alias
+ * expansion the coverage panel falsely flags K8s as ❌ missing while
+ * the profile literally says Kubernetes.
  */
 function profileTextContains(haystacks: string[], keyword: string): boolean {
-  const k = normalize(keyword);
-  if (!k) return false;
-  return haystacks.some((h) => h.toLowerCase().includes(k));
+  const variants = expandKeywordVariants(keyword);
+  if (variants.length === 0) return false;
+  return haystacks.some((h) => {
+    const hLower = h.toLowerCase();
+    return variants.some((v) => hLower.includes(v));
+  });
 }
 
 /**
@@ -543,8 +549,11 @@ export function computeAtsCoverageLite(
   let covered = 0;
   const missing: string[] = [];
   for (const kw of keywords) {
-    const k = kw.toLowerCase();
-    const hit = knownSet.has(k) || haystackLower.includes(k);
+    // Try every known alias too — K8s ↔ Kubernetes etc — so the lite ATS
+    // coverage badge on /recommended cards doesn't lie when a JD uses one
+    // form and the resume the other.
+    const variants = expandKeywordVariants(kw);
+    const hit = variants.some((v) => knownSet.has(v) || haystackLower.includes(v));
     if (hit) covered++;
     else missing.push(kw);
   }

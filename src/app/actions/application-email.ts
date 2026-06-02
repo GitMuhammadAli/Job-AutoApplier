@@ -10,6 +10,7 @@ import { generatePitchFromInput } from "@/lib/ai-pitch-generator";
 import { pickBestResumeWithTier } from "@/lib/matching/resume-matcher";
 import { ensureTailoredResume } from "@/lib/resume/auto-attach";
 import { computeAtsCoverageLite, extractJdKeywords } from "@/lib/resume/keyword-coverage";
+import { expandKeywordVariants } from "@/lib/resume/keyword-aliases";
 import type { GenerateEmailInput } from "@/lib/ai-email-generator";
 
 async function buildEmailInput(
@@ -172,8 +173,13 @@ function extractCoveredFromLite(
   const haystackLower = haystack.toLowerCase();
   const knownSet = new Set(knownSkills.map((s) => s.toLowerCase().trim()));
   return keywords.filter((kw) => {
-    const k = kw.toLowerCase();
-    return knownSet.has(k) || haystackLower.includes(k);
+    // Aliases must agree with the missing-side check in
+    // computeAtsCoverageLite — otherwise a JD keyword like "K8s" would
+    // be classified as both covered (matches kubernetes via alias) AND
+    // missing (raw lowercase check) and the email prompt would receive
+    // contradictory instructions.
+    const variants = expandKeywordVariants(kw);
+    return variants.some((v) => knownSet.has(v) || haystackLower.includes(v));
   });
 }
 
