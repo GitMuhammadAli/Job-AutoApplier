@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Sparkles, FileText, Upload, Clock, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Sparkles, FileText, Upload, Clock, User, Target, ArrowRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ResumeList } from "@/components/resumes/ResumeList";
@@ -43,6 +44,10 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
 
   return (
     <>
+      {/* JD quick-start — full-page tailoring flow (the new one). Lives above
+          tabs so it's the first thing users see — pasted a JD from Indeed,
+          they get straight to a tailored PDF with keyword coverage. */}
+      {hasProfile && <JdQuickStart />}
       <Tabs defaultValue={hasProfile ? "profile" : "uploads"} className="w-full">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <TabsList>
@@ -128,5 +133,69 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
         />
       )}
     </>
+  );
+}
+
+/**
+ * Quick-paste JD card — surfaces the dedicated /resumes/tailor flow at the
+ * top of the page. Users paste a JD here, hit Enter, and land in the
+ * full-page tailoring experience with template chooser + ATS coverage panel.
+ *
+ * Why a card and not a button: people who copy a JD from Indeed want to
+ * paste it immediately — the textarea is the affordance that matches that
+ * intent. The card converts visitors into the new flow faster than a button
+ * labelled "Tailor".
+ */
+function JdQuickStart() {
+  const [jd, setJd] = useState("");
+  const router = useRouter();
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (jd.trim().length < 20) return;
+    const encoded = encodeURIComponent(jd.trim().slice(0, 8000));
+    router.push(`/resumes/tailor?jd=${encoded}`);
+  };
+
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="rounded-xl border border-emerald-200/70 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50/60 via-white to-white dark:from-emerald-950/20 dark:via-zinc-900 dark:to-zinc-900 p-4"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow">
+          <Target size={16} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Tailor for a specific job
+          </p>
+          <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mt-0.5">
+            Paste the JD here, pick a template, get an ATS-matched PDF with
+            keyword coverage so you can see exactly which terms landed.
+          </p>
+          <textarea
+            value={jd}
+            onChange={(e) => setJd(e.target.value)}
+            placeholder="Paste the job description (from Indeed, LinkedIn, anywhere)…"
+            rows={3}
+            className="mt-2 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+          />
+          <div className="mt-2 flex items-center justify-between">
+            <p className="text-[10px] text-zinc-500 dark:text-zinc-500">
+              {jd.trim().length < 20 ? `Need ${20 - jd.trim().length} more chars` : `${jd.length} chars`}
+            </p>
+            <Button
+              type="submit"
+              disabled={jd.trim().length < 20}
+              size="sm"
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
+            >
+              Tailor for this JD <ArrowRight size={12} />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </form>
   );
 }

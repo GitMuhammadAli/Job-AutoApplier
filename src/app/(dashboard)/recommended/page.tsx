@@ -17,8 +17,15 @@ interface PageProps {
     email?: string;
     q?: string;
     ref?: string;
+    fresh?: string; // "today" | "3days" | "week" — caps server-side maxDays
   };
 }
+
+const FRESHNESS_DAYS: Record<string, number> = {
+  today: 1,
+  "3days": 3,
+  week: 7,
+};
 
 export default function RecommendedPage({ searchParams }: PageProps) {
   return (
@@ -55,6 +62,11 @@ async function RecommendedJobsList({ searchParams }: { searchParams: PageProps["
       ? searchParams.email as "all" | "verified" | "none"
       : undefined,
     jobType: searchParams.type || undefined,
+    // Server-side window cap so "Today" doesn't pull 2000 month-old candidates
+    // just to trim them client-side.
+    ...(searchParams.fresh && FRESHNESS_DAYS[searchParams.fresh]
+      ? { maxDays: FRESHNESS_DAYS[searchParams.fresh] }
+      : {}),
   };
 
   if (searchParams.source) {
@@ -99,6 +111,7 @@ async function RecommendedJobsList({ searchParams }: { searchParams: PageProps["
         type: searchParams.type || null,
         email: searchParams.email || null,
         q: searchParams.q || null,
+        fresh: searchParams.fresh || null,
       }}
       />
     </>

@@ -32,6 +32,11 @@ import {
   pickBestUploadForParse,
   passesProfileGate,
 } from "@/lib/resume/parse-uploaded-pdf";
+import {
+  computeKeywordCoverage,
+  applyCoverageToRanking,
+  type KeywordCoverageReport,
+} from "@/lib/resume/keyword-coverage";
 
 export const dynamic = "force-dynamic";
 // AI parse-from-PDF fallback can run when no structured profile exists,
@@ -130,6 +135,9 @@ export async function POST(req: NextRequest) {
 
   // ── Phase 2: JD-aware tailoring via existing agent chain ───────────
   let fillResult: TemplateFillResult | null = null;
+  let coverage: KeywordCoverageReport | null = null;
+  let forcedProjects: string[] = [];
+  let forcedSkills: string[] = [];
   const warnings: string[] = [...sourceWarnings];
 
   if (jdText && jdText.trim().length >= 20) {
@@ -158,9 +166,48 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Deterministic post-pass: scan for JD keywords the user provably has
+      // but that the LLM ranking would drop from the rendered PDF (the
+      // WebRTC-rejection bug). Promote those projects/skills before applying.
+      coverage = computeKeywordCoverage({
+        profile,
+        jdText,
+        selectedProjectIds: fillResult.projectIds,
+        selectedSkills: fillResult.skillsOrder,
+      });
+
+      const maxProjects =
+        pageTarget === "unlimited"
+          ? Number.MAX_SAFE_INTEGER
+          : pageTarget === 2
+            ? 5
+            : 3;
+
+      const promoted = applyCoverageToRanking(
+        fillResult.projectIds,
+        fillResult.skillsOrder,
+        coverage,
+        { maxProjects, maxSkills: 80 },
+      );
+      forcedProjects = promoted.forcedProjects;
+      forcedSkills = promoted.forcedSkills;
+
+      if (forcedProjects.length > 0 || forcedSkills.length > 0) {
+        const promotedKeywords = coverage.inProfileNotPicked.slice(0, 5).join(", ");
+        warnings.push(
+          `Force-included ${forcedProjects.length} project(s) and ${forcedSkills.length} skill(s) to cover JD keywords you have${promotedKeywords ? `: ${promotedKeywords}` : ""}.`,
+        );
+      }
+
+      if (coverage.missing.length > 0) {
+        warnings.push(
+          `${coverage.missing.length} JD keyword(s) aren't in your profile: ${coverage.missing.slice(0, 5).join(", ")}${coverage.missing.length > 5 ? "…" : ""}. Add them to your profile if accurate — we won't fabricate.`,
+        );
+      }
+
       renderInput = applyRanking(renderInput, profile, {
-        skillsOrder: fillResult.skillsOrder,
-        projectIds: fillResult.projectIds,
+        skillsOrder: promoted.skills,
+        projectIds: promoted.projectIds,
         summaryId: fillResult.summaryId,
         sectionOrder: fillResult.sectionOrder,
       });
@@ -236,6 +283,16 @@ export async function POST(req: NextRequest) {
     warnings,
     profileSource,
     parsedFromResumeName,
+    coverage: coverage
+      ? {
+          covered: coverage.covered,
+          inProfileNotPicked: coverage.inProfileNotPicked,
+          missing: coverage.missing,
+          coverageRatio: coverage.coverageRatio,
+          forcedProjects,
+          forcedSkills,
+        }
+      : null,
   });
 }
 

@@ -17,11 +17,20 @@ import { prisma } from "@/lib/prisma";
 
 export interface ScraperFailure {
   source: string;
-  status: "failed" | "timeout" | "partial";
+  // "pipeline-dead" = the scheduler itself stopped — no scraper has tried to
+  // run in many hours. Distinct from per-source failures because the user's
+  // remediation is different (check cron-job.org / cron infra), and we want
+  // a louder banner.
+  status: "failed" | "timeout" | "partial" | "pipeline-dead";
   reason: string;
   lastTriedAt: Date;
   consecutiveFailures: number;
 }
+
+// If no scraper has run at all in this window, the cron pipeline itself is
+// considered down. cron-job.org schedules range from every-30-min to daily,
+// so 12h without any run is the conservative red-line.
+const PIPELINE_DEAD_THRESHOLD_MS = 12 * 60 * 60 * 1000;
 
 /**
  * Look at every scraper's most recent run within the last 24h. If the most
@@ -30,6 +39,31 @@ export interface ScraperFailure {
  * are healthy or successfully ran.
  */
 export async function getRecentScraperFailures(): Promise<ScraperFailure[]> {
+  // First gate: has ANY scraper run in the recent window? If the very last
+  // ScraperRun is older than the threshold, the scheduler itself is dead and
+  // the per-source diagnostics are moot. Return a single pipeline-dead entry
+  // so the banner can speak with one clear voice.
+  const lastRunAny = await prisma.scraperRun.findFirst({
+    orderBy: { startedAt: "desc" },
+    select: { startedAt: true },
+  });
+  const now = Date.now();
+  if (!lastRunAny || now - lastRunAny.startedAt.getTime() > PIPELINE_DEAD_THRESHOLD_MS) {
+    const ageMs = lastRunAny ? now - lastRunAny.startedAt.getTime() : Number.POSITIVE_INFINITY;
+    const ageHours = Number.isFinite(ageMs) ? Math.floor(ageMs / (60 * 60 * 1000)) : null;
+    return [
+      {
+        source: "scheduler",
+        status: "pipeline-dead",
+        reason: lastRunAny
+          ? `No scraper has run in ${ageHours} hours. Your cron scheduler (cron-job.org or equivalent) has stopped hitting the cron endpoints — that's why no fresh jobs are appearing.`
+          : "No scraper run has ever been recorded. Cron scheduling is not configured — set up cron-job.org or another scheduler to hit /api/cron/scrape-global on a cadence.",
+        lastTriedAt: lastRunAny?.startedAt ?? new Date(0),
+        consecutiveFailures: 0,
+      },
+    ];
+  }
+
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   // Pull recent runs grouped by source — Prisma can't do "row_number per group"

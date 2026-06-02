@@ -24,6 +24,8 @@ import {
   Banknote,
   BarChart2,
   MessageSquare,
+  RefreshCcw,
+  Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
@@ -50,6 +52,7 @@ interface Props {
     type: string | null;
     email: string | null;
     q: string | null;
+    fresh: string | null;
   };
 }
 
@@ -125,7 +128,9 @@ export function RecommendedClient({
   const [searchInput, setSearchInput] = useState(currentFilters.q || "");
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [clientSort, setClientSort] = useState(currentFilters.sort);
-  const [freshness, setFreshness] = useState("");
+  // Freshness is now server-driven (URL param `fresh` → server-side maxDays).
+  // Reading from currentFilters keeps the chip state in sync with the URL.
+  const freshness = currentFilters.fresh || "";
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const totalPages = Math.ceil(total / pageSize);
@@ -185,23 +190,10 @@ export function RecommendedClient({
   const activeSources = useMemo(() => (currentFilters.source || "").split(",").filter(Boolean), [currentFilters.source]);
   const sortedSources = useMemo(() => Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]), [sourceCounts]);
   const visibleJobs = useMemo(() => {
+    // Freshness window is now applied server-side (URL `fresh` → maxDays).
+    // We still filter dismissed jobs client-side so the user gets instant
+    // feedback before the server round-trip.
     let filtered = jobs.filter((j) => !dismissedIds.has(j.id));
-
-    if (freshness) {
-      const now = Date.now();
-      const maxAge: Record<string, number> = {
-        today: 1 * 24 * 60 * 60 * 1000,
-        "3days": 3 * 24 * 60 * 60 * 1000,
-        week: 7 * 24 * 60 * 60 * 1000,
-      };
-      const cutoff = maxAge[freshness];
-      if (cutoff) {
-        filtered = filtered.filter((j) => {
-          if (!j.postedDate) return false;
-          return now - new Date(j.postedDate).getTime() <= cutoff;
-        });
-      }
-    }
 
     if (clientSort === "score_asc") {
       filtered = [...filtered].sort((a, b) => a.matchScore - b.matchScore);
@@ -214,7 +206,7 @@ export function RecommendedClient({
     }
 
     return filtered;
-  }, [jobs, dismissedIds, freshness, clientSort]);
+  }, [jobs, dismissedIds, clientSort]);
 
   const handleDismiss = useCallback(async (id: string) => {
     const job = jobs.find((j) => j.id === id);
@@ -265,7 +257,6 @@ export function RecommendedClient({
 
   const resetAllFilters = useCallback(() => {
     setSearchInput("");
-    setFreshness("");
     setClientSort("score");
     startTransition(() => {
       router.push("/recommended");
@@ -301,6 +292,7 @@ export function RecommendedClient({
               {visibleJobs.length} shown
             </span>
           )}
+          <ScanNowButton />
           <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1.5 ring-1 ring-blue-100 dark:ring-blue-900/40">
             <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
             <span className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
@@ -429,7 +421,7 @@ export function RecommendedClient({
                 <FilterChip
                   key={p.value}
                   active={freshness === p.value}
-                  onClick={() => setFreshness(p.value)}
+                  onClick={() => updateFilter("fresh", p.value || null)}
                   label={p.label}
                 />
               ))}
@@ -852,6 +844,58 @@ function BulkOpenButton({ jobs }: { jobs: RecommendedJob[] }) {
     >
       <ExternalLink className="h-3.5 w-3.5" />
       Open top {openable.length} in tabs
+    </button>
+  );
+}
+
+// One-shot "scrape fresh jobs now" — bypasses the cron schedule entirely.
+// Critical for users whose external cron (cron-job.org) is down: they can
+// still rescue their feed manually. Server side runs all available scrapers
+// in 30s and matches anything new from the last 6h. Rate-limited per user
+// via SystemLog (cooldown enforced by /api/jobs/scan-now).
+function ScanNowButton() {
+  const router = useRouter();
+  const [scanning, setScanning] = useState(false);
+
+  const handleClick = useCallback(async () => {
+    if (scanning) return;
+    setScanning(true);
+    try {
+      const res = await fetch("/api/jobs/scan-now", { method: "POST" });
+      const result = await res.json();
+      if (res.ok) {
+        toast.success(
+          result.newJobs > 0
+            ? `Found ${result.newJobs} new jobs · ${result.matched} matched`
+            : "Scan complete — no new jobs right now. Try widening your keywords.",
+        );
+        router.refresh();
+      } else if (res.status === 429) {
+        toast.info(result.error || "Please wait before scanning again.");
+      } else {
+        toast.error(result.error || "Scan failed — try again later.");
+      }
+    } catch {
+      toast.error("Scan request failed.");
+    } finally {
+      setScanning(false);
+    }
+  }, [router, scanning]);
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={scanning}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:bg-emerald-500/60 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors touch-manipulation"
+      title="Run all scrapers right now and match new jobs to your profile"
+    >
+      {scanning ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <RefreshCcw className="h-3.5 w-3.5" />
+      )}
+      {scanning ? "Scanning…" : "Scan now"}
     </button>
   );
 }

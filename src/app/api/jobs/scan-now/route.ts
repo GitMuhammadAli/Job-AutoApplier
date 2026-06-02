@@ -20,7 +20,12 @@ import type { ScrapedJob, SearchQuery } from "@/types";
 import { GENERIC, JOBS, RATE_LIMIT } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 10;
+// 30s — Vercel Pro allows up to 60s, but the per-scraper inner deadlines
+// (TIMEOUTS.SCRAPER_DEADLINE_MS) are designed around a ~9s budget so 30s
+// gives ample headroom for parallel batches without hitting the platform cap.
+// Was 10s; slow scrapers (LinkedIn, Rozee, Google) were getting cut off
+// mid-fetch, leaving the user with a "scan succeeded" toast but no new jobs.
+export const maxDuration = 30;
 
 export async function POST() {
   try {
@@ -141,11 +146,15 @@ export async function POST() {
       }
     }
 
-    // Match new jobs against user profile
+    // Match new jobs against user profile.
+    // Was 1h — too tight: if the scrape-global cron ran 90 min ago, those
+    // fresh jobs sit unmatched until match-all-users runs (could be hours).
+    // 6h gives the manual "Scan Now" enough window to catch fresh jobs from
+    // the most recent cron cycle too, not just what THIS scan just scraped.
     let matched = 0;
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
     const newGlobalJobs = await prisma.globalJob.findMany({
-      where: { createdAt: { gte: oneHourAgo } },
+      where: { createdAt: { gte: sixHoursAgo } },
       take: LIMITS.MATCH_BATCH,
     });
 

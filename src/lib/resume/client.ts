@@ -26,6 +26,21 @@ export interface GenerateDiff {
   roleFamily: string;
 }
 
+/**
+ * Deterministic JD ↔ profile keyword coverage, surfaced to the UI so users
+ * can see exactly which JD keywords landed on their PDF and which they're
+ * missing entirely. `inProfileNotPicked` items get force-included by the
+ * server (see `forcedProjects` / `forcedSkills`).
+ */
+export interface GenerateCoverage {
+  covered: string[];
+  inProfileNotPicked: string[];
+  missing: string[];
+  coverageRatio: number;
+  forcedProjects: string[];
+  forcedSkills: string[];
+}
+
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
@@ -75,6 +90,7 @@ export const resumeClient = {
     diff: GenerateDiff | null;
     warnings: string[];
     aiProvider: string | null;
+    coverage: GenerateCoverage | null;
   }> {
     const res = await fetch("/api/resumes/generate", {
       method: "POST",

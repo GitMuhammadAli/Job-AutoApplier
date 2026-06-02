@@ -29,6 +29,15 @@ export function ScraperStatusBanner({ failures }: Props) {
   // to broaden or which API keys to renew, and assumes the missing sources
   // simply have no matches. Always show when something is broken.
   if (failures.length === 0) return null;
+
+  // Pipeline-dead is a different beast: the cron scheduler is down, so NO
+  // fresh jobs are entering the system. This is fatal for the product's core
+  // value prop — never let the user dismiss it.
+  const pipelineDead = failures.find((f) => f.status === "pipeline-dead");
+  if (pipelineDead) {
+    return <PipelineDeadBanner failure={pipelineDead} />;
+  }
+
   if (dismissed === true) return null;
 
   const handleDismiss = () => {
@@ -111,4 +120,27 @@ export function ScraperStatusBanner({ failures }: Props) {
 function todayKey(): string {
   const d = new Date();
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+function PipelineDeadBanner({ failure }: { failure: ScraperFailure }) {
+  return (
+    <div className="rounded-xl border-2 border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 p-3 sm:p-4">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-red-900 dark:text-red-200">
+            Job scraping has stopped
+          </p>
+          <p className="mt-1 text-xs text-red-800/90 dark:text-red-300/80 leading-relaxed">
+            {failure.reason}
+          </p>
+          <p className="mt-2 text-[11px] text-red-700/80 dark:text-red-300/70">
+            <strong>To fix:</strong> verify your cron-job.org schedules are active
+            (see SYSTEM-ARCHITECTURE.md for the 10 URLs). In the meantime, click
+            <strong> Scan Now</strong> below for an immediate one-shot scrape.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }

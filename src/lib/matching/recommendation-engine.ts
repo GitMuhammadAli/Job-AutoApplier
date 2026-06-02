@@ -97,7 +97,10 @@ export async function getRecommendedJobs(
     pageSize = 50,
     sources,
     minScore = 0,
-    maxDays = 30,
+    // 14 days, not 30. Jobs posted >2 weeks ago overwhelmingly have hundreds
+    // of applicants already — surfacing them as "recommendations" hurts more
+    // than it helps. Callers can still override to widen the window.
+    maxDays = 14,
     sortBy = "score",
     searchQuery,
     locationFilter,
@@ -215,7 +218,11 @@ export async function getRecommendedJobs(
       createdAt: true,
       isFresh: true,
     },
-    orderBy: { createdAt: "desc" },
+    // Prefer jobs actually posted recently over jobs we recently scraped.
+    // A job posted 2 weeks ago that we re-scraped today shouldn't outrank
+    // a job posted today that we scraped yesterday. NULL postedDate falls
+    // back to createdAt via the second key.
+    orderBy: [{ postedDate: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
     take: 2000,
   });
   const sqlMs = Date.now() - sqlStart;
