@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronUp, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, X, RefreshCcw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { ScraperFailure } from "@/lib/scrapers/scraper-status";
 
@@ -123,53 +123,21 @@ function todayKey(): string {
 }
 
 function PipelineDeadBanner({ failure }: { failure: ScraperFailure }) {
-  const [expanded, setExpanded] = useState(false);
-  // Approximate time-since for the headline — gives users a single number
-  // they can act on instead of a paragraph.
-  const ageHours =
-    failure.lastTriedAt.getTime() === 0
-      ? null
-      : Math.floor((Date.now() - failure.lastTriedAt.getTime()) / (60 * 60 * 1000));
-
+  // Calm, plain language. We never tell the user that "scraping has
+  // stopped" or that "cron is misconfigured" — those are mechanism words.
+  // The user only needs to know automatic refresh is paused and they can
+  // tap Scan now if they want fresh results immediately.
   return (
-    <div className="rounded-xl border-2 border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 px-3 py-2.5 sm:px-4 sm:py-3">
-      <div className="flex items-start gap-3">
-        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+    <div className="rounded-xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2.5 sm:px-4 sm:py-3">
+      <div className="flex items-center gap-3">
+        <RefreshCcw className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-sm font-semibold text-red-900 dark:text-red-200">
-              Job scraping is stopped{" "}
-              {ageHours !== null && (
-                <span className="font-normal text-red-800/80 dark:text-red-300/80">
-                  · last run {ageHours}h ago
-                </span>
-              )}
-              {ageHours === null && (
-                <span className="font-normal text-red-800/80 dark:text-red-300/80">
-                  · never configured
-                </span>
-              )}
-            </p>
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="text-[11px] font-medium text-red-700 dark:text-red-300 hover:underline"
-            >
-              {expanded ? "Hide details" : "How to fix"}
-            </button>
-          </div>
-          <p className="mt-1 text-[11px] text-red-800/90 dark:text-red-300/80">
-            New jobs won&apos;t appear until you restart the scheduler. Use{" "}
-            <strong>Scan now</strong> for a one-shot rescue.
+          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            New jobs are paused for now
           </p>
-          {expanded && (
-            <p className="mt-2 text-[11px] text-red-800/80 dark:text-red-300/70 leading-relaxed">
-              {failure.reason} Enable the GitHub Actions cron workflow (repo
-              Settings → Actions → enable “Production cron schedules”) or
-              point cron-job.org at <code>/api/cron/scrape-global</code>. See{" "}
-              <code>SYSTEM-ARCHITECTURE.md</code> for the 10 cron URLs.
-            </p>
-          )}
+          <p className="text-[11px] text-amber-800/80 dark:text-amber-200/70 mt-0.5">
+            {failure.reason} Tap <strong>Scan now</strong> for an instant refresh.
+          </p>
         </div>
       </div>
     </div>

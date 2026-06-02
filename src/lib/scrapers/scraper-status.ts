@@ -51,13 +51,17 @@ export async function getRecentScraperFailures(): Promise<ScraperFailure[]> {
   if (!lastRunAny || now - lastRunAny.startedAt.getTime() > PIPELINE_DEAD_THRESHOLD_MS) {
     const ageMs = lastRunAny ? now - lastRunAny.startedAt.getTime() : Number.POSITIVE_INFINITY;
     const ageHours = Number.isFinite(ageMs) ? Math.floor(ageMs / (60 * 60 * 1000)) : null;
+    // User-facing copy is intentionally plain — no infrastructure names,
+    // no file paths, no setup steps. The banner only tells the user that
+    // automatic refresh is paused and offers the manual scan as a rescue.
+    // Admin/dev diagnostics still happen in logs.
     return [
       {
         source: "scheduler",
         status: "pipeline-dead",
         reason: lastRunAny
-          ? `No scraper has run in ${ageHours} hours. Your cron scheduler (cron-job.org or equivalent) has stopped hitting the cron endpoints — that's why no fresh jobs are appearing.`
-          : "No scraper run has ever been recorded. Cron scheduling is not configured — set up cron-job.org or another scheduler to hit /api/cron/scrape-global on a cadence.",
+          ? `Last fresh batch arrived ${ageHours}h ago.`
+          : "Automatic refresh hasn't started yet.",
         lastTriedAt: lastRunAny?.startedAt ?? new Date(0),
         consecutiveFailures: 0,
       },
