@@ -83,6 +83,20 @@ export function ResumeOnboardingWizard({ initialPath, uploadedResumes }: ResumeO
       {stage === "pick-path" && (
         <PickPathStep
           uploadedCount={uploadedResumes.length}
+          defaultResumeId={
+            uploadedResumes.find((r) => r.isDefault)?.id ??
+            uploadedResumes[0]?.id ??
+            null
+          }
+          defaultResumeName={
+            uploadedResumes.find((r) => r.isDefault)?.name ??
+            uploadedResumes[0]?.name ??
+            null
+          }
+          onAutoExtract={(id) => {
+            setPath("upload");
+            parseUploaded(id);
+          }}
           onPickUpload={() => {
             setPath("upload");
             setStage("pick-pdf");
@@ -145,30 +159,77 @@ function Header({ path, stage, onBack }: { path: Path; stage: Stage; onBack: () 
 
 function PickPathStep({
   uploadedCount,
+  defaultResumeId,
+  defaultResumeName,
+  onAutoExtract,
   onPickUpload,
   onPickScratch,
 }: {
   uploadedCount: number;
+  defaultResumeId: string | null;
+  defaultResumeName: string | null;
+  onAutoExtract: (resumeId: string) => void;
   onPickUpload: () => void;
   onPickScratch: () => void;
 }) {
+  const hasUploads = uploadedCount > 0 && defaultResumeId !== null;
+
   return (
-    <div className="grid sm:grid-cols-2 gap-4">
-      <PathCard
-        icon={<Upload size={20} />}
-        title="Upload (extract from PDF)"
-        description="AI reads your existing resume and fills the editor. You confirm every line before save. No silent edits."
-        cta={uploadedCount > 0 ? `Pick from your ${uploadedCount} uploads` : "Upload a resume first"}
-        disabled={uploadedCount === 0}
-        onClick={onPickUpload}
-      />
-      <PathCard
-        icon={<Pencil size={20} />}
-        title="Start from scratch"
-        description="Empty profile. Fill in header, summaries, skills, experience, projects, education one section at a time."
-        cta="Open empty profile"
-        onClick={onPickScratch}
-      />
+    <div className="space-y-4">
+      {/* Primary path — when the user has uploads, surface one-click
+          auto-extract from their default (or most-recent) PDF. Most users
+          will just want this; setting them up to click through pick-pdf
+          → confirm is friction. They can still pick a different PDF below. */}
+      {hasUploads && defaultResumeId && (
+        <button
+          onClick={() => onAutoExtract(defaultResumeId)}
+          className="w-full text-left rounded-2xl border-2 border-emerald-400 dark:border-emerald-700 bg-emerald-50/60 dark:bg-emerald-950/30 p-5 hover:shadow-lg transition-all group"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow">
+              <Sparkles size={22} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+                  Auto-extract from{" "}
+                  <span className="italic">{defaultResumeName}</span>
+                </h3>
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-600 text-white">
+                  Fastest
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                We&apos;ll AI-extract every section (~5s), then drop you into
+                the editor to confirm. You&apos;ll be done in under 2 minutes
+                if your PDF is well-formatted.
+              </p>
+              <div className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 group-hover:gap-2 transition-all">
+                Start auto-extract <ArrowRight size={14} />
+              </div>
+            </div>
+          </div>
+        </button>
+      )}
+
+      {/* Secondary paths */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        <PathCard
+          icon={<Upload size={20} />}
+          title={hasUploads ? "Pick a different upload" : "Upload (extract from PDF)"}
+          description="AI reads your existing resume and fills the editor. You confirm every line before save. No silent edits."
+          cta={uploadedCount > 0 ? `Pick from your ${uploadedCount} uploads` : "Upload a resume first"}
+          disabled={uploadedCount === 0}
+          onClick={onPickUpload}
+        />
+        <PathCard
+          icon={<Pencil size={20} />}
+          title="Start from scratch"
+          description="Empty profile. Fill in header, summaries, skills, experience, projects, education one section at a time."
+          cta="Open empty profile"
+          onClick={onPickScratch}
+        />
+      </div>
     </div>
   );
 }

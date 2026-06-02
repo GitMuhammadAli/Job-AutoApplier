@@ -137,12 +137,16 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
         </TabsContent>
 
         <TabsContent value="uploads" className="mt-5">
-          <div className="mb-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-4 py-3 text-xs text-zinc-600 dark:text-zinc-400">
-            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Legacy uploads.</strong>{" "}
-            These PDFs work for auto-apply attachments. For ATS-tailored, JD-aware PDFs,
-            build your structured profile under{" "}
-            <Link href="#" className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 underline underline-offset-2">
+          <div className="mb-3 rounded-lg border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/20 px-4 py-3 text-xs text-emerald-800 dark:text-emerald-200">
+            <strong className="font-semibold">Your uploads are tailor-ready.</strong>{" "}
+            Paste a JD on{" "}
+            <Link href="/resumes" className="underline underline-offset-2 font-semibold">
               My Profile
+            </Link>{" "}
+            and pick &ldquo;Tailor using my upload&rdquo; — AI extracts on the fly. Or
+            build a structured profile for faster repeat tailoring under{" "}
+            <Link href="/resumes/setup" className="underline underline-offset-2 font-semibold">
+              Setup
             </Link>
             .
           </div>

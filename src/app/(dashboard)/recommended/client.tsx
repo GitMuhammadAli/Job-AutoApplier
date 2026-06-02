@@ -715,17 +715,11 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         </div>
       )}
 
-      {/* Actions — responsive: stack on very small, row on sm+ */}
+      {/* Actions — primary (Tailor & Apply / Apply) lead, secondary (Save /
+          Dismiss) trail. DevRadar links inline at the very end as a single
+          subtle row. Was previously 3 distinct visual zones; tightened so
+          the user's eye lands on the green Tailor & Apply CTA first. */}
       <div className="flex items-center gap-1.5 pt-2 border-t border-slate-50 dark:border-zinc-700/50 flex-wrap">
-        {(job.applyUrl || job.sourceUrl) && (
-          <button
-            onClick={handleViewExternal}
-            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors touch-manipulation"
-          >
-            <ExternalLink className="h-3 w-3" /> Apply
-          </button>
-        )}
-
         {canTailorAndApply && (
           <button
             onClick={handleTailorAndApply}
@@ -738,10 +732,25 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
           </button>
         )}
 
+        {(job.applyUrl || job.sourceUrl) && (
+          <button
+            onClick={handleViewExternal}
+            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors touch-manipulation ${
+              canTailorAndApply
+                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/60"
+                : "bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800"
+            }`}
+            title={canTailorAndApply ? "Open the company's application form externally" : "Apply via the company's own form"}
+          >
+            <ExternalLink className="h-3 w-3" />
+            {canTailorAndApply ? "Apply on site" : "Apply"}
+          </button>
+        )}
+
         {!canTailorAndApply && job.companyEmail && (job.emailConfidence ?? 0) >= 80 && (
           <Link
             href={`${detailUrl}?apply=true`}
-            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 active:bg-emerald-300 transition-colors touch-manipulation"
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 transition-colors touch-manipulation"
           >
             <Mail className="h-3 w-3" /> Email
           </Link>
@@ -750,64 +759,64 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         <button
           onClick={handleSave}
           disabled={saved || saving}
-          className={`inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-colors touch-manipulation ${
+          aria-label={saved ? "Saved" : "Save"}
+          title={saved ? "Saved to your board" : "Save to your board"}
+          className={`inline-flex items-center justify-center rounded-lg w-7 h-7 transition-colors touch-manipulation ${
             saved
               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-              : "bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300 hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 dark:hover:text-blue-300 active:bg-blue-200"
+              : "bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300 hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 dark:hover:text-blue-300"
           }`}
         >
           <Bookmark className="h-3 w-3" />
-          {saved ? "Saved" : saving ? "..." : "Save"}
         </button>
 
         <button
           onClick={handleDismiss}
           disabled={dismissing}
-          className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-300 active:bg-red-200 transition-colors touch-manipulation ml-auto disabled:opacity-50"
+          aria-label="Dismiss"
+          title="Dismiss — won't show again"
+          className="inline-flex items-center justify-center rounded-lg w-7 h-7 bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-300 transition-colors touch-manipulation ml-auto disabled:opacity-50"
         >
-          <X className="h-3 w-3" /> {dismissing ? "..." : "Dismiss"}
+          <X className="h-3 w-3" />
         </button>
       </div>
 
-      {/* DevRadar actions */}
-      <div className="pt-1.5 mt-1.5 border-t border-dashed border-slate-100 dark:border-zinc-700/40">
-        <p className="text-[9px] text-slate-400 dark:text-zinc-500 font-medium mb-1">
-          Prepare with DevRadar →
-        </p>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const params = new URLSearchParams({
-                jobTitle: job.title,
-                company: job.company,
-                source: 'jobpilot',
-              });
-              window.open(`https://dev-radar-web.vercel.app/resume?${params}`, '_blank');
-            }}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors touch-manipulation"
-          >
-            <BarChart2 className="h-3 w-3" />
-            Analyze Gap
-          </button>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const params = new URLSearchParams({
-                jobTitle: job.title,
-                company: job.company,
-                source: 'jobpilot',
-              });
-              window.open(`https://dev-radar-web.vercel.app/interview?${params}`, '_blank');
-            }}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors touch-manipulation"
-          >
-            <MessageSquare className="h-3 w-3" />
-            Prep Interview
-          </button>
-        </div>
+      {/* DevRadar — one subtle row, no border separator. Tucks out of the
+          way when not needed; still discoverable for users who want skill
+          gap analysis or interview prep. */}
+      <div className="mt-1.5 flex items-center gap-2 text-[10px] text-slate-400 dark:text-zinc-500">
+        <span className="font-medium">Prep:</span>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const params = new URLSearchParams({
+              jobTitle: job.title,
+              company: job.company,
+              source: 'jobpilot',
+            });
+            window.open(`https://dev-radar-web.vercel.app/resume?${params}`, '_blank');
+          }}
+          className="text-purple-600 dark:text-purple-400 hover:underline touch-manipulation"
+        >
+          Gap analysis
+        </button>
+        <span className="text-slate-300 dark:text-zinc-600">·</span>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const params = new URLSearchParams({
+              jobTitle: job.title,
+              company: job.company,
+              source: 'jobpilot',
+            });
+            window.open(`https://dev-radar-web.vercel.app/interview?${params}`, '_blank');
+          }}
+          className="text-purple-600 dark:text-purple-400 hover:underline touch-manipulation"
+        >
+          Interview
+        </button>
       </div>
     </div>
   );

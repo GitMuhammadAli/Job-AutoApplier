@@ -123,22 +123,53 @@ function todayKey(): string {
 }
 
 function PipelineDeadBanner({ failure }: { failure: ScraperFailure }) {
+  const [expanded, setExpanded] = useState(false);
+  // Approximate time-since for the headline — gives users a single number
+  // they can act on instead of a paragraph.
+  const ageHours =
+    failure.lastTriedAt.getTime() === 0
+      ? null
+      : Math.floor((Date.now() - failure.lastTriedAt.getTime()) / (60 * 60 * 1000));
+
   return (
-    <div className="rounded-xl border-2 border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 p-3 sm:p-4">
+    <div className="rounded-xl border-2 border-red-300 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 px-3 py-2.5 sm:px-4 sm:py-3">
       <div className="flex items-start gap-3">
-        <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-red-900 dark:text-red-200">
-            Job scraping has stopped
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm font-semibold text-red-900 dark:text-red-200">
+              Job scraping is stopped{" "}
+              {ageHours !== null && (
+                <span className="font-normal text-red-800/80 dark:text-red-300/80">
+                  · last run {ageHours}h ago
+                </span>
+              )}
+              {ageHours === null && (
+                <span className="font-normal text-red-800/80 dark:text-red-300/80">
+                  · never configured
+                </span>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="text-[11px] font-medium text-red-700 dark:text-red-300 hover:underline"
+            >
+              {expanded ? "Hide details" : "How to fix"}
+            </button>
+          </div>
+          <p className="mt-1 text-[11px] text-red-800/90 dark:text-red-300/80">
+            New jobs won&apos;t appear until you restart the scheduler. Use{" "}
+            <strong>Scan now</strong> for a one-shot rescue.
           </p>
-          <p className="mt-1 text-xs text-red-800/90 dark:text-red-300/80 leading-relaxed">
-            {failure.reason}
-          </p>
-          <p className="mt-2 text-[11px] text-red-700/80 dark:text-red-300/70">
-            <strong>To fix:</strong> verify your cron-job.org schedules are active
-            (see SYSTEM-ARCHITECTURE.md for the 10 URLs). In the meantime, click
-            <strong> Scan Now</strong> below for an immediate one-shot scrape.
-          </p>
+          {expanded && (
+            <p className="mt-2 text-[11px] text-red-800/80 dark:text-red-300/70 leading-relaxed">
+              {failure.reason} Enable the GitHub Actions cron workflow (repo
+              Settings → Actions → enable “Production cron schedules”) or
+              point cron-job.org at <code>/api/cron/scrape-global</code>. See{" "}
+              <code>SYSTEM-ARCHITECTURE.md</code> for the 10 cron URLs.
+            </p>
+          )}
         </div>
       </div>
     </div>

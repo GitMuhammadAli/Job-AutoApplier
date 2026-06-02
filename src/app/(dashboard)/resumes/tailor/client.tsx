@@ -144,14 +144,7 @@ export function TailorClient({ initialJd }: { initialJd: string }) {
         {!result && !generating && (
           <EmptyPreview />
         )}
-        {generating && (
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 flex items-center justify-center min-h-[400px]">
-            <div className="flex items-center gap-2 text-sm text-zinc-500">
-              <Loader2 className="animate-spin" size={16} />
-              Tailoring your resume…
-            </div>
-          </div>
-        )}
+        {generating && <ProgressivePreview />}
         {result && (
           <ResultPanel
             result={result}
@@ -327,6 +320,70 @@ function PageTarget({ value, setValue }: { value: 1 | 2; setValue: (n: 1 | 2) =>
       </div>
       <p className="mt-2 text-[11px] text-zinc-500">
         1pg keeps top 3 projects. 2pg fits everything you've authored.
+      </p>
+    </div>
+  );
+}
+
+// ── Progressive loading state ──────────────────────────────────────
+// Replaces a silent spinner. Generation takes 5-15s depending on path
+// (LLM calls + page-fit measure + audit). Showing what's happening at
+// each beat is the difference between "is this broken?" and "give it a
+// moment." Steps are time-gated approximations — we don't get progress
+// events from the LLM, so we estimate.
+function ProgressivePreview() {
+  const [step, setStep] = useState(0);
+  const STEPS = [
+    "Reading your profile / extracting from upload…",
+    "Tailoring sections to the JD…",
+    "Force-including keywords you have…",
+    "Rendering PDF + post-render audit…",
+  ];
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setStep(1), 2500),
+      setTimeout(() => setStep(2), 6000),
+      setTimeout(() => setStep(3), 10000),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 min-h-[400px] flex flex-col justify-center">
+      <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200 mb-4">
+        <Loader2 className="animate-spin text-emerald-600" size={16} />
+        Tailoring your resume…
+      </div>
+      <ol className="space-y-2">
+        {STEPS.map((label, i) => (
+          <li
+            key={i}
+            className={`flex items-center gap-2 text-xs ${
+              i < step
+                ? "text-emerald-700 dark:text-emerald-400"
+                : i === step
+                  ? "text-zinc-900 dark:text-zinc-100 font-semibold"
+                  : "text-zinc-400 dark:text-zinc-600"
+            }`}
+          >
+            <span
+              className={`inline-flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-bold ${
+                i < step
+                  ? "bg-emerald-600 text-white"
+                  : i === step
+                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
+              }`}
+            >
+              {i < step ? "✓" : i + 1}
+            </span>
+            {label}
+          </li>
+        ))}
+      </ol>
+      <p className="mt-4 text-[10px] text-zinc-400 dark:text-zinc-500">
+        First-time tailoring can take ~15s (Groq LLM warmup). Repeat runs
+        on the same profile are faster.
       </p>
     </div>
   );
