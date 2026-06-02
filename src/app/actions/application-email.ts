@@ -9,6 +9,7 @@ import { generateCoverLetterFromInput } from "@/lib/ai-cover-letter-generator";
 import { generatePitchFromInput } from "@/lib/ai-pitch-generator";
 import { pickBestResumeWithTier } from "@/lib/matching/resume-matcher";
 import { ensureTailoredResume } from "@/lib/resume/auto-attach";
+import { computeAtsCoverageLite, extractJdKeywords } from "@/lib/resume/keyword-coverage";
 import type { GenerateEmailInput } from "@/lib/ai-email-generator";
 
 async function buildEmailInput(
@@ -105,6 +106,37 @@ async function buildEmailInput(
       : null,
   };
 
+  // JD ↔ profile coverage — pass to the email writer so it knows which JD
+  // keywords are safe to emphasize and which to never claim. Lightweight
+  // (no structured profile load needed); just resume.content + skills.
+  const jdText = userJob.globalJob.description ?? "";
+  if (jdText.trim().length >= 80) {
+    const knownSkills = Array.from(
+      new Set(
+        [
+          ...(settings.keywords ?? []),
+          ...(resumeResult.resume.detectedSkills ?? []),
+        ]
+          .map((s) => s.toLowerCase().trim())
+          .filter(Boolean),
+      ),
+    );
+    const haystack = [
+      ...(settings.keywords ?? []),
+      ...(resumeResult.resume.detectedSkills ?? []),
+      resumeResult.resume.content ?? "",
+    ]
+      .join(" \n ")
+      .toLowerCase();
+    const cov = computeAtsCoverageLite(jdText, haystack, knownSkills);
+    if (cov.total > 0) {
+      input.jdCoverage = {
+        coveredKeywords: extractCoveredFromLite(jdText, haystack, knownSkills),
+        missingKeywords: cov.missing,
+      };
+    }
+  }
+
   return {
     input,
     matchedResume: {
@@ -122,6 +154,27 @@ function isValidEmail(email: string): boolean {
   if (typeof email !== "string") return false;
   // RFC 5322 simplified: local@domain.tld
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+}
+
+/**
+ * computeAtsCoverageLite returns missing keywords but not covered ones —
+ * because the use case for the recommendation engine only needed the
+ * missing count. For the email writer we want the inverse: which JD
+ * keywords the candidate DOES have, so the email can emphasize them.
+ * Re-extract here using the same tokenizer + check the haystack.
+ */
+function extractCoveredFromLite(
+  jdText: string,
+  haystack: string,
+  knownSkills: string[],
+): string[] {
+  const keywords = extractJdKeywords(jdText).slice(0, 25);
+  const haystackLower = haystack.toLowerCase();
+  const knownSet = new Set(knownSkills.map((s) => s.toLowerCase().trim()));
+  return keywords.filter((kw) => {
+    const k = kw.toLowerCase();
+    return knownSet.has(k) || haystackLower.includes(k);
+  });
 }
 
 export async function generateApplication(userJobId: string, resumeId?: string) {

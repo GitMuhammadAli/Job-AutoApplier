@@ -67,8 +67,59 @@ function tokenize(text: string): Set<string> {
 }
 
 /**
+ * Words that contaminate JD phrases with generic recruiter-speak rather
+ * than real tech signal. Any phrase containing one of these is rejected
+ * because the resulting keyword ("abilities ability", "benefits hands-on")
+ * isn't something a profile can plausibly match against. Curated from
+ * actual /resumes/gaps noise observed in the wild — extend as new junk
+ * surfaces.
+ */
+const PHRASE_NOISE_WORDS = new Set<string>([
+  "ability", "abilities", "able", "applicant", "applicants", "applicability",
+  "applying", "apply", "applies",
+  "background", "backgrounds", "basic", "benefits", "best",
+  "candidate", "candidates",
+  "capable", "capabilities", "capability",
+  "competitive", "complete", "consideration", "core",
+  "demonstrated", "desire", "desired", "detail", "details", "diverse",
+  "duties", "duty",
+  "eager", "education", "effective", "engagement",
+  "essential", "etc", "every", "exceptional", "excellent", "exciting",
+  "experience", "experienced", "expertise", "extensive",
+  "fast-paced", "fluency", "fluent", "from", "further", "future",
+  "great", "general",
+  "hands-on", "highly", "history", "hours",
+  "ideal", "ideally", "important", "include", "includes", "including",
+  "individual", "individuals",
+  "join", "joining",
+  "key", "knowledge",
+  "leader", "leaders", "leadership", "learning", "level", "looking",
+  "mandatory", "minimum", "motivated", "must", "must-have",
+  "need", "needs",
+  "open", "opportunity", "our",
+  "passionate", "perks", "plus", "position", "positions",
+  "preferred", "previous", "primary", "prior", "proficiency", "proven",
+  "qualification", "qualifications", "qualified",
+  "ready", "real", "real-time", "related", "relevant", "remote",
+  "required", "requirement", "requirements", "responsibilities",
+  "responsibility", "responsible",
+  "role", "roles",
+  "salary", "self", "self-motivated", "seniority", "skill", "skills",
+  "solid", "some", "specifically", "strong", "successful",
+  "talent", "team", "teams",
+  "underlying", "understanding",
+  "valid", "value", "values", "various",
+  "we", "willing", "will", "with", "work", "working", "workplace",
+  "year", "years",
+  "your", "you",
+]);
+
+/**
  * Extract multi-word capitalized phrases ("Machine Learning", "Apache Kafka").
- * These often carry more signal than single tokens.
+ * These often carry more signal than single tokens — but only when both
+ * words point at real tech signal. Phrases like "Strong Abilities" or
+ * "Benefits Hands-on" are rejected via PHRASE_NOISE_WORDS so the gap
+ * dashboard isn't drowned in recruiter-speak.
  */
 function extractPhrases(jd: string): Set<string> {
   const phrases = new Set<string>();
@@ -76,7 +127,15 @@ function extractPhrases(jd: string): Set<string> {
   const matches = jd.match(wordRe) ?? [];
   for (const m of matches) {
     const lower = m.toLowerCase().trim();
-    if (lower.length >= 5 && lower.length <= 40) phrases.add(lower);
+    if (lower.length < 5 || lower.length > 40) continue;
+    const words = lower.split(/\s+/);
+    // Reject if ANY word is in the noise list — one filler word is enough
+    // to make the whole phrase low-signal.
+    if (words.some((w) => PHRASE_NOISE_WORDS.has(w))) continue;
+    // Reject if the phrase is all short words (likely abbreviations of
+    // generic terms rather than real tech).
+    if (words.every((w) => w.length < 4)) continue;
+    phrases.add(lower);
   }
   return phrases;
 }

@@ -78,6 +78,19 @@ export interface GenerateEmailInput {
     body: string | null;
   } | null;
   companyResearch?: CompanyResearch | null;
+  /**
+   * Optional JD ↔ profile keyword coverage signal. When present, the email
+   * prompt is told which JD keywords the candidate provably has (emphasize
+   * these confidently) and which they don't (NEVER claim these). Closes
+   * the gap where the email writer would otherwise emphasize whatever the
+   * LLM thought was relevant, sometimes overclaiming.
+   */
+  jdCoverage?: {
+    /** Keywords the JD asked for AND the candidate's profile contains. */
+    coveredKeywords: string[];
+    /** Keywords the JD asked for that aren't in the candidate's profile. */
+    missingKeywords: string[];
+  } | null;
 }
 
 export interface GeneratedEmail {
@@ -203,6 +216,27 @@ ${sourceName ? `Found on: ${sourceName}` : ""}
 ${input.job.salary ? `Salary: ${input.job.salary}` : ""}
 Skills Required: ${(input.job.skills ?? []).length > 0 ? (input.job.skills ?? []).join(", ") : "Not listed"}
 Description: ${sanitizeForPrompt(input.job.description || "No description available")}`);
+
+  // JD coverage signal — tells the writer what's safe to claim. Without
+  // this, the LLM picks whatever it thinks is relevant, which can result
+  // in overclaiming a skill the candidate doesn't actually have.
+  if (input.jdCoverage) {
+    const c = input.jdCoverage;
+    const lines: string[] = [];
+    if (c.coveredKeywords.length > 0) {
+      lines.push(
+        `EMPHASIZE these JD keywords (candidate's profile confirms these are real): ${c.coveredKeywords.slice(0, 12).join(", ")}.`,
+      );
+    }
+    if (c.missingKeywords.length > 0) {
+      lines.push(
+        `DO NOT CLAIM these — the candidate's profile does NOT contain them: ${c.missingKeywords.slice(0, 12).join(", ")}. If the JD heavily requires one, you may briefly acknowledge it as something the candidate is "actively learning" only if you have explicit evidence — otherwise omit entirely.`,
+      );
+    }
+    if (lines.length > 0) {
+      userParts.push(`\nJD KEYWORD COVERAGE (honest signal — follow strictly):\n${lines.join("\n")}`);
+    }
+  }
 
   if (input.companyResearch) {
     const r = input.companyResearch;
