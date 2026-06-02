@@ -579,15 +579,20 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
 
   return (
     <div className="group block rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 shadow-sm ring-1 ring-slate-100/80 dark:ring-zinc-700/60 transition-all duration-200 hover:shadow-md hover:ring-slate-200/80 dark:hover:ring-zinc-600/80">
-      {/* Header: company + score */}
+      {/* Header: company + score + ATS coverage gate */}
       <div className="flex items-start justify-between gap-2 mb-1">
         <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 min-w-0">
           <Building2 className="h-3 w-3 flex-shrink-0" />
           <span className="truncate font-medium">{job.company}</span>
         </div>
-        <span className={`text-sm font-bold tabular-nums shrink-0 ${getScoreColor(score)}`} title="Match score">
-          {Math.round(score)}%
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {job.atsCoverage && job.atsCoverage.total > 0 && (
+            <AtsCoverageBadge coverage={job.atsCoverage} />
+          )}
+          <span className={`text-sm font-bold tabular-nums ${getScoreColor(score)}`} title="Match score">
+            {Math.round(score)}%
+          </span>
+        </div>
       </div>
 
       {/* Title */}
@@ -845,6 +850,39 @@ function BulkOpenButton({ jobs }: { jobs: RecommendedJob[] }) {
       <ExternalLink className="h-3.5 w-3.5" />
       Open top {openable.length} in tabs
     </button>
+  );
+}
+
+/**
+ * Pre-apply ATS gate. Shows "ATS: 4/9" on each job card so the user knows
+ * BEFORE applying whether their resume can pass a keyword grep. Colored:
+ *   ≥80%  emerald — apply with confidence
+ *   ≥60%  amber  — apply but consider tailoring
+ *   <60%  red    — high rejection risk, surface a "Tailor" link to the JD
+ *                  tailor page so user can boost coverage before applying
+ *
+ * The badge is dense (text-only) so it fits next to the match score without
+ * stealing the card's primary attention.
+ */
+function AtsCoverageBadge({
+  coverage,
+}: {
+  coverage: { covered: number; total: number; ratio: number };
+}) {
+  const pct = coverage.ratio;
+  const cls =
+    pct >= 0.8
+      ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 ring-emerald-200/60 dark:ring-emerald-800/40"
+      : pct >= 0.6
+        ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 ring-amber-200/60 dark:ring-amber-800/40"
+        : "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 ring-red-200/60 dark:ring-red-800/40";
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded ring-1 ring-inset ${cls}`}
+      title={`ATS keyword coverage: ${coverage.covered}/${coverage.total} JD keywords found in your profile. ${pct < 0.6 ? "High rejection risk — tailor first." : ""}`}
+    >
+      ATS {coverage.covered}/{coverage.total}
+    </span>
   );
 }
 

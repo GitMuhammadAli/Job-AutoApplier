@@ -291,6 +291,11 @@ export async function POST(req: NextRequest) {
           coverageRatio: coverage.coverageRatio,
           forcedProjects,
           forcedSkills,
+          // Per-missing-keyword adjacency: skills/projects the user has that
+          // are semantically related. Empty array when no missing keyword
+          // has any adjacent content in the profile. Lets the UI render an
+          // honest "you have X — closest match" hint per ❌ chip.
+          missingWithAdjacency: coverage.missingWithAdjacency,
         }
       : null,
   });

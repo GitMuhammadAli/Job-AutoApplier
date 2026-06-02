@@ -18,6 +18,7 @@ import {
   type UserSettingsLike,
   type MatchResult,
 } from "./score-engine";
+import { computeAtsCoverageLite } from "@/lib/resume/keyword-coverage";
 
 // ── Types ──
 
@@ -48,6 +49,13 @@ export interface RecommendedJob {
   bestResumeName: string | null;
   keywordsMatched: string[];
   isRemote: boolean;
+  // Pre-apply ATS gate — fast deterministic keyword coverage that the user
+  // can read in one glance on the job card before clicking apply. Helps the
+  // jobless-user case where applying to walls you can't pass burns energy
+  // for no reward. `ratio` is 0..1; UI thresholds: ≥0.8 green, ≥0.6 amber,
+  // <0.6 red. Null only when the job has no description AND no skills
+  // (extremely rare; UI hides the badge).
+  atsCoverage: { covered: number; total: number; ratio: number } | null;
   // User interaction state
   userJobId: string | null;
   userJobStage: string | null;
@@ -390,6 +398,28 @@ export async function getRecommendedJobs(
     detectedSkills: r.detectedSkills,
   }));
 
+  // ── Pre-build user's "known terms" haystack for the per-job ATS gate ──
+  // Single string concat (cheap), reused inside the score loop. Combines
+  // every place an ATS-relevant term might live on the user: settings
+  // keywords, uploaded resume detected skills, uploaded resume content
+  // text. Length capped because some resume.content can be very long; the
+  // ATS substring test only needs unique terms, not narrative.
+  const userKnownSkills = Array.from(
+    new Set(
+      [
+        ...(settings.keywords ?? []),
+        ...resumes.flatMap((r) => r.detectedSkills ?? []),
+      ].map((s) => s.toLowerCase().trim()).filter(Boolean),
+    ),
+  );
+  const userKnownHaystack = [
+    ...(settings.keywords ?? []),
+    ...resumes.flatMap((r) => r.detectedSkills ?? []),
+    ...resumes.map((r) => (r.content ?? "").slice(0, 8000)),
+  ]
+    .join(" \n ")
+    .toLowerCase();
+
   type ScoredJob = {
     job: Candidate;
     result: MatchResult;
@@ -511,6 +541,23 @@ export async function getRecommendedJobs(
       firstSeenAt: s.job.firstSeenAt.toISOString(),
       lastSeenAt: s.job.lastSeenAt.toISOString(),
       createdAt: s.job.createdAt.toISOString(),
+      atsCoverage: (() => {
+        // Build the JD text from whatever we have for THIS job — description
+        // is the gold source, but for jobs where Stage 2 didn't load it,
+        // fall back to title + skills so the badge still has something to
+        // chew on. Hide the badge (null) when there's literally nothing.
+        const jdText = [
+          s.job.title,
+          ...(s.job.skills ?? []),
+          s.job.description ?? "",
+        ]
+          .filter(Boolean)
+          .join(" \n ");
+        if (!jdText.trim()) return null;
+        const r = computeAtsCoverageLite(jdText, userKnownHaystack, userKnownSkills);
+        if (r.total === 0) return null;
+        return { covered: r.covered, total: r.total, ratio: r.ratio };
+      })(),
       matchScore: s.result.score,
       matchReasons: s.result.reasons,
       bestResumeId: s.result.bestResumeId,

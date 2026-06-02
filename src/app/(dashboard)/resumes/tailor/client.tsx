@@ -441,11 +441,95 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
         />
       )}
       {coverage.missing.length > 0 && (
+        <MissingKeywordsBlock
+          missing={coverage.missing}
+          adjacency={coverage.missingWithAdjacency}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Missing-keyword section with adjacency surfacing. For each missing
+ * keyword we have adjacency data for, show a small "you have X" line
+ * underneath so the user can decide whether to mention adjacent
+ * experience. Keywords with no adjacency fall into a separate "no related
+ * experience surfaced" group at the bottom.
+ */
+function MissingKeywordsBlock({
+  missing,
+  adjacency,
+}: {
+  missing: string[];
+  adjacency: GenerateCoverage["missingWithAdjacency"];
+}) {
+  const adjacencyMap = new Map(adjacency.map((m) => [m.keyword.toLowerCase(), m]));
+  const withAdj = missing.filter((kw) => adjacencyMap.has(kw.toLowerCase()));
+  const withoutAdj = missing.filter((kw) => !adjacencyMap.has(kw.toLowerCase()));
+
+  return (
+    <div className="space-y-3">
+      {withAdj.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1 mb-2">
+            <XCircle className="h-3 w-3 text-red-600 dark:text-red-400" />
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">
+              Missing — but you have related experience{" "}
+              <span className="tabular-nums">({withAdj.length})</span>
+            </p>
+          </div>
+          <div className="space-y-2">
+            {withAdj.map((kw) => {
+              const adj = adjacencyMap.get(kw.toLowerCase())!;
+              return (
+                <div
+                  key={kw}
+                  className="rounded-lg bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 px-2.5 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-400">
+                      JD wants {kw}
+                    </span>
+                    <span className="text-[10px] text-zinc-500">— you have:</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {adj.adjacentSkills.slice(0, 6).map((s) => (
+                      <span
+                        key={s}
+                        className="text-[10px] font-medium px-1.5 py-0.5 rounded ring-1 ring-inset bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 ring-amber-300/40"
+                      >
+                        {s}
+                      </span>
+                    ))}
+                    {adj.adjacentProjectIds.length > 0 && (
+                      <span className="text-[10px] text-amber-700 dark:text-amber-300">
+                        + {adj.adjacentProjectIds.length} project
+                        {adj.adjacentProjectIds.length !== 1 ? "s" : ""} with related tech
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[10px] text-amber-700/80 dark:text-amber-300/70">
+                    Closest match in your profile. Worth mentioning if your work was
+                    genuinely related — you decide.
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {withoutAdj.length > 0 && (
         <KeywordList
-          label="JD asks for these but you don't have them"
+          label={
+            withAdj.length > 0
+              ? "Missing — no related experience surfaced"
+              : "JD asks for these but you don't have them"
+          }
           tone="bad"
-          items={coverage.missing}
-          hint="We won't fabricate. Add to your profile if accurate, or move on if not."
+          items={withoutAdj}
+          hint="We won't fabricate. Add to your profile if accurate, or skip this job if the gap is too wide."
         />
       )}
     </div>

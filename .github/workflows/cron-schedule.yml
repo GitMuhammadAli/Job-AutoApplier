@@ -1,0 +1,190 @@
+name: Production cron schedules
+
+# Replaces the prior cron-job.org external scheduler.
+#
+# GHA cron limits we live with:
+#   - Minimum interval: 5 minutes (so send-queued/send-scheduled match what we
+#     had on cron-job.org; we can't go finer).
+#   - All schedules in UTC.
+#   - Scheduled runs can be delayed by minutes during GHA load spikes,
+#     especially at hour boundaries — design crons to be idempotent (we
+#     already are: system locks + duplicate checks at every entry point).
+#   - GitHub disables scheduled workflows on repos with 60 days of no
+#     activity. With auto-deploys + cron commits to this file, that won't
+#     happen organically.
+#
+# Required repository secrets (Settings → Secrets → Actions):
+#   - CRON_SECRET   — same value as the prod Vercel env var. The endpoints
+#                     accept it via `Authorization: Bearer <secret>`.
+#
+# Optional repository variable (Settings → Secrets → Variables):
+#   - BASE_URL      — production base URL. Defaults below if unset.
+#
+# Manually fire any cron from the Actions UI via "Run workflow" — useful for
+# rescuing the pipeline without a Scan Now click per user.
+
+on:
+  schedule:
+    # Every 5 min — send-queued + send-scheduled (run together, two endpoints)
+    - cron: '*/5 * * * *'
+    # Every 30 min — instant-apply
+    - cron: '*/30 * * * *'
+    # Every hour — match-all-users
+    - cron: '0 * * * *'
+    # Every 2 hours — scrape-global (free sources, with match=true chain)
+    - cron: '0 */2 * * *'
+    # Daily at 03:00 UTC — cleanup-stale
+    - cron: '0 3 * * *'
+    # Daily at 06:00 UTC — scrape-global (paid sources)
+    - cron: '0 6 * * *'
+    # Daily at 09:00 UTC — notify-matches + check-follow-ups
+    - cron: '0 9 * * *'
+    # Daily at 10:00 UTC — follow-up
+    - cron: '0 10 * * *'
+
+  # Lets us trigger any cron manually from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      cron:
+        description: 'Which cron to run (e.g. scrape-global?mode=free&match=true)'
+        required: true
+        type: string
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    # Short timeout so a stuck request doesn't keep a worker busy. Each
+    # endpoint has its own server-side maxDuration (≤60s); the curl --max-time
+    # below gives us 2× headroom.
+    timeout-minutes: 5
+
+    steps:
+      - name: Resolve base URL
+        id: base
+        run: |
+          BASE_URL="${{ vars.BASE_URL }}"
+          if [ -z "$BASE_URL" ]; then
+            BASE_URL="https://job-auto-applier-three.vercel.app"
+          fi
+          echo "url=$BASE_URL" >> "$GITHUB_OUTPUT"
+          echo "Using base URL: $BASE_URL"
+
+      # ── Every 5 min ──────────────────────────────────────────────────
+      - name: send-queued (every 5 min)
+        if: github.event.schedule == '*/5 * * * *'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/send-queued"
+
+      - name: send-scheduled (every 5 min)
+        if: github.event.schedule == '*/5 * * * *'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/send-scheduled"
+
+      # ── Every 30 min ─────────────────────────────────────────────────
+      - name: instant-apply (every 30 min)
+        if: github.event.schedule == '*/30 * * * *'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/instant-apply"
+
+      # ── Hourly ───────────────────────────────────────────────────────
+      - name: match-all-users (every hour)
+        if: github.event.schedule == '0 * * * *'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/match-all-users"
+
+      # ── Every 2 hours ────────────────────────────────────────────────
+      - name: scrape-global free + match (every 2h)
+        if: github.event.schedule == '0 */2 * * *'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/scrape-global?mode=free&match=true"
+
+      # ── Daily 03:00 UTC ──────────────────────────────────────────────
+      - name: cleanup-stale (daily 03:00 UTC)
+        if: github.event.schedule == '0 3 * * *'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/cleanup-stale"
+
+      # ── Daily 06:00 UTC ──────────────────────────────────────────────
+      - name: scrape-global paid (daily 06:00 UTC)
+        if: github.event.schedule == '0 6 * * *'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/scrape-global?mode=paid&match=false"
+
+      # ── Daily 09:00 UTC ──────────────────────────────────────────────
+      - name: notify-matches (daily 09:00 UTC)
+        if: github.event.schedule == '0 9 * * *'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/notify-matches"
+
+      - name: check-follow-ups (daily 09:00 UTC)
+        if: github.event.schedule == '0 9 * * *'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/check-follow-ups"
+
+      # ── Daily 10:00 UTC ──────────────────────────────────────────────
+      - name: follow-up (daily 10:00 UTC)
+        if: github.event.schedule == '0 10 * * *'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/follow-up"
+
+      # ── Manual dispatch ──────────────────────────────────────────────
+      - name: Manual cron trigger
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          BASE_URL: ${{ steps.base.outputs.url }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CRON_PATH: ${{ github.event.inputs.cron }}
+        run: |
+          curl --fail-with-body --max-time 300 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/cron/$CRON_PATH"

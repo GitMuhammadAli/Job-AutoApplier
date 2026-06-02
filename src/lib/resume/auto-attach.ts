@@ -13,6 +13,7 @@
 import { prisma } from "@/lib/prisma";
 import { tailorResume } from "@/lib/agents/resume-tailor";
 import { fillTemplate } from "@/lib/agents/resume-template-fill";
+import { computeKeywordCoverage, applyCoverageToRanking } from "./keyword-coverage";
 import {
   bundleToResumeProfile,
   buildRenderInput,
@@ -104,9 +105,32 @@ export async function ensureTailoredResume(
         pageTarget: 1,
         jdText,
       });
+
+      // Deterministic keyword force-include — same as /api/resumes/generate.
+      // Without this, auto-sent resumes can drop a JD keyword the user
+      // provably has (the WebRTC bug class). Auto-apply scales the problem
+      // — a single resume issue ships to dozens of jobs per day.
+      const coverage = computeKeywordCoverage({
+        profile,
+        jdText,
+        selectedProjectIds: fill.projectIds,
+        selectedSkills: fill.skillsOrder,
+      });
+      const promoted = applyCoverageToRanking(
+        fill.projectIds,
+        fill.skillsOrder,
+        coverage,
+        { maxProjects: 3, maxSkills: 80 },
+      );
+      if (promoted.forcedProjects.length > 0 || promoted.forcedSkills.length > 0) {
+        console.log(
+          `[auto-attach] application ${applicationId}: force-included ${promoted.forcedProjects.length} project(s), ${promoted.forcedSkills.length} skill(s) for JD keywords user has`,
+        );
+      }
+
       renderInput = applyRanking(renderInput, profile, {
-        skillsOrder: fill.skillsOrder,
-        projectIds: fill.projectIds,
+        skillsOrder: promoted.skills,
+        projectIds: promoted.projectIds,
         summaryId: fill.summaryId,
         sectionOrder: fill.sectionOrder,
       });

@@ -39,6 +39,19 @@ export interface GenerateCoverage {
   coverageRatio: number;
   forcedProjects: string[];
   forcedSkills: string[];
+  /**
+   * For each missing keyword that has adjacency in the user's profile:
+   * the adjacent skills + projects + the canonical related-term list.
+   * Lets the UI show "JD asks for WebRTC — you have Socket.IO + WebSockets,
+   * worth mentioning?" without nudging fabrication.
+   */
+  missingWithAdjacency: Array<{
+    keyword: string;
+    adjacentSkills: string[];
+    adjacentProjectIds: string[];
+    relatedTerms: string[];
+    hasAdjacency: boolean;
+  }>;
 }
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {

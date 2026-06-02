@@ -18,6 +18,7 @@
  */
 
 import type { ResumeProfile, ResumeProject } from "@/lib/resume/types";
+import { findAdjacencies, type MissingKeywordWithAdjacency } from "./keyword-adjacency";
 
 // Stopwords + tokenizer mirror the recommend-existing route's tokenizer so
 // JD keyword extraction is consistent across the app. Kept inline (not
@@ -176,6 +177,14 @@ export interface KeywordCoverageReport {
   mustIncludeSkills: string[];
   /** Coverage ratio 0..1 = covered / (covered + inProfileNotPicked + missing). */
   coverageRatio: number;
+  /**
+   * For each missing keyword: any user skills / project ids that are
+   * semantically adjacent. The UI surfaces these so users can decide whether
+   * to mention adjacent experience — never fabricated, just surfaced.
+   * Only entries with `hasAdjacency: true` are kept; missing keywords with
+   * no adjacent profile content are omitted.
+   */
+  missingWithAdjacency: MissingKeywordWithAdjacency[];
 }
 
 export interface CoverageInput {
@@ -289,6 +298,13 @@ export function computeKeywordCoverage(input: CoverageInput): KeywordCoverageRep
   const total = covered.length + inProfileNotPicked.length + missing.length;
   const coverageRatio = total === 0 ? 1 : covered.length / total;
 
+  // Adjacency surfacing — only for keywords that landed in `missing`. For
+  // each, we look at what the user DOES have in their profile that signals
+  // experience in the same problem space. Cheap pure-function call, no LLM.
+  const missingWithAdjacency = findAdjacencies(missing, profile).filter(
+    (m) => m.hasAdjacency,
+  );
+
   return {
     covered,
     inProfileNotPicked,
@@ -297,6 +313,7 @@ export function computeKeywordCoverage(input: CoverageInput): KeywordCoverageRep
     mustIncludeProjectIds: Array.from(mustIncludeProjectIdSet),
     mustIncludeSkills: Array.from(mustIncludeSkillSet),
     coverageRatio,
+    missingWithAdjacency,
   };
 }
 
@@ -360,3 +377,48 @@ export function detectCappedOut(
 // Re-exported only for tests / debug — keep the surface area small.
 export const __internal = { tokenize, extractPhrases, profileTextContains };
 export type { ResumeProject };
+
+/**
+ * Lightweight per-job ATS coverage estimate for the /recommended feed.
+ *
+ * No ResumeProfile required — works off a flat skill set + free-text haystack
+ * (concat of resume content, settings keywords, etc.). Used to surface an
+ * "ATS: 4/9" badge on every job card so the user knows BEFORE applying
+ * whether the resume can pass an ATS keyword grep.
+ *
+ * Trade-off vs computeKeywordCoverage:
+ *   - No project / bullet / summary granularity → can't distinguish
+ *     "in profile but dropped" from "covered".
+ *   - No force-include suggestion — that's tailor-time work.
+ *   - BUT: 50× faster, no profile DB load, runs in the per-job hot loop.
+ *
+ * Returns 0/0 if the JD text is too short or has no extractable keywords
+ * (caller's UI should hide the badge in that case).
+ */
+export function computeAtsCoverageLite(
+  jdText: string,
+  haystack: string,
+  knownSkills: string[],
+): { covered: number; total: number; ratio: number; missing: string[] } {
+  const keywords = extractJdKeywords(jdText).slice(0, 25);
+  if (keywords.length === 0) {
+    return { covered: 0, total: 0, ratio: 1, missing: [] };
+  }
+  const haystackLower = haystack.toLowerCase();
+  const knownSet = new Set(knownSkills.map((s) => s.toLowerCase().trim()));
+
+  let covered = 0;
+  const missing: string[] = [];
+  for (const kw of keywords) {
+    const k = kw.toLowerCase();
+    const hit = knownSet.has(k) || haystackLower.includes(k);
+    if (hit) covered++;
+    else missing.push(kw);
+  }
+  return {
+    covered,
+    total: keywords.length,
+    ratio: keywords.length === 0 ? 1 : covered / keywords.length,
+    missing,
+  };
+}
