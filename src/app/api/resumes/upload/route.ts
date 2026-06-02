@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuthUserId } from "@/lib/auth";
 import { extractText } from "@/lib/resume-parser";
 import { parseResume } from "@/lib/skill-extractor";
-import { RESUMES, VALIDATION } from "@/lib/messages";
+import { RESUMES, RESUME_UPLOAD, VALIDATION } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -39,13 +39,10 @@ export async function POST(req: NextRequest) {
 
   // Hard precondition: storage provider must be configured. Without this
   // token, @vercel/blob's `put()` throws a confusing error deep in the call.
-  // We'd rather tell the user (and ourselves) immediately.
+  // We'd rather tell the user (and ourselves) immediately — but keep the
+  // user-facing copy calm + plain.
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return fail(
-      "BLOB_TOKEN_MISSING",
-      "File storage is not configured on the server. Contact support — this is a server-side issue, not your file.",
-      503,
-    );
+    return fail("BLOB_TOKEN_MISSING", RESUME_UPLOAD.BLOB_TOKEN_MISSING, 503);
   }
 
   // Storage limit check — non-fatal if the blob API can't be reached, but we
@@ -74,7 +71,7 @@ export async function POST(req: NextRequest) {
   try {
     formData = await req.formData();
   } catch (err) {
-    return fail("BAD_FORM_DATA", "Could not read the uploaded file. Try a smaller file or check your network.", 400, err);
+    return fail("BAD_FORM_DATA", RESUME_UPLOAD.BAD_FORM_DATA, 400, err);
   }
 
   const file = formData.get("file") as File | null;
@@ -140,14 +137,9 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : String(err);
     // The Vercel Blob SDK throws this exact phrase when token is invalid/missing.
     if (/access token|unauthorized|forbidden/i.test(msg)) {
-      return fail(
-        "BLOB_TOKEN_MISSING",
-        "File storage rejected the upload (auth). Contact support.",
-        503,
-        err,
-      );
+      return fail("BLOB_TOKEN_MISSING", RESUME_UPLOAD.BLOB_TOKEN_MISSING, 503, err);
     }
-    return fail("BLOB_PUT_FAILED", "Could not save your file. Please try again.", 502, err);
+    return fail("BLOB_PUT_FAILED", RESUME_UPLOAD.BLOB_PUT_FAILED, 502, err);
   }
 
   const resumeData = {
@@ -178,12 +170,7 @@ export async function POST(req: NextRequest) {
       resume = await prisma.resume.create({ data: resumeData });
     }
   } catch (err) {
-    return fail(
-      "DB_WRITE_FAILED",
-      "Your file uploaded but we couldn't save the metadata. Please try again.",
-      500,
-      err,
-    );
+    return fail("DB_WRITE_FAILED", RESUME_UPLOAD.DB_WRITE_FAILED, 500, err);
   }
 
   const needsManualText = textQuality === "poor" || textQuality === "empty";

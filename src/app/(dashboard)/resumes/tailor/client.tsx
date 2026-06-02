@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { resumeClient, type GenerateCoverage, type GenerateDiff } from "@/lib/resume/client";
 import { DEFAULT_TEMPLATE_ID } from "@/lib/resume/templates/registry";
+import { RESUME_TAILORING } from "@/lib/messages";
 
 interface TemplateOption {
   id: string;
@@ -481,7 +482,7 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">ATS Keyword Coverage</p>
+        <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{RESUME_TAILORING.COVERAGE_TITLE}</p>
         <span
           className={`text-sm font-bold tabular-nums ${
             adjustedPct >= 80
@@ -508,29 +509,32 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
         />
       </div>
 
-      {/* Headline summary — the action items. Tech details below the fold. */}
+      {/* Headline summary. User-friendly language: "kept" rather than the
+          internal "force-included" — they don't need to know we had to
+          fight the LLM to keep what they wrote. */}
       {(coverage.forcedProjects.length > 0 || coverage.forcedSkills.length > 0) && !showDetails && (
         <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-          <strong>{coverage.forcedProjects.length + coverage.forcedSkills.length} item(s) force-included</strong>{" "}
-          so JD keywords you have don&apos;t get dropped.
+          {RESUME_TAILORING.COVERAGE_KEPT_SUMMARY(
+            coverage.forcedProjects.length + coverage.forcedSkills.length,
+          )}
         </p>
       )}
 
       {showDetails && (coverage.forcedProjects.length > 0 || coverage.forcedSkills.length > 0) && (
         <div className="rounded-lg bg-emerald-50/60 dark:bg-emerald-950/20 px-2.5 py-2 text-[11px] text-emerald-700 dark:text-emerald-300">
-          <strong>Force-included</strong> {coverage.forcedProjects.length} project(s)
-          {coverage.forcedSkills.length > 0 && `, ${coverage.forcedSkills.length} skill(s)`} so JD
-          keywords you have don&apos;t get dropped.
+          We kept {coverage.forcedProjects.length} project{coverage.forcedProjects.length === 1 ? "" : "s"}
+          {coverage.forcedSkills.length > 0 && ` and ${coverage.forcedSkills.length} skill${coverage.forcedSkills.length === 1 ? "" : "s"}`}
+          {" "}on the PDF so the keywords you actually have show up there.
         </div>
       )}
 
       {showDetails && coverage.lostFromForceInclude.length > 0 && (
-        <div className="rounded-lg border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-2">
+        <div className="rounded-lg border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-950/20 px-2.5 py-2">
           <div className="flex items-start gap-1.5">
             <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-200">
-                Trade-off: force-include cost you {coverage.lostFromForceInclude.length} other keyword{coverage.lostFromForceInclude.length === 1 ? "" : "s"}
+              <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-100">
+                {RESUME_TAILORING.COVERAGE_LOST_HEADLINE}
               </p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {coverage.lostFromForceInclude.slice(0, 8).map((kw) => (
@@ -547,14 +551,9 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-[10px] text-amber-700/80 dark:text-amber-300/80">
-                These were landing before force-include pushed other projects past the 1-page cap.
-                {coverage.pageBumpRecommended && (
-                  <>
-                    {" "}
-                    Use 2 pages above (page count toggle) and regenerate to keep both groups.
-                  </>
-                )}
+              <p className="mt-1 text-[10px] text-amber-700/80 dark:text-amber-200/70">
+                {RESUME_TAILORING.COVERAGE_LOST_HINT_BASIC}{" "}
+                {coverage.pageBumpRecommended && RESUME_TAILORING.COVERAGE_LOST_HINT_BUMP}
               </p>
             </div>
           </div>
@@ -562,12 +561,12 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
       )}
 
       {showDetails && coverage.auditNotLanded.length > 0 && (
-        <div className="rounded-lg border border-amber-300 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-2">
+        <div className="rounded-lg border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-950/20 px-2.5 py-2">
           <div className="flex items-start gap-1.5">
             <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-200">
-                Claimed covered, but didn&apos;t land on the PDF
+              <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-100">
+                {RESUME_TAILORING.COVERAGE_AUDIT_HEADLINE}
               </p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {coverage.auditNotLanded.slice(0, 8).map((kw) => (
@@ -584,9 +583,8 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-[10px] text-amber-700/80 dark:text-amber-300/80">
-                Template probably hid the section in 1-page mode. Try 2 pages
-                or pick a different template.
+              <p className="mt-1 text-[10px] text-amber-700/80 dark:text-amber-200/70">
+                {RESUME_TAILORING.COVERAGE_AUDIT_HINT}
               </p>
             </div>
           </div>
@@ -596,8 +594,8 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
       <KeywordList
         label={
           coverage.auditNotLanded.length > 0
-            ? "Confirmed on your PDF (grep-verified)"
-            : "On your PDF"
+            ? RESUME_TAILORING.COVERAGE_LIST_VERIFIED
+            : RESUME_TAILORING.COVERAGE_LIST_BASIC
         }
         tone="ok"
         items={coverage.covered.filter(
@@ -606,7 +604,7 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
       />
       {coverage.inProfileNotPicked.length > 0 && (
         <KeywordList
-          label="In your profile but the LLM dropped them (we force-included)"
+          label={RESUME_TAILORING.COVERAGE_LIST_KEPT}
           tone="warn"
           items={coverage.inProfileNotPicked}
         />
@@ -624,7 +622,7 @@ function CoveragePanel({ coverage }: { coverage: GenerateCoverage }) {
           onClick={() => setShowDetails((v) => !v)}
           className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 underline underline-offset-2"
         >
-          {showDetails ? "Hide technical details" : "Show technical details (trade-offs, audit)"}
+          {showDetails ? RESUME_TAILORING.COVERAGE_DETAILS_HIDE : RESUME_TAILORING.COVERAGE_DETAILS_SHOW}
         </button>
       )}
     </div>

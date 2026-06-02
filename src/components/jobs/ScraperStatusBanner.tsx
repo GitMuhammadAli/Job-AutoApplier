@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronUp, X, RefreshCcw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { ScraperFailure } from "@/lib/scrapers/scraper-status";
+import { PIPELINE } from "@/lib/messages";
 
 interface Props {
   failures: ScraperFailure[];
@@ -50,67 +51,35 @@ export function ScraperStatusBanner({ failures }: Props) {
     setDismissed(true);
   };
 
+  // Source names are infrastructure jargon to users (jsearch, arbeitnow,
+  // linkedin_posts). Just tell them how many are quiet and that the
+  // others are still working — they don't need to debug the pipeline.
   const summary =
     failures.length === 1
-      ? `${failures[0].source} returned no jobs`
-      : `${failures.length} job sources are returning nothing`;
+      ? PIPELINE.PARTIAL_HEADLINE_ONE
+      : PIPELINE.PARTIAL_HEADLINE_MANY(failures.length);
 
   return (
-    <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-3 sm:p-4">
+    <div className="rounded-xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2.5 sm:px-4 sm:py-3">
       <div className="flex items-start gap-3">
         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
               {summary}
             </p>
             <button
               type="button"
               onClick={handleDismiss}
               className="text-amber-700/60 dark:text-amber-300/60 hover:text-amber-900 dark:hover:text-amber-200 transition-colors"
-              aria-label="Dismiss until tomorrow"
+              aria-label="Dismiss"
             >
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
-          <p className="mt-0.5 text-xs text-amber-800/80 dark:text-amber-300/70">
-            That&apos;s why your list looks short. The other sources are still feeding jobs in.
+          <p className="mt-0.5 text-xs text-amber-800/80 dark:text-amber-200/70">
+            {PIPELINE.PARTIAL_BODY}
           </p>
-          <button
-            type="button"
-            onClick={() => setExpanded((e) => !e)}
-            className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 transition-colors"
-          >
-            {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            {expanded ? "Hide details" : "What broke?"}
-          </button>
-
-          {expanded && (
-            <ul className="mt-2 space-y-1.5 text-xs">
-              {failures.map((f) => (
-                <li
-                  key={f.source}
-                  className="rounded-lg border border-amber-200/60 dark:border-amber-900/40 bg-white/60 dark:bg-zinc-900/30 px-2.5 py-1.5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-amber-900 dark:text-amber-200 capitalize">
-                      {f.source.replace(/_/g, " ")}
-                    </span>
-                    <span className="text-[10px] text-amber-700/70 dark:text-amber-300/60">
-                      {f.consecutiveFailures > 1
-                        ? `${f.consecutiveFailures}× in a row`
-                        : "last run"}
-                      {" · "}
-                      {formatDistanceToNow(f.lastTriedAt, { addSuffix: true })}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-amber-800/80 dark:text-amber-300/70 leading-relaxed">
-                    {f.reason}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       </div>
     </div>
@@ -133,10 +102,11 @@ function PipelineDeadBanner({ failure }: { failure: ScraperFailure }) {
         <RefreshCcw className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-            New jobs are paused for now
+            {PIPELINE.DEAD_HEADLINE}
           </p>
           <p className="text-[11px] text-amber-800/80 dark:text-amber-200/70 mt-0.5">
-            {failure.reason} Tap <strong>Scan now</strong> for an instant refresh.
+            {failure.reason} {PIPELINE.DEAD_BODY_CTA.replace("Scan now", "")}
+            <strong>Scan now</strong> for an instant refresh.
           </p>
         </div>
       </div>

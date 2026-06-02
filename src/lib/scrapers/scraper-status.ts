@@ -14,6 +14,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { PIPELINE } from "@/lib/messages";
 
 export interface ScraperFailure {
   source: string;
@@ -59,9 +60,9 @@ export async function getRecentScraperFailures(): Promise<ScraperFailure[]> {
       {
         source: "scheduler",
         status: "pipeline-dead",
-        reason: lastRunAny
-          ? `Last fresh batch arrived ${ageHours}h ago.`
-          : "Automatic refresh hasn't started yet.",
+        reason: lastRunAny && ageHours !== null
+          ? PIPELINE.DEAD_BODY_AGE(ageHours)
+          : PIPELINE.DEAD_BODY_NEVER_RAN,
         lastTriedAt: lastRunAny?.startedAt ?? new Date(0),
         consecutiveFailures: 0,
       },

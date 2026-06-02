@@ -251,30 +251,109 @@ export const RESUMES = {
   NOT_FOUND: "Resume not found",
   FILE_UNAVAILABLE: "File unavailable",
   PREVIEW_FAILED: "Preview failed",
-  STORAGE_LIMIT: "Storage limit reached (20 MB). Delete a resume first.",
-  MAX_ALLOWED: (max: number) => `Maximum ${max} resumes allowed. Delete one first.`,
-  FILE_TOO_LARGE: "File must be under 5 MB",
-  PDF_ONLY: "Only PDF files are supported. Please convert your resume to PDF first.",
-  UPLOAD_FAILED_RETRY: "Upload failed. Please try again.",
+  STORAGE_LIMIT: "You've hit your storage limit (20 MB). Delete one to make room.",
+  MAX_ALLOWED: (max: number) => `You can have up to ${max} resumes saved. Delete one to add another.`,
+  FILE_TOO_LARGE: "Files need to be under 5 MB.",
+  PDF_ONLY: "Only PDFs work here. Export yours as PDF and try again.",
+  UPLOAD_FAILED_RETRY: "Couldn't upload that. Give it another try.",
   // Client
-  UPLOAD_FAILED: "Upload failed",
-  UPLOADED_WITH_SKILLS: (count: number) => `Resume uploaded! Extracted ${count} skills.`,
+  UPLOAD_FAILED: "Couldn't upload that",
+  UPLOADED_WITH_SKILLS: (count: number) => `Saved. We picked up ${count} skill${count === 1 ? "" : "s"} from it.`,
   ADDED: "Resume added",
-  FAILED_CREATE: "Failed to create resume",
+  FAILED_CREATE: "Couldn't save that resume",
   UPDATED: "Resume updated",
-  FAILED_UPDATE: "Failed to update resume",
-  FAILED_SAVE_CONTENT: "Failed to save content",
+  FAILED_UPDATE: "Couldn't update that resume",
+  FAILED_SAVE_CONTENT: "Couldn't save the content",
   DELETED: "Resume deleted",
-  FAILED_DELETE: "Failed to delete resume",
+  FAILED_DELETE: "Couldn't delete that resume",
   CATEGORIES_UPDATED: "Categories updated",
-  FAILED_UPDATE_CATEGORIES: "Failed to update categories",
+  FAILED_UPDATE_CATEGORIES: "Couldn't update categories",
   DEFAULT_UPDATED: "Default resume updated",
-  FAILED_SET_DEFAULT: "Failed to set default resume",
-  REEXTRACTION_FAILED: "Re-extraction failed",
-  EXTRACTING_FIRST: "Extracting text from PDF first...",
+  FAILED_SET_DEFAULT: "Couldn't set that as default",
+  REEXTRACTION_FAILED: "Couldn't re-read that resume",
+  EXTRACTING_FIRST: "Reading the PDF first…",
   NO_CONTENT_REPHRASE:
-    "No content to rephrase. Paste your resume text first.",
-  REPHRASE_FAILED: "Rephrase failed",
+    "Nothing to rephrase yet — paste your resume text first.",
+  REPHRASE_FAILED: "Rephrase didn't work — try again",
+} as const
+
+// ─── Resume Upload (per-stage error codes) ─────────────────────────────────
+// User-facing strings only — calm + plain. Stage codes live in the route
+// for grepping prod logs; users never see them.
+export const RESUME_UPLOAD = {
+  BLOB_TOKEN_MISSING: "Uploads aren't available right now. Try again in a bit.",
+  BLOB_PUT_FAILED: "Couldn't save your file. Give it another try.",
+  BAD_FORM_DATA: "We couldn't read that file. Try a smaller one, or check your connection.",
+  DB_WRITE_FAILED: "Almost there — your file saved but we couldn't finish recording it. Try again.",
+} as const
+
+// ─── Resume Tailoring (Generate route + Coverage panel) ────────────────────
+// Every user-visible string from the tailor flow lives here. Keep them
+// calm + plain — no "audit", "fabrication", "force-include", "page-target"
+// or other mechanism words. Users only need to know what happened and
+// what they can do next.
+export const RESUME_TAILORING = {
+  // Generate route — preflight errors
+  NO_PROFILE_OR_UPLOADS:
+    "You need a resume on file first. Upload one, or build your profile, then come back.",
+  PARSE_INCOMPLETE: (resumeName: string) =>
+    `We couldn't read enough from "${resumeName}". Try another resume, or fill in the editor by hand.`,
+  PARSE_FAILED: "We couldn't read that resume. Try another one.",
+  USED_UPLOADED_PROFILE: (resumeName: string) =>
+    `Used "${resumeName}" for this one. Save a profile under Resumes for faster runs next time.`,
+
+  // Generate route — render-time errors
+  RENDER_FALLBACK_GENERIC:
+    "Something went sideways generating that resume. Give it another try.",
+  AUDIT_BLOCKED:
+    "We stopped that render — something looked off. Give it another try.",
+
+  // Generate route — agent chain warnings
+  AGENT_CHAIN_FALLBACK:
+    "Tailoring step ran into a hiccup — used your default ordering instead.",
+  KEYWORDS_KEPT: (projects: number, skills: number, keywords: string[]) => {
+    const parts: string[] = [];
+    if (projects > 0) parts.push(`${projects} project${projects === 1 ? "" : "s"}`);
+    if (skills > 0) parts.push(`${skills} skill${skills === 1 ? "" : "s"}`);
+    const subject = parts.join(" and ");
+    const kw = keywords.slice(0, 5).join(", ");
+    return `Kept ${subject} on the PDF${kw ? ` so ${kw} would show up` : ""}.`;
+  },
+  KEYWORDS_LOST_TO_PAGE: (count: number, keywords: string[]) =>
+    `${count} keyword${count === 1 ? "" : "s"} didn't fit on one page (${keywords.slice(0, 5).join(", ")}${keywords.length > 5 ? "…" : ""}). Try 2 pages to keep them.`,
+  KEYWORDS_NOT_RENDERED: (count: number, keywords: string[]) =>
+    `${count} keyword${count === 1 ? "" : "s"} didn't render on the PDF (${keywords.slice(0, 5).join(", ")}${keywords.length > 5 ? "…" : ""}). Try a different template or 2 pages.`,
+  MISSING_FROM_PROFILE: (count: number, keywords: string[]) =>
+    `${count} keyword${count === 1 ? "" : "s"} the job asked for aren't in your profile (${keywords.slice(0, 5).join(", ")}${keywords.length > 5 ? "…" : ""}). Add them under Resumes if they're true.`,
+
+  // Coverage panel — labels (UI)
+  COVERAGE_TITLE: "ATS keyword coverage",
+  COVERAGE_KEPT_SUMMARY: (count: number) =>
+    `We kept ${count} extra item${count === 1 ? "" : "s"} on your PDF so the keywords you actually have show up.`,
+  COVERAGE_LIST_VERIFIED: "On your PDF (verified)",
+  COVERAGE_LIST_BASIC: "On your PDF",
+  COVERAGE_LIST_KEPT: "Kept on the PDF (you had these, the AI initially skipped them)",
+  COVERAGE_LOST_HEADLINE: "Some keywords didn't make it on the page",
+  COVERAGE_LOST_HINT_BASIC: "Too much for one page.",
+  COVERAGE_LOST_HINT_BUMP: "Switch to 2 pages above to keep all of them.",
+  COVERAGE_AUDIT_HEADLINE: "These didn't render on the PDF",
+  COVERAGE_AUDIT_HINT:
+    "Probably hidden by the template at this size. Try a different template or use 2 pages.",
+  COVERAGE_DETAILS_SHOW: "Show more detail",
+  COVERAGE_DETAILS_HIDE: "Show less",
+} as const
+
+// ─── Job pipeline (banners + status) ───────────────────────────────────────
+export const PIPELINE = {
+  // Pipeline-dead banner
+  DEAD_HEADLINE: "New jobs are paused for now",
+  DEAD_BODY_NEVER_RAN: "Automatic refresh hasn't started yet.",
+  DEAD_BODY_AGE: (hours: number) => `Last fresh batch arrived ${hours}h ago.`,
+  DEAD_BODY_CTA: "Tap Scan now for an instant refresh.",
+  // Per-source banner
+  PARTIAL_HEADLINE_ONE: "One source is quiet right now",
+  PARTIAL_HEADLINE_MANY: (count: number) => `${count} sources are quiet right now`,
+  PARTIAL_BODY: "Your list might be a bit shorter than usual. The rest are still feeding jobs in.",
 } as const
 
 // ─── Settings ──────────────────────────────────────────────────────────────

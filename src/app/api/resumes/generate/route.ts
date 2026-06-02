@@ -39,6 +39,7 @@ import {
   findLostCoverageFromDrops,
   type KeywordCoverageReport,
 } from "@/lib/resume/keyword-coverage";
+import { RESUME_TAILORING } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 // AI parse-from-PDF fallback can run when no structured profile exists,
@@ -97,8 +98,7 @@ export async function POST(req: NextRequest) {
     if (!bestUpload) {
       return NextResponse.json(
         {
-          error:
-            "No profile data found. Upload a resume PDF or fill in your structured profile to generate tailored resumes.",
+          error: RESUME_TAILORING.NO_PROFILE_OR_UPLOADS,
           code: "NO_PROFILE_OR_UPLOADS",
         },
         { status: 422 },
@@ -109,8 +109,7 @@ export async function POST(req: NextRequest) {
       if (!parsed.profile || !passesProfileGate(parsed.profile)) {
         return NextResponse.json(
           {
-            error:
-              `AI couldn't extract enough structure from "${bestUpload.name}". Try a different upload or fill in your profile manually.`,
+            error: RESUME_TAILORING.PARSE_INCOMPLETE(bestUpload.name),
             code: "PARSE_INCOMPLETE",
           },
           { status: 422 },
@@ -119,13 +118,11 @@ export async function POST(req: NextRequest) {
       profile = parsed.profile;
       profileSource = "parsed-pdf";
       parsedFromResumeName = parsed.resumeName;
-      sourceWarnings.push(
-        `Used your uploaded resume "${parsed.resumeName}" — AI extracted ${profile.experiences.length} experience(s) and ${profile.projects.length} project(s). Save to your profile so we don't re-extract every time.`,
-      );
+      sourceWarnings.push(RESUME_TAILORING.USED_UPLOADED_PROFILE(parsed.resumeName));
     } catch (err) {
       return NextResponse.json(
         {
-          error: err instanceof Error ? err.message : "Failed to parse your uploaded resume",
+          error: err instanceof Error ? err.message : RESUME_TAILORING.PARSE_FAILED,
           code: "PARSE_FAILED",
         },
         { status: 502 },
@@ -200,9 +197,12 @@ export async function POST(req: NextRequest) {
       forcedSkills = promoted.forcedSkills;
 
       if (forcedProjects.length > 0 || forcedSkills.length > 0) {
-        const promotedKeywords = coverage.inProfileNotPicked.slice(0, 5).join(", ");
         warnings.push(
-          `Force-included ${forcedProjects.length} project(s) and ${forcedSkills.length} skill(s) to cover JD keywords you have${promotedKeywords ? `: ${promotedKeywords}` : ""}.`,
+          RESUME_TAILORING.KEYWORDS_KEPT(
+            forcedProjects.length,
+            forcedSkills.length,
+            coverage.inProfileNotPicked,
+          ),
         );
       }
 
@@ -219,14 +219,17 @@ export async function POST(req: NextRequest) {
         );
         if (lostFromForceInclude.length > 0 && pageTarget === 1) {
           warnings.push(
-            `Force-include trade: ${lostFromForceInclude.length} keyword(s) you had covered no longer fit on 1 page — ${lostFromForceInclude.slice(0, 5).join(", ")}${lostFromForceInclude.length > 5 ? "…" : ""}. Switch to 2 pages to keep both.`,
+            RESUME_TAILORING.KEYWORDS_LOST_TO_PAGE(
+              lostFromForceInclude.length,
+              lostFromForceInclude,
+            ),
           );
         }
       }
 
       if (coverage.missing.length > 0) {
         warnings.push(
-          `${coverage.missing.length} JD keyword(s) aren't in your profile: ${coverage.missing.slice(0, 5).join(", ")}${coverage.missing.length > 5 ? "…" : ""}. Add them to your profile if accurate — we won't fabricate.`,
+          RESUME_TAILORING.MISSING_FROM_PROFILE(coverage.missing.length, coverage.missing),
         );
       }
 
@@ -248,9 +251,7 @@ export async function POST(req: NextRequest) {
           { status: 429 },
         );
       }
-      warnings.push(
-        `JD agent chain failed: ${err instanceof Error ? err.message : "unknown"}. Used default ordering.`,
-      );
+      warnings.push(RESUME_TAILORING.AGENT_CHAIN_FALLBACK);
     }
   }
 
@@ -265,12 +266,12 @@ export async function POST(req: NextRequest) {
     if (err instanceof FabricationError) {
       console.error("[resume.generate] Fabrication audit failed:", err.fabricated);
       return NextResponse.json(
-        { error: "Internal audit rejected output. Please report — generation aborted to protect you.", code: "AUDIT_FAIL" },
+        { error: RESUME_TAILORING.AUDIT_BLOCKED, code: "AUDIT_FAIL" },
         { status: 500 },
       );
     }
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Render failed" },
+      { error: err instanceof Error ? err.message : RESUME_TAILORING.RENDER_FALLBACK_GENERIC },
       { status: 500 },
     );
   }
@@ -292,7 +293,7 @@ export async function POST(req: NextRequest) {
     auditNotLanded = audit.notLanded;
     if (auditNotLanded.length > 0) {
       warnings.push(
-        `${auditNotLanded.length} keyword(s) didn't land in the PDF despite being claimed: ${auditNotLanded.slice(0, 5).join(", ")}${auditNotLanded.length > 5 ? "…" : ""}. Try a 2-page layout or a different template.`,
+        RESUME_TAILORING.KEYWORDS_NOT_RENDERED(auditNotLanded.length, auditNotLanded),
       );
     }
   }
