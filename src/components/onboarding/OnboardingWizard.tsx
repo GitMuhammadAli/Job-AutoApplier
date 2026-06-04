@@ -151,7 +151,7 @@ export function OnboardingWizard({ prefill }: { prefill?: OnboardingPrefill } = 
         workType: workTypes.length > 0 ? workTypes : undefined,
         preferredCategories: categories,
         emailNotifications: true,
-        preferredPlatforms: ["jsearch", "indeed", "remotive", "linkedin", "arbeitnow", "arbeitnow", "rozee", "adzuna", "google"],
+        preferredPlatforms: ["jsearch", "indeed", "remotive", "linkedin", "arbeitnow", "rozee", "adzuna", "google"],
         preferredTone: "professional",
         emailLanguage: "English",
         applicationMode: "MANUAL",

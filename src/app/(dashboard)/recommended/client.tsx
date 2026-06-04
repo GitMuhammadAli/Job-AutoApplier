@@ -1001,6 +1001,12 @@ function ScanNowButton() {
         router.refresh();
       } else if (res.status === 429) {
         toast.info(result.error || "Please wait before scanning again.");
+      } else if (res.status === 400 && /keyword/i.test(result.error || "")) {
+        // No keywords set — give a one-tap path to Settings instead of
+        // making the user dig through the sidebar.
+        toast.error(result.error || "Add some keywords first.", {
+          action: { label: "Open Settings", onClick: () => router.push("/settings") },
+        });
       } else {
         toast.error(result.error || "Scan failed — try again later.");
       }

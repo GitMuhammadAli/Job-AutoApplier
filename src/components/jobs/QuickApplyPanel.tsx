@@ -275,14 +275,32 @@ export function QuickApplyPanel({
         const msg = error instanceof Error ? error.message : "Generation failed";
         let displayMsg: string;
         if (msg.includes("rate") || msg.includes("429") || msg.includes("Too Many")) {
-          displayMsg = "AI is busy. Please wait a moment and try again.";
+          displayMsg = "The AI is catching its breath. Give it a moment and try again.";
         } else if (msg.includes("GROQ_API_KEY")) {
-          displayMsg = "AI not configured. Contact the admin.";
+          // Solo project, no admin — just say it's down. The error reaches
+          // logs anyway; the user can't do anything about a missing key.
+          displayMsg = "AI features are temporarily unavailable. Try again in a few minutes.";
         } else {
           displayMsg = msg;
         }
         setGenerateError(displayMsg);
-        toast.error(displayMsg);
+        // Mirror the actionable-toast pattern from the recommended page: if
+        // the message routes users to a specific settings page, surface a
+        // one-tap action button so they can fix it without navigating
+        // through the sidebar.
+        const wantsSettings = /Settings/i.test(displayMsg);
+        const wantsResumes = /Upload a resume|under Resumes/i.test(displayMsg);
+        if (wantsSettings) {
+          toast.error(displayMsg, {
+            action: { label: "Open Settings", onClick: () => router.push("/settings") },
+          });
+        } else if (wantsResumes) {
+          toast.error(displayMsg, {
+            action: { label: "Open Resumes", onClick: () => router.push("/resumes") },
+          });
+        } else {
+          toast.error(displayMsg);
+        }
       }
     });
   }

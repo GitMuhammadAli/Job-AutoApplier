@@ -40,8 +40,18 @@ export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = fal
   async function handleSave() {
     const parsed = ResumeProfileSchema.safeParse(profile);
     if (!parsed.success) {
+      // Translate the first zod failure into a plain-English hint. The raw
+      // form ("header.fullName: String must contain at least 1 character(s)")
+      // leaks zod internals and confuses users. Field paths get human names;
+      // the rest falls through to the (cleaner) zod message.
       const first = parsed.error.issues[0];
-      toast.error(`${first.path.join(".") || "profile"}: ${first.message}`);
+      const path = first.path.join(".");
+      const fieldHints: Record<string, string> = {
+        "header.fullName": "Add your name in the header before saving.",
+        "header.email": "Add a contact email in the header before saving.",
+        "header.headline": "Add a one-line headline (e.g. \"Senior Full-Stack Engineer\") before saving.",
+      };
+      toast.error(fieldHints[path] || first.message || "That doesn't look quite right — check the highlighted field.");
       return;
     }
     setSaving(true);
@@ -50,7 +60,7 @@ export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = fal
       toast.success("Profile saved");
       onSave(saved);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
+      toast.error(err instanceof Error ? err.message : "We couldn't save that. Try again.");
     } finally {
       setSaving(false);
     }
