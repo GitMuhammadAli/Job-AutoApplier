@@ -364,7 +364,7 @@ export function QuickApplyPanel({
       router.refresh();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to mark applied"
+        error instanceof Error ? error.message : "We couldn't mark that applied. Try again."
       );
     }
     setMarkingApplied(false);

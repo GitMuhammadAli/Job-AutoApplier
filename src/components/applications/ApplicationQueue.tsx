@@ -781,7 +781,7 @@ export function ApplicationQueue({
       toast.success(parts.join(", "));
       router.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to generate drafts");
+      toast.error(e instanceof Error ? e.message : "We couldn't generate those drafts. Try again.");
     } finally {
       setGeneratingDrafts(false);
       setTimeout(() => setDraftProgress(null), 2000);

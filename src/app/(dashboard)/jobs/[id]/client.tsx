@@ -195,13 +195,13 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
       try {
         const result = await addNote(job.id, noteText);
         if (!result.success) {
-          toast.error(result.error || "Failed to save note");
+          toast.error(result.error || "We couldn't save that note. Try again.");
           return;
         }
-        toast.success("Note saved");
+        toast.success("Note saved.");
         router.refresh();
       } catch {
-        toast.error("Failed to save note");
+        toast.error("We couldn't save that note. Try again.");
       }
     });
   };

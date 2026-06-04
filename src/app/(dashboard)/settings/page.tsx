@@ -88,7 +88,7 @@ async function SettingsContent() {
   if (!settings) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
-        <p className="text-sm text-slate-500 dark:text-zinc-400">Failed to load settings. Please try again.</p>
+        <p className="text-sm text-slate-500 dark:text-zinc-400">We couldn&apos;t load your settings. Refresh to try again.</p>
       </div>
     );
   }

@@ -130,17 +130,17 @@ export function ResumeList({ resumes }: ResumeListProps) {
       try {
         const result = await createResume(name, fileUrl, content);
         if (!result.success) {
-          toast.error(result.error || "Failed to create");
+          toast.error(result.error || "We couldn't add that resume. Try again.");
           return;
         }
-        toast.success("Resume added");
+        toast.success("Resume added.");
         setDialogOpen(false);
         setName("");
         setFileUrl("");
         setContent("");
         router.refresh();
       } catch {
-        toast.error("Failed to create resume");
+        toast.error("We couldn't add that resume. Try again.");
       }
     });
   };
@@ -151,16 +151,16 @@ export function ResumeList({ resumes }: ResumeListProps) {
       try {
         const result = await updateResume(id, { name, fileUrl });
         if (!result.success) {
-          toast.error(result.error || "Failed to update");
+          toast.error(result.error || "We couldn't update that resume. Try again.");
           return;
         }
-        toast.success("Resume updated");
+        toast.success("Resume updated.");
         setEditingId(null);
         setName("");
         setFileUrl("");
         router.refresh();
       } catch {
-        toast.error("Failed to update resume");
+        toast.error("We couldn't update that resume. Try again.");
       }
     });
   };
@@ -170,17 +170,15 @@ export function ResumeList({ resumes }: ResumeListProps) {
       try {
         const result = await updateResume(id, { content });
         if (!result.success) {
-          toast.error(result.error || "Failed to save content");
+          toast.error(result.error || "We couldn't save that content. Try again.");
           return;
         }
-        toast.success(
-          "Resume content saved -- scraper will use this for matching",
-        );
+        toast.success("Resume content saved — we'll use it for matching.");
         setContentDialogId(null);
         setContent("");
         router.refresh();
       } catch {
-        toast.error("Failed to save content");
+        toast.error("We couldn't save that content. Try again.");
       }
     });
   };
@@ -190,13 +188,13 @@ export function ResumeList({ resumes }: ResumeListProps) {
       try {
         const result = await deleteResume(id);
         if (!result.success) {
-          toast.error(result.error || "Failed to delete");
+          toast.error(result.error || "We couldn't delete that resume. Try again.");
           return;
         }
-        toast.success("Resume deleted");
+        toast.success("Resume deleted.");
         router.refresh();
       } catch {
-        toast.error("Failed to delete resume");
+        toast.error("We couldn't delete that resume. Try again.");
       }
     });
   };
@@ -215,14 +213,14 @@ export function ResumeList({ resumes }: ResumeListProps) {
           selectedCategories,
         );
         if (!result.success) {
-          toast.error(result.error || "Failed to update categories");
+          toast.error(result.error || "We couldn't update those categories. Try again.");
           return;
         }
-        toast.success("Categories updated");
+        toast.success("Categories updated.");
         setCategoryDialogId(null);
         router.refresh();
       } catch {
-        toast.error("Failed to update categories");
+        toast.error("We couldn't update those categories. Try again.");
       }
     });
   };

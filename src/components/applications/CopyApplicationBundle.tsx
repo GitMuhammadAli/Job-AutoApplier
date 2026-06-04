@@ -35,9 +35,9 @@ ${coverLetter ?? "(none)"}
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast("Copied to clipboard");
+      toast("Copied.");
     } catch {
-      toast.error("Failed to copy — try selecting and copying manually");
+      toast.error("Couldn't copy automatically — select the text and copy it manually.");
     }
   };
 

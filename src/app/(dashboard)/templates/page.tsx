@@ -61,8 +61,8 @@ async function TemplatesContent() {
   if (loadError) {
     return (
       <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30 p-6 text-center">
-        <p className="text-sm font-medium text-red-700 dark:text-red-300">Failed to load templates</p>
-        <p className="mt-1 text-xs text-red-600/70 dark:text-red-400/60">Please refresh the page to try again.</p>
+        <p className="text-sm font-medium text-red-700 dark:text-red-300">We couldn&apos;t load your templates.</p>
+        <p className="mt-1 text-xs text-red-600/70 dark:text-red-400/60">Refresh the page to try again.</p>
       </div>
     );
   }

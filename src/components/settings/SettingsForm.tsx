@@ -430,12 +430,12 @@ export function SettingsForm({
         blacklistedCompanies,
       });
       if (result && !result.success) {
-        toast.error(result.error || "Failed to save settings");
+        toast.error(result.error || "We couldn't save those settings. Try again.");
       } else {
-        toast.success("Settings saved successfully");
+        toast.success("Settings saved.");
       }
     } catch {
-      toast.error("Failed to save settings");
+      toast.error("We couldn't save those settings. Try again.");
     }
     setSaving(false);
   };
@@ -1302,12 +1302,12 @@ export function SettingsForm({
                   });
                   const data = await res.json();
                   if (data.success) {
-                    toast.success("Test email sent, check your inbox");
+                    toast.success("Test email sent — check your inbox.");
                   } else {
-                    toast.error(data.hint || data.error || "Test failed");
+                    toast.error(data.hint || data.error || "We couldn't send a test. Double-check your SMTP fields above.");
                   }
                 } catch {
-                  toast.error("Failed to send test email");
+                  toast.error("Network hiccup while sending the test. Try again.");
                 }
                 setTestingEmail(false);
               }}
@@ -2241,14 +2241,14 @@ function DeleteAccountSection() {
     try {
       const result = await deleteAccount();
       if (result.success) {
-        toast.success("Account deleted");
+        toast.success("Account deleted.");
         signOut({ callbackUrl: "/login" });
       } else {
-        toast.error(result.error || "Failed to delete account");
+        toast.error(result.error || "We couldn't delete that account. Try again.");
         setStep("confirm");
       }
     } catch {
-      toast.error("Something went wrong, please try again");
+      toast.error("Something went sideways. Try again.");
       setStep("confirm");
     }
   };
