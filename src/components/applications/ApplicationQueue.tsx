@@ -168,6 +168,7 @@ const ApplicationCard = memo(function ApplicationCard({
   localStatus?: ApplicationStatus;
   onLocalStatusChange?: (id: string, status: ApplicationStatus) => void;
 }) {
+  const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
 
   const effectiveStatus = localStatus ?? app.status;
@@ -186,14 +187,25 @@ const ApplicationCard = memo(function ApplicationCard({
       try {
         data = await res.json();
       } catch {
-        data = { error: res.statusText || "Invalid response" };
+        data = { error: "The server returned something we couldn't read. Try again." };
       }
       if (res.ok && data.success) {
         onLocalStatusChange?.(app.id, "SENT");
         toast.success(APPLICATIONS.SENT_TO(app.recipientEmail || ""));
       } else {
         onLocalStatusChange?.(app.id, app.status);
-        toast.error(data.error || res.statusText || "Send failed");
+        const msg = data.error || "We couldn't send that one. Try again.";
+        // Same pattern as Recommended/QuickApplyPanel: route Settings-related
+        // failures (SMTP creds, decryption, no sender, app password) to a
+        // one-tap "Open Settings" action so users fix it without hunting
+        // through the sidebar.
+        if (/Settings/i.test(msg)) {
+          toast.error(msg, {
+            action: { label: "Open Settings", onClick: () => router.push("/settings") },
+          });
+        } else {
+          toast.error(msg);
+        }
       }
     } catch {
       onLocalStatusChange?.(app.id, app.status);

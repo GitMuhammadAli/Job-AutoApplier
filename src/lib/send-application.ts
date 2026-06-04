@@ -25,26 +25,36 @@ export async function sendApplication(
     },
   });
 
-  if (!application) return { success: false, error: "Application not found" };
+  if (!application) return { success: false, error: "That application draft isn't around any more." };
   if (!application.recipientEmail)
-    return { success: false, error: "No recipient email" };
+    return {
+      success: false,
+      error: "This draft has no recipient email yet. Add one before sending.",
+    };
   if (application.status === "SENT")
-    return { success: false, error: "Already sent" };
+    return { success: false, error: "This one's already been sent." };
 
   const userId = application.userId;
 
   const rawSettings = await prisma.userSettings.findUnique({
     where: { userId },
   });
-  if (!rawSettings) return { success: false, error: "Settings not found" };
+  if (!rawSettings)
+    return { success: false, error: "Set up your profile first — head to Settings." };
   const settings = decryptSettingsFields(rawSettings);
 
   if (hasDecryptionFailure(settings as Record<string, unknown>, "smtpPass", "smtpUser", "applicationEmail")) {
     await prisma.jobApplication.update({
       where: { id: applicationId },
-      data: { status: "FAILED", errorMessage: "SMTP credentials could not be decrypted — re-save your settings" },
+      data: {
+        status: "FAILED",
+        errorMessage: "Couldn't read your SMTP credentials. Open Settings → Email and save again to fix it.",
+      },
     });
-    return { success: false, error: "SMTP credentials decryption failed — re-save settings" };
+    return {
+      success: false,
+      error: "Couldn't read your email credentials. Open Settings → Email and save again to fix it.",
+    };
   }
 
   // Rate limiting
@@ -150,7 +160,10 @@ export async function sendApplication(
         where: { id: applicationId },
         data: { status: "READY", errorMessage: "Resume download failed — will retry" },
       });
-      return { success: false, error: "Resume download failed — will retry on next cron run" };
+      return {
+        success: false,
+        error: "Couldn't download your resume. We'll retry on the next cron run.",
+      };
     }
   } else {
     resumeAttached = true;
@@ -166,7 +179,7 @@ export async function sendApplication(
       data: { status: "SENDING" },
     });
     if (claimed.count === 0) {
-      return { success: false, error: "Already sending or sent" };
+      return { success: false, error: "Already sending or sent — nothing to do." };
     }
 
     let cleanSubject: string;
@@ -175,38 +188,48 @@ export async function sendApplication(
       cleanSubject = cleanJsonField(application.subject, "subject");
       cleanBody = cleanJsonField(application.emailBody, "body");
     } catch (parseErr) {
-      // C2: If field cleaning throws, revert SENDING → FAILED (don't leave stuck)
       await prisma.jobApplication.update({
         where: { id: applicationId },
-        data: { status: "FAILED", errorMessage: "Failed to parse email fields" },
+        data: {
+          status: "FAILED",
+          errorMessage: "We couldn't parse the email subject/body. Regenerate the draft.",
+        },
       });
       console.error(`[SendApp] cleanJsonField threw for ${applicationId}:`, parseErr);
-      return { success: false, error: "Failed to parse email fields" };
+      return {
+        success: false,
+        error: "We couldn't parse the email subject/body. Regenerate the draft.",
+      };
     }
 
-    // H1+H2: Validate email fields before sending
     if (!cleanSubject.trim()) {
       await prisma.jobApplication.update({
         where: { id: applicationId },
-        data: { status: "DRAFT", errorMessage: "Empty subject line" },
+        data: { status: "DRAFT", errorMessage: "Empty subject line — won't send." },
       });
-      return { success: false, error: "Empty subject line — cannot send" };
+      return { success: false, error: "Subject line is empty — add one before sending." };
     }
     if (!cleanBody.trim()) {
       await prisma.jobApplication.update({
         where: { id: applicationId },
-        data: { status: "DRAFT", errorMessage: "Empty email body" },
+        data: { status: "DRAFT", errorMessage: "Empty email body — won't send." },
       });
-      return { success: false, error: "Empty email body — cannot send" };
+      return { success: false, error: "Email body is empty — write something before sending." };
     }
 
     const senderAddr = settings.applicationEmail || settings.smtpUser;
     if (!senderAddr) {
       await prisma.jobApplication.update({
         where: { id: applicationId },
-        data: { status: "FAILED", errorMessage: "No sender email configured — check SMTP settings" },
+        data: {
+          status: "FAILED",
+          errorMessage: "No sender email configured. Open Settings → Email to set one up.",
+        },
       });
-      return { success: false, error: "No sender email configured" };
+      return {
+        success: false,
+        error: "No sender email configured. Open Settings → Email to set one up.",
+      };
     }
 
     // Pre-send recipient verification via RCPT TO — catches invalid
@@ -342,7 +365,10 @@ export async function sendApplication(
         },
       });
       console.error(`[SendApp] Auth failure: ${classified.message}`);
-      return { success: false, error: `SMTP auth failed — check your app password in Settings` };
+      return {
+        success: false,
+        error: "Your email password didn't check out. Open Settings → Email and update your app password.",
+      };
     }
 
     // Rate limit: don't count as retry, just re-queue for later
