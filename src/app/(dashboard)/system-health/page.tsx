@@ -26,12 +26,12 @@ export default function SystemHealthPage() {
       if (res.ok) {
         setData(await res.json());
       } else if (res.status === 401) {
-        toast.error("Please log in to view system health");
+        toast.error("Sign in to see system health.");
       } else {
-        toast.error("Failed to load system health");
+        toast.error("We couldn't load system health right now.");
       }
     } catch {
-      toast.error("Network error — check your connection");
+      toast.error("Network hiccup — check your connection and try again.");
     }
     setLoading(false);
   };

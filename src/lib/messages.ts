@@ -432,13 +432,13 @@ export const SETTINGS = {
 // ─── Templates ─────────────────────────────────────────────────────────────
 export const TEMPLATES = {
   UPDATED: "Template updated",
-  FAILED_UPDATE: "Failed to update template",
+  FAILED_UPDATE: "We couldn't save those changes. Try again.",
   DEFAULT_UPDATED: "Default template updated",
-  FAILED_SET_DEFAULT: "Failed to set default",
+  FAILED_SET_DEFAULT: "We couldn't set that as default. Try again.",
   DELETED: "Template deleted",
-  FAILED_DELETE: "Failed to delete template",
+  FAILED_DELETE: "We couldn't delete that template. Try again.",
   CREATED: "Template created",
-  FAILED_CREATE: "Failed to create template",
+  FAILED_CREATE: "We couldn't save that template. Try again.",
 } as const
 
 // ─── Dashboard / Bulk + Next-best-action greeting ──────────────────────────

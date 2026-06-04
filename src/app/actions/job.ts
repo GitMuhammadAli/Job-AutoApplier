@@ -156,7 +156,7 @@ export async function updateStage(
     return { success: true };
   } catch (error) {
     console.error("[updateStage] Error:", error);
-    return { success: false, error: "Failed to update job stage" };
+    return { success: false, error: "We couldn't move that. Try again." };
   }
 }
 
@@ -190,7 +190,7 @@ export async function dismissJob(userJobId: string, reason?: string): Promise<{ 
     return { success: true };
   } catch (error) {
     console.error("[dismissJob] Error:", error);
-    return { success: false, error: "Failed to dismiss job" };
+    return { success: false, error: "We couldn't dismiss that. Try again." };
   }
 }
 
@@ -227,7 +227,7 @@ export async function addNote(userJobId: string, note: string): Promise<{ succes
     return { success: true };
   } catch (error) {
     console.error("[addNote] Error:", error);
-    return { success: false, error: "Failed to save note" };
+    return { success: false, error: "We couldn't save that note. Try again." };
   }
 }
 
@@ -251,7 +251,7 @@ export async function toggleBookmark(userJobId: string): Promise<{ success: bool
     return { success: true };
   } catch (error) {
     console.error("[toggleBookmark] Error:", error);
-    return { success: false, error: "Failed to toggle bookmark" };
+    return { success: false, error: "We couldn't update that bookmark. Try again." };
   }
 }
 
@@ -361,7 +361,7 @@ export async function createManualJob(rawData: unknown): Promise<{ success: bool
       return { success: false, error: error.message };
     if (error instanceof z.ZodError) return { success: false, error: error.errors[0].message };
     console.error("[createManualJob] Error:", error);
-    return { success: false, error: "Failed to add job. Please try again." };
+    return { success: false, error: "We couldn't add that job. Try again." };
   }
 }
 
@@ -379,7 +379,7 @@ export async function saveGlobalJob(globalJobId: string): Promise<{ success: boo
     return { success: true, userJobId: userJob.id };
   } catch (error) {
     console.error("[saveGlobalJob] Error:", error);
-    return { success: false, error: "Failed to save job" };
+    return { success: false, error: "We couldn't save that. Try again." };
   }
 }
 
@@ -395,7 +395,7 @@ export async function dismissGlobalJob(globalJobId: string, reason?: string): Pr
     return { success: true };
   } catch (error) {
     console.error("[dismissGlobalJob] Error:", error);
-    return { success: false, error: "Failed to dismiss job" };
+    return { success: false, error: "We couldn't dismiss that. Try again." };
   }
 }
 
@@ -410,7 +410,7 @@ export async function undismissGlobalJob(globalJobId: string): Promise<{ success
     return { success: true };
   } catch (error) {
     console.error("[undismissGlobalJob] Error:", error);
-    return { success: false, error: "Failed to restore job" };
+    return { success: false, error: "We couldn't restore that. Try again." };
   }
 }
 
@@ -432,7 +432,7 @@ export async function bulkDismissJobs(userJobIds: string[]): Promise<{ success: 
     return { success: true, count: result.count };
   } catch (error) {
     console.error("[bulkDismissJobs] Error:", error);
-    return { success: false, count: 0, error: "Failed to bulk dismiss" };
+    return { success: false, count: 0, error: "We couldn't dismiss those. Try again." };
   }
 }
 
@@ -467,7 +467,7 @@ export async function bulkDeleteOldJobs(olderThanDays: number): Promise<{ succes
     return { success: true, count: result.count };
   } catch (error) {
     console.error("[bulkDeleteOldJobs] Error:", error);
-    return { success: false, count: 0, error: "Failed to clear old jobs" };
+    return { success: false, count: 0, error: "We couldn't clear those. Try again." };
   }
 }
 
@@ -485,7 +485,7 @@ export async function bulkDismissByStage(stage: string): Promise<{ success: bool
     return { success: true, count: result.count };
   } catch (error) {
     console.error("[bulkDismissByStage] Error:", error);
-    return { success: false, count: 0, error: "Failed to clear stage" };
+    return { success: false, count: 0, error: "We couldn't clear that stage. Try again." };
   }
 }
 
@@ -532,7 +532,7 @@ export async function bulkDismissGlobalJobs(
     return { success: true, count: updated.count + created };
   } catch (error) {
     console.error("[bulkDismissGlobalJobs] Error:", error);
-    return { success: false, count: 0, error: "Failed to bulk dismiss" };
+    return { success: false, count: 0, error: "We couldn't dismiss those. Try again." };
   }
 }
 
@@ -569,7 +569,7 @@ export async function bulkDismissBelowScore(
     return { success: true, count: result.count };
   } catch (error) {
     console.error("[bulkDismissBelowScore] Error:", error);
-    return { success: false, count: 0, error: "Failed to dismiss" };
+    return { success: false, count: 0, error: "We couldn't dismiss those. Try again." };
   }
 }
 
@@ -743,7 +743,7 @@ export async function bulkMarkAppliedFromSite(input: {
     return { success: true, markedCount };
   } catch (error) {
     console.error("[bulkMarkAppliedFromSite] Error:", error);
-    return { success: false, markedCount: 0, error: "Failed to mark batch applied" };
+    return { success: false, markedCount: 0, error: "We couldn't mark those applied. Try again." };
   }
 }
 
@@ -801,7 +801,7 @@ export async function markAppliedFromSite(
     return { success: true };
   } catch (error) {
     console.error("[markAppliedFromSite] Error:", error);
-    return { success: false, error: "Failed to mark as applied" };
+    return { success: false, error: "We couldn't mark that applied. Try again." };
   }
 }
 

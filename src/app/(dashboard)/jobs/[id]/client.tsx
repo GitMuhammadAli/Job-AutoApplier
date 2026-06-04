@@ -142,14 +142,14 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
       try {
         const result = await markAppliedFromSite(job.id, job.globalJob.source);
         if (!result.success) {
-          toast.error(result.error || "Failed to mark as applied");
+          toast.error(result.error || "We couldn't mark that applied. Try again.");
           return;
         }
         setMarkedApplied(true);
-        toast.success("Marked as applied!");
+        toast.success("Marked as applied.");
         router.refresh();
       } catch {
-        toast.error("Failed to mark as applied");
+        toast.error("We couldn't mark that applied. Try again.");
       }
     });
   };
@@ -163,13 +163,13 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
       try {
         const result = await updateStage(job.id, newStage, job.stage);
         if (!result.success) {
-          toast.error(result.error || "Failed to update stage");
+          toast.error(result.error || "We couldn't move that. Try again.");
           return;
         }
-        toast.success(`Moved to ${newStage.toLowerCase()}`);
+        toast.success(`Moved to ${newStage.toLowerCase()}.`);
         router.refresh();
       } catch {
-        toast.error("Failed to update stage");
+        toast.error("We couldn't move that. Try again.");
       }
     });
   };
@@ -179,13 +179,13 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
       try {
         const result = await dismissJob(job.id, dismissReason || undefined);
         if (!result.success) {
-          toast.error(result.error || "Failed to dismiss job");
+          toast.error(result.error || "We couldn't dismiss that. Try again.");
           return;
         }
-        toast.success("Job dismissed");
+        toast.success("Dismissed — it won't show up again.");
         router.push("/dashboard");
       } catch {
-        toast.error("Failed to dismiss job");
+        toast.error("We couldn't dismiss that. Try again.");
       }
     });
   };

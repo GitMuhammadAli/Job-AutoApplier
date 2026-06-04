@@ -44,15 +44,14 @@ export function JobForm() {
   async function handleExtractUrl() {
     const url = pasteUrl.trim();
     if (!url) {
-      toast.error("Paste a URL first");
+      toast.error("Paste a job URL first.");
       return;
     }
 
-    // Basic URL validation
     try {
       new URL(url);
     } catch {
-      toast.error("Please enter a valid URL");
+      toast.error("That doesn't look like a valid URL. Check for typos.");
       return;
     }
 
@@ -66,11 +65,10 @@ export function JobForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.error || "Failed to extract job details");
+        toast.error(data.error || "We couldn't read that page. Paste the JD manually below.");
         return;
       }
 
-      // Auto-fill the form with extracted data
       if (data.title) setTitle(data.title);
       if (data.company) setCompany(data.company);
       if (data.location) setLocation(data.location);
@@ -81,9 +79,9 @@ export function JobForm() {
       setExtracted(true);
 
       const filled = [data.title, data.company, data.location].filter(Boolean).length;
-      toast.success(`Extracted ${filled} fields from URL`);
+      toast.success(`Pulled ${filled} field${filled === 1 ? "" : "s"} from the URL.`);
     } catch {
-      toast.error("Failed to fetch URL, check the link and try again");
+      toast.error("Couldn't fetch that page. Check the link and try again.");
     } finally {
       setIsExtracting(false);
     }
@@ -91,7 +89,7 @@ export function JobForm() {
 
   const handleSubmit = () => {
     if (!title.trim() || !company.trim()) {
-      toast.error("Title and company are required");
+      toast.error("Title and company are required to add a job.");
       return;
     }
 
@@ -108,13 +106,13 @@ export function JobForm() {
           companyEmail: companyEmail.trim() || undefined,
         });
         if (!result.success) {
-          toast.error(result.error || "Failed to add job");
+          toast.error(result.error || "We couldn't add that job. Try again.");
           return;
         }
-        toast.success("Job added successfully");
+        toast.success("Job added — find it on your board.");
         router.push("/dashboard");
       } catch {
-        toast.error("Failed to add job");
+        toast.error("We couldn't add that job. Try again.");
       }
     });
   };

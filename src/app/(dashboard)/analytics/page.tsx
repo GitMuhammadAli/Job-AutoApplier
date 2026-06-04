@@ -58,7 +58,9 @@ async function AnalyticsContent() {
   if (!analytics) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
-        <p className="text-sm text-slate-500 dark:text-zinc-400">Failed to load analytics data.</p>
+        <p className="text-sm text-slate-500 dark:text-zinc-400">
+          We couldn&apos;t load your analytics right now. Refresh the page to try again.
+        </p>
       </div>
     );
   }

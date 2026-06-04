@@ -223,7 +223,7 @@ export function RecommendedClient({
         next.delete(id);
         return next;
       });
-      toast.error(result.error || "Failed to dismiss job");
+      toast.error(result.error || "We couldn't dismiss that. Try again.");
       return;
     }
     toast("Job dismissed", {
@@ -592,7 +592,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         // substring so the centralized APPLICATION_EMAIL_ERR copy stays
         // the source of truth and we don't have to thread error codes
         // through the server action's return shape.
-        const errMsg = result.error || "Failed to prepare application";
+        const errMsg = result.error || "We couldn't prepare that application. Try again.";
         const wantsSettings = /Settings/i.test(errMsg);
         const wantsResumes = /Upload a resume|under Resumes/i.test(errMsg);
         if (wantsSettings) {
@@ -610,7 +610,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         }
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to prepare", { id: toastId });
+      toast.error(err instanceof Error ? err.message : "We couldn't prepare that. Try again.", { id: toastId });
     } finally {
       setTailoring(false);
     }
@@ -627,7 +627,7 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
       setSaved(true);
       toast.success("Job saved to your board");
     } else {
-      toast.error(result.error || "Failed to save job");
+      toast.error(result.error || "We couldn't save that. Try again.");
     }
   }, [saved, saving, job.id]);
 
