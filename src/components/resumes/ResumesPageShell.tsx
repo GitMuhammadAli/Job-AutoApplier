@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, FileText, Upload, Clock, User, Target, ArrowRight, TrendingUp } from "lucide-react";
+import { Sparkles, FileText, Upload, Clock, User, Target, ArrowRight, TrendingUp, MoreHorizontal, Lightbulb } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ResumeList } from "@/components/resumes/ResumeList";
@@ -55,10 +61,13 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
       <JdQuickStart hasProfile={hasProfile} hasUploads={uploadedResumes.length > 0} />
       <Tabs defaultValue={hasProfile ? "profile" : "uploads"} className="w-full">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList>
+          {/* Horizontal scroll on mobile when all 4 tabs don't fit. Without
+              this, the tab row would stack to 2 rows below 380px and look
+              busted. */}
+          <TabsList className="self-start overflow-x-auto max-w-full">
             <TabsTrigger value="profile" className="gap-1.5">
               <User size={14} />
-              My Profile
+              <span className="hidden xs:inline sm:inline">My </span>Profile
             </TabsTrigger>
             <TabsTrigger value="variants" className="gap-1.5">
               <Sparkles size={14} />
@@ -77,29 +86,43 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
             </TabsTrigger>
           </TabsList>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              asChild
-              variant="outline"
-              className="gap-1.5"
-              title="Callback rate by template + coverage across your sent applications"
-            >
-              <Link href="/resumes/outcomes">
-                <TrendingUp size={14} />
-                What&apos;s working
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="gap-1.5"
-              title="See the keywords blocking the most jobs in your shortlist"
-            >
-              <Link href="/resumes/gaps">
-                <Target size={14} />
-                Gaps
-              </Link>
-            </Button>
+          {/* Primary action + Insights dropdown.
+              Previous version had 3 buttons in the header (What's working +
+              Gaps + Generate resume) which felt cluttered on desktop and
+              wrapped to 3 lines on mobile. Consolidated What's working +
+              Gaps under an Insights menu so the primary "Generate resume"
+              action is unmistakable, and the secondary analytics views
+              are still one click away. */}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-1.5">
+                  <Lightbulb size={14} />
+                  Insights
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem asChild>
+                  <Link href="/resumes/outcomes" className="flex items-center gap-2 cursor-pointer">
+                    <TrendingUp size={14} className="text-emerald-600 dark:text-emerald-400" />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium">What&apos;s working</span>
+                      <span className="text-[10px] text-zinc-500">Callback rate by template</span>
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/resumes/gaps" className="flex items-center gap-2 cursor-pointer">
+                    <Target size={14} className="text-amber-600 dark:text-amber-400" />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium">Keyword gaps</span>
+                      <span className="text-[10px] text-zinc-500">What&apos;s blocking the most jobs</span>
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {hasProfile ? (
               <Button
                 onClick={() => setGenerateOpen(true)}
@@ -109,9 +132,6 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
                 Generate resume
               </Button>
             ) : (
-              // Users with only legacy PDF uploads (no structured profile yet) need
-              // to set one up before generating. Don't hide the entry point — link
-              // them straight to the setup flow so they can discover the feature.
               <Button
                 asChild
                 className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"

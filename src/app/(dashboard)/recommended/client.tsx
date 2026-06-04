@@ -738,26 +738,26 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
           <button
             onClick={handleTailorAndApply}
             disabled={tailoring}
-            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold bg-emerald-600 text-white hover:bg-emerald-500 active:bg-emerald-700 disabled:bg-emerald-500/60 transition-colors touch-manipulation"
+            className="inline-flex flex-1 sm:flex-initial min-w-0 justify-center items-center gap-1 rounded-lg px-2 sm:px-2.5 py-1.5 text-[11px] font-semibold bg-emerald-600 text-white hover:bg-emerald-500 active:bg-emerald-700 disabled:bg-emerald-500/60 transition-colors touch-manipulation"
             title="Generate tailored resume + draft email in one click — review before sending"
           >
-            {tailoring ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-            {tailoring ? "Preparing…" : "Tailor & Apply"}
+            {tailoring ? <Loader2 className="h-3 w-3 animate-spin shrink-0" /> : <Sparkles className="h-3 w-3 shrink-0" />}
+            <span className="truncate">{tailoring ? "Preparing…" : "Tailor & Apply"}</span>
           </button>
         )}
 
         {(job.applyUrl || job.sourceUrl) && (
           <button
             onClick={handleViewExternal}
-            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors touch-manipulation ${
+            className={`inline-flex flex-1 sm:flex-initial min-w-0 justify-center items-center gap-1 rounded-lg px-2 sm:px-2.5 py-1.5 text-[11px] font-semibold transition-colors touch-manipulation ${
               canTailorAndApply
                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/60"
                 : "bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800"
             }`}
             title={canTailorAndApply ? "Open the company's application form externally" : "Apply via the company's own form"}
           >
-            <ExternalLink className="h-3 w-3" />
-            {canTailorAndApply ? "Apply on site" : "Apply"}
+            <ExternalLink className="h-3 w-3 shrink-0" />
+            <span className="truncate">{canTailorAndApply ? "Apply on site" : "Apply"}</span>
           </button>
         )}
 
