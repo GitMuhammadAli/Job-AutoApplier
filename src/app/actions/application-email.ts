@@ -11,6 +11,7 @@ import { pickBestResumeWithTier } from "@/lib/matching/resume-matcher";
 import { ensureTailoredResume } from "@/lib/resume/auto-attach";
 import { computeAtsCoverageLite, extractJdKeywords } from "@/lib/resume/keyword-coverage";
 import { expandKeywordVariants } from "@/lib/resume/keyword-aliases";
+import { APPLICATION_EMAIL_ERR } from "@/lib/messages";
 import type { GenerateEmailInput } from "@/lib/ai-email-generator";
 
 async function buildEmailInput(
@@ -27,16 +28,16 @@ async function buildEmailInput(
     where: { id: userJobId, userId },
     include: { globalJob: true },
   });
-  if (!userJob) throw new Error("Job not found");
+  if (!userJob) throw new Error(APPLICATION_EMAIL_ERR.JOB_NOT_FOUND);
 
   const rawSettings = await prisma.userSettings.findUnique({ where: { userId } });
-  if (!rawSettings) throw new Error("Complete your profile in Settings first");
+  if (!rawSettings) throw new Error(APPLICATION_EMAIL_ERR.NO_SETTINGS);
   const settings = decryptSettingsFields(rawSettings);
   if (!settings.fullName) {
     throw new Error(
       rawSettings.fullName
-        ? "Could not decrypt your profile data — contact support or re-save your settings"
-        : "Complete your profile in Settings first"
+        ? APPLICATION_EMAIL_ERR.PROFILE_DECRYPT_FAIL
+        : APPLICATION_EMAIL_ERR.PROFILE_INCOMPLETE,
     );
   }
 
@@ -51,7 +52,7 @@ async function buildEmailInput(
         detectedSkills: true, updatedAt: true,
       },
     });
-    if (!resume) throw new Error("Selected resume not found");
+    if (!resume) throw new Error(APPLICATION_EMAIL_ERR.SELECTED_RESUME_NOT_FOUND);
     resumeResult = { resume, tier: "fallback" as const, reason: "Manually selected" };
   } else {
     resumeResult = await pickBestResumeWithTier(userId, {
@@ -63,7 +64,7 @@ async function buildEmailInput(
     }, settings.resumeMatchMode);
   }
 
-  if (!resumeResult) throw new Error("Upload at least one resume first");
+  if (!resumeResult) throw new Error(APPLICATION_EMAIL_ERR.NO_RESUMES_UPLOADED);
 
   const defaultTemplate = await prisma.emailTemplate.findFirst({
     where: { userId, isDefault: true },
@@ -506,6 +507,22 @@ export async function tailorAndPrepareApplication(globalJobId: string): Promise<
 }> {
   try {
     const userId = await getAuthUserId();
+
+    // Preflight — surface friendly error BEFORE creating a UserJob so we
+    // don't leave a dangling "SAVED" job on the user's kanban with no
+    // matching application. Previous behavior: upsert the UserJob first,
+    // then throw deep in the email pipeline → user clicked once, ended
+    // up with a saved job and an error toast, very confused.
+    const [settings, resumeCount] = await Promise.all([
+      prisma.userSettings.findUnique({ where: { userId }, select: { fullName: true } }),
+      prisma.resume.count({ where: { userId, isDeleted: false } }),
+    ]);
+    if (!settings || !settings.fullName) {
+      return { success: false, error: APPLICATION_EMAIL_ERR.NO_SETTINGS };
+    }
+    if (resumeCount === 0) {
+      return { success: false, error: APPLICATION_EMAIL_ERR.NO_RESUMES_UPLOADED };
+    }
 
     // Step 1 — ensure UserJob link exists (or unhide a dismissed one).
     const userJob = await prisma.userJob.upsert({

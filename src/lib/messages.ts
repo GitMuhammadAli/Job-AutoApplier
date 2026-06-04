@@ -369,6 +369,22 @@ export const RESUME_TAILORING = {
     `Heads up: we read your profile from "${resumeName}". For faster runs next time, save your structured profile.`,
 } as const
 
+// ─── Application-email action errors ───────────────────────────────────────
+// These surface in toasts when Tailor & Apply or Generate Email fail. Old
+// copy threw raw mechanism words ("contact support", "Complete your profile
+// in Settings first") — replaced with friendlier strings that name the page
+// to go to.
+export const APPLICATION_EMAIL_ERR = {
+  NO_SETTINGS: "Set up your profile first — head to Settings.",
+  PROFILE_DECRYPT_FAIL: "Couldn't read your saved profile. Open Settings and save again to fix it.",
+  PROFILE_INCOMPLETE: "Your profile is missing some basics. Pop into Settings and fill in your name and email.",
+  NO_RESUMES_UPLOADED: "Upload a resume first — under Resumes.",
+  SELECTED_RESUME_NOT_FOUND: "We couldn't find that resume. Pick a different one.",
+  JOB_NOT_FOUND: "We couldn't find that job — it may have been removed.",
+  APPLICATION_NOT_FOUND: "That application draft isn't around any more.",
+  INVALID_EMAIL: "That email address doesn't look right.",
+} as const
+
 // ─── JD quick-start card on /resumes ───────────────────────────────────────
 export const TAILOR_CARD = {
   HEADLINE: "Tailor for a specific job",
