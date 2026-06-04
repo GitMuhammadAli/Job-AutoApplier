@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put, list } from "@vercel/blob";
+import { put, list, del } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { requireAuthUserId } from "@/lib/auth";
 import { extractText } from "@/lib/resume-parser";
@@ -170,6 +170,16 @@ export async function POST(req: NextRequest) {
       resume = await prisma.resume.create({ data: resumeData });
     }
   } catch (err) {
+    // Blob succeeded but DB write failed — the file is sitting in Vercel Blob
+    // storage with no row pointing at it. Best-effort delete to avoid orphaned
+    // blobs racking up cost. We swallow the cleanup error because the user
+    // already gets the DB error toast; logging it is enough.
+    del(blob.url).catch((cleanupErr) => {
+      console.error(
+        `[upload] Failed to delete orphaned blob ${blob.url} after DB write failure:`,
+        cleanupErr,
+      );
+    });
     return fail("DB_WRITE_FAILED", RESUME_UPLOAD.DB_WRITE_FAILED, 500, err);
   }
 

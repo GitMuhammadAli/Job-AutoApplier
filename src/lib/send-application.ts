@@ -135,27 +135,61 @@ export async function sendApplication(
 
   // ── 2. Fallback: existing uploaded Resume PDF ─────────────────────────
   if (!resumeAttached && application.resume?.fileUrl) {
-    try {
-      const response = await fetch(application.resume.fileUrl, {
-        signal: AbortSignal.timeout(5000),
-      });
-      if (response.ok) {
-        const buffer = Buffer.from(await response.arrayBuffer());
-        const rawName = application.resume.fileName || application.resume.name;
-        const fileName = rawName.toLowerCase().endsWith(".pdf") ? rawName : `${rawName}.pdf`;
-        attachments.push({
-          filename: fileName,
-          content: buffer,
-          contentType: "application/pdf",
+    // Retry policy: 3 attempts × 5s each, with exponential-ish backoff.
+    // Previously this was a single fetch with a 5s timeout — any transient
+    // Vercel Blob 503 or slow CDN response would fail the whole send and
+    // the user would see "Couldn't download your resume" even when a
+    // 1-second retry would have succeeded. Cron will retry the whole send
+    // next cycle, but this saves a 5-minute round-trip on flake.
+    const MAX_ATTEMPTS = 3;
+    let lastError: unknown = null;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS && !resumeAttached; attempt++) {
+      try {
+        const response = await fetch(application.resume.fileUrl, {
+          signal: AbortSignal.timeout(5000),
         });
-        resumeAttached = true;
-      } else {
-        console.error(`[SendApp] Resume download HTTP ${response.status} for ${application.resume.id}`);
+        if (response.ok) {
+          const buffer = Buffer.from(await response.arrayBuffer());
+          const rawName = application.resume.fileName || application.resume.name;
+          const fileName = rawName.toLowerCase().endsWith(".pdf") ? rawName : `${rawName}.pdf`;
+          attachments.push({
+            filename: fileName,
+            content: buffer,
+            contentType: "application/pdf",
+          });
+          resumeAttached = true;
+          break;
+        }
+        lastError = `HTTP ${response.status}`;
+        // 4xx is permanent (file deleted, ACL changed). Don't retry.
+        if (response.status >= 400 && response.status < 500) {
+          console.error(
+            `[SendApp] Resume download permanent failure HTTP ${response.status} for ${application.resume.id} — not retrying`,
+          );
+          break;
+        }
+        console.warn(
+          `[SendApp] Resume download attempt ${attempt}/${MAX_ATTEMPTS} got HTTP ${response.status} for ${application.resume.id}`,
+        );
+      } catch (err) {
+        lastError = err;
+        console.warn(
+          `[SendApp] Resume download attempt ${attempt}/${MAX_ATTEMPTS} threw for ${application.resume.id}:`,
+          err instanceof Error ? err.message : err,
+        );
       }
-    } catch (err) {
-      console.error(`[SendApp] Failed to download resume ${application.resume.id}:`, err);
+      if (!resumeAttached && attempt < MAX_ATTEMPTS) {
+        // 500ms, 1500ms backoff. Keeps the total wall-clock under the
+        // surrounding send timeout while spacing out enough to clear
+        // transient blips.
+        await new Promise((r) => setTimeout(r, 500 * attempt));
+      }
     }
     if (!resumeAttached) {
+      console.error(
+        `[SendApp] Resume download failed after ${MAX_ATTEMPTS} attempts for ${application.resume.id}:`,
+        lastError,
+      );
       await prisma.jobApplication.update({
         where: { id: applicationId },
         data: { status: "READY", errorMessage: "Resume download failed — will retry" },

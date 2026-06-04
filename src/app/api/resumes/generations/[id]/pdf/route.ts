@@ -19,11 +19,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuthUserId } from "@/lib/auth";
+import { renderPdfFromHtml, ChromiumNotInstalledError } from "@/lib/resume/pdf";
+import { GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
-
-const RENDER_TIMEOUT_MS = 25_000;
 
 export async function GET(
   _req: NextRequest,
@@ -37,31 +37,43 @@ export async function GET(
   });
 
   if (!generation) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: GENERIC.NOT_FOUND }, { status: 404 });
   }
   if (generation.userId !== userId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: GENERIC.FORBIDDEN }, { status: 403 });
   }
   if (!generation.htmlSnapshot) {
-    return NextResponse.json({ error: "Snapshot missing" }, { status: 410 });
+    // 410 Gone — the row exists but its rendered HTML was dropped, so the
+    // user needs to re-generate.
+    return NextResponse.json(
+      {
+        error: "This resume's snapshot is gone. Re-generate it from /resumes.",
+        code: "SNAPSHOT_MISSING",
+      },
+      { status: 410 },
+    );
   }
 
   let pdf: Buffer;
   try {
     pdf = await renderPdfFromHtml(generation.htmlSnapshot);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "PDF render failed";
-    const code = msg.includes("Executable doesn't exist")
-      ? "CHROMIUM_NOT_INSTALLED"
-      : "RENDER_FAILED";
+    if (err instanceof ChromiumNotInstalledError) {
+      return NextResponse.json(
+        {
+          error: "PDF rendering isn't available right now.",
+          code: "CHROMIUM_NOT_INSTALLED",
+          hint: "Run `npx playwright install chromium` once on the server.",
+        },
+        { status: 503 },
+      );
+    }
+    const msg = err instanceof Error ? err.message : "PDF render failed.";
     return NextResponse.json(
       {
-        error: msg,
-        code,
-        hint:
-          code === "CHROMIUM_NOT_INSTALLED"
-            ? "Run `npx playwright install chromium` once on the server."
-            : undefined,
+        error: "The PDF didn't come out right. Try generating again — sometimes a different template helps.",
+        code: "RENDER_FAILED",
+        hint: msg.slice(0, 200),
       },
       { status: 503 },
     );
@@ -81,28 +93,14 @@ export async function GET(
   });
 }
 
-async function renderPdfFromHtml(html: string): Promise<Buffer> {
-  // Dynamic import so the route compiles even when playwright-core
-  // browsers aren't installed locally.
-  const { chromium } = await import("playwright-core");
-
-  const browser = await chromium.launch({ headless: true });
-  try {
-    const ctx = await browser.newContext();
-    const page = await ctx.newPage();
-
-    await page.setContent(html, { waitUntil: "networkidle", timeout: RENDER_TIMEOUT_MS });
-    const buffer = await page.pdf({
-      format: "Letter",
-      printBackground: true,
-      margin: { top: "0", bottom: "0", left: "0", right: "0" },
-    });
-
-    return Buffer.from(buffer);
-  } finally {
-    await browser.close().catch(() => {});
-  }
-}
+// Was: a second copy of renderPdfFromHtml inlined here that called
+// chromium.launch({ headless: true }) directly. On Vercel, that would
+// crash because Vercel's serverless runtime needs @sparticuz/chromium
+// (with its own executablePath + args). The version in @/lib/resume/pdf
+// auto-detects VERCEL=1 and routes accordingly. Importing it instead of
+// duplicating means both /api/resumes/generations/[id]/pdf and
+// sendApplication's attachment renderer go through the same Vercel-aware
+// path — no behavior drift, no env-specific surprise crashes.
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 80);

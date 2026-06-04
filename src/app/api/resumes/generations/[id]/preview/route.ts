@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuthUserId } from "@/lib/auth";
+import { GENERIC } from "@/lib/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -24,13 +25,19 @@ export async function GET(
   });
 
   if (!generation) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: GENERIC.NOT_FOUND }, { status: 404 });
   }
   if (generation.userId !== userId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: GENERIC.FORBIDDEN }, { status: 403 });
   }
   if (!generation.htmlSnapshot) {
-    return NextResponse.json({ error: "Snapshot missing" }, { status: 410 });
+    return NextResponse.json(
+      {
+        error: "This resume's snapshot is gone. Re-generate it from /resumes.",
+        code: "SNAPSHOT_MISSING",
+      },
+      { status: 410 },
+    );
   }
 
   return new NextResponse(generation.htmlSnapshot, {
