@@ -188,16 +188,68 @@ export async function parseUploadedPdfToProfile(
 }
 
 /**
- * Picks the user's "best" uploaded PDF for fallback parsing.
- * Strategy: default-marked first, else most-recent non-deleted.
- * Returns null if user has no uploaded PDFs.
+ * Picks the user's "best" uploaded PDF for fallback parsing — but ONLY
+ * resumes that actually have extractable text. Returns top N candidates
+ * so the caller can try the next one if the first fails AI parsing.
+ *
+ * Why a list, not a single pick:
+ *   Older code returned just the user's default upload. If their default
+ *   was one of the "No content" PDFs (image-only scan, broken extraction,
+ *   etc), the whole tailor pipeline failed immediately with "Resume has
+ *   no extractable text" — never trying the other 6 uploads that did
+ *   have content. Now we return up to N candidates and the caller loops.
+ *
+ * Filter: content length ≥ 100 chars AND textQuality is not "empty".
+ *         (textQuality is set during upload; "empty" / "poor" / "good".)
+ * Order:  isDefault desc → textQuality (good before poor) → createdAt desc.
+ *
+ * Returns empty array when no upload has parseable text. Caller should
+ * surface a "re-parse your PDFs first" message in that case.
  */
-export async function pickBestUploadForParse(userId: string): Promise<{ id: string; name: string } | null> {
-  return prisma.resume.findFirst({
-    where: { userId, isDeleted: false },
-    orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
-    select: { id: true, name: true },
-  });
+export async function pickBestUploadsForParse(
+  userId: string,
+  take = 3,
+): Promise<Array<{ id: string; name: string; textQuality: string | null }>> {
+  return prisma.resume.findMany({
+    where: {
+      userId,
+      isDeleted: false,
+      content: { not: null },
+      // Length filter via raw can't be done in Prisma where; we filter in JS
+      // below. textQuality != "empty" knocks out the worst offenders.
+      textQuality: { not: "empty" },
+    },
+    orderBy: [
+      { isDefault: "desc" },
+      // textQuality "good" sorts before "poor" alphabetically by accident;
+      // explicit ordering would need a $queryRaw. JS sorts the small list
+      // for clarity below.
+      { createdAt: "desc" },
+    ],
+    select: { id: true, name: true, content: true, textQuality: true },
+  }).then((rows) =>
+    rows
+      .filter((r) => (r.content?.length ?? 0) >= 100)
+      .sort((a, b) => {
+        // Promote "good" over "poor"; tiebreak preserved from DB order.
+        const aQ = a.textQuality === "good" ? 0 : 1;
+        const bQ = b.textQuality === "good" ? 0 : 1;
+        return aQ - bQ;
+      })
+      .slice(0, take)
+      .map(({ id, name, textQuality }) => ({ id, name, textQuality })),
+  );
+}
+
+/**
+ * Backwards-compatible single-pick wrapper. Returns the first usable
+ * upload or null. New code should prefer the list version above.
+ */
+export async function pickBestUploadForParse(
+  userId: string,
+): Promise<{ id: string; name: string } | null> {
+  const candidates = await pickBestUploadsForParse(userId, 1);
+  return candidates[0] ? { id: candidates[0].id, name: candidates[0].name } : null;
 }
 
 /**

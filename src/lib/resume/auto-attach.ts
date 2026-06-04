@@ -26,7 +26,11 @@ import {
 } from "./profile-mapper";
 import { renderResume } from "./render";
 import { DEFAULT_TEMPLATE_ID } from "./templates/registry";
-import { passesProfileGate } from "./parse-uploaded-pdf";
+import {
+  passesProfileGate,
+  pickBestUploadsForParse,
+  parseUploadedPdfToProfile,
+} from "./parse-uploaded-pdf";
 
 const MIN_JD_LENGTH = 80;
 
@@ -87,11 +91,43 @@ export async function ensureTailoredResume(
 
   if (!user) return null;
 
-  const profile = bundleToResumeProfile({
+  let profile = bundleToResumeProfile({
     user, settings, summaries, experiences, projects, education, certifications,
   });
 
-  if (!passesProfileGate(profile)) return null;
+  // Structured-profile gate failure — try parsing one of the user's uploads
+  // as a fallback so auto-apply still gets a tailored PDF. Previously this
+  // path returned null and the user got a generic uploaded PDF attached
+  // even when their JD had specific keywords we could've matched. Limit to
+  // top 2 candidates to bound LLM cost on the auto-send path.
+  if (!passesProfileGate(profile)) {
+    const candidates = await pickBestUploadsForParse(userId, 2);
+    let parsedAny = false;
+    for (const candidate of candidates) {
+      try {
+        const parsed = await parseUploadedPdfToProfile(candidate.id, userId);
+        if (parsed.profile && passesProfileGate(parsed.profile)) {
+          profile = parsed.profile;
+          parsedAny = true;
+          console.log(
+            `[auto-attach] application ${applicationId}: parsed structured profile from upload "${candidate.name}"`,
+          );
+          break;
+        }
+      } catch (err) {
+        console.warn(
+          `[auto-attach] application ${applicationId}: parse failed for "${candidate.name}":`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+    if (!parsedAny) {
+      console.log(
+        `[auto-attach] application ${applicationId}: no usable profile from uploads (${candidates.length} tried) — using uploaded PDF as-is`,
+      );
+      return null;
+    }
+  }
 
   const jdText = (application.userJob.globalJob.description ?? "").trim();
   let renderInput = buildRenderInput(profile, { templateId: DEFAULT_TEMPLATE_ID, pageTarget: 1 });

@@ -29,7 +29,7 @@ import { fillTemplate, type TemplateFillResult } from "@/lib/agents/resume-templ
 import { QuotaExceededError, formatRetryMessage } from "@/lib/quota/quota";
 import {
   parseUploadedPdfToProfile,
-  pickBestUploadForParse,
+  pickBestUploadsForParse,
   passesProfileGate,
 } from "@/lib/resume/parse-uploaded-pdf";
 import {
@@ -92,40 +92,71 @@ export async function POST(req: NextRequest) {
   // Gate: minimum content before tailoring is allowed.
   // If the structured profile doesn't meet the gate, try the parse-from-upload
   // fallback so users with only uploaded PDFs (no manual profile entry) can
-  // still generate. This is the "AI auto-uses your existing resume" path.
+  // still generate. Old behavior: try only the default upload — if THAT one
+  // had no text (image-only PDF, broken extraction), the whole pipeline
+  // failed with "Resume has no extractable text" and the user got stuck
+  // even though they had 6 other uploads with content. New behavior: walk
+  // the top 3 candidates (already filtered to content >= 100 chars +
+  // textQuality not "empty"), try each, take the first one that yields a
+  // structured profile.
   if (!passesProfileGate(profile)) {
-    const bestUpload = await pickBestUploadForParse(userId);
-    if (!bestUpload) {
+    const candidates = await pickBestUploadsForParse(userId, 3);
+    if (candidates.length === 0) {
+      // Either user has no uploads at all, or every upload's textQuality
+      // is "empty"/content too short. Different remediation per case so
+      // we tell them what to do next.
+      const anyUpload = await prisma.resume.findFirst({
+        where: { userId, isDeleted: false },
+        select: { id: true },
+      });
       return NextResponse.json(
         {
-          error: RESUME_TAILORING.NO_PROFILE_OR_UPLOADS,
-          code: "NO_PROFILE_OR_UPLOADS",
+          error: anyUpload
+            ? RESUME_TAILORING.NO_PARSEABLE_UPLOADS
+            : RESUME_TAILORING.NO_PROFILE_OR_UPLOADS,
+          code: anyUpload ? "NO_PARSEABLE_UPLOADS" : "NO_PROFILE_OR_UPLOADS",
         },
         { status: 422 },
       );
     }
-    try {
-      const parsed = await parseUploadedPdfToProfile(bestUpload.id, userId);
-      if (!parsed.profile || !passesProfileGate(parsed.profile)) {
-        return NextResponse.json(
-          {
-            error: RESUME_TAILORING.PARSE_INCOMPLETE(bestUpload.name),
-            code: "PARSE_INCOMPLETE",
-          },
-          { status: 422 },
-        );
+
+    let parseError: string | null = null;
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
+      try {
+        const parsed = await parseUploadedPdfToProfile(candidate.id, userId);
+        if (parsed.profile && passesProfileGate(parsed.profile)) {
+          profile = parsed.profile;
+          profileSource = "parsed-pdf";
+          parsedFromResumeName = parsed.resumeName;
+          sourceWarnings.push(
+            i === 0
+              ? RESUME_TAILORING.USED_UPLOADED_PROFILE(parsed.resumeName)
+              : RESUME_TAILORING.TRIED_MULTIPLE_UPLOADS(parsed.resumeName, i + 1),
+          );
+          parseError = null;
+          break;
+        }
+        // Profile parsed but failed gate — keep the last error for the
+        // user, but try the next candidate.
+        parseError = RESUME_TAILORING.PARSE_INCOMPLETE(candidate.name);
+      } catch (err) {
+        parseError = err instanceof Error ? err.message : RESUME_TAILORING.PARSE_FAILED;
+        // Try the next candidate; only surface the error if ALL fail.
+        continue;
       }
-      profile = parsed.profile;
-      profileSource = "parsed-pdf";
-      parsedFromResumeName = parsed.resumeName;
-      sourceWarnings.push(RESUME_TAILORING.USED_UPLOADED_PROFILE(parsed.resumeName));
-    } catch (err) {
+    }
+
+    if (profileSource !== "parsed-pdf") {
+      // None of the candidates yielded a usable profile. Tell the user
+      // how many we tried + what to do next.
       return NextResponse.json(
         {
-          error: err instanceof Error ? err.message : RESUME_TAILORING.PARSE_FAILED,
-          code: "PARSE_FAILED",
+          error: RESUME_TAILORING.ALL_UPLOADS_FAILED(candidates.length),
+          code: "ALL_UPLOADS_FAILED",
+          lastError: parseError,
         },
-        { status: 502 },
+        { status: 422 },
       );
     }
   }

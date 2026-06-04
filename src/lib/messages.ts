@@ -299,8 +299,14 @@ export const RESUME_TAILORING = {
   PARSE_INCOMPLETE: (resumeName: string) =>
     `We couldn't read enough from "${resumeName}". Try another resume, or fill in the editor by hand.`,
   PARSE_FAILED: "We couldn't read that resume. Try another one.",
+  NO_PARSEABLE_UPLOADS:
+    "None of your uploaded resumes have readable text yet. Open the Uploads tab and tap Re-parse PDF on one, then come back.",
+  ALL_UPLOADS_FAILED: (count: number) =>
+    `We tried ${count} of your uploaded resumes but couldn't pull a full profile from any. Build your profile manually under My Profile to keep going.`,
   USED_UPLOADED_PROFILE: (resumeName: string) =>
     `Used "${resumeName}" for this one. Save a profile under Resumes for faster runs next time.`,
+  TRIED_MULTIPLE_UPLOADS: (resumeName: string, attempts: number) =>
+    `Used "${resumeName}" — your first ${attempts - 1} upload${attempts - 1 === 1 ? "" : "s"} didn't have enough structure. Build a profile under My Profile to skip this next time.`,
 
   // Generate route — render-time errors
   RENDER_FALLBACK_GENERIC:
