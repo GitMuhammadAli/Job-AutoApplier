@@ -145,7 +145,7 @@ export default function AdminDashboard() {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-3">
         <AlertTriangle className="h-8 w-8 text-slate-600" />
-        <p className="text-sm text-slate-500">Failed to load admin stats</p>
+        <p className="text-sm text-slate-500">We couldn&apos;t load admin stats.</p>
         <Button size="sm" variant="outline" onClick={fetchStats}
           className="gap-1.5 border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08]">
           <RefreshCw className="h-3.5 w-3.5" />Retry
@@ -501,10 +501,10 @@ export default function AdminDashboard() {
                       if (data.readyDowngraded) parts.push(`${data.readyDowngraded} READY→DRAFT`);
                       toast.success(parts.length > 0 ? `Cleaned: ${parts.join(", ")}` : `Scanned ${data.draftsScanned} drafts — nothing to clean`);
                     } else {
-                      toast.error(data.error || "Failed");
+                      toast.error(data.error || "We couldn't run the cleanup. Try again.");
                     }
                     setTimeout(fetchStats, 2000);
-                  } catch { toast.error("Failed"); }
+                  } catch { toast.error("We couldn't run the cleanup. Try again."); }
                   setTriggeringSource(null);
                 }}>
                 <Mail className="h-3 w-3" /> Cleanup Guessed Emails

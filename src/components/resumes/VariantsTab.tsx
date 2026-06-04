@@ -49,11 +49,11 @@ export function VariantsTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isFavorite: false }),
       });
-      if (!res.ok) throw new Error("unfavorite failed");
-      toast.success("Removed from favorites");
+      if (!res.ok) throw new Error("We couldn't remove that from favorites. Try again.");
+      toast.success("Removed from favorites.");
       setRows((curr) => (curr ? curr.filter((g) => g.id !== id) : curr));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
+      toast.error(err instanceof Error ? err.message : "We couldn't update that. Try again.");
     }
   }
 

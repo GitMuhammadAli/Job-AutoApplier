@@ -58,7 +58,7 @@ export default function AdminUsersPage() {
       if (!res.ok) throw new Error();
       setUsers(await res.json());
     } catch {
-      toast.error("Failed to load users");
+      toast.error("We couldn't load the users list. Refresh to try again.");
     }
     setLoading(false);
   }
@@ -118,7 +118,7 @@ export default function AdminUsersPage() {
       toast.success(msgs[action]);
       fetchUsers();
     } catch {
-      toast.error("Action failed");
+      toast.error("That action didn't go through. Try again.");
     }
   }
 

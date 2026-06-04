@@ -65,7 +65,7 @@ export default function AdminFeedbackPage() {
       const data = await res.json();
       setItems(data.feedback || []);
     } catch {
-      toast.error("Failed to load feedback");
+      toast.error("We couldn't load feedback. Refresh to try again.");
     } finally {
       setLoading(false);
     }
@@ -84,7 +84,7 @@ export default function AdminFeedbackPage() {
       toast.success(`Marked as ${status}`);
       fetchFeedback();
     } catch {
-      toast.error("Failed to update");
+      toast.error("We couldn't update that. Try again.");
     }
   }, [fetchFeedback]);
 

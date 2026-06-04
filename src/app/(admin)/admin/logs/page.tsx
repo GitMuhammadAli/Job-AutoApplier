@@ -47,7 +47,7 @@ export default function AdminLogsPage() {
       setTotalPages(data.totalPages || 1);
       setTotal(data.total || (data.logs || data).length);
     } catch {
-      toast.error("Failed to load logs");
+      toast.error("We couldn't load the logs. Refresh to try again.");
     }
     setLoading(false);
   }

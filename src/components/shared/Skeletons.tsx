@@ -18,7 +18,20 @@ export function KanbanSkeleton() {
         <Bone className="h-7 w-36" />
         <Bone className="h-5 w-48" />
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* Skeleton matches the real KanbanBoard breakpoint shape:
+            mobile (<md) → real board shows ONE column at a time with stage tabs,
+            md (≥768)    → 3 columns,
+            lg (≥1024)   → all 6 stages side-by-side.
+          Was previously grid-cols-2 at mobile which didn't match the real
+          board's single-column layout and made the loading state look
+          like a different page than what would land. */}
+      <div className="md:hidden space-y-2.5">
+        <Bone className="h-8 w-full rounded-xl" />
+        <Bone className="h-28 w-full rounded-xl" />
+        <Bone className="h-28 w-full rounded-xl" />
+        <Bone className="h-28 w-full rounded-xl" />
+      </div>
+      <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-6 gap-3">
         {Array.from({ length: 6 }).map((_, col) => (
           <div key={col} className="space-y-2.5">
             <Bone className="h-8 w-full rounded-xl" />

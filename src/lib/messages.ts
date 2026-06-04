@@ -77,32 +77,35 @@ export const HEALTH = {
 
 // ─── Admin ─────────────────────────────────────────────────────────────────
 export const ADMIN = {
-  FORBIDDEN: "Forbidden",
-  ACTION_FAILED: "Action failed",
-  DELETE_FAILED: "Delete failed",
-  CLEANUP_FAILED: "Cleanup failed",
-  TRIGGER_FAILED: (source: string) => `Trigger failed for ${source}`,
-  BACKFILL_FAILED: "Backfill failed",
-  UNKNOWN_ACTION_NAMED: (action: string) => `Unknown action: ${action}`,
-  UNKNOWN_SOURCE: (source: string) => `Unknown source: ${source}`,
-  APP_URL_NOT_CONFIGURED: "NEXT_PUBLIC_APP_URL not configured",
-  CRON_SECRET_NOT_CONFIGURED: "CRON_SECRET not configured",
-  DELETED_INACTIVE_JOBS: (count: number) => `Deleted ${count} inactive jobs with no user links`,
+  FORBIDDEN: "You don't have access to this admin area.",
+  ACTION_FAILED: "That action didn't go through. Try again.",
+  DELETE_FAILED: "We couldn't delete that. Try again.",
+  CLEANUP_FAILED: "Cleanup didn't finish. Try again.",
+  TRIGGER_FAILED: (source: string) => `We couldn't trigger ${source}. Try again.`,
+  BACKFILL_FAILED: "Backfill didn't finish. Try again.",
+  UNKNOWN_ACTION_NAMED: (action: string) => `Unknown action: ${action}.`,
+  UNKNOWN_SOURCE: (source: string) => `Unknown source: ${source}.`,
+  APP_URL_NOT_CONFIGURED: "NEXT_PUBLIC_APP_URL isn't set on the server.",
+  CRON_SECRET_NOT_CONFIGURED: "CRON_SECRET isn't set on the server.",
+  DELETED_INACTIVE_JOBS: (count: number) =>
+    `Deleted ${count} inactive job${count === 1 ? "" : "s"} with no user links.`,
   DEACTIVATED_STALE_JOBS: (count: number, days: number) =>
-    `Deactivated ${count} jobs not seen in ${days} days`,
-  DEACTIVATED_NO_EMAIL_JOBS: (count: number) => `Deactivated ${count} old jobs without emails`,
-  FAILED_LOAD_STATS: "Failed to load admin stats",
-  FAILED_LOAD_USERS: "Failed to load users",
-  FAILED_LOAD_DATA: "Failed to load data",
-  FAILED_LOAD_LOGS: "Failed to load logs",
-  FAILED_LOAD_FEEDBACK: "Failed to load feedback",
-  FAILED_TRIGGER: "Failed to trigger",
-  FAILED_UPDATE: "Failed to update",
-  MARKED_AS: (status: string) => `Marked as ${status}`,
+    `Deactivated ${count} job${count === 1 ? "" : "s"} not seen in ${days} days.`,
+  DEACTIVATED_NO_EMAIL_JOBS: (count: number) =>
+    `Deactivated ${count} old job${count === 1 ? "" : "s"} without emails.`,
+  FAILED_LOAD_STATS: "We couldn't load admin stats. Refresh to try again.",
+  FAILED_LOAD_USERS: "We couldn't load the users list. Refresh to try again.",
+  FAILED_LOAD_DATA: "We couldn't load that data. Refresh to try again.",
+  FAILED_LOAD_LOGS: "We couldn't load the logs. Refresh to try again.",
+  FAILED_LOAD_FEEDBACK: "We couldn't load feedback. Refresh to try again.",
+  FAILED_TRIGGER: "We couldn't trigger that. Try again.",
+  FAILED_UPDATE: "We couldn't update that. Try again.",
+  MARKED_AS: (status: string) => `Marked as ${status}.`,
   TRIGGER_SUCCESS: (source: string, detail: string) => `${source}: ${detail}`,
-  SOURCES_TRIGGERED: (count: number) => `${count} sources triggered`,
+  SOURCES_TRIGGERED: (count: number) =>
+    `${count} source${count === 1 ? "" : "s"} triggered.`,
   TRIGGERED: "triggered",
-  TRIGGERED_SOURCE: (source: string) => `Triggered ${source}`,
+  TRIGGERED_SOURCE: (source: string) => `Triggered ${source}.`,
 } as const
 
 // ─── Applications ──────────────────────────────────────────────────────────
