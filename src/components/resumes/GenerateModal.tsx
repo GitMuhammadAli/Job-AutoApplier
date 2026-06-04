@@ -97,11 +97,11 @@ export function GenerateModal({ open, onClose, initialJd }: GenerateModalProps) 
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `HTTP ${res.status}`);
+        throw new Error(body.error ?? "We couldn't save that variant. Try again.");
       }
       toast.success(`Saved as "${name}"`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
+      toast.error(err instanceof Error ? err.message : "We couldn't save that variant. Try again.");
     }
   }
 
@@ -112,7 +112,9 @@ export function GenerateModal({ open, onClose, initialJd }: GenerateModalProps) 
       const res = await fetch(result.pdfUrl);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.hint ?? body.error ?? `PDF render failed (HTTP ${res.status})`);
+        throw new Error(
+          body.hint ?? body.error ?? "The PDF didn't come out right. Try generating again — sometimes a different template helps.",
+        );
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

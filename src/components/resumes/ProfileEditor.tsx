@@ -497,17 +497,23 @@ function BulletCoachButton({
       });
       const body = await r.json();
       if (r.status === 429) {
-        toast.warning(body.message ?? "AI quota hit. Try again later.");
+        toast.warning(body.message ?? "The AI is catching its breath. Try again in a moment.");
         setState({ kind: "idle" });
         return;
       }
       if (!r.ok) {
-        setState({ kind: "error", message: body.error ?? `HTTP ${r.status}` });
+        setState({
+          kind: "error",
+          message: body.error ?? "We couldn't reach the AI just now. Try again.",
+        });
         return;
       }
       setState({ kind: "ready", improved: body.improved, rationale: body.rationale });
     } catch (e) {
-      setState({ kind: "error", message: e instanceof Error ? e.message : "Network error" });
+      setState({
+        kind: "error",
+        message: e instanceof Error ? e.message : "Network hiccup. Check your connection and try again.",
+      });
     }
   }
 

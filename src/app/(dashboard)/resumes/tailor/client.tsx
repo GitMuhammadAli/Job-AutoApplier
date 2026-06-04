@@ -94,7 +94,9 @@ export function TailorClient({ initialJd }: { initialJd: string }) {
       const res = await fetch(result.pdfUrl);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.hint ?? body.error ?? `PDF render failed (HTTP ${res.status})`);
+        throw new Error(
+          body.hint ?? body.error ?? "The PDF didn't come out right. Try generating again — sometimes a different template helps.",
+        );
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
