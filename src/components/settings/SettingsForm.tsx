@@ -478,31 +478,37 @@ export function SettingsForm({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex items-center gap-3 mb-6">
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto gap-1 bg-slate-100 dark:bg-zinc-800 p-1 flex-1">
-          <TabsTrigger value="profile" className="gap-1.5 text-xs py-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+        {/* Mobile: horizontal scroll with labels (icon-only was unreadable —
+            6 unlabeled icons in 2 rows of 3 meant users couldn't tell what
+            "Settings cog" vs "Sparkles" vs "Shield" meant). Desktop keeps
+            the 6-column grid. */}
+        <TabsList className="flex sm:grid sm:w-full sm:grid-cols-6 h-auto gap-1 bg-slate-100 dark:bg-zinc-800 p-1 flex-1 overflow-x-auto sm:overflow-visible">
+          <TabsTrigger value="profile" className="gap-1.5 text-xs py-2 whitespace-nowrap shrink-0">
             <User className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Profile</span>
+            <span>Profile</span>
           </TabsTrigger>
-          <TabsTrigger value="preferences" className="gap-1.5 text-xs py-2">
+          <TabsTrigger value="preferences" className="gap-1.5 text-xs py-2 whitespace-nowrap shrink-0">
             <Briefcase className="h-3.5 w-3.5" />
+            <span className="sm:hidden">Jobs</span>
             <span className="hidden sm:inline">Job Preferences</span>
           </TabsTrigger>
-          <TabsTrigger value="email" className="gap-1.5 text-xs py-2">
+          <TabsTrigger value="email" className="gap-1.5 text-xs py-2 whitespace-nowrap shrink-0">
             <Mail className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Email</span>
+            <span>Email</span>
           </TabsTrigger>
-          <TabsTrigger value="automation" className="gap-1.5 text-xs py-2">
+          <TabsTrigger value="automation" className="gap-1.5 text-xs py-2 whitespace-nowrap shrink-0">
             <Settings2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Automation</span>
+            <span>Automation</span>
           </TabsTrigger>
-          <TabsTrigger value="ai" className="gap-1.5 text-xs py-2">
+          <TabsTrigger value="ai" className="gap-1.5 text-xs py-2 whitespace-nowrap shrink-0">
             <Sparkles className="h-3.5 w-3.5" />
+            <span className="sm:hidden">Style</span>
             <span className="hidden sm:inline">Email Style</span>
           </TabsTrigger>
-          <TabsTrigger value="account" className="gap-1.5 text-xs py-2">
+          <TabsTrigger value="account" className="gap-1.5 text-xs py-2 whitespace-nowrap shrink-0">
             <Shield className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Account</span>
+            <span>Account</span>
           </TabsTrigger>
         </TabsList>
           <Button

@@ -588,7 +588,26 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
         );
         router.push(`/jobs/${result.userJobId}?apply=true`);
       } else {
-        toast.error(result.error || "Failed to prepare application", { id: toastId });
+        // Map preflight errors to one-tap fix actions. Detection is by
+        // substring so the centralized APPLICATION_EMAIL_ERR copy stays
+        // the source of truth and we don't have to thread error codes
+        // through the server action's return shape.
+        const errMsg = result.error || "Failed to prepare application";
+        const wantsSettings = /Settings/i.test(errMsg);
+        const wantsResumes = /Upload a resume|under Resumes/i.test(errMsg);
+        if (wantsSettings) {
+          toast.error(errMsg, {
+            id: toastId,
+            action: { label: "Open Settings", onClick: () => router.push("/settings") },
+          });
+        } else if (wantsResumes) {
+          toast.error(errMsg, {
+            id: toastId,
+            action: { label: "Open Resumes", onClick: () => router.push("/resumes") },
+          });
+        } else {
+          toast.error(errMsg, { id: toastId });
+        }
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to prepare", { id: toastId });

@@ -275,13 +275,13 @@ export async function updateApplicationDraft(
       data.recipientEmail !== undefined &&
       !isValidEmail(data.recipientEmail)
     ) {
-      throw new Error("Invalid email address");
+      throw new Error(APPLICATION_EMAIL_ERR.INVALID_EMAIL);
     }
 
     const app = await prisma.jobApplication.findFirst({
       where: { id: applicationId, userId },
     });
-    if (!app) throw new Error("Application not found");
+    if (!app) throw new Error(APPLICATION_EMAIL_ERR.APPLICATION_NOT_FOUND);
 
     const updated = await prisma.jobApplication.update({
       where: { id: applicationId },
@@ -424,7 +424,7 @@ export async function markAsManuallyApplied(
       where: { id: userJobId, userId },
       include: { globalJob: true },
     });
-    if (!userJob) throw new Error("Job not found");
+    if (!userJob) throw new Error(APPLICATION_EMAIL_ERR.JOB_NOT_FOUND);
 
     await prisma.userJob.update({
       where: { id: userJobId },

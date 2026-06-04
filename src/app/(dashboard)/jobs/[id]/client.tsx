@@ -207,7 +207,7 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-3 sm:space-y-4 md:space-y-5 animate-slide-up">
+    <div className="max-w-6xl mx-auto space-y-3 sm:space-y-4 md:space-y-5 animate-slide-up pb-20 lg:pb-0">
       {/* Back */}
       <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors">
         <ChevronLeft className="h-4 w-4" />
@@ -627,6 +627,48 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
             />
           </div>
         </div>
+      </div>
+
+      {/* Mobile-only sticky action bar.
+          On desktop, the apply panel sits next to the content (sticky as you
+          scroll). On mobile it lands at the very bottom of a long page — easy
+          to lose. This bar floats above the viewport at all times so the
+          primary action is one tap away from anywhere on the page. Hidden
+          at lg+ where the sticky desktop panel handles it.
+          pb-20 on outer container above leaves room so the bar doesn't
+          cover the last line of content. */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-700 px-3 py-2.5 flex items-center gap-2 shadow-lg shadow-slate-900/5">
+        {g.companyEmail ? (
+          <button
+            onClick={() => {
+              const panel = document.getElementById("quick-apply-panel");
+              panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-500 active:bg-emerald-700 transition-colors touch-manipulation shadow-sm"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            {job.application ? "Continue draft" : "Draft application"}
+          </button>
+        ) : (g.applyUrl || g.sourceUrl) ? (
+          <a
+            href={g.applyUrl || g.sourceUrl || "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors touch-manipulation shadow-sm"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Apply on site
+          </a>
+        ) : (
+          <button
+            onClick={handleMarkApplied}
+            disabled={isPending || markedApplied}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold bg-slate-700 text-white hover:bg-slate-600 transition-colors touch-manipulation shadow-sm disabled:opacity-60"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {markedApplied ? "Marked applied" : "I applied"}
+          </button>
+        )}
       </div>
     </div>
   );
