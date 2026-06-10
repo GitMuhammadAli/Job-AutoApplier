@@ -177,6 +177,32 @@ const ApplicationCard = memo(function ApplicationCard({
 
   const handleSend = useCallback(async () => {
     if (isSent) return;
+
+    // First-send safety net — before the first real send ever, give the
+    // user a chance to double-check by sending a test copy to themselves
+    // via Settings first. The localStorage flag means this only fires
+    // ONCE per device. Once they've confirmed, they get the normal
+    // friction-free flow.
+    const FIRST_SEND_KEY = "jp-first-send-confirmed";
+    const hasConfirmed = typeof window !== "undefined" && localStorage.getItem(FIRST_SEND_KEY) === "1";
+    if (!hasConfirmed) {
+      const ok = window.confirm(
+        `About to send this email to ${app.recipientEmail || "the recipient"}.\n\n` +
+          `If this is your first real send, recommend you first send a test ` +
+          `copy to your own inbox via Settings → Email → Send Test Email. ` +
+          `That catches formatting issues + SMTP misconfig without burning ` +
+          `the actual contact.\n\n` +
+          `Click OK to send the real one now. Cancel to back out and run a test first.\n\n` +
+          `(This prompt only shows once per device.)`,
+      );
+      if (!ok) return;
+      try {
+        localStorage.setItem(FIRST_SEND_KEY, "1");
+      } catch {
+        /* localStorage might be disabled; not critical */
+      }
+    }
+
     setLoading("send");
     onLocalStatusChange?.(app.id, "SENDING");
     try {
