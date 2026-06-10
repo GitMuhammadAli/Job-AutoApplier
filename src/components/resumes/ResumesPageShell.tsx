@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Sparkles, FileText, Upload, Clock, User, Target, ArrowRight, TrendingUp, MoreHorizontal, Lightbulb } from "lucide-react";
+import { Sparkles, Upload, User, Target, ArrowRight, TrendingUp, Lightbulb } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,12 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ResumeList } from "@/components/resumes/ResumeList";
 import { MyProfileTab } from "@/components/resumes/MyProfileTab";
-import { VariantsTab } from "@/components/resumes/VariantsTab";
-import { HistoryTab } from "@/components/resumes/HistoryTab";
-import { GenerateModal } from "@/components/resumes/GenerateModal";
 import { resumeClient } from "@/lib/resume/client";
 import type { ResumeProfile } from "@/lib/resume/types";
-import { TAILOR_CARD } from "@/lib/messages";
 
 interface ResumesPageShellProps {
   uploadedResumes: Awaited<ReturnType<typeof import("@/app/actions/resume").getResumesWithStats>>;
@@ -27,8 +23,8 @@ interface ResumesPageShellProps {
 
 export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [profile, setProfile] = useState<ResumeProfile | null | undefined>(undefined);
-  const [generateOpen, setGenerateOpen] = useState(false);
   // Defer the tabs rendering until after mount. Radix Tabs Provider's SSR
   // output doesn't match the first client render's DOM tree (known issue —
   // <div> in <div> mismatch). Hydrating after mount avoids the warning and
@@ -42,15 +38,21 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
 
   const hasProfile = profile != null;
 
-  // Deep-link support: /resumes?tab=history lands directly on History.
-  // The tailor success banner uses this so users coming from a generation
-  // land where their resume actually is (not the My Profile default).
-  const VALID_TABS = ["profile", "variants", "uploads", "history"] as const;
+  // Deep-link support: /resumes?tab=uploads lands on Uploads.
+  // After the source/workshop split, /resumes only owns Profile + Uploads.
+  // Legacy ?tab=history or ?tab=variants links redirect to /resumes/tailor.
+  const VALID_TABS = ["profile", "uploads"] as const;
   type TabKey = (typeof VALID_TABS)[number];
-  const queryTab = searchParams.get("tab") as TabKey | null;
+  const queryTab = searchParams.get("tab");
+  // Redirect legacy variant/history deep-links to the new workshop home.
+  useEffect(() => {
+    if (queryTab === "history" || queryTab === "variants") {
+      router.replace(`/resumes/tailor?tab=${queryTab}`);
+    }
+  }, [queryTab, router]);
   const initialTab: TabKey =
-    queryTab && VALID_TABS.includes(queryTab)
-      ? queryTab
+    queryTab && (VALID_TABS as readonly string[]).includes(queryTab)
+      ? (queryTab as TabKey)
       : hasProfile
         ? "profile"
         : "uploads";
@@ -63,29 +65,52 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
     );
   }
 
+  // Tailor CTA destination — if user has no source content at all, push
+  // them to /resumes/setup first. Otherwise the dedicated workshop.
+  const canTailor = hasProfile || uploadedResumes.length > 0;
+  const tailorHref = canTailor ? "/resumes/tailor" : "/resumes/setup";
+
   return (
     <>
-      {/* JD quick-start — always visible above tabs so the feature is
-          discoverable. Works in three states:
-            - hasProfile           → tailors using structured profile
-            - !hasProfile + uploads → tailors using AI-extracted upload
-            - !hasProfile + no uploads → directs to setup
-          The generate route handles each path; we just surface the right
-          hint copy so the user knows what's happening. */}
-      <JdQuickStart hasProfile={hasProfile} hasUploads={uploadedResumes.length > 0} />
+      {/* Workshop CTA — the source/workshop split means /resumes/tailor is
+          now the home of every "make me a resume from this JD" flow plus
+          all past generations (History + Variants tabs live there now).
+          This banner makes the destination unmistakable and replaces the
+          old "Generate resume" modal that opened in-page (confused users
+          because the result iframe had nowhere obvious to live). */}
+      <Link
+        href={tailorHref}
+        className="group block rounded-xl border-2 border-emerald-300/60 dark:border-emerald-800/50 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 dark:from-emerald-950/40 dark:via-zinc-900 dark:to-emerald-950/20 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-emerald-400 dark:hover:border-emerald-700 transition-all"
+      >
+        <div className="flex items-start gap-3 sm:items-center">
+          <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-md shadow-emerald-600/20 shrink-0">
+            <Sparkles size={18} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100">
+              Tailor a resume for a specific JD
+            </p>
+            <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80 mt-0.5 leading-snug">
+              {canTailor
+                ? "Paste a JD, pick a template, get an ATS-matched PDF. All generations are saved — view, star, or re-download any time."
+                : "Set up your profile first — we'll then walk you through generating your first tailored resume."}
+            </p>
+          </div>
+          <ArrowRight
+            size={18}
+            className="text-emerald-600 dark:text-emerald-400 shrink-0 transition-transform group-hover:translate-x-0.5 hidden sm:block"
+          />
+        </div>
+      </Link>
+
       <Tabs defaultValue={initialTab} className="w-full">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* Horizontal scroll on mobile when all 4 tabs don't fit. Without
-              this, the tab row would stack to 2 rows below 380px and look
-              busted. */}
-          <TabsList className="self-start overflow-x-auto max-w-full">
+          {/* Only source-material tabs live here now. Variants + History
+              moved to /resumes/tailor where the JD-driven workflow lives. */}
+          <TabsList className="self-start">
             <TabsTrigger value="profile" className="gap-1.5">
               <User size={14} />
               <span className="hidden xs:inline sm:inline">My </span>Profile
-            </TabsTrigger>
-            <TabsTrigger value="variants" className="gap-1.5">
-              <Sparkles size={14} />
-              Variants
             </TabsTrigger>
             <TabsTrigger value="uploads" className="gap-1.5">
               <Upload size={14} />
@@ -94,19 +119,8 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
                 {uploadedResumes.length}
               </span>
             </TabsTrigger>
-            <TabsTrigger value="history" className="gap-1.5">
-              <Clock size={14} />
-              History
-            </TabsTrigger>
           </TabsList>
 
-          {/* Primary action + Insights dropdown.
-              Previous version had 3 buttons in the header (What's working +
-              Gaps + Generate resume) which felt cluttered on desktop and
-              wrapped to 3 lines on mobile. Consolidated What's working +
-              Gaps under an Insights menu so the primary "Generate resume"
-              action is unmistakable, and the secondary analytics views
-              are still one click away. */}
           <div className="flex items-center gap-2 self-end sm:self-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -136,26 +150,6 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {hasProfile ? (
-              <Button
-                onClick={() => setGenerateOpen(true)}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
-              >
-                <Sparkles size={16} />
-                Generate resume
-              </Button>
-            ) : (
-              <Button
-                asChild
-                className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
-              >
-                <Link href="/resumes/setup">
-                  <Sparkles size={16} />
-                  Generate resume
-                </Link>
-              </Button>
-            )}
           </div>
         </div>
 
@@ -167,19 +161,15 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
           />
         </TabsContent>
 
-        <TabsContent value="variants" className="mt-5">
-          <VariantsTab />
-        </TabsContent>
-
         <TabsContent value="uploads" className="mt-5">
           <div className="mb-3 rounded-lg border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/20 px-4 py-3 text-xs text-emerald-800 dark:text-emerald-200">
             <strong className="font-semibold">Your uploads are tailor-ready.</strong>{" "}
-            Paste a JD on{" "}
-            <Link href="/resumes" className="underline underline-offset-2 font-semibold">
-              My Profile
+            Head to{" "}
+            <Link href="/resumes/tailor" className="underline underline-offset-2 font-semibold">
+              Tailor a resume
             </Link>{" "}
-            and pick &ldquo;Tailor using my upload&rdquo; — AI extracts on the fly. Or
-            build a structured profile for faster repeat tailoring under{" "}
+            — paste a JD and we&apos;ll AI-extract from your best upload on the fly.
+            For faster repeat tailoring, build a structured profile under{" "}
             <Link href="/resumes/setup" className="underline underline-offset-2 font-semibold">
               Setup
             </Link>
@@ -187,130 +177,14 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
           </div>
           <ResumeList resumes={uploadedResumes} />
         </TabsContent>
-
-        <TabsContent value="history" className="mt-5">
-          <HistoryTab />
-        </TabsContent>
       </Tabs>
-
-      {hasProfile && (
-        <GenerateModal
-          open={generateOpen}
-          onClose={() => setGenerateOpen(false)}
-        />
-      )}
     </>
   );
 }
 
-/**
- * Quick-paste JD card — surfaces the dedicated /resumes/tailor flow at the
- * top of the page. Users paste a JD here, hit Enter, and land in the
- * full-page tailoring experience with template chooser + ATS coverage panel.
- *
- * Why a card and not a button: people who copy a JD from Indeed want to
- * paste it immediately — the textarea is the affordance that matches that
- * intent. The card converts visitors into the new flow faster than a button
- * labelled "Tailor".
- */
-function JdQuickStart({ hasProfile, hasUploads }: { hasProfile: boolean; hasUploads: boolean }) {
-  const [jd, setJd] = useState("");
-  const router = useRouter();
-
-  const canTailor = hasProfile || hasUploads;
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (jd.trim().length < 20) return;
-    if (!canTailor) {
-      // No structured profile AND no uploads — push to setup with the JD
-      // preserved, so user lands back here after onboarding without losing
-      // what they pasted.
-      const encoded = encodeURIComponent(jd.trim().slice(0, 8000));
-      router.push(`/resumes/setup?jd=${encoded}`);
-      return;
-    }
-    const encoded = encodeURIComponent(jd.trim().slice(0, 8000));
-    router.push(`/resumes/tailor?jd=${encoded}`);
-  };
-
-  // Status copy depends on what's actually available. The tailor page +
-  // /api/resumes/generate already handle both paths via
-  // parseUploadedPdfToProfile fallback — we just tell the user what's
-  // about to happen so there are no surprises. All copy lives in
-  // src/lib/messages.ts so it can be changed in one place.
-  const hint = hasProfile
-    ? TAILOR_CARD.HINT_STRUCTURED
-    : hasUploads
-      ? TAILOR_CARD.HINT_AI_EXTRACT
-      : TAILOR_CARD.HINT_NEEDS_SETUP;
-
-  const buttonLabel = !canTailor
-    ? TAILOR_CARD.BUTTON_NEEDS_SETUP
-    : hasProfile
-      ? TAILOR_CARD.BUTTON_STRUCTURED
-      : TAILOR_CARD.BUTTON_AI_EXTRACT;
-
-  return (
-    <form
-      onSubmit={onSubmit}
-      className="rounded-xl border border-emerald-200/70 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50/60 via-white to-white dark:from-emerald-950/20 dark:via-zinc-900 dark:to-zinc-900 p-4"
-    >
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow">
-          <Target size={16} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              {TAILOR_CARD.HEADLINE}
-            </p>
-            <span
-              className={`text-[10px] font-medium px-1.5 py-0.5 rounded ring-1 ring-inset ${
-                hasProfile
-                  ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 ring-emerald-200/60 dark:ring-emerald-800/40"
-                  : hasUploads
-                    ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 ring-amber-200/60 dark:ring-amber-800/40"
-                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 ring-zinc-200/60 dark:ring-zinc-700/50"
-              }`}
-            >
-              {hasProfile
-                ? TAILOR_CARD.CHIP_STRUCTURED
-                : hasUploads
-                  ? TAILOR_CARD.CHIP_AI_EXTRACT
-                  : TAILOR_CARD.CHIP_NEEDS_SETUP}
-            </span>
-          </div>
-          <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mt-1">
-            {TAILOR_CARD.BODY}
-          </p>
-          <p className="text-[10px] text-zinc-500 dark:text-zinc-500 mt-1 italic">
-            {hint}
-          </p>
-          <textarea
-            value={jd}
-            onChange={(e) => setJd(e.target.value)}
-            placeholder="Paste the job description (from Indeed, LinkedIn, anywhere)…"
-            rows={3}
-            className="mt-2 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-          />
-          <div className="mt-2 flex items-center justify-between">
-            <p className="text-[10px] text-zinc-500 dark:text-zinc-500">
-              {jd.trim().length < 20
-                ? TAILOR_CARD.NEED_MORE_CHARS(20 - jd.trim().length)
-                : `${jd.length} chars`}
-            </p>
-            <Button
-              type="submit"
-              disabled={jd.trim().length < 20}
-              size="sm"
-              className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
-            >
-              {buttonLabel} <ArrowRight size={12} />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </form>
-  );
-}
+// JdQuickStart removed — the always-visible JD textarea on /resumes pushed
+// users into the tailor flow but then the result preview had nowhere
+// obvious to live on that page (it would have shown above the tabs in a
+// weird half-state). After the source/workshop split, /resumes/tailor IS
+// the dedicated JD-paste-and-preview space, so the top of /resumes is
+// now a single emerald CTA that takes the user straight there.

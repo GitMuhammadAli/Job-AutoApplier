@@ -20,6 +20,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HistoryTab } from "@/components/resumes/HistoryTab";
+import { VariantsTab } from "@/components/resumes/VariantsTab";
 import { resumeClient, type GenerateCoverage, type GenerateDiff } from "@/lib/resume/client";
 import { DEFAULT_TEMPLATE_ID } from "@/lib/resume/templates/registry";
 import { RESUME_TAILORING } from "@/lib/messages";
@@ -50,8 +53,11 @@ interface GenerationResult {
 
 const MIN_JD_LEN = 20;
 
-export function TailorClient({ initialJd }: { initialJd: string }) {
+type WorkshopTab = "new" | "history" | "variants";
+
+export function TailorClient({ initialJd, initialTab = "new" }: { initialJd: string; initialTab?: WorkshopTab }) {
   const router = useRouter();
+  const [tab, setTab] = useState<WorkshopTab>(initialTab);
   const [jdText, setJdText] = useState(initialJd);
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [templateId, setTemplateId] = useState(DEFAULT_TEMPLATE_ID);
@@ -119,51 +125,84 @@ export function TailorClient({ initialJd }: { initialJd: string }) {
   }, [result, jdText]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4">
-      {/* Left — inputs */}
-      <section className="space-y-4">
-        <JdInput jdText={jdText} setJdText={setJdText} />
-        <TemplatePicker
-          templates={templates}
-          templateId={templateId}
-          setTemplateId={setTemplateId}
-        />
-        <PageTarget value={pageTarget} setValue={setPageTarget} />
+    <Tabs
+      value={tab}
+      onValueChange={(v) => setTab(v as WorkshopTab)}
+      className="w-full"
+    >
+      {/* Three-tab workshop: New (the JD → preview generator), History
+          (every past generation, newest first), Variants (starred favorites).
+          This consolidates the entire "generated resumes" surface in one
+          dedicated route. /resumes is now exclusively for source materials
+          (Profile + Uploads) and the inputs that drive a tailor run. */}
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <TabsList>
+          <TabsTrigger value="new" className="gap-1.5">
+            <Sparkles size={14} /> New
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-1.5">
+            <Clock size={14} /> History
+          </TabsTrigger>
+          <TabsTrigger value="variants" className="gap-1.5">
+            <Star size={14} /> Variants
+          </TabsTrigger>
+        </TabsList>
+        <Button asChild variant="ghost" size="sm" className="gap-1.5">
+          <Link href="/resumes">
+            <ArrowRight size={14} className="rotate-180" /> Back to Resumes
+          </Link>
+        </Button>
+      </div>
 
-        <div className="flex gap-2">
-          <Button
-            onClick={handleGenerate}
-            disabled={!canGenerate || generating}
-            className="flex-1 gap-2 bg-emerald-600 hover:bg-emerald-500 text-white"
-          >
-            {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-            {generating ? "Tailoring…" : canGenerate ? "Tailor & preview" : `Paste a JD (${MIN_JD_LEN}+ chars)`}
-          </Button>
-          <Button asChild variant="ghost">
-            <Link href="/resumes">Back</Link>
-          </Button>
+      <TabsContent value="new" className="mt-0">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4">
+          {/* Left — inputs */}
+          <section className="space-y-4">
+            <JdInput jdText={jdText} setJdText={setJdText} />
+            <TemplatePicker
+              templates={templates}
+              templateId={templateId}
+              setTemplateId={setTemplateId}
+            />
+            <PageTarget value={pageTarget} setValue={setPageTarget} />
+
+            <Button
+              onClick={handleGenerate}
+              disabled={!canGenerate || generating}
+              className="w-full gap-2 bg-emerald-600 hover:bg-emerald-500 text-white"
+            >
+              {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              {generating ? "Tailoring…" : canGenerate ? "Tailor & preview" : `Paste a JD (${MIN_JD_LEN}+ chars)`}
+            </Button>
+          </section>
+
+          {/* Right — output */}
+          <section className="space-y-4">
+            {!result && !generating && <EmptyPreview />}
+            {generating && <ProgressivePreview />}
+            {result && (
+              <ResultPanel
+                result={result}
+                downloading={downloading}
+                onDownload={handleDownload}
+                onRegenerate={() => {
+                  setResult(null);
+                  router.refresh();
+                }}
+              />
+            )}
+          </section>
         </div>
-      </section>
+      </TabsContent>
 
-      {/* Right — output */}
-      <section className="space-y-4">
-        {!result && !generating && (
-          <EmptyPreview />
-        )}
-        {generating && <ProgressivePreview />}
-        {result && (
-          <ResultPanel
-            result={result}
-            downloading={downloading}
-            onDownload={handleDownload}
-            onRegenerate={() => {
-              setResult(null);
-              router.refresh();
-            }}
-          />
-        )}
-      </section>
-    </div>
+      <TabsContent value="history" className="mt-0">
+        <HistoryTab />
+      </TabsContent>
+
+      <TabsContent value="variants" className="mt-0">
+        <VariantsTab />
+      </TabsContent>
+    </Tabs>
   );
 }
 
@@ -468,7 +507,7 @@ function ResultPanel({
             <p className="text-[11px] text-emerald-800/80 dark:text-emerald-200/80 mt-0.5">
               Download the PDF below, or come back to it any time under{" "}
               <Link
-                href="/resumes?tab=history"
+                href="/resumes/tailor?tab=history"
                 className="font-semibold underline underline-offset-2 hover:text-emerald-700 dark:hover:text-emerald-300"
               >
                 Resumes → History
@@ -526,7 +565,7 @@ function ResultPanel({
           <Sparkles size={14} /> Try again
         </Button>
         <Button asChild variant="outline" className="gap-1.5">
-          <Link href="/resumes?tab=history">
+          <Link href="/resumes/tailor?tab=history">
             <Clock size={14} /> History <ArrowRight size={12} />
           </Link>
         </Button>
