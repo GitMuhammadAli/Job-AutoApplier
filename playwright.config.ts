@@ -8,7 +8,10 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:3000",
+    // Allow override via PLAYWRIGHT_BASE_URL so smoke tests can target
+    // a dev server on a non-default port (e.g. when 3000 is already
+    // occupied by another local app) or a deployed preview URL.
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     traceOnFirstRetry: true,
     screenshot: "only-on-failure",
     video: "retain-on-failure",
