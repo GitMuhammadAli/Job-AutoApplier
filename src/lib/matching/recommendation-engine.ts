@@ -153,12 +153,14 @@ export async function getRecommendedJobs(
         globalJobId: true,
         stage: true,
         isDismissed: true,
+        snoozedUntil: true,
         application: { select: { status: true } },
       },
     }).then((jobs) => {
       const excluded = new Set<string>();
       const map = new Map<string, { userJobId: string; stage: string; applicationStatus: string | null; isDismissed: boolean }>();
       const ACTED_STAGES = new Set(["APPLIED", "INTERVIEW", "OFFER", "REJECTED", "GHOSTED"]);
+      const now = Date.now();
       for (const j of jobs) {
         map.set(j.globalJobId, {
           userJobId: j.id,
@@ -166,7 +168,13 @@ export async function getRecommendedJobs(
           applicationStatus: j.application?.status ?? null,
           isDismissed: j.isDismissed,
         });
-        if (j.isDismissed || ACTED_STAGES.has(j.stage) || j.application?.status) {
+        // Snoozed jobs disappear from /recommended until snoozedUntil
+        // passes. Once it passes, the job auto-reappears with the snooze
+        // cleared by the next user interaction (no cron needed; we just
+        // stop excluding it). Acted-on stages always exclude regardless
+        // of snooze (already past the "should I apply?" question).
+        const isSnoozed = j.snoozedUntil && j.snoozedUntil.getTime() > now;
+        if (j.isDismissed || isSnoozed || ACTED_STAGES.has(j.stage) || j.application?.status) {
           excluded.add(j.globalJobId);
         }
       }

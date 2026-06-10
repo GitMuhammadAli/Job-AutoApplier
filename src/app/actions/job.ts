@@ -232,11 +232,58 @@ export async function addNote(userJobId: string, note: string): Promise<{ succes
 }
 
 // Bookmark toggle action removed — `isBookmarked` schema field is kept for
-// future use, but no UI surface ever called toggleBookmark(). The icon on
-// JobCard that looks like a bookmark is actually the "save to my board"
-// action (saveGlobalJob). Removed the dead action so it doesn't show up
-// in autocomplete or lead future contributors to believe bookmarks are a
-// shipped feature.
+// future use, but no UI surface ever called toggleBookmark().
+
+// ── Snooze job for N days ──
+// Hide a job from /recommended for a chosen duration, then auto-reappear.
+// Middle ground between Save (forever on board) and Dismiss (permanent
+// hide). Use case: "this is interesting but not for today — show me again
+// in a week".
+
+export async function snoozeGlobalJob(
+  globalJobId: string,
+  days: number,
+): Promise<{ success: boolean; until?: string; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    if (![7, 14, 30].includes(days)) {
+      return { success: false, error: "Pick 7, 14, or 30 days." };
+    }
+    const until = new Date();
+    until.setDate(until.getDate() + days);
+    // Upsert: if no UserJob exists yet, create one in SAVED stage so the
+    // snooze persists. Otherwise update the existing row.
+    await prisma.userJob.upsert({
+      where: { userId_globalJobId: { userId, globalJobId } },
+      create: { userId, globalJobId, stage: "SAVED", snoozedUntil: until },
+      update: { snoozedUntil: until },
+    });
+    revalidatePath("/");
+    return { success: true, until: until.toISOString() };
+  } catch (error) {
+    console.error("[snoozeGlobalJob] Error:", error);
+    return { success: false, error: "We couldn't snooze that. Try again." };
+  }
+}
+
+export async function unsnoozeUserJob(
+  userJobId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await getAuthUserId();
+    const job = await prisma.userJob.findFirst({ where: { id: userJobId, userId } });
+    if (!job) return { success: false, error: "We couldn't find that. Try again." };
+    await prisma.userJob.update({
+      where: { id: userJobId },
+      data: { snoozedUntil: null },
+    });
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("[unsnoozeUserJob] Error:", error);
+    return { success: false, error: "We couldn't unsnooze that. Try again." };
+  }
+}
 
 // ── Create manual job ──
 

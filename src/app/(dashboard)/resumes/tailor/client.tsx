@@ -266,12 +266,112 @@ export function TailorClient({ initialJd, initialTab = "new" }: { initialJd: str
 
 // ── JD textarea ────────────────────────────────────────────────────
 
+interface RecentJD {
+  id: string;
+  snippet: string;
+  createdAt: string;
+}
+
 function JdInput({ jdText, setJdText }: { jdText: string; setJdText: (s: string) => void }) {
+  // Recent JDs — pulled from the user's own past generations. jdSnippet is
+  // already stored on every ResumeGeneration row (first 4000 chars of the JD
+  // at generation time). One-click reload of "re-tailor this same JD with
+  // a different template" is the use case — power users do this constantly.
+  const [recents, setRecents] = useState<RecentJD[]>([]);
+  const [recentsOpen, setRecentsOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/resumes/generations", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { generations?: Array<{ id: string; jdSnippet: string | null; createdAt: string }> }) => {
+        if (cancelled) return;
+        const filtered: RecentJD[] = (data.generations ?? [])
+          .filter((g): g is { id: string; jdSnippet: string; createdAt: string } => !!g.jdSnippet)
+          .slice(0, 10)
+          .map((g) => ({ id: g.id, snippet: g.jdSnippet, createdAt: g.createdAt }));
+        // Dedupe by first 200 chars — same JD pasted twice shouldn't take two slots.
+        const seen = new Set<string>();
+        const deduped = filtered.filter((r) => {
+          const key = r.snippet.slice(0, 200).toLowerCase().replace(/\s+/g, " ");
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setRecents(deduped);
+      })
+      .catch(() => {
+        /* non-fatal — recent JDs is a convenience, not critical */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2">
         <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">Job description</p>
-        <p className="text-[11px] text-zinc-500 tabular-nums">{jdText.length} chars</p>
+        <div className="flex items-center gap-2 shrink-0">
+          {recents.length > 0 && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setRecentsOpen((v) => !v)}
+                className="text-[11px] text-zinc-600 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <Clock size={11} /> Recent ({recents.length})
+              </button>
+              {recentsOpen && (
+                <>
+                  {/* Click-outside backdrop */}
+                  <button
+                    type="button"
+                    aria-label="Close recent JDs"
+                    onClick={() => setRecentsOpen(false)}
+                    className="fixed inset-0 z-30 cursor-default"
+                  />
+                  <div className="absolute right-0 mt-1.5 w-80 max-h-80 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg z-40">
+                    <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 bg-white dark:bg-zinc-900">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                        Recent JDs · click to reload
+                      </p>
+                    </div>
+                    <ul className="py-1">
+                      {recents.map((r) => (
+                        <li key={r.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setJdText(r.snippet);
+                              setRecentsOpen(false);
+                              toast.success("JD loaded — pick a template and tailor.");
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                          >
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mb-0.5">
+                              {new Date(r.createdAt).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                              {" · "}
+                              {r.snippet.length} chars
+                            </p>
+                            <p className="text-xs text-zinc-700 dark:text-zinc-200 line-clamp-2">
+                              {r.snippet.slice(0, 140)}
+                              {r.snippet.length > 140 ? "…" : ""}
+                            </p>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <p className="text-[11px] text-zinc-500 tabular-nums">{jdText.length} chars</p>
+        </div>
       </div>
       <Textarea
         value={jdText}

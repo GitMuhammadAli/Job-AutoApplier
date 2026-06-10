@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Bookmark,
+  Clock,
   Globe,
   ArrowUpDown,
   CalendarDays,
@@ -30,7 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/shared/PlatformBadge";
 import { FreshnessDot } from "@/components/jobs/FreshnessIndicator";
-import { saveGlobalJob, dismissGlobalJob, undismissGlobalJob, bulkMarkAppliedFromSite } from "@/app/actions/job";
+import { saveGlobalJob, dismissGlobalJob, undismissGlobalJob, bulkMarkAppliedFromSite, snoozeGlobalJob } from "@/app/actions/job";
 import { tailorAndPrepareApplication } from "@/app/actions/application-email";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -674,7 +675,18 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
           {job.atsCoverage && job.atsCoverage.total > 0 && (
             <AtsCoverageBadge coverage={job.atsCoverage} />
           )}
-          <span className={`text-sm font-bold tabular-nums ${getScoreColor(score)}`} title="Match score">
+          {/* Match score + native-tooltip "why" breakdown. matchReasons are
+              already computed by the recommendation engine — surfacing them
+              on hover/long-press turns the opaque number into a trust signal
+              users can act on. */}
+          <span
+            className={`text-sm font-bold tabular-nums cursor-help ${getScoreColor(score)}`}
+            title={
+              job.matchReasons && job.matchReasons.length > 0
+                ? `Why ${Math.round(score)}%?\n${job.matchReasons.map((r) => `• ${r}`).join("\n")}`
+                : "Match score — engine couldn't list reasons for this one."
+            }
+          >
             {Math.round(score)}%
           </span>
         </div>
@@ -818,12 +830,17 @@ const JobCard = memo(function JobCard({ job, onDismiss }: { job: RecommendedJob;
           <Bookmark className="h-3 w-3" />
         </button>
 
+        {/* Snooze — middle ground between save (forever) and dismiss
+            (permanent). Hover/long-press reveals 7d/14d/30d. Closes itself
+            after pick. Position: between save and dismiss icons. */}
+        <SnoozeButton jobId={job.id} jobTitle={job.title} />
+
         <button
           onClick={handleDismiss}
           disabled={dismissing}
           aria-label="Dismiss"
           title="Dismiss — won't show again"
-          className="inline-flex items-center justify-center rounded-lg w-7 h-7 bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-300 transition-colors touch-manipulation ml-auto disabled:opacity-50"
+          className="inline-flex items-center justify-center rounded-lg w-7 h-7 bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-300 transition-colors touch-manipulation disabled:opacity-50"
         >
           <X className="h-3 w-3" />
         </button>
@@ -1047,5 +1064,85 @@ function ScanNowButton() {
       )}
       {scanning ? "Scanning…" : "Scan now"}
     </button>
+  );
+}
+
+
+// Snooze button — popover with 7d/14d/30d picks. Local state keeps the
+// popover open while the user decides. After pick, fires snoozeGlobalJob
+// and the card slides out (engine excludes it from /recommended until
+// snoozedUntil passes).
+function SnoozeButton({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const handleSnooze = useCallback(
+    async (days: number, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (busy) return;
+      setBusy(true);
+      try {
+        const result = await snoozeGlobalJob(jobId, days);
+        if (result.success) {
+          const label = days === 7 ? "a week" : days === 14 ? "2 weeks" : "a month";
+          toast.success(`Snoozed "${jobTitle.slice(0, 40)}" for ${label}.`);
+          setOpen(false);
+        } else {
+          toast.error(result.error || "We couldn't snooze that. Try again.");
+        }
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, jobId, jobTitle],
+  );
+
+  return (
+    <div className="relative">
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        disabled={busy}
+        aria-label="Snooze"
+        title="Snooze — hide for N days, then resurface"
+        className="inline-flex items-center justify-center rounded-lg w-7 h-7 bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400 hover:bg-amber-100 hover:text-amber-700 dark:hover:bg-amber-900/40 dark:hover:text-amber-300 transition-colors touch-manipulation ml-auto disabled:opacity-50"
+      >
+        <Clock className="h-3 w-3" />
+      </button>
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-label="Close snooze menu"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen(false);
+            }}
+            className="fixed inset-0 z-30 cursor-default"
+          />
+          <div className="absolute right-0 mt-1 w-32 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg z-40 overflow-hidden">
+            {[
+              { days: 7, label: "1 week" },
+              { days: 14, label: "2 weeks" },
+              { days: 30, label: "1 month" },
+            ].map((opt) => (
+              <button
+                key={opt.days}
+                onClick={(e) => handleSnooze(opt.days, e)}
+                disabled={busy}
+                className="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors disabled:opacity-50"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

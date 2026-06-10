@@ -155,6 +155,11 @@ model UserJob {
   isBookmarked   Boolean        @default(false)
   isDismissed    Boolean        @default(false)
   dismissReason  String?
+  // Snooze a job for N days — middle ground between Save (forever) and
+  // Dismiss (permanent). Job is hidden from /recommended until this date
+  // passes, then auto-reappears so the user can revisit when they're ready.
+  // null = not snoozed.
+  snoozedUntil   DateTime?
   lastFollowUpAt DateTime?
   followUpCount  Int            @default(0)
   activities     Activity[]
@@ -166,6 +171,7 @@ model UserJob {
   @@index([userId, stage])
   @@index([userId, matchScore])
   @@index([userId, isDismissed])
+  @@index([userId, snoozedUntil])
   @@index([userId, createdAt])
 }
 
