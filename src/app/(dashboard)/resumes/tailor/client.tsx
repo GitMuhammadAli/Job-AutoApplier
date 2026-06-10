@@ -6,11 +6,14 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  ArrowRight,
   CheckCircle2,
+  Clock,
   Download,
   FileText,
   Loader2,
   Sparkles,
+  Star,
   XCircle,
   Eye,
 } from "lucide-react";
@@ -422,8 +425,77 @@ function ResultPanel({
   onDownload: () => void;
   onRegenerate: () => void;
 }) {
+  // Local favorite state so users can star-from-tailor without round-trip.
+  // Auto-saved generations land in the History tab; favorites also surface
+  // under Variants for one-click re-download.
+  const [favoriting, setFavoriting] = useState(false);
+  const [favorited, setFavorited] = useState(false);
+
+  const handleFavorite = useCallback(async () => {
+    if (favoriting || favorited) return;
+    setFavoriting(true);
+    try {
+      const res = await fetch(`/api/resumes/generations/${result.generationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isFavorite: true }),
+      });
+      if (!res.ok) throw new Error();
+      setFavorited(true);
+      toast.success("Saved to Variants — re-download in one click anytime.");
+    } catch {
+      toast.error("We couldn't save that. Try again.");
+    } finally {
+      setFavoriting(false);
+    }
+  }, [favoriting, favorited, result.generationId]);
+
   return (
     <div className="space-y-3">
+      {/* "Where did my resume go?" — make the destination obvious.
+          Users were confused because the tailor page generates a preview
+          but never tells them the result is auto-saved to /resumes →
+          History. This green banner names the destination, links there,
+          and offers a Star button to promote it to /resumes → Variants
+          for repeat use. */}
+      <div className="rounded-xl border border-emerald-200/70 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/20 px-3 py-2.5">
+        <div className="flex items-start gap-2.5">
+          <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">
+              Saved to your History
+            </p>
+            <p className="text-[11px] text-emerald-800/80 dark:text-emerald-200/80 mt-0.5">
+              Download the PDF below, or come back to it any time under{" "}
+              <Link
+                href="/resumes?tab=history"
+                className="font-semibold underline underline-offset-2 hover:text-emerald-700 dark:hover:text-emerald-300"
+              >
+                Resumes → History
+              </Link>
+              . Star it to keep it in Variants for one-tap re-download.
+            </p>
+          </div>
+          <button
+            onClick={handleFavorite}
+            disabled={favoriting || favorited}
+            className={`shrink-0 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors touch-manipulation ${
+              favorited
+                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
+                : "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 disabled:opacity-60"
+            }`}
+            aria-label={favorited ? "Already a variant" : "Save as variant"}
+          >
+            {favoriting ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Star size={12} className={favorited ? "fill-current" : ""} />
+            )}
+            {favorited ? "Starred" : "Star"}
+          </button>
+        </div>
+      </div>
+
       {result.profileSource === "parsed-pdf" && result.parsedFromResumeName && (
         <div className="rounded-lg border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-950/20 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200">
           <strong>Heads up:</strong> we AI-extracted your profile from your
@@ -452,6 +524,11 @@ function ResultPanel({
         </Button>
         <Button onClick={onRegenerate} variant="outline" className="gap-2">
           <Sparkles size={14} /> Try again
+        </Button>
+        <Button asChild variant="outline" className="gap-1.5">
+          <Link href="/resumes?tab=history">
+            <Clock size={14} /> History <ArrowRight size={12} />
+          </Link>
         </Button>
       </div>
 

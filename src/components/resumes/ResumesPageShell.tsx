@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, FileText, Upload, Clock, User, Target, ArrowRight, TrendingUp, MoreHorizontal, Lightbulb } from "lucide-react";
 import {
   DropdownMenu,
@@ -26,6 +26,7 @@ interface ResumesPageShellProps {
 }
 
 export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
+  const searchParams = useSearchParams();
   const [profile, setProfile] = useState<ResumeProfile | null | undefined>(undefined);
   const [generateOpen, setGenerateOpen] = useState(false);
   // Defer the tabs rendering until after mount. Radix Tabs Provider's SSR
@@ -40,6 +41,19 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
   }, []);
 
   const hasProfile = profile != null;
+
+  // Deep-link support: /resumes?tab=history lands directly on History.
+  // The tailor success banner uses this so users coming from a generation
+  // land where their resume actually is (not the My Profile default).
+  const VALID_TABS = ["profile", "variants", "uploads", "history"] as const;
+  type TabKey = (typeof VALID_TABS)[number];
+  const queryTab = searchParams.get("tab") as TabKey | null;
+  const initialTab: TabKey =
+    queryTab && VALID_TABS.includes(queryTab)
+      ? queryTab
+      : hasProfile
+        ? "profile"
+        : "uploads";
 
   if (!mounted) {
     return (
@@ -59,7 +73,7 @@ export function ResumesPageShell({ uploadedResumes }: ResumesPageShellProps) {
           The generate route handles each path; we just surface the right
           hint copy so the user knows what's happening. */}
       <JdQuickStart hasProfile={hasProfile} hasUploads={uploadedResumes.length > 0} />
-      <Tabs defaultValue={hasProfile ? "profile" : "uploads"} className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {/* Horizontal scroll on mobile when all 4 tabs don't fit. Without
               this, the tab row would stack to 2 rows below 380px and look

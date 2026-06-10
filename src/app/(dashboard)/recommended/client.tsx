@@ -472,13 +472,18 @@ export function RecommendedClient({
         <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/60 p-8 md:p-12 text-center">
           <Briefcase className="h-10 w-10 text-slate-300 dark:text-zinc-600 mx-auto mb-3" />
           <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-200">
-            {hasActiveFilters ? "No jobs match your filters" : "No matched jobs yet"}
+            {hasActiveFilters ? "No jobs match your filters" : "No jobs yet"}
           </h3>
           <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1 mb-4 max-w-md mx-auto">
             {hasActiveFilters
               ? "Loosen one of the filters above — try Any posted date, All sources, or remove the search query."
-              : "If your scheduler is healthy, fresh jobs trickle in every couple hours. In the meantime, click Scan now (top right) for a one-shot scrape against your current keywords."}
+              : "JobPilot pulls jobs from 9 sources against your keywords. If you've just signed up, kick off the first scrape now — fresh jobs land in seconds."}
           </p>
+          {/* Inline Scan now + Settings actions so the user has a concrete
+              next step from the empty state. Previously the page said
+              "click Scan now (top right)" but on mobile that button is
+              far from this card; now the action is right here next to the
+              explanation. */}
           <div className="flex items-center justify-center gap-2 flex-wrap">
             {hasActiveFilters && (
               <button
@@ -489,14 +494,24 @@ export function RecommendedClient({
               </button>
             )}
             {!hasActiveFilters && (
-              <Link
-                href="/settings"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
-              >
-                Edit your keywords →
-              </Link>
+              <>
+                <ScanNowButton />
+                <Link
+                  href="/settings"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
+                >
+                  Edit your keywords →
+                </Link>
+              </>
             )}
           </div>
+          {!hasActiveFilters && (
+            <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-4 max-w-sm mx-auto leading-relaxed">
+              Still empty after a scan? Open Settings → your keywords might be
+              too specific. Try adding broader terms (e.g. <strong>engineer</strong>{" "}
+              instead of <strong>senior staff platform engineer</strong>).
+            </p>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
