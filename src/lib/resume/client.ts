@@ -76,13 +76,37 @@ export interface GenerateCoverage {
   pageBumpRecommended: boolean;
 }
 
+/**
+ * Custom error subclass for resume-generation failures that carry an
+ * actionable payload — e.g. AUDIT_FAIL with the list of fabricated words
+ * the user can add to their profile. The client then surfaces a 1-tap
+ * "Add these to profile" toast action.
+ */
+export class ResumeGenerationError extends Error {
+  code: string | null;
+  fabricated: string[];
+  constructor(message: string, code: string | null = null, fabricated: string[] = []) {
+    super(message);
+    this.name = "ResumeGenerationError";
+    this.code = code;
+    this.fabricated = fabricated;
+  }
+}
+
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
+    let code: string | null = null;
+    let fabricated: string[] = [];
     try {
       const body = await res.json();
       msg = body.error ?? msg;
+      code = body.code ?? null;
+      fabricated = Array.isArray(body.fabricated) ? body.fabricated : [];
     } catch {}
+    if (code === "AUDIT_FAIL" || fabricated.length > 0) {
+      throw new ResumeGenerationError(msg, code, fabricated);
+    }
     throw new Error(msg);
   }
   return (await res.json()) as T;

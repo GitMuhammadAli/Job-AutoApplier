@@ -23,7 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HistoryTab } from "@/components/resumes/HistoryTab";
 import { VariantsTab } from "@/components/resumes/VariantsTab";
-import { resumeClient, type GenerateCoverage, type GenerateDiff } from "@/lib/resume/client";
+import { resumeClient, ResumeGenerationError, type GenerateCoverage, type GenerateDiff } from "@/lib/resume/client";
 import { DEFAULT_TEMPLATE_ID } from "@/lib/resume/templates/registry";
 import { RESUME_TAILORING } from "@/lib/messages";
 
@@ -90,20 +90,29 @@ export function TailorClient({ initialJd, initialTab = "new" }: { initialJd: str
         r.warnings.forEach((w) => toast.warning(w));
       }
     } catch (err) {
-      // AUDIT_BLOCKED carries an actionable hint: the AI tried to claim
-      // skills/experience the user doesn't have on their profile. Route
-      // them to /resumes so they can add the missing items if they're
-      // genuinely true (e.g. they have NestJS experience but it's only
-      // in their head, not in the structured profile yet).
-      const msg = err instanceof Error ? err.message : "Generate failed";
-      const isAuditBlock = /AUDIT_BLOCKED|honest|fabricat|aren't in your profile/i.test(msg);
-      if (isAuditBlock) {
-        toast.error(msg, {
-          duration: 10_000,
-          action: { label: "Open My Profile", onClick: () => router.push("/resumes") },
-        });
+      // ResumeGenerationError carries the specific words the audit blocked.
+      // Surface them in the toast + 1-tap action to add them to the profile.
+      if (err instanceof ResumeGenerationError && err.code === "AUDIT_FAIL") {
+        const words = err.fabricated.slice(0, 5).join(", ");
+        const more = err.fabricated.length > 5 ? `, +${err.fabricated.length - 5} more` : "";
+        toast.error(
+          `Generation blocked — these words showed up but aren't in your profile: ${words}${more}. Add them if they're true, or pick a JD closer to your actual experience.`,
+          {
+            duration: 15_000,
+            action: { label: "Open My Profile", onClick: () => router.push("/resumes") },
+          },
+        );
       } else {
-        toast.error(msg);
+        const msg = err instanceof Error ? err.message : "Generate failed";
+        const isAuditBlock = /honest|fabricat|aren't in your profile/i.test(msg);
+        if (isAuditBlock) {
+          toast.error(msg, {
+            duration: 10_000,
+            action: { label: "Open My Profile", onClick: () => router.push("/resumes") },
+          });
+        } else {
+          toast.error(msg);
+        }
       }
     } finally {
       setGenerating(false);
@@ -427,26 +436,53 @@ function PageTarget({ value, setValue }: { value: 1 | 2; setValue: (n: 1 | 2) =>
 // events from the LLM, so we estimate.
 function ProgressivePreview() {
   const [step, setStep] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const STEPS = [
     "Reading your profile / extracting from upload…",
     "Tailoring sections to the JD…",
     "Force-including keywords you have…",
     "Rendering PDF + post-render audit…",
   ];
+  // Heuristic time budget per step. Tracks total elapsed so the bar can
+  // show concrete progress instead of a spinner that feels stuck.
+  const STEP_BUDGETS_MS = [2500, 3500, 4000, 5000];
+  const TOTAL_BUDGET_MS = STEP_BUDGETS_MS.reduce((a, b) => a + b, 0); // 15s
   useEffect(() => {
     const timers = [
-      setTimeout(() => setStep(1), 2500),
-      setTimeout(() => setStep(2), 6000),
-      setTimeout(() => setStep(3), 10000),
+      setTimeout(() => setStep(1), STEP_BUDGETS_MS[0]),
+      setTimeout(() => setStep(2), STEP_BUDGETS_MS[0] + STEP_BUDGETS_MS[1]),
+      setTimeout(
+        () => setStep(3),
+        STEP_BUDGETS_MS[0] + STEP_BUDGETS_MS[1] + STEP_BUDGETS_MS[2],
+      ),
     ];
-    return () => timers.forEach(clearTimeout);
+    const tick = setInterval(() => setElapsed((e) => e + 100), 100);
+    return () => {
+      timers.forEach(clearTimeout);
+      clearInterval(tick);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Asymptotic progress — accelerates toward 95% then crawls. We never claim
+  // 100% from the timer; the final tick comes from the real network response
+  // replacing this component with the ResultPanel.
+  const rawPct = Math.min((elapsed / TOTAL_BUDGET_MS) * 100, 95);
+  const pct = Math.round(rawPct);
 
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 min-h-[400px] flex flex-col justify-center">
-      <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200 mb-4">
-        <Loader2 className="animate-spin text-emerald-600" size={16} />
-        Tailoring your resume…
+      <div className="flex items-center justify-between gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200 mb-3">
+        <span className="flex items-center gap-2">
+          <Loader2 className="animate-spin text-emerald-600" size={16} />
+          Tailoring your resume…
+        </span>
+        <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-500">{pct}%</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden mb-4">
+        <div
+          className="h-full bg-emerald-500 transition-all duration-150 ease-out"
+          style={{ width: `${pct}%` }}
+        />
       </div>
       <ol className="space-y-2">
         {STEPS.map((label, i) => (

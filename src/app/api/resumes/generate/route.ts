@@ -296,9 +296,19 @@ export async function POST(req: NextRequest) {
     }
     if (err instanceof FabricationError) {
       console.error("[resume.generate] Fabrication audit failed:", err.fabricated);
+      // Surface the specific words that failed the audit so the client can
+      // offer a 1-tap "Add these to my profile" action. Previous behaviour
+      // returned a generic message, leaving the user stuck.
       return NextResponse.json(
-        { error: RESUME_TAILORING.AUDIT_BLOCKED, code: "AUDIT_FAIL" },
-        { status: 500 },
+        {
+          error: RESUME_TAILORING.AUDIT_BLOCKED,
+          code: "AUDIT_FAIL",
+          // Capped — the audit can flag 50+ words on a bad render and we
+          // don't want to dump a wall of text into the toast. Top 8 covers
+          // the actionable cases.
+          fabricated: err.fabricated.slice(0, 8),
+        },
+        { status: 422 },
       );
     }
     return NextResponse.json(

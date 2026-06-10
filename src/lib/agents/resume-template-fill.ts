@@ -58,32 +58,53 @@ export interface TemplateFillInput {
   quota?: { userId: string; route: string };
 }
 
-const SYSTEM_PROMPT = `You arrange resume content for a job. You DO NOT rewrite anything.
+const SYSTEM_PROMPT = `You arrange resume content for a specific job. You DO NOT rewrite or fabricate.
+Your job is selection + ordering only — the user's words ship verbatim.
 
 Given a candidate's profile + their JD-relevant signal, return STRICT JSON:
 {
-  "skillsOrder":  string[],  // user's skill names, JD-prioritized; subset of their list, no new ones
-  "projectIds":   string[],  // ordered project ids, top-K only
-  "summaryId":    string | null,  // pick the best-matching user summary by id
+  "skillsOrder":  string[],         // user's skill names, JD-prioritized; subset of their list, no new ones
+  "projectIds":   string[],         // ordered project ids, top-K only
+  "summaryId":    string | null,    // pick the best-matching user summary by id, or null
   "layoutBias":   "projects-first" | "experience-first" | "balanced"
 }
 
-Rules:
-- skillsOrder MUST be a subset of the input "candidateSkills". No fabrication.
-- projectIds MUST be a subset of the input "candidateProjects" ids.
-- summaryId MUST match one of the input "candidateSummaries" ids, or be null.
-- Use relevantSkills (from upstream agent) to anchor skill ordering.
-- Sort projects by stack overlap with required+nice keywords; featured = soft boost.
-- Return ONLY the JSON. No prose, no markdown fence.`;
+Hard rules (audit fails the render if violated):
+- skillsOrder MUST be a strict subset of the input candidateSkills. Casing must match input exactly.
+- projectIds MUST be a strict subset of input candidateProjects ids.
+- summaryId MUST exactly match one of input candidateSummaries ids, or be null.
+
+Selection priorities (in order):
+1. Items whose stack/keywords directly overlap with the JD's required terms.
+2. Items whose stack/keywords appear in the upstream agent's adjacentMatches
+   (candidate's skill that's adjacent to a JD ask) — these get equal weight to
+   direct matches because the candidate genuinely has the related experience.
+3. featured = true is a soft boost when tied.
+4. Diversity — don't pick 3 projects with identical stacks if a different one
+   widens the candidate's surface area.
+
+Layout bias:
+- projects-first when the JD emphasizes recent build work / side projects /
+  startup-style hiring signals.
+- experience-first when the JD emphasizes years in role / specific company
+  experience / enterprise hiring signals.
+- balanced when the JD is mixed.
+
+Return ONLY the JSON object. No markdown, no prose.`;
 
 function buildUserPrompt(input: TemplateFillInput): string {
   const { profile, tailored, jdText } = input;
+  const adjacencyLines = (tailored.adjacentMatches ?? []).map(
+    (m) => `  - JD asks "${m.jdAsks}" → candidate has "${m.userHas}" (adjacent)`,
+  );
   return [
     `Template: ${input.templateId}`,
     `Page target: ${input.pageTarget ?? 1}`,
     "",
     `Upstream tailorResume signal:`,
     `  relevantSkills: ${tailored.relevantSkills.join(", ") || "(none)"}`,
+    `  adjacentMatches: ${adjacencyLines.length > 0 ? "" : "(none)"}`,
+    ...adjacencyLines,
     `  missingKeywords: ${tailored.missingKeywords.join(", ") || "(none)"}`,
     "",
     `candidateSkills: ${profile.skills.join(", ") || "(empty)"}`,
