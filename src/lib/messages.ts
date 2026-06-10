@@ -314,9 +314,9 @@ export const RESUME_TAILORING = {
 
   // Generate route — render-time errors
   RENDER_FALLBACK_GENERIC:
-    "Something went sideways generating that resume. Give it another try.",
+    "We couldn't finish rendering that resume. Try again, or switch templates.",
   AUDIT_BLOCKED:
-    "We stopped that render — something looked off. Give it another try.",
+    "The AI tried to put skills or experience on your PDF that aren't in your profile. We blocked it so your resume stays honest. Add the missing items under My Profile if they're true, or use a JD that better matches your actual experience.",
 
   // Generate route — agent chain warnings
   AGENT_CHAIN_FALLBACK:

@@ -90,11 +90,25 @@ export function TailorClient({ initialJd, initialTab = "new" }: { initialJd: str
         r.warnings.forEach((w) => toast.warning(w));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Generate failed");
+      // AUDIT_BLOCKED carries an actionable hint: the AI tried to claim
+      // skills/experience the user doesn't have on their profile. Route
+      // them to /resumes so they can add the missing items if they're
+      // genuinely true (e.g. they have NestJS experience but it's only
+      // in their head, not in the structured profile yet).
+      const msg = err instanceof Error ? err.message : "Generate failed";
+      const isAuditBlock = /AUDIT_BLOCKED|honest|fabricat|aren't in your profile/i.test(msg);
+      if (isAuditBlock) {
+        toast.error(msg, {
+          duration: 10_000,
+          action: { label: "Open My Profile", onClick: () => router.push("/resumes") },
+        });
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setGenerating(false);
     }
-  }, [canGenerate, templateId, pageTarget, jdText]);
+  }, [canGenerate, templateId, pageTarget, jdText, router]);
 
   const handleDownload = useCallback(async () => {
     if (!result) return;
@@ -154,7 +168,27 @@ export function TailorClient({ initialJd, initialTab = "new" }: { initialJd: str
         </Button>
       </div>
 
-      <TabsContent value="new" className="mt-0">
+      <TabsContent value="new" className="mt-0 pb-24 lg:pb-0">
+        {/* Top-of-page Tailor CTA on desktop — sits ABOVE the JD textarea
+            and template grid so the user doesn't have to scroll past every
+            template + page-count picker to find the button. Defaults to
+            scrolling smoothly back to the preview on click. */}
+        <div className="hidden lg:flex items-center justify-between gap-3 mb-4 rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/20 px-4 py-2.5">
+          <p className="text-xs text-emerald-800 dark:text-emerald-200">
+            <strong className="font-semibold">Ready when you are.</strong>{" "}
+            JD + template + page count below — hit Tailor any time.
+          </p>
+          <Button
+            onClick={handleGenerate}
+            disabled={!canGenerate || generating}
+            size="sm"
+            className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shrink-0"
+          >
+            {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            {generating ? "Tailoring…" : "Tailor & preview"}
+          </Button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4">
           {/* Left — inputs */}
           <section className="space-y-4">
@@ -192,6 +226,21 @@ export function TailorClient({ initialJd, initialTab = "new" }: { initialJd: str
               />
             )}
           </section>
+        </div>
+
+        {/* Mobile sticky Tailor bar — replicates the desktop top CTA so
+            mobile users don't have to scroll past the template grid to
+            find the button. Only renders on tab=new (TabsContent gates it)
+            and only at lg:hidden so desktop doesn't double-up. */}
+        <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-emerald-200 dark:border-emerald-900/60 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm px-3 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+          <Button
+            onClick={handleGenerate}
+            disabled={!canGenerate || generating}
+            className="w-full gap-2 bg-emerald-600 hover:bg-emerald-500 text-white touch-manipulation"
+          >
+            {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            {generating ? "Tailoring…" : canGenerate ? "Tailor & preview" : `Paste a JD (${MIN_JD_LEN}+ chars)`}
+          </Button>
         </div>
       </TabsContent>
 
