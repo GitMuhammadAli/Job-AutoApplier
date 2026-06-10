@@ -60,6 +60,10 @@ const settingsSchema = z.object({
   autoApplyEnabled: z.boolean().default(false),
   maxAutoApplyPerDay: z.number().min(1).max(50).default(10),
   minMatchScoreForAutoApply: z.number().min(0).max(100).default(75),
+  // Follow-up automation
+  followUpEnabled: z.boolean().default(false),
+  followUpDelayDays: z.number().min(3).max(30).default(7),
+  maxFollowUpsPerApp: z.number().min(1).max(3).default(2),
   defaultSignature: z.string().max(1000).optional().or(z.literal("")),
   // AI Customization
   customSystemPrompt: z.string().max(2000).optional().or(z.literal("")),

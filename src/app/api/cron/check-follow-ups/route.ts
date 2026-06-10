@@ -18,16 +18,29 @@ export async function GET(req: NextRequest) {
   const startTime = Date.now();
 
   try {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    // Default delay window — settings.followUpDelayDays per-user overrides.
+    // We use the most generous DB filter (≥ shortest possible delay) and
+    // recheck per-user in the loop, since UserJob doesn't know the user's
+    // delay setting without a join.
+    const minDelayDays = FOLLOW_UP.FOLLOW_UP_AFTER_DAYS;
+    const earliestCutoff = new Date(Date.now() - minDelayDays * 24 * 60 * 60 * 1000);
 
     const candidates = await prisma.userJob.findMany({
       where: {
         stage: "APPLIED",
         isDismissed: false,
         followUpCount: { lt: FOLLOW_UP.MAX_FOLLOW_UPS },
+        // Only users who explicitly opted in. Default is off — generating
+        // follow-up drafts for everyone would surprise users who didn't ask.
+        user: {
+          settings: {
+            followUpEnabled: true,
+            accountStatus: "active",
+          },
+        },
         OR: [
-          { lastFollowUpAt: null, updatedAt: { lte: sevenDaysAgo } },
-          { lastFollowUpAt: { lte: sevenDaysAgo } },
+          { lastFollowUpAt: null, updatedAt: { lte: earliestCutoff } },
+          { lastFollowUpAt: { lte: earliestCutoff } },
         ],
       },
       take: LIMITS.FOLLOW_UP_BATCH,
@@ -46,10 +59,22 @@ export async function GET(req: NextRequest) {
 
       if (
         !userJob.user.settings ||
-        userJob.user.settings.accountStatus !== "active"
+        userJob.user.settings.accountStatus !== "active" ||
+        !userJob.user.settings.followUpEnabled
       )
         continue;
       if (!userJob.application) continue;
+
+      // Per-user delay + max enforcement. The DB filter used the global
+      // minimum delay; here we re-check against this user's preferred
+      // delay and max count to avoid generating one day too early or
+      // one too many times.
+      const userDelayDays = userJob.user.settings.followUpDelayDays ?? FOLLOW_UP.FOLLOW_UP_AFTER_DAYS;
+      const userMaxFollowUps = userJob.user.settings.maxFollowUpsPerApp ?? FOLLOW_UP.MAX_FOLLOW_UPS;
+      if (userJob.followUpCount >= userMaxFollowUps) continue;
+      const referenceTime = userJob.lastFollowUpAt ?? userJob.updatedAt;
+      const daysSinceReference = (Date.now() - referenceTime.getTime()) / (24 * 60 * 60 * 1000);
+      if (daysSinceReference < userDelayDays) continue;
 
       try {
         const settings = userJob.user.settings;

@@ -257,6 +257,13 @@ model UserSettings {
   instantApplyEnabled      Boolean         @default(false)
   maxAutoApplyPerDay       Int             @default(10)
   minMatchScoreForAutoApply Float          @default(75.0)
+  // Follow-up automation — cron generates follow-up drafts for applications
+  // stuck in APPLIED after N days. Drafts queue under /applications for
+  // user review + send. Default off because the first follow-up should be
+  // a deliberate user decision; once they've sent one they trust the flow.
+  followUpEnabled          Boolean         @default(false)
+  followUpDelayDays        Int             @default(7)
+  maxFollowUpsPerApp       Int             @default(2)
   defaultSignature         String?         @db.Text
   priorityPlatforms        String[]
   peakHoursOnly            Boolean         @default(false)

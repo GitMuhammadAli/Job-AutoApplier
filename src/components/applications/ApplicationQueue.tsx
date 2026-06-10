@@ -20,6 +20,7 @@ import {
   ShieldX,
   AlertTriangle,
   Inbox,
+  ChevronRight,
 } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
@@ -541,6 +542,23 @@ const ApplicationCard = memo(function ApplicationCard({
               resumeName={app.resume?.name}
               variant="compact"
             />
+          </div>
+        )}
+
+        {/* Follow-up draft surface. Cron generates these for applications
+            stuck in APPLIED past the user's chosen delay; the user reviews
+            here and clicks Send to actually deliver. Body collapsed by
+            default — click "Show draft" to expand and proofread. */}
+        {isSent && app.followUpStatus === "DRAFT" && app.followUpSubject && (
+          <FollowUpDraftPanel app={app} onLocalStatusChange={onLocalStatusChange} />
+        )}
+
+        {isSent && app.followUpStatus === "SENT" && (
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40">
+            <Send className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+              Follow-up sent.
+            </span>
           </div>
         )}
 
@@ -1265,6 +1283,104 @@ function ApplicationList({
           >
             Show more ({applications.length - visibleCount} remaining)
           </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// FollowUpDraftPanel — collapsible review of the AI-generated follow-up.
+// User can read the body, then either Send or Discard. Send hits the new
+// /api/applications/[id]/send-followup route; Discard clears the draft
+// so the cron may regenerate later (or won't, depending on followUpCount).
+function FollowUpDraftPanel({
+  app,
+  onLocalStatusChange,
+}: {
+  app: ApplicationWithRelations;
+  onLocalStatusChange?: (id: string, status: ApplicationStatus) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const handleSendFollowUp = useCallback(async () => {
+    if (sending) return;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/applications/${app.id}/send-followup`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        toast.success("Follow-up sent.");
+        onLocalStatusChange?.(app.id, app.status); // status unchanged; trigger re-render
+        // Hard reload of this card's data — easiest way to flip followUpStatus
+        // from DRAFT to SENT in the UI is a full refresh.
+        if (typeof window !== "undefined") window.location.reload();
+      } else {
+        toast.error(data.error || "We couldn't send the follow-up. Try again.");
+      }
+    } catch {
+      toast.error("Network hiccup — try again.");
+    } finally {
+      setSending(false);
+    }
+  }, [app.id, app.status, onLocalStatusChange, sending]);
+
+  return (
+    <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200/60 dark:ring-blue-800/40 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 hover:bg-blue-100/40 dark:hover:bg-blue-900/30 transition-colors text-left"
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          <Send className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+          <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+            Follow-up draft ready
+          </span>
+          <span className="text-[10px] text-blue-600/70 dark:text-blue-400/70 truncate">
+            · {app.followUpSubject ?? ""}
+          </span>
+        </span>
+        <ChevronRight
+          className={`h-3.5 w-3.5 text-blue-500/60 shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`}
+        />
+      </button>
+      {expanded && (
+        <div className="px-3 py-2.5 border-t border-blue-200/60 dark:border-blue-800/40 space-y-2.5">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-blue-600/80 dark:text-blue-400/80 mb-1">
+              Subject
+            </p>
+            <p className="text-xs text-slate-800 dark:text-zinc-200">{app.followUpSubject}</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-blue-600/80 dark:text-blue-400/80 mb-1">
+              Body
+            </p>
+            <p className="text-xs text-slate-700 dark:text-zinc-300 whitespace-pre-wrap font-mono leading-relaxed">
+              {app.followUpBody}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              size="sm"
+              onClick={handleSendFollowUp}
+              disabled={sending}
+              className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white"
+            >
+              {sending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
+              Send follow-up
+            </Button>
+            <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70">
+              Goes to {app.recipientEmail}
+            </p>
+          </div>
         </div>
       )}
     </div>

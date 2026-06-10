@@ -15,7 +15,12 @@ interface SendResult {
 }
 
 export async function sendApplication(
-  applicationId: string
+  applicationId: string,
+  // mode: "primary" sends the original application (subject + emailBody fields).
+  // mode: "followup" sends the AI-generated follow-up draft (followUpSubject +
+  // followUpBody fields) without re-sending the original. Used by the user
+  // when they review a follow-up draft on /applications and click Send.
+  mode: "primary" | "followup" = "primary",
 ): Promise<SendResult> {
   const application = await prisma.jobApplication.findUnique({
     where: { id: applicationId },
@@ -31,8 +36,16 @@ export async function sendApplication(
       success: false,
       error: "This draft has no recipient email yet. Add one before sending.",
     };
-  if (application.status === "SENT")
+  if (mode === "primary" && application.status === "SENT")
     return { success: false, error: "This one's already been sent." };
+  if (mode === "followup") {
+    if (!application.followUpSubject || !application.followUpBody) {
+      return { success: false, error: "No follow-up draft on this application yet." };
+    }
+    if (application.followUpStatus === "SENT") {
+      return { success: false, error: "This follow-up has already been sent." };
+    }
+  }
 
   const userId = application.userId;
 
@@ -203,24 +216,43 @@ export async function sendApplication(
     resumeAttached = true;
   }
 
-  // Atomic claim: only one caller can transition DRAFT/READY → SENDING
+  // Atomic claim: only one caller can transition DRAFT/READY → SENDING for
+  // primary mode. For follow-up mode, the application is already SENT; we
+  // claim by checking followUpStatus="DRAFT" and flipping to "SENDING" so
+  // two cron passes don't double-send the same follow-up.
   try {
-    const claimed = await prisma.jobApplication.updateMany({
-      where: {
-        id: applicationId,
-        status: { in: ["DRAFT", "READY"] },
-      },
-      data: { status: "SENDING" },
-    });
-    if (claimed.count === 0) {
-      return { success: false, error: "Already sending or sent — nothing to do." };
+    if (mode === "followup") {
+      const claimed = await prisma.jobApplication.updateMany({
+        where: { id: applicationId, followUpStatus: "DRAFT" },
+        data: { followUpStatus: "SENDING" },
+      });
+      if (claimed.count === 0) {
+        return { success: false, error: "Already sending or sent — nothing to do." };
+      }
+    } else {
+      const claimed = await prisma.jobApplication.updateMany({
+        where: {
+          id: applicationId,
+          status: { in: ["DRAFT", "READY"] },
+        },
+        data: { status: "SENDING" },
+      });
+      if (claimed.count === 0) {
+        return { success: false, error: "Already sending or sent — nothing to do." };
+      }
     }
 
     let cleanSubject: string;
     let cleanBody: string;
     try {
-      cleanSubject = cleanJsonField(application.subject, "subject");
-      cleanBody = cleanJsonField(application.emailBody, "body");
+      cleanSubject = cleanJsonField(
+        mode === "followup" ? (application.followUpSubject ?? "") : application.subject,
+        "subject",
+      );
+      cleanBody = cleanJsonField(
+        mode === "followup" ? (application.followUpBody ?? "") : application.emailBody,
+        "body",
+      );
     } catch (parseErr) {
       await prisma.jobApplication.update({
         where: { id: applicationId },
@@ -324,8 +356,36 @@ export async function sendApplication(
       })),
     });
 
-    // Success — C4: track resume attachment failure as warning
-    await prisma.$transaction([
+    // Success — primary mode flips status to SENT; follow-up mode keeps
+    // the primary status (already SENT) and just flips followUpStatus +
+    // bumps the count. Stage doesn't move on follow-up — it should stay
+    // in APPLIED so the cron knows whether further follow-ups apply.
+    await prisma.$transaction(
+      mode === "followup"
+        ? [
+            prisma.jobApplication.update({
+              where: { id: applicationId },
+              data: {
+                followUpStatus: "SENT",
+              },
+            }),
+            prisma.userJob.update({
+              where: { id: application.userJobId },
+              data: {
+                followUpCount: { increment: 1 },
+                lastFollowUpAt: new Date(),
+              },
+            }),
+            prisma.activity.create({
+              data: {
+                userId,
+                userJobId: application.userJobId,
+                type: "FOLLOW_UP_SENT",
+                description: `Follow-up sent via ${settings.emailProvider || "smtp"}`,
+              },
+            }),
+          ]
+        : [
       prisma.jobApplication.update({
         where: { id: applicationId },
         data: {
@@ -350,7 +410,8 @@ export async function sendApplication(
           description: `Email sent via ${settings.emailProvider || "smtp"}`,
         },
       }),
-    ]);
+    ],
+    );
 
     return { success: true, messageId: result.messageId };
   } catch (err: unknown) {

@@ -61,6 +61,7 @@ import {
   FileText,
   Download,
   Smartphone,
+  Clock,
 } from "lucide-react";
 
 interface SettingsFormProps {
@@ -261,6 +262,14 @@ export function SettingsForm({
   const [instantApplyDelay, setInstantApplyDelay] = useState(
     (s.instantApplyDelay ?? 5).toString(),
   );
+  // Follow-up automation
+  const [followUpEnabled, setFollowUpEnabled] = useState((s as { followUpEnabled?: boolean }).followUpEnabled ?? false);
+  const [followUpDelayDays, setFollowUpDelayDays] = useState(
+    ((s as { followUpDelayDays?: number }).followUpDelayDays ?? 7).toString(),
+  );
+  const [maxFollowUpsPerApp, setMaxFollowUpsPerApp] = useState(
+    ((s as { maxFollowUpsPerApp?: number }).maxFollowUpsPerApp ?? 2).toString(),
+  );
 
   // AI Customization
   const [customPrompt, setCustomPrompt] = useState(s.customSystemPrompt || "");
@@ -428,6 +437,9 @@ export function SettingsForm({
         cooldownMinutes,
         bouncePauseHours,
         blacklistedCompanies,
+        followUpEnabled,
+        followUpDelayDays: parseInt(followUpDelayDays) || 7,
+        maxFollowUpsPerApp: parseInt(maxFollowUpsPerApp) || 2,
       });
       if (result && !result.success) {
         toast.error(result.error || "We couldn't save those settings. Try again.");
@@ -1832,6 +1844,82 @@ export function SettingsForm({
           </div>
         </Section>
       )}
+
+      {/* ── Follow-up automation ──
+          Generates polite follow-up drafts for applications stuck in
+          APPLIED status. Drafts queue under /applications for the user
+          to review + send manually — never auto-sent without consent.
+          Off by default; opt-in is deliberate. */}
+      <Section
+        icon={<Clock className="h-4 w-4" />}
+        title="Follow-up Drafts"
+        description="When an application gets no response after N days, generate a polite follow-up draft and queue it under /applications. Drafts are never auto-sent — you review and send yourself."
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/50">
+            <input
+              type="checkbox"
+              id="followUpEnabled"
+              checked={followUpEnabled}
+              onChange={(e) => setFollowUpEnabled(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-zinc-600 text-emerald-600 focus:ring-emerald-500"
+            />
+            <label htmlFor="followUpEnabled" className="flex-1 cursor-pointer">
+              <p className="text-sm font-medium text-slate-800 dark:text-zinc-200">
+                Generate follow-up drafts automatically
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                Daily cron picks applications stuck in APPLIED past the delay
+                below and drafts a follow-up email per AI. Drafts wait for
+                your review under /applications → Drafts.
+              </p>
+            </label>
+          </div>
+
+          {followUpEnabled && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-7">
+              <Field
+                label={`Wait ${followUpDelayDays} day${followUpDelayDays === "1" ? "" : "s"} after sending`}
+                hint="Most replies land within 3-5 business days. 7 is the sweet spot — too soon feels pushy, too late and the role is filled."
+              >
+                <input
+                  type="range"
+                  min={3}
+                  max={30}
+                  value={followUpDelayDays}
+                  onChange={(e) => setFollowUpDelayDays(e.target.value)}
+                  className="w-full accent-emerald-600"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+                  <span>3d</span>
+                  <span>30d</span>
+                </div>
+              </Field>
+              <Field
+                label={`Max ${maxFollowUpsPerApp} follow-up${maxFollowUpsPerApp === "1" ? "" : "s"} per application`}
+                hint="After this many, the application is considered ghosted and stops drafting."
+              >
+                <div className="inline-flex rounded-lg border border-slate-200 dark:border-zinc-700 p-1 bg-slate-50 dark:bg-zinc-900">
+                  {[1, 2, 3].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setMaxFollowUpsPerApp(String(n))}
+                      className={`px-4 py-1 text-sm rounded-md font-semibold transition-colors ${
+                        maxFollowUpsPerApp === String(n)
+                          ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
+                          : "text-zinc-500 dark:text-zinc-400"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </div>
+          )}
+        </div>
+      </Section>
 
         </TabsContent>
         )}
