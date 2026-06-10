@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-module.exports = {
+const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
@@ -116,3 +116,25 @@ module.exports = {
     minimumCacheTTL: 86400,
   },
 };
+
+// Sentry wrapper — no-ops when NEXT_PUBLIC_SENTRY_DSN is unset, so this
+// doesn't break local dev or CI smoke runs. To enable: set
+// NEXT_PUBLIC_SENTRY_DSN + SENTRY_DSN env vars in Vercel.
+// Sentry's own build plugin uses SENTRY_AUTH_TOKEN to upload sourcemaps;
+// also optional — without it, sourcemaps still land in Sentry but the
+// upload step is skipped.
+const { withSentryConfig } = require("@sentry/nextjs");
+
+module.exports = withSentryConfig(nextConfig, {
+  silent: true,
+  // Tunnel client-side reports through the app domain so ad blockers
+  // (uBlock Origin et al.) don't strip them. Cheap, no auth needed.
+  tunnelRoute: "/monitoring",
+  // Upload sourcemaps only when both org + project + auth token are set
+  // (so Vercel prod builds with full config will, CI smoke runs won't).
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  disableLogger: true,
+  hideSourceMaps: true,
+});
