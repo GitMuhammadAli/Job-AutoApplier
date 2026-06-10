@@ -231,29 +231,12 @@ export async function addNote(userJobId: string, note: string): Promise<{ succes
   }
 }
 
-// ── Toggle bookmark ──
-
-export async function toggleBookmark(userJobId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const userId = await getAuthUserId();
-
-    const userJob = await prisma.userJob.findFirst({
-      where: { id: userJobId, userId },
-    });
-    if (!userJob) return { success: false, error: "Job not found" };
-
-    await prisma.userJob.update({
-      where: { id: userJobId },
-      data: { isBookmarked: !userJob.isBookmarked },
-    });
-
-    revalidatePath("/");
-    return { success: true };
-  } catch (error) {
-    console.error("[toggleBookmark] Error:", error);
-    return { success: false, error: "We couldn't update that bookmark. Try again." };
-  }
-}
+// Bookmark toggle action removed — `isBookmarked` schema field is kept for
+// future use, but no UI surface ever called toggleBookmark(). The icon on
+// JobCard that looks like a bookmark is actually the "save to my board"
+// action (saveGlobalJob). Removed the dead action so it doesn't show up
+// in autocomplete or lead future contributors to believe bookmarks are a
+// shipped feature.
 
 // ── Create manual job ──
 
