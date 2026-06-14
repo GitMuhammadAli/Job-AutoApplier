@@ -18,6 +18,7 @@ import { requireAuthUserId } from "@/lib/auth";
 import { sendApplication } from "@/lib/send-application";
 import { prisma } from "@/lib/prisma";
 import { GENERIC } from "@/lib/messages";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,7 @@ export async function POST(
     if (error instanceof Error && error.message === GENERIC.NOT_AUTHENTICATED) {
       return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
-    console.error("[SendFollowUpRoute] Error:", error);
+    await captureError(error, { route: "/api/applications/[id]/send-followup" });
     return NextResponse.json(
       { error: GENERIC.INTERNAL_SERVER_ERROR },
       { status: 500 },

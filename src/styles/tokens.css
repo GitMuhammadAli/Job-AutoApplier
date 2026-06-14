@@ -1,0 +1,299 @@
+/* =========================================================================
+ * Design System Tokens — JobPilot
+ * Locked 2026-06-14. Single source of truth for typography, color, spacing,
+ * motion, radius, and shadow.
+ *
+ * AESTHETIC: warm + soft + healthy-smooth. Editorial precision with breath.
+ * NOT clinical zinc-on-white. Stone-warm neutrals, organic emerald,
+ * generous spacing, soft layered shadows, breathing motion.
+ *
+ * Reference: Substack reader, Mercury redesign, Notion warmth, Cron calendar.
+ *
+ * Rules:
+ *   - Typography: 5 sizes only. Body line-height 1.65 (breathing room).
+ *   - Color: warm neutrals (stone family), desaturated emerald, never blue.
+ *   - Spacing: 4 values (8 / 16 / 32 / 64). Bias generous.
+ *   - Motion: longer ease (250–400ms). Softness comes from breathing.
+ *   - Radii: bias up. Primary surfaces use 12px. Cards use 16px.
+ *   - Shadows: soft, multi-layer, low opacity. Never harsh.
+ *   - Fonts loaded via next/font/google in src/app/layout.tsx:
+ *       Fraunces        → --font-display (optical sizing for warmth)
+ *       Geist           → --font-body
+ *       JetBrains Mono  → --font-mono
+ * =======================================================================*/
+
+:root {
+  /* ── Typography: font families ───────────────────────────────────────── */
+  --font-display: var(--font-display-injected, "Fraunces", "Georgia", serif);
+  --font-body:    var(--font-body-injected,    "Geist", system-ui, -apple-system, "Segoe UI", sans-serif);
+  --font-mono:    var(--font-mono-injected,    "JetBrains Mono", "SFMono-Regular", Menlo, monospace);
+
+  /* ── Typography: 5-step scale (size / line-height) ──────────────────── */
+  /* Bumped line-heights for breathing room. Body lh 1.65 reduces fatigue. */
+  --text-xs:      11px;
+  --text-xs-lh:   1.55;
+  --text-sm:      13px;
+  --text-sm-lh:   1.6;
+  --text-base:    15px;
+  --text-base-lh: 1.65;   /* up from 1.6 — warmth */
+  --text-lg:      18px;
+  --text-lg-lh:   1.45;
+  --text-3xl:     30px;
+  --text-3xl-lh:  1.25;
+
+  /* Title letter-spacing — positive on serif display for organic feel */
+  --tracking-display: 0.005em;
+  --tracking-body:    0;
+  --tracking-mono:    -0.01em;
+
+  /* ── Color: WARM neutrals (stone-based, slight yellow undertone) ───── */
+  /* Replaces cold zinc. Same naming for class compatibility. */
+  --zinc-50:  #fafaf7;  /* warm off-white — page background */
+  --zinc-100: #f5f3ef;  /* subtle surface */
+  --zinc-200: #e7e3dc;  /* borders */
+  --zinc-300: #d4cdc0;  /* dividers */
+  --zinc-400: #a8a094;  /* metadata text */
+  --zinc-500: #78716c;  /* secondary detail */
+  --zinc-600: #57534e;  /* body secondary */
+  --zinc-700: #44403c;  /* body primary (not max-contrast) */
+  --zinc-800: #292524;
+  --zinc-900: #1c1917;  /* deepest — used sparingly */
+
+  /* Pure warm white for elevated surfaces */
+  --warm-white: #ffffff;
+  --cream:      #fdfcfa;
+
+  /* ── Color: accents (5% of UI, semantic only, ORGANIC versions) ─────── */
+  --accent-emerald:        #10b981;  /* desaturated, healthier — CTA + success */
+  --accent-emerald-hover:  #059669;
+  --accent-emerald-soft:   #d1fae5;  /* tint for backgrounds */
+  --accent-red:            #e11d48;  /* rose-tinted — softer destructive */
+  --accent-red-hover:      #be123c;
+  --accent-red-soft:       #ffe4e6;
+  --accent-amber:          #f59e0b;
+  --accent-amber-hover:    #d97706;
+  --accent-amber-soft:     #fef3c7;
+
+  /* ── Semantic surface mappings (light mode default) ──────────────────── */
+  --color-bg:           var(--zinc-50);
+  --color-surface:      var(--warm-white);
+  --color-surface-alt:  var(--zinc-100);
+  --color-surface-soft: var(--cream);
+  --color-border:       var(--zinc-200);
+  --color-border-soft:  rgba(228, 220, 207, 0.6);
+  --color-text:         var(--zinc-700);   /* not zinc-900 — softer */
+  --color-text-strong:  var(--zinc-900);
+  --color-text-muted:   var(--zinc-500);
+  --color-text-subtle:  var(--zinc-400);
+
+  /* ── Spacing: 4 values, no in-betweens ───────────────────────────────── */
+  --gap-2:   8px;
+  --gap-4:  16px;
+  --gap-8:  32px;
+  --gap-16: 64px;
+
+  /* Component-level padding presets (consume above) */
+  --pad-card:   24px;
+  --pad-sheet:  32px;
+  --pad-input:  12px;
+
+  /* ── Motion: longer eases for warmth + breathing room ───────────────── */
+  --duration-fast:   250ms;   /* up from 150ms — softer state changes */
+  --duration-base:   400ms;   /* up from 350ms — layout shifts breathe */
+  --duration-slow:   600ms;   /* page transitions, modal open */
+  --duration-pulse:  1800ms;  /* skeleton + saved-indicator loops */
+
+  --easing-out:    cubic-bezier(0.16, 1, 0.3, 1);   /* expo-out — organic settle */
+  --easing-inout:  cubic-bezier(0.65, 0, 0.35, 1);  /* smoother sine-like */
+  --easing-soft:   cubic-bezier(0.4, 0, 0.2, 1);    /* classic ease for everyday */
+
+  /* ── Radii: bias up. Soft = bigger. ─────────────────────────────────── */
+  --radius-sm:   6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
+
+  /* ── Shadows: soft, multi-layer, low opacity ────────────────────────── */
+  /* Built on warm shadow color (slight yellow) for organic depth */
+  --shadow-sm: 0 1px 2px rgba(68, 64, 60, 0.04),
+               0 1px 1px rgba(68, 64, 60, 0.03);
+  --shadow-md: 0 1px 3px rgba(68, 64, 60, 0.05),
+               0 4px 12px rgba(68, 64, 60, 0.06),
+               0 0 0 1px rgba(68, 64, 60, 0.03);
+  --shadow-lg: 0 1px 4px rgba(68, 64, 60, 0.04),
+               0 8px 24px rgba(68, 64, 60, 0.08),
+               0 16px 48px rgba(68, 64, 60, 0.06);
+  --shadow-xl: 0 2px 6px rgba(68, 64, 60, 0.06),
+               0 16px 40px rgba(68, 64, 60, 0.10),
+               0 32px 64px rgba(68, 64, 60, 0.08);
+
+  /* Inner shadow for inset elements (input focus, recessed) */
+  --shadow-inner: inset 0 1px 2px rgba(68, 64, 60, 0.04);
+
+  /* Accent glow — emerald soft ring for primary buttons on focus */
+  --shadow-focus-emerald: 0 0 0 4px rgba(16, 185, 129, 0.12);
+  --shadow-focus-red:     0 0 0 4px rgba(225, 29, 72, 0.12);
+
+  /* ── Animation tokens for shared transitions ────────────────────────── */
+  --transition-colors: color var(--duration-fast) var(--easing-soft),
+                       background-color var(--duration-fast) var(--easing-soft),
+                       border-color var(--duration-fast) var(--easing-soft);
+  --transition-transform: transform var(--duration-fast) var(--easing-out);
+  --transition-all: all var(--duration-fast) var(--easing-soft);
+}
+
+/* ── Dark mode: WARM dark (not pure black) ──────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --zinc-50:  #1c1917;
+    --zinc-100: #292524;
+    --zinc-200: #44403c;
+    --zinc-300: #57534e;
+    --zinc-400: #78716c;
+    --zinc-500: #a8a094;
+    --zinc-600: #d4cdc0;
+    --zinc-700: #e7e3dc;
+    --zinc-800: #f5f3ef;
+    --zinc-900: #fafaf7;
+
+    --color-bg:           #18181b;        /* warm near-black */
+    --color-surface:      #1c1917;
+    --color-surface-alt:  #292524;
+    --color-surface-soft: #242020;
+    --color-border:       #3a3633;
+    --color-border-soft:  rgba(120, 113, 108, 0.2);
+    --color-text:         #e7e3dc;
+    --color-text-strong:  #fafaf7;
+    --color-text-muted:   #a8a094;
+    --color-text-subtle:  #78716c;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20),
+                 0 0 0 1px rgba(250, 250, 247, 0.05);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.32),
+                 0 0 0 1px rgba(250, 250, 247, 0.04);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.40),
+                 0 0 0 1px rgba(250, 250, 247, 0.04);
+    --shadow-xl: 0 32px 64px rgba(0, 0, 0, 0.50);
+
+    --shadow-focus-emerald: 0 0 0 4px rgba(16, 185, 129, 0.20);
+    --shadow-focus-red:     0 0 0 4px rgba(225, 29, 72, 0.20);
+  }
+}
+
+/* ── Class-based dark override (for ThemeProvider toggling .dark) ───────── */
+.dark {
+  --zinc-50:  #1c1917;
+  --zinc-100: #292524;
+  --zinc-200: #44403c;
+  --zinc-300: #57534e;
+  --zinc-400: #78716c;
+  --zinc-500: #a8a094;
+  --zinc-600: #d4cdc0;
+  --zinc-700: #e7e3dc;
+  --zinc-800: #f5f3ef;
+  --zinc-900: #fafaf7;
+
+  --color-bg:           #18181b;
+  --color-surface:      #1c1917;
+  --color-surface-alt:  #292524;
+  --color-surface-soft: #242020;
+  --color-border:       #3a3633;
+  --color-border-soft:  rgba(120, 113, 108, 0.2);
+  --color-text:         #e7e3dc;
+  --color-text-strong:  #fafaf7;
+  --color-text-muted:   #a8a094;
+  --color-text-subtle:  #78716c;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20),
+               0 0 0 1px rgba(250, 250, 247, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.32),
+               0 0 0 1px rgba(250, 250, 247, 0.04);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.40),
+               0 0 0 1px rgba(250, 250, 247, 0.04);
+  --shadow-xl: 0 32px 64px rgba(0, 0, 0, 0.50);
+
+  --shadow-focus-emerald: 0 0 0 4px rgba(16, 185, 129, 0.20);
+  --shadow-focus-red:     0 0 0 4px rgba(225, 29, 72, 0.20);
+}
+
+/* ── Smooth scrolling + reduce-motion respect ──────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Body base — warm, breathable defaults ──────────────────────────────── */
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--text-base-lh);
+  letter-spacing: var(--tracking-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Headings — display font with breathing tracking ────────────────────── */
+h1, h2, h3, .text-display {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-display);
+  font-feature-settings: "opsz" 80;   /* Fraunces optical size — warmer at large */
+}
+
+/* ── Code/mono ──────────────────────────────────────────────────────────── */
+code, pre, .text-mono {
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-mono);
+}
+
+/* ── Universal focus ring — warm emerald glow ───────────────────────────── */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-emerald);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Skeleton + saved-indicator pulse keyframes ─────────────────────────── */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.65; }
+}
+
+.pulse-soft {
+  animation: pulse-soft var(--duration-pulse) var(--easing-inout) infinite;
+}
+
+/* ── Modal/sheet enter — used by ProgressPhases, ErrorPanel, dialogs ──── */
+@keyframes scale-fade-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.scale-fade-in {
+  animation: scale-fade-in var(--duration-base) var(--easing-out);
+}
+
+/* ── List stagger — used by recommended/applications cards ──────────────── */
+@keyframes stagger-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-fade-in {
+  animation: stagger-fade-in var(--duration-base) var(--easing-out) both;
+}
+
+/* When applying to list items, stagger via inline style:
+   style={{ animationDelay: `${index * 50}ms` }} (max 250ms total) */

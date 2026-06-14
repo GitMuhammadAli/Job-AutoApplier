@@ -46,9 +46,33 @@ describe("encryption", () => {
       expect(decrypt(a)).toBe(decrypt(b));
     });
 
-    it("ciphertext format: iv:hex (32-char IV hex + colon + payload hex)", () => {
+    it("ciphertext format: v2 GCM (v2:<iv-hex>:<tag-hex>:<ct-hex>)", () => {
+      // Encryption upgraded from CBC (v1) to GCM (v2) on 2026-06-14. New
+      // writes are v2; v1 ciphertext still decrypts but is re-encrypted to
+      // v2 on next save via encryptField's legacy branch.
       const enc = encrypt("hello");
-      expect(enc).toMatch(/^[0-9a-f]{32}:[0-9a-f]+$/);
+      expect(enc).toMatch(/^v2:[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/);
+    });
+
+    it("v1 (CBC) ciphertext still decrypts", () => {
+      // Bake one v1 ciphertext by hand so we don't need a backup copy of
+      // the old encrypt() — proves the v2 decrypt path handles legacy rows.
+      const key = Buffer.from(process.env.ENCRYPTION_KEY!, "hex");
+      const iv = crypto.randomBytes(16);
+      const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
+      const ct = Buffer.concat([cipher.update("legacy-cbc-payload", "utf8"), cipher.final()]);
+      const v1 = `${iv.toString("hex")}:${ct.toString("hex")}`;
+      expect(v1).toMatch(/^[0-9a-f]{32}:[0-9a-f]+$/);
+      expect(decrypt(v1)).toBe("legacy-cbc-payload");
+    });
+
+    it("GCM auth tag rejects tampered ciphertext", () => {
+      const enc = encrypt("secret");
+      // Flip a nibble in the ciphertext segment — the auth tag will reject.
+      const parts = enc.split(":");
+      const ct = parts[3];
+      const tampered = parts.slice(0, 3).concat(ct.replace(/^./, (c) => (c === "0" ? "1" : "0"))).join(":");
+      expect(() => decrypt(tampered)).toThrow();
     });
   });
 

@@ -24,8 +24,9 @@ import {
   applyRanking,
 } from "@/lib/resume/profile-mapper";
 import { getTemplate } from "@/lib/resume/templates/registry";
-import { tailorResume } from "@/lib/agents/resume-tailor";
+import { tailorResume, type TailoredResume } from "@/lib/agents/resume-tailor";
 import { fillTemplate, type TemplateFillResult } from "@/lib/agents/resume-template-fill";
+import { rewriteResume, type RewriteResult } from "@/lib/agents/resume-rewriter";
 import { QuotaExceededError, formatRetryMessage } from "@/lib/quota/quota";
 import {
   parseUploadedPdfToProfile,
@@ -40,11 +41,16 @@ import {
   type KeywordCoverageReport,
 } from "@/lib/resume/keyword-coverage";
 import { RESUME_TAILORING } from "@/lib/messages";
+import { runIdempotent, isValidIdempotencyKey } from "@/lib/idempotency";
 
 export const dynamic = "force-dynamic";
 // AI parse-from-PDF fallback can run when no structured profile exists,
 // adding ~5s to the worst-case path on top of tailor + fillTemplate.
 export const maxDuration = 60;
+
+// Idempotent response shape — what we send back to clients.
+type GenerateResponseBody = Record<string, unknown> & { error?: string };
+type IdempotentResult = { status: number; body: GenerateResponseBody };
 
 export async function POST(req: NextRequest) {
   const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
@@ -56,14 +62,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  // Idempotency-Key — clients send a stable UUID; we cache the response and
+  // return it verbatim on retry. Solves the page-leave bug where a navigated-
+  // away client retries on remount and burns a full pipeline run a second time.
+  const idempotencyKey = req.headers.get("idempotency-key");
+  if (idempotencyKey && isValidIdempotencyKey(idempotencyKey)) {
+    const cached = await runIdempotent<IdempotentResult>(
+      `generate:${userId}`,
+      idempotencyKey,
+      10 * 60 * 1000,
+      () => runGenerate(userId, body),
+    );
+    return NextResponse.json(cached.body, { status: cached.status });
+  }
+
+  const result = await runGenerate(userId, body);
+  return NextResponse.json(result.body, { status: result.status });
+}
+
+async function runGenerate(userId: string, body: unknown): Promise<IdempotentResult> {
+
   const parsed = GenerateRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid request", issues: parsed.error.issues },
-      { status: 400 },
-    );
+    return { status: 400, body: { error: "Invalid request", issues: parsed.error.issues } };
   }
-  const { templateId, pageTarget, jdText } = parsed.data;
+  const { templateId, pageTarget, jdText, rewrite } = parsed.data;
 
   // Load user bundle in parallel
   const [user, settings, summaries, experiences, projects, education, certifications] =
@@ -77,7 +100,7 @@ export async function POST(req: NextRequest) {
       prisma.resumeCertification.findMany({ where: { userId } }),
     ]);
 
-  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (!user) return { status: 404, body: { error: "User not found" } };
 
   let profile = bundleToResumeProfile({
     user, settings, summaries, experiences, projects, education, certifications,
@@ -109,22 +132,24 @@ export async function POST(req: NextRequest) {
         where: { userId, isDeleted: false },
         select: { id: true },
       });
-      return NextResponse.json(
-        {
+      return {
+        status: 422,
+        body: {
           error: anyUpload
             ? RESUME_TAILORING.NO_PARSEABLE_UPLOADS
             : RESUME_TAILORING.NO_PROFILE_OR_UPLOADS,
           code: anyUpload ? "NO_PARSEABLE_UPLOADS" : "NO_PROFILE_OR_UPLOADS",
         },
-        { status: 422 },
-      );
+      };
     }
 
     let parseError: string | null = null;
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
       try {
-        const parsed = await parseUploadedPdfToProfile(candidate.id, userId);
+        const parsed = await parseUploadedPdfToProfile(candidate.id, userId, {
+          quota: { userId, route: "/api/resumes/generate" },
+        });
         if (parsed.profile && passesProfileGate(parsed.profile)) {
           profile = parsed.profile;
           profileSource = "parsed-pdf";
@@ -150,14 +175,14 @@ export async function POST(req: NextRequest) {
     if (profileSource !== "parsed-pdf") {
       // None of the candidates yielded a usable profile. Tell the user
       // how many we tried + what to do next.
-      return NextResponse.json(
-        {
+      return {
+        status: 422,
+        body: {
           error: RESUME_TAILORING.ALL_UPLOADS_FAILED(candidates.length),
           code: "ALL_UPLOADS_FAILED",
           lastError: parseError,
         },
-        { status: 422 },
-      );
+      };
     }
   }
 
@@ -173,12 +198,14 @@ export async function POST(req: NextRequest) {
   // page cap. Caller surfaces these so the user can decide whether to
   // bump page-target instead of paying the trade.
   let lostFromForceInclude: string[] = [];
+  let tailored: TailoredResume | null = null;
+  let rewriteResult: RewriteResult | null = null;
   const warnings: string[] = [...sourceWarnings];
 
   if (jdText && jdText.trim().length >= 20) {
     try {
       // Agent 2 (existing) — signal extraction
-      const tailored = await tailorResume({
+      tailored = await tailorResume({
         userSkills: profile.skills,
         jobDescription: jdText,
         jobTitle: extractJobTitleFromJD(jdText) ?? "Unknown",
@@ -270,17 +297,41 @@ export async function POST(req: NextRequest) {
         summaryId: fillResult.summaryId,
         sectionOrder: fillResult.sectionOrder,
       });
+
+      // Agent 4 (opt-in) — JD-voice rewriting of bullets/summary/skill labels.
+      // Every output is audited against the profile; on audit failure the
+      // bullet/summary falls back to the original verbatim. Skill relabels
+      // only fire when profile-skill and JD-term share a canonical synonym.
+      if (rewrite) {
+        try {
+          rewriteResult = await rewriteResume({
+            profile,
+            tailored,
+            jdText,
+            quota: { userId, route: "/api/resumes/generate" },
+          });
+          renderInput = applyRewrites(renderInput, rewriteResult);
+          for (const w of rewriteResult.warnings) {
+            warnings.push(`rewriter: ${w}`);
+          }
+        } catch (err) {
+          if (err instanceof QuotaExceededError) throw err;
+          warnings.push(
+            `rewriter failed — kept original wording: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
     } catch (err) {
       if (err instanceof QuotaExceededError) {
-        return NextResponse.json(
-          {
+        return {
+          status: 429,
+          body: {
             error: "ai_quota_exceeded",
             reason: err.reason,
             message: formatRetryMessage(err.reason, err.retryAfterSeconds),
             retryAfterSeconds: err.retryAfterSeconds,
           },
-          { status: 429 },
-        );
+        };
       }
       warnings.push(RESUME_TAILORING.AGENT_CHAIN_FALLBACK);
     }
@@ -292,15 +343,16 @@ export async function POST(req: NextRequest) {
     renderResult = renderResume(renderInput);
   } catch (err) {
     if (err instanceof TemplateNotAvailableError) {
-      return NextResponse.json({ error: err.message, code: "TEMPLATE_NOT_AVAILABLE" }, { status: 400 });
+      return { status: 400, body: { error: err.message, code: "TEMPLATE_NOT_AVAILABLE" } };
     }
     if (err instanceof FabricationError) {
       console.error("[resume.generate] Fabrication audit failed:", err.fabricated);
       // Surface the specific words that failed the audit so the client can
       // offer a 1-tap "Add these to my profile" action. Previous behaviour
       // returned a generic message, leaving the user stuck.
-      return NextResponse.json(
-        {
+      return {
+        status: 422,
+        body: {
           error: RESUME_TAILORING.AUDIT_BLOCKED,
           code: "AUDIT_FAIL",
           // Capped — the audit can flag 50+ words on a bad render and we
@@ -308,13 +360,12 @@ export async function POST(req: NextRequest) {
           // the actionable cases.
           fabricated: err.fabricated.slice(0, 8),
         },
-        { status: 422 },
-      );
+      };
     }
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : RESUME_TAILORING.RENDER_FALLBACK_GENERIC },
-      { status: 500 },
-    );
+    return {
+      status: 500,
+      body: { error: err instanceof Error ? err.message : RESUME_TAILORING.RENDER_FALLBACK_GENERIC },
+    };
   }
 
   // ── Post-render coverage audit ─────────────────────────────────────
@@ -360,7 +411,9 @@ export async function POST(req: NextRequest) {
     ? buildDiff(profile, renderInput, fillResult)
     : null;
 
-  return NextResponse.json({
+  return {
+    status: 200,
+    body: {
     generationId: generation.id,
     templateId: renderResult.templateId,
     templateVersion: renderResult.templateVersion,
@@ -372,6 +425,21 @@ export async function POST(req: NextRequest) {
     warnings,
     profileSource,
     parsedFromResumeName,
+    // Rewriter summary — present when the request opted in. The UI uses this
+    // to render the "rewritten in JD voice" trust strip + per-bullet diff.
+    rewrite: rewriteResult
+      ? {
+          enabled: true,
+          bulletsRewritten: rewriteResult.rewrittenBullets.size,
+          summaryRewritten: rewriteResult.rewrittenSummary !== null,
+          skillsRelabeled: rewriteResult.rewrittenSkillLabels.size,
+          auditPassed: rewriteResult.auditResult.passed,
+          // Per-bullet diff: keyed by ORIGINAL → REWRITTEN. The client renders
+          // a side-by-side view + a "revert to original" affordance.
+          bulletDiff: Object.fromEntries(rewriteResult.rewrittenBullets),
+          skillRelabels: Object.fromEntries(rewriteResult.rewrittenSkillLabels),
+        }
+      : { enabled: false },
     coverage: coverage
       ? {
           covered: coverage.covered,
@@ -401,7 +469,8 @@ export async function POST(req: NextRequest) {
             lostFromForceInclude.length > 0 && renderInput.pageTarget === 1,
         }
       : null,
-  });
+    },
+  };
 }
 
 /**
@@ -421,6 +490,37 @@ interface Diff {
   pickedSummaryLabel: string | null;
   sectionOrderChanged: boolean;
   missingHardSkills: string[];
+}
+
+/**
+ * Apply rewriter outputs to the render input. The rewriter has already
+ * audited each rewrite against the profile, so unknown rewrites simply
+ * fall back to the originals (the map is keyed by ORIGINAL bullet).
+ */
+function applyRewrites(
+  renderInput: ReturnType<typeof buildRenderInput>,
+  result: RewriteResult,
+): ReturnType<typeof buildRenderInput> {
+  const { rewrittenBullets, rewrittenSummary, rewrittenSkillLabels } = result;
+
+  const swap = (b: string) => rewrittenBullets.get(b) ?? b;
+
+  return {
+    ...renderInput,
+    summary: rewrittenSummary && renderInput.summary
+      ? { ...renderInput.summary, content: rewrittenSummary }
+      : renderInput.summary,
+    skills: renderInput.skills.map((s) => rewrittenSkillLabels.get(s) ?? s),
+    experiences: renderInput.experiences.map((e) => ({
+      ...e,
+      bullets: e.bullets.map(swap),
+    })),
+    projects: renderInput.projects.map((p) => ({
+      ...p,
+      bullets: p.bullets.map(swap),
+      stack: p.stack.map((s) => rewrittenSkillLabels.get(s) ?? s),
+    })),
+  };
 }
 
 function buildDiff(

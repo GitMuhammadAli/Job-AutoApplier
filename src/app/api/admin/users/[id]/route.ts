@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { ADMIN, GENERIC } from "@/lib/messages";
+import { ADMIN } from "@/lib/messages";
+import { parseBody } from "@/lib/validation/parse-body";
+
+// Enum-only — the switch below already enforced this implicitly, but
+// surfacing it here gives a 400 on bad input instead of falling through
+// to a generic "Unknown action" 500 path.
+const AdminUserActionBody = z.object({
+  action: z.enum(["pause", "activate", "reset_sending"]),
+});
 
 export async function PATCH(
   request: NextRequest,
@@ -12,8 +21,9 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const body = await request.json();
-  const action = body.action as string;
+  const parsed = await parseBody(request, AdminUserActionBody);
+  if (!parsed.ok) return parsed.response;
+  const { action } = parsed.data;
 
   try {
     switch (action) {
@@ -37,12 +47,6 @@ export async function PATCH(
           data: { sendingPausedUntil: null },
         });
         break;
-
-      default:
-        return NextResponse.json(
-          { error: GENERIC.UNKNOWN_ACTION },
-          { status: 400 }
-        );
     }
 
     return NextResponse.json({ success: true, action });

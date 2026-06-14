@@ -15,6 +15,7 @@ import {
   BulletCoachInputSchema,
 } from "@/lib/agents/bullet-coach";
 import { QuotaExceededError, formatRetryMessage } from "@/lib/quota/quota";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
       );
     }
     const message = err instanceof Error ? err.message : "Bullet coaching failed";
-    console.error("[coach-bullet]", err);
+    await captureError(err, { route: "/api/resumes/coach-bullet" });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

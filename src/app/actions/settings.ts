@@ -243,17 +243,68 @@ export async function deleteAccount(): Promise<{
   try {
     const userId = await getAuthUserId();
 
+    // ── Gather blob URLs BEFORE the transaction so we can clean Vercel
+    //    Blob storage after the DB rows are gone. Without this, GDPR
+    //    Article 17 (right to erasure) is violated — the resume PDFs
+    //    survive forever at public unguessable URLs.
+    const resumeBlobs = await prisma.resume.findMany({
+      where: { userId },
+      select: { id: true, fileUrl: true },
+    });
+
+    const generationBlobs = await prisma.resumeGeneration
+      .findMany({
+        where: { userId },
+        select: { id: true, pdfUrl: true },
+      })
+      .catch(() => [] as { id: string; pdfUrl: string | null }[]);
+
     await prisma.$transaction(async (tx) => {
       await tx.activity.deleteMany({ where: { userId } });
       await tx.jobApplication.deleteMany({ where: { userId } });
       await tx.userJob.deleteMany({ where: { userId } });
       await tx.resume.deleteMany({ where: { userId } });
+      await tx.resumeGeneration
+        .deleteMany({ where: { userId } })
+        .catch(() => 0); // model may not exist in older deployments
       await tx.emailTemplate.deleteMany({ where: { userId } });
       await tx.userSettings.deleteMany({ where: { userId } });
       await tx.session.deleteMany({ where: { userId } });
       await tx.account.deleteMany({ where: { userId } });
       await tx.user.delete({ where: { id: userId } });
     });
+
+    // ── Best-effort blob cleanup AFTER the DB commit. If blob deletion
+    //    fails partially, we log it but don't error the user response —
+    //    the DB-side delete has already succeeded and that's the user-
+    //    facing source of truth. A nightly reconciliation cron should
+    //    sweep orphaned blobs.
+    const blobUrls = [
+      ...resumeBlobs.map((r) => r.fileUrl).filter((u): u is string => !!u),
+      ...generationBlobs.map((g) => g.pdfUrl).filter((u): u is string => !!u),
+    ];
+
+    if (blobUrls.length > 0) {
+      try {
+        const { del } = await import("@vercel/blob");
+        const results = await Promise.allSettled(
+          blobUrls.map((url) => del(url)),
+        );
+        const failed = results.filter((r) => r.status === "rejected").length;
+        if (failed > 0) {
+          console.warn(
+            `[deleteAccount] Blob cleanup: ${blobUrls.length - failed}/${blobUrls.length} succeeded. ${failed} failed; sweep job will retry.`,
+          );
+        }
+      } catch (blobErr) {
+        // @vercel/blob may not be installed in dev or auth may be missing.
+        // Log and continue — the DB delete is authoritative.
+        console.warn(
+          "[deleteAccount] Blob client unavailable; orphaned blobs will be cleaned by sweep:",
+          blobErr instanceof Error ? blobErr.message : blobErr,
+        );
+      }
+    }
 
     return { success: true };
   } catch (error) {

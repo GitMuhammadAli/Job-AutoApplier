@@ -19,12 +19,13 @@ const FOOTER_LINKS = {
   Resources: [
     { label: "GitHub", href: CREATOR.github },
     { label: "Portfolio", href: CREATOR.portfolio },
-    { label: "Changelog", href: "#" },
+    { label: "Changelog", href: "https://github.com/GitMuhammadAli/JobApplier/releases" },
   ],
   Legal: [
-    { label: "Privacy Policy", href: "#" },
-    { label: "Terms of Service", href: "#" },
-    { label: "Contact", href: "#" },
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms of Service", href: "/terms" },
+    { label: "Subprocessors", href: "/subprocessors" },
+    { label: "Contact", href: "/contact" },
   ],
 };
 

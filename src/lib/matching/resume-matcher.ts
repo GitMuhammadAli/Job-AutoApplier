@@ -156,7 +156,7 @@ export async function pickBestResumeWithTier(
     // ── Tier 3: AI tiebreaker (only for 2-4 tied candidates, and only in "smart" mode) ──
     if (matchMode === "smart" && ties.length >= 2 && ties.length <= 4) {
       try {
-        const aiResult = await aiTiebreaker(job, ties.map((t) => t.resume));
+        const aiResult = await aiTiebreaker(userId, job, ties.map((t) => t.resume));
         if (aiResult) return aiResult;
       } catch {
         // AI unavailable — fall through
@@ -187,6 +187,7 @@ export async function pickBestResumeWithTier(
 }
 
 async function aiTiebreaker(
+  userId: string,
   job: JobLike,
   candidates: ResumeRow[]
 ): Promise<ResumeMatchResult | null> {
@@ -205,6 +206,7 @@ async function aiTiebreaker(
   const response = await generateWithGroq(systemPrompt, userPrompt, {
     temperature: 0.1,
     max_tokens: 10,
+    quota: { userId, route: "/lib/matching/resume-matcher" },
   });
 
   const match = response.match(/(\d+)/);

@@ -1,28 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthUserId } from "@/lib/auth";
 import { sendApplication } from "@/lib/send-application";
 import { checkReadiness } from "@/lib/readiness-checker";
 import { prisma } from "@/lib/prisma";
 import { TIMEOUTS } from "@/lib/constants";
 import { APPLICATIONS, GENERIC } from "@/lib/messages";
+import { parseBody } from "@/lib/validation/parse-body";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
+
+const BulkSendBody = z.object({
+  // Hard cap upstream of the .slice(0, 3) so we reject obviously-bogus
+  // arrays of 10k ids before doing any work.
+  applicationIds: z.array(z.string().trim().min(20).max(40)).min(1).max(50),
+});
 
 export async function POST(req: NextRequest) {
   try {
     const startTime = Date.now();
     const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
-    const { applicationIds } = (await req.json()) as {
-      applicationIds: string[];
-    };
-
-    if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
-      return NextResponse.json(
-        { error: APPLICATIONS.NO_APPLICATIONS_SELECTED },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(req, BulkSendBody);
+    if (!parsed.ok) return parsed.response;
+    const { applicationIds } = parsed.data;
 
     // Cap at 3 per request to stay within 10s Vercel limit
     const ids = applicationIds.slice(0, 3);
@@ -131,7 +133,7 @@ export async function POST(req: NextRequest) {
     if (error instanceof Error && error.message === GENERIC.NOT_AUTHENTICATED) {
       return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
-    console.error("[BulkSend] Error:", error);
+    await captureError(error, { route: "/api/applications/bulk-send" });
     return NextResponse.json(
       { error: GENERIC.INTERNAL_SERVER_ERROR },
       { status: 500 }

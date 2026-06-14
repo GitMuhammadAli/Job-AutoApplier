@@ -4,6 +4,7 @@ import { sendApplication } from "@/lib/send-application";
 import { checkReadiness } from "@/lib/readiness-checker";
 import { prisma } from "@/lib/prisma";
 import { APPLICATIONS, GENERIC } from "@/lib/messages";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +59,7 @@ export async function POST(
     if (error instanceof Error && error.message === GENERIC.NOT_AUTHENTICATED) {
       return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
-    console.error("[SendRoute] Error:", error);
+    await captureError(error, { route: "/api/applications/[id]/send" });
     return NextResponse.json(
       { error: GENERIC.INTERNAL_SERVER_ERROR },
       { status: 500 }

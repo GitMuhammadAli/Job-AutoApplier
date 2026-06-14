@@ -8,6 +8,7 @@ import { sendNotificationEmail, getNotificationFrom } from "@/lib/email";
 import { followUpReminderTemplate } from "@/lib/email-templates";
 import { decryptSettingsFields, hasDecryptionFailure } from "@/lib/encryption";
 import { checkNotificationLimit, logNotificationSent } from "@/lib/notification-limiter";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -88,7 +89,11 @@ export async function GET(req: NextRequest) {
         list.push({ title: uj.globalJob.title, company: uj.globalJob.company, daysSince, userJobId: uj.id });
         userFollowUps.set(uj.userId, list);
       } catch (err) {
-        console.error(`[FollowUp] Error for job ${uj.id}:`, err);
+        await captureError(err, {
+          route: "cron:follow-up",
+          userId: uj.userId,
+          extras: { userJobId: uj.id },
+        });
       }
     }
 

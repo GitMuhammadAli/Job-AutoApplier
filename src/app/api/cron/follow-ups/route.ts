@@ -40,6 +40,7 @@ export async function GET(req: Request) {
         jobTitle: app.userJob.globalJob.title,
         companyName: app.userJob.globalJob.company,
         daysSinceApplied: daysSince,
+        quota: { userId: app.userId, route: "/api/cron/follow-ups" },
       });
 
       await prisma.jobApplication.update({

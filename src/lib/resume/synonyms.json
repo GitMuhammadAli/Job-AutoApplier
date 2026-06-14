@@ -1,0 +1,699 @@
+{
+  "javascript": {
+    "canonical": "JavaScript",
+    "variants": ["JavaScript", "javascript", "JS", "js", "ES6+", "ES6", "ECMAScript", "ecmascript", "JS/TS", "Vanilla JS", "vanilla javascript"],
+    "category": "language"
+  },
+  "typescript": {
+    "canonical": "TypeScript",
+    "variants": ["TypeScript", "typescript", "Typescript", "TS", "ts", "TS/JS", "TypeScript 5"],
+    "category": "language"
+  },
+  "python": {
+    "canonical": "Python",
+    "variants": ["Python", "python", "Python 3", "python3", "py", "Py"],
+    "category": "language"
+  },
+  "java": {
+    "canonical": "Java",
+    "variants": ["Java", "java", "Java 17", "Java 11", "Java 8"],
+    "category": "language"
+  },
+  "go": {
+    "canonical": "Go",
+    "variants": ["Go", "go", "Golang", "golang", "Go lang"],
+    "category": "language"
+  },
+  "rust": {
+    "canonical": "Rust",
+    "variants": ["Rust", "rust", "rust-lang"],
+    "category": "language"
+  },
+  "ruby": {
+    "canonical": "Ruby",
+    "variants": ["Ruby", "ruby", "Ruby 3"],
+    "category": "language"
+  },
+  "php": {
+    "canonical": "PHP",
+    "variants": ["PHP", "php", "PHP 8"],
+    "category": "language"
+  },
+  "csharp": {
+    "canonical": "C#",
+    "variants": ["C#", "c#", "CSharp", "csharp", "C Sharp", "c-sharp", "dotnet C#"],
+    "category": "language"
+  },
+  "cpp": {
+    "canonical": "C++",
+    "variants": ["C++", "c++", "CPP", "cpp", "cplusplus", "C plus plus"],
+    "category": "language"
+  },
+  "kotlin": {
+    "canonical": "Kotlin",
+    "variants": ["Kotlin", "kotlin", "kt"],
+    "category": "language"
+  },
+  "swift": {
+    "canonical": "Swift",
+    "variants": ["Swift", "swift", "Swift 5"],
+    "category": "language"
+  },
+  "scala": {
+    "canonical": "Scala",
+    "variants": ["Scala", "scala"],
+    "category": "language"
+  },
+  "bash": {
+    "canonical": "Bash",
+    "variants": ["Bash", "bash", "shell", "Shell scripting", "shell scripting", "sh"],
+    "category": "language"
+  },
+  "sql": {
+    "canonical": "SQL",
+    "variants": ["SQL", "sql", "Structured Query Language", "T-SQL", "PL/SQL"],
+    "category": "language"
+  },
+
+  "react": {
+    "canonical": "React",
+    "variants": ["React", "react", "ReactJS", "reactjs", "React.js", "react.js", "Modern React", "modern react", "React 18", "React 19"],
+    "category": "framework-web"
+  },
+  "nextjs": {
+    "canonical": "Next.js",
+    "variants": ["Next.js", "next.js", "NextJS", "nextjs", "Next", "Next 14", "Next 15", "Next.js 14", "Next.js 15"],
+    "category": "framework-web"
+  },
+  "vue": {
+    "canonical": "Vue.js",
+    "variants": ["Vue", "vue", "Vue.js", "vue.js", "VueJS", "vuejs", "Vue 3"],
+    "category": "framework-web"
+  },
+  "angular": {
+    "canonical": "Angular",
+    "variants": ["Angular", "angular", "AngularJS", "angularjs", "Angular 17"],
+    "category": "framework-web"
+  },
+  "svelte": {
+    "canonical": "Svelte",
+    "variants": ["Svelte", "svelte", "Svelte 5"],
+    "category": "framework-web"
+  },
+  "sveltekit": {
+    "canonical": "SvelteKit",
+    "variants": ["SvelteKit", "sveltekit", "Svelte Kit", "svelte kit"],
+    "category": "framework-web"
+  },
+  "nuxt": {
+    "canonical": "Nuxt",
+    "variants": ["Nuxt", "nuxt", "Nuxt.js", "nuxt.js", "NuxtJS", "Nuxt 3"],
+    "category": "framework-web"
+  },
+  "remix": {
+    "canonical": "Remix",
+    "variants": ["Remix", "remix", "Remix.run"],
+    "category": "framework-web"
+  },
+  "solidjs": {
+    "canonical": "SolidJS",
+    "variants": ["SolidJS", "solidjs", "Solid.js", "solid.js", "Solid"],
+    "category": "framework-web"
+  },
+  "astro": {
+    "canonical": "Astro",
+    "variants": ["Astro", "astro", "Astro.js"],
+    "category": "framework-web"
+  },
+  "qwik": {
+    "canonical": "Qwik",
+    "variants": ["Qwik", "qwik", "Qwik.js"],
+    "category": "framework-web"
+  },
+
+  "nodejs": {
+    "canonical": "Node.js",
+    "variants": ["Node.js", "node.js", "Node", "node", "NodeJS", "nodejs", "Node runtime", "node runtime"],
+    "category": "framework-backend"
+  },
+  "express": {
+    "canonical": "Express.js",
+    "variants": ["Express", "express", "Express.js", "express.js", "ExpressJS", "expressjs"],
+    "category": "framework-backend"
+  },
+  "nestjs": {
+    "canonical": "NestJS",
+    "variants": ["NestJS", "nestjs", "Nest", "nest", "Nest.js", "nest.js", "NestJS 11"],
+    "category": "framework-backend"
+  },
+  "fastapi": {
+    "canonical": "FastAPI",
+    "variants": ["FastAPI", "fastapi", "Fast API", "fast api"],
+    "category": "framework-backend"
+  },
+  "django": {
+    "canonical": "Django",
+    "variants": ["Django", "django", "Django REST"],
+    "category": "framework-backend"
+  },
+  "flask": {
+    "canonical": "Flask",
+    "variants": ["Flask", "flask"],
+    "category": "framework-backend"
+  },
+  "spring": {
+    "canonical": "Spring Boot",
+    "variants": ["Spring", "spring", "Spring Boot", "spring boot", "SpringBoot", "Spring Framework"],
+    "category": "framework-backend"
+  },
+  "rails": {
+    "canonical": "Ruby on Rails",
+    "variants": ["Rails", "rails", "Ruby on Rails", "ruby on rails", "RoR", "ror", "Rails 8"],
+    "category": "framework-backend"
+  },
+  "laravel": {
+    "canonical": "Laravel",
+    "variants": ["Laravel", "laravel"],
+    "category": "framework-backend"
+  },
+
+  "postgresql": {
+    "canonical": "PostgreSQL",
+    "variants": ["PostgreSQL", "postgresql", "Postgres", "postgres", "Postgres 14", "Postgres 15", "Postgres 16", "psql", "PSQL", "PG"],
+    "category": "database"
+  },
+  "mysql": {
+    "canonical": "MySQL",
+    "variants": ["MySQL", "mysql", "My SQL"],
+    "category": "database"
+  },
+  "mariadb": {
+    "canonical": "MariaDB",
+    "variants": ["MariaDB", "mariadb", "Maria DB"],
+    "category": "database"
+  },
+  "mongodb": {
+    "canonical": "MongoDB",
+    "variants": ["MongoDB", "mongodb", "Mongo", "mongo", "Mongo DB"],
+    "category": "database"
+  },
+  "redis": {
+    "canonical": "Redis",
+    "variants": ["Redis", "redis", "Redis cache"],
+    "category": "database"
+  },
+  "sqlite": {
+    "canonical": "SQLite",
+    "variants": ["SQLite", "sqlite", "SQLite3", "sqlite3"],
+    "category": "database"
+  },
+  "dynamodb": {
+    "canonical": "DynamoDB",
+    "variants": ["DynamoDB", "dynamodb", "Dynamo", "Dynamo DB", "AWS DynamoDB"],
+    "category": "database"
+  },
+  "cassandra": {
+    "canonical": "Cassandra",
+    "variants": ["Cassandra", "cassandra", "Apache Cassandra"],
+    "category": "database"
+  },
+  "elasticsearch": {
+    "canonical": "Elasticsearch",
+    "variants": ["Elasticsearch", "elasticsearch", "ES", "Elastic", "elastic", "ElasticSearch", "Elastic Search"],
+    "category": "database"
+  },
+  "neo4j": {
+    "canonical": "Neo4j",
+    "variants": ["Neo4j", "neo4j", "Neo 4j", "Neo4J"],
+    "category": "database"
+  },
+
+  "prisma": {
+    "canonical": "Prisma",
+    "variants": ["Prisma", "prisma", "Prisma ORM"],
+    "category": "orm"
+  },
+  "drizzle": {
+    "canonical": "Drizzle",
+    "variants": ["Drizzle", "drizzle", "Drizzle ORM"],
+    "category": "orm"
+  },
+  "typeorm": {
+    "canonical": "TypeORM",
+    "variants": ["TypeORM", "typeorm", "Type ORM"],
+    "category": "orm"
+  },
+  "sequelize": {
+    "canonical": "Sequelize",
+    "variants": ["Sequelize", "sequelize"],
+    "category": "orm"
+  },
+  "mongoose": {
+    "canonical": "Mongoose",
+    "variants": ["Mongoose", "mongoose", "Mongoose ODM"],
+    "category": "orm"
+  },
+  "sqlalchemy": {
+    "canonical": "SQLAlchemy",
+    "variants": ["SQLAlchemy", "sqlalchemy", "SQL Alchemy"],
+    "category": "orm"
+  },
+
+  "aws": {
+    "canonical": "AWS",
+    "variants": ["AWS", "aws", "Amazon Web Services", "amazon web services"],
+    "category": "infra-cloud"
+  },
+  "gcp": {
+    "canonical": "GCP",
+    "variants": ["GCP", "gcp", "Google Cloud", "google cloud", "Google Cloud Platform"],
+    "category": "infra-cloud"
+  },
+  "azure": {
+    "canonical": "Azure",
+    "variants": ["Azure", "azure", "Microsoft Azure", "MS Azure"],
+    "category": "infra-cloud"
+  },
+  "vercel": {
+    "canonical": "Vercel",
+    "variants": ["Vercel", "vercel"],
+    "category": "infra-cloud"
+  },
+  "netlify": {
+    "canonical": "Netlify",
+    "variants": ["Netlify", "netlify"],
+    "category": "infra-cloud"
+  },
+  "cloudflare": {
+    "canonical": "Cloudflare",
+    "variants": ["Cloudflare", "cloudflare", "Cloudflare Workers", "Cloudflare Pages", "CF"],
+    "category": "infra-cloud"
+  },
+  "docker": {
+    "canonical": "Docker",
+    "variants": ["Docker", "docker", "Docker containerization", "docker containerization", "Dockerized", "containerization"],
+    "category": "infra-cloud"
+  },
+  "kubernetes": {
+    "canonical": "Kubernetes",
+    "variants": ["Kubernetes", "kubernetes", "K8s", "k8s", "K8s/Kubernetes", "kubernetes orchestration"],
+    "category": "infra-cloud"
+  },
+  "terraform": {
+    "canonical": "Terraform",
+    "variants": ["Terraform", "terraform", "TF", "HCL"],
+    "category": "infra-cloud"
+  },
+  "ansible": {
+    "canonical": "Ansible",
+    "variants": ["Ansible", "ansible"],
+    "category": "infra-cloud"
+  },
+  "nginx": {
+    "canonical": "Nginx",
+    "variants": ["Nginx", "nginx", "NGINX"],
+    "category": "infra-cloud"
+  },
+  "apache": {
+    "canonical": "Apache",
+    "variants": ["Apache", "apache", "Apache HTTP Server", "Apache2"],
+    "category": "infra-cloud"
+  },
+
+  "cicd": {
+    "canonical": "CI/CD",
+    "variants": ["CI/CD", "ci/cd", "Continuous Integration", "continuous integration", "CI/CD pipelines", "ci/cd pipelines", "Continuous Delivery", "Continuous Deployment", "CICD"],
+    "category": "cicd"
+  },
+  "github-actions": {
+    "canonical": "GitHub Actions",
+    "variants": ["GitHub Actions", "github actions", "GHA", "gha", "Github Actions"],
+    "category": "cicd"
+  },
+  "gitlab-ci": {
+    "canonical": "GitLab CI",
+    "variants": ["GitLab CI", "gitlab ci", "GitLab CI/CD", "Gitlab CI", "GitLab Pipelines"],
+    "category": "cicd"
+  },
+  "jenkins": {
+    "canonical": "Jenkins",
+    "variants": ["Jenkins", "jenkins"],
+    "category": "cicd"
+  },
+  "circleci": {
+    "canonical": "CircleCI",
+    "variants": ["CircleCI", "circleci", "Circle CI", "circle ci"],
+    "category": "cicd"
+  },
+  "github": {
+    "canonical": "GitHub",
+    "variants": ["GitHub", "github", "Github", "Git", "git", "version control", "Version Control", "VCS"],
+    "category": "cicd"
+  },
+
+  "jest": {
+    "canonical": "Jest",
+    "variants": ["Jest", "jest"],
+    "category": "testing"
+  },
+  "vitest": {
+    "canonical": "Vitest",
+    "variants": ["Vitest", "vitest"],
+    "category": "testing"
+  },
+  "playwright": {
+    "canonical": "Playwright",
+    "variants": ["Playwright", "playwright"],
+    "category": "testing"
+  },
+  "cypress": {
+    "canonical": "Cypress",
+    "variants": ["Cypress", "cypress", "Cypress.io"],
+    "category": "testing"
+  },
+  "selenium": {
+    "canonical": "Selenium",
+    "variants": ["Selenium", "selenium", "Selenium WebDriver"],
+    "category": "testing"
+  },
+  "e2e-testing": {
+    "canonical": "End-to-End Testing",
+    "variants": ["E2E", "e2e", "end-to-end testing", "End-to-end testing", "End-to-End Testing", "E2E testing", "E2E testing automation", "e2e tests"],
+    "category": "testing"
+  },
+  "unit-testing": {
+    "canonical": "Unit Testing",
+    "variants": ["Unit Testing", "unit testing", "unit tests", "Unit tests"],
+    "category": "testing"
+  },
+  "integration-testing": {
+    "canonical": "Integration Testing",
+    "variants": ["Integration Testing", "integration testing", "integration tests"],
+    "category": "testing"
+  },
+  "tdd": {
+    "canonical": "TDD",
+    "variants": ["TDD", "tdd", "Test-driven development", "test-driven development", "Test Driven Development", "Test-Driven Development"],
+    "category": "testing"
+  },
+
+  "ml": {
+    "canonical": "Machine Learning",
+    "variants": ["ML", "ml", "Machine Learning", "machine learning", "ML/AI", "ml/ai", "Machine learning"],
+    "category": "ai-ml"
+  },
+  "llm": {
+    "canonical": "LLM",
+    "variants": ["LLM", "llm", "Large Language Model", "large language model", "LLMs", "llms", "LLMs/AI agents", "Large Language Models"],
+    "category": "ai-ml"
+  },
+  "genai": {
+    "canonical": "Generative AI",
+    "variants": ["GenAI", "genai", "Generative AI", "generative ai", "Gen AI", "gen ai", "GenerativeAI"],
+    "category": "ai-ml"
+  },
+  "nlp": {
+    "canonical": "NLP",
+    "variants": ["NLP", "nlp", "Natural Language Processing", "natural language processing"],
+    "category": "ai-ml"
+  },
+  "computer-vision": {
+    "canonical": "Computer Vision",
+    "variants": ["CV", "cv", "Computer Vision", "computer vision", "ComputerVision"],
+    "category": "ai-ml"
+  },
+  "pytorch": {
+    "canonical": "PyTorch",
+    "variants": ["PyTorch", "pytorch", "Py Torch", "torch"],
+    "category": "ai-ml"
+  },
+  "tensorflow": {
+    "canonical": "TensorFlow",
+    "variants": ["TensorFlow", "tensorflow", "TF", "Tensor Flow"],
+    "category": "ai-ml"
+  },
+  "scikit-learn": {
+    "canonical": "scikit-learn",
+    "variants": ["scikit-learn", "Scikit-learn", "sklearn", "scikit learn", "Scikit Learn"],
+    "category": "ai-ml"
+  },
+  "transformers": {
+    "canonical": "Transformers",
+    "variants": ["Transformers", "transformers", "HuggingFace Transformers", "Hugging Face Transformers"],
+    "category": "ai-ml"
+  },
+  "langchain": {
+    "canonical": "LangChain",
+    "variants": ["LangChain", "langchain", "Lang Chain", "LangChainJS"],
+    "category": "ai-ml"
+  },
+  "openai-api": {
+    "canonical": "OpenAI API",
+    "variants": ["OpenAI API", "openai api", "OpenAI", "openai", "GPT API", "ChatGPT API", "GPT-4 API"],
+    "category": "ai-ml"
+  },
+  "anthropic-api": {
+    "canonical": "Anthropic API",
+    "variants": ["Anthropic API", "anthropic api", "Anthropic", "anthropic", "Claude API", "Claude"],
+    "category": "ai-ml"
+  },
+  "groq": {
+    "canonical": "Groq",
+    "variants": ["Groq", "groq", "Groq API"],
+    "category": "ai-ml"
+  },
+  "gemini": {
+    "canonical": "Gemini",
+    "variants": ["Gemini", "gemini", "Google Gemini", "Gemini API", "Gemini Pro"],
+    "category": "ai-ml"
+  },
+  "llama": {
+    "canonical": "Llama",
+    "variants": ["Llama", "llama", "Llama 3", "llama 3", "Llama 3.3", "llama 3.3", "LLaMA", "Llama2", "Llama 2"],
+    "category": "ai-ml"
+  },
+  "embedding": {
+    "canonical": "Embeddings",
+    "variants": ["Embeddings", "embeddings", "embedding", "Embedding", "text embeddings", "vector embeddings"],
+    "category": "ai-ml"
+  },
+  "vector-database": {
+    "canonical": "Vector Database",
+    "variants": ["Vector Database", "vector database", "Vector DB", "vector db", "pgvector", "Pinecone", "pinecone", "vector embeddings", "Vector Store", "vector store", "Chroma", "Weaviate", "Qdrant"],
+    "category": "ai-ml"
+  },
+  "rag": {
+    "canonical": "RAG",
+    "variants": ["RAG", "rag", "Retrieval-Augmented Generation", "retrieval-augmented generation", "Retrieval Augmented Generation"],
+    "category": "ai-ml"
+  },
+  "fine-tuning": {
+    "canonical": "Fine-tuning",
+    "variants": ["Fine-tuning", "fine-tuning", "Fine tuning", "fine tuning", "Finetuning", "finetuning"],
+    "category": "ai-ml"
+  },
+  "prompt-engineering": {
+    "canonical": "Prompt Engineering",
+    "variants": ["Prompt Engineering", "prompt engineering", "prompt design", "Prompting"],
+    "category": "ai-ml"
+  },
+  "agent": {
+    "canonical": "AI Agents",
+    "variants": ["AI agent", "ai agent", "AI Agents", "agentic systems", "Agentic Systems", "function calling", "Function Calling", "tool use", "Tool Use", "AI agents"],
+    "category": "ai-ml"
+  },
+
+  "rest-api": {
+    "canonical": "REST API",
+    "variants": ["REST", "rest", "RESTful", "restful", "REST API", "rest api", "RESTful APIs", "restful apis", "REST API design", "REST APIs", "RESTful API"],
+    "category": "api-architecture"
+  },
+  "graphql": {
+    "canonical": "GraphQL",
+    "variants": ["GraphQL", "graphql", "Graph QL", "GQL"],
+    "category": "api-architecture"
+  },
+  "grpc": {
+    "canonical": "gRPC",
+    "variants": ["gRPC", "grpc", "GRPC"],
+    "category": "api-architecture"
+  },
+  "websocket": {
+    "canonical": "WebSocket",
+    "variants": ["WebSocket", "websocket", "WS", "ws", "WebSockets", "websockets", "Web Socket", "Web Sockets"],
+    "category": "api-architecture"
+  },
+  "microservices": {
+    "canonical": "Microservices",
+    "variants": ["Microservices", "microservices", "Microservices architecture", "microservices architecture", "microservice", "Microservice", "micro-services"],
+    "category": "api-architecture"
+  },
+  "monolith": {
+    "canonical": "Monolith",
+    "variants": ["Monolith", "monolith", "Monolithic", "monolithic", "monolithic architecture"],
+    "category": "api-architecture"
+  },
+  "soa": {
+    "canonical": "SOA",
+    "variants": ["SOA", "soa", "Service-Oriented Architecture", "service-oriented architecture", "Service Oriented Architecture"],
+    "category": "api-architecture"
+  },
+  "event-driven": {
+    "canonical": "Event-Driven Architecture",
+    "variants": ["event-driven", "Event-driven", "Event-Driven", "Event-Driven Architecture", "event-driven architecture", "EDA", "Event Driven"],
+    "category": "api-architecture"
+  },
+  "message-queue": {
+    "canonical": "Message Queue",
+    "variants": ["Message queue", "message queue", "Message Queue", "MQ", "mq", "queue-based", "Queue-based", "RabbitMQ", "Kafka", "SQS"],
+    "category": "api-architecture"
+  },
+
+  "tailwind": {
+    "canonical": "Tailwind CSS",
+    "variants": ["Tailwind", "tailwind", "TailwindCSS", "tailwindcss", "Tailwind CSS", "tailwind css", "Tailwind v3", "Tailwind v4"],
+    "category": "frontend"
+  },
+  "css-modules": {
+    "canonical": "CSS Modules",
+    "variants": ["CSS Modules", "css modules", "CSS-Modules"],
+    "category": "frontend"
+  },
+  "sass": {
+    "canonical": "Sass",
+    "variants": ["Sass", "sass", "SCSS", "scss", "SASS"],
+    "category": "frontend"
+  },
+  "styled-components": {
+    "canonical": "styled-components",
+    "variants": ["styled-components", "Styled Components", "styled components", "StyledComponents"],
+    "category": "frontend"
+  },
+  "framer-motion": {
+    "canonical": "Framer Motion",
+    "variants": ["Framer Motion", "framer motion", "Framer", "framer-motion", "FramerMotion"],
+    "category": "frontend"
+  },
+  "gsap": {
+    "canonical": "GSAP",
+    "variants": ["GSAP", "gsap", "GreenSock", "greensock", "GreenSock Animation"],
+    "category": "frontend"
+  },
+  "threejs": {
+    "canonical": "Three.js",
+    "variants": ["Three.js", "three.js", "ThreeJS", "threejs", "Three JS", "3D with Three.js"],
+    "category": "frontend"
+  },
+  "webgl": {
+    "canonical": "WebGL",
+    "variants": ["WebGL", "webgl", "Web GL", "WebGL2"],
+    "category": "frontend"
+  },
+  "canvas-api": {
+    "canonical": "Canvas API",
+    "variants": ["Canvas API", "canvas api", "HTML5 Canvas", "Canvas"],
+    "category": "frontend"
+  },
+  "html5": {
+    "canonical": "HTML5",
+    "variants": ["HTML5", "html5", "HTML 5", "HTML", "html"],
+    "category": "frontend"
+  },
+  "css3": {
+    "canonical": "CSS3",
+    "variants": ["CSS3", "css3", "CSS 3", "CSS", "css"],
+    "category": "frontend"
+  },
+  "web-components": {
+    "canonical": "Web Components",
+    "variants": ["Web Components", "web components", "WebComponents", "Custom Elements"],
+    "category": "frontend"
+  },
+  "accessibility": {
+    "canonical": "Accessibility",
+    "variants": ["a11y", "A11y", "accessibility", "Accessibility", "WCAG", "wcag", "ARIA", "aria"],
+    "category": "frontend"
+  },
+
+  "agile": {
+    "canonical": "Agile",
+    "variants": ["Agile", "agile", "Scrum", "scrum", "Kanban", "kanban", "Agile methodologies", "agile methodologies", "Agile/Scrum"],
+    "category": "methodology"
+  },
+  "scrum": {
+    "canonical": "Scrum",
+    "variants": ["Scrum", "scrum", "Scrum framework", "Scrum Master"],
+    "category": "methodology"
+  },
+  "kanban": {
+    "canonical": "Kanban",
+    "variants": ["Kanban", "kanban", "Kanban board"],
+    "category": "methodology"
+  },
+  "devops": {
+    "canonical": "DevOps",
+    "variants": ["DevOps", "devops", "Dev Ops", "Dev-Ops"],
+    "category": "methodology"
+  },
+  "mlops": {
+    "canonical": "MLOps",
+    "variants": ["MLOps", "mlops", "ML Ops", "ML-Ops"],
+    "category": "methodology"
+  },
+  "sre": {
+    "canonical": "SRE",
+    "variants": ["SRE", "sre", "Site Reliability Engineering", "site reliability engineering", "Site Reliability Engineer"],
+    "category": "methodology"
+  },
+  "pair-programming": {
+    "canonical": "Pair Programming",
+    "variants": ["Pair Programming", "pair programming", "pair-programming", "Pairing"],
+    "category": "methodology"
+  },
+  "code-review": {
+    "canonical": "Code Review",
+    "variants": ["Code Review", "code review", "code-review", "Code Reviews", "PR review", "Pull Request Review"],
+    "category": "methodology"
+  },
+
+  "fintech": {
+    "canonical": "Fintech",
+    "variants": ["Fintech", "fintech", "FinTech", "Financial Services", "financial services", "Financial Technology"],
+    "category": "domain"
+  },
+  "healthtech": {
+    "canonical": "HealthTech",
+    "variants": ["HealthTech", "healthtech", "Health Tech", "Healthcare Technology", "Digital Health"],
+    "category": "domain"
+  },
+  "edtech": {
+    "canonical": "EdTech",
+    "variants": ["EdTech", "edtech", "Ed Tech", "Education Technology", "Educational Technology"],
+    "category": "domain"
+  },
+  "ecommerce": {
+    "canonical": "E-commerce",
+    "variants": ["E-commerce", "e-commerce", "ecommerce", "Ecommerce", "eCommerce", "E commerce"],
+    "category": "domain"
+  },
+  "saas": {
+    "canonical": "SaaS",
+    "variants": ["SaaS", "saas", "Software-as-a-Service", "software-as-a-service", "Software as a Service"],
+    "category": "domain"
+  },
+  "b2b": {
+    "canonical": "B2B",
+    "variants": ["B2B", "b2b", "Business-to-Business", "Business to Business"],
+    "category": "domain"
+  },
+  "b2c": {
+    "canonical": "B2C",
+    "variants": ["B2C", "b2c", "Business-to-Consumer", "Business to Consumer"],
+    "category": "domain"
+  },
+  "marketplace": {
+    "canonical": "Marketplace",
+    "variants": ["Marketplace", "marketplace", "Two-sided marketplace", "Multi-sided marketplace"],
+    "category": "domain"
+  }
+}

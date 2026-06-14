@@ -1,25 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import {
   validateAdminCredentials,
   createAdminSession,
   destroyAdminSession,
 } from "@/lib/admin-auth";
 import { AUTH } from "@/lib/messages";
+import { parseBody } from "@/lib/validation/parse-body";
+
+const AdminLoginBody = z.object({
+  username: z.string().trim().min(1).max(256),
+  password: z.string().min(1).max(1024),
+});
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { username, password } = body as {
-      username?: string;
-      password?: string;
-    };
-
-    if (!username || !password) {
-      return NextResponse.json(
-        { error: AUTH.USERNAME_PASSWORD_REQUIRED },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(req, AdminLoginBody);
+    if (!parsed.ok) return parsed.response;
+    const { username, password } = parsed.data;
 
     if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
       return NextResponse.json(

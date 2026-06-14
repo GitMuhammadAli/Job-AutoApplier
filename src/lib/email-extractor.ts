@@ -1,4 +1,7 @@
-import { verifyMxRecord, verifyRecipient } from "./email-verifier";
+// email-verifier removed 2026-06-14 — RCPT-TO needs outbound port 25
+// which Vercel blocks; the pattern-guess fallback below always timed out
+// in prod (silent 8s latency) and the MX-only check is too low-signal to
+// surface as a confidence-tagged email recommendation on its own.
 
 export type EmailConfidence = "HIGH" | "MEDIUM" | "LOW" | "NONE";
 
@@ -147,33 +150,8 @@ export async function findCompanyEmail(job: {
     }
   }
 
-  // Strategy 3: Domain + MX verified + RCPT TO verified pattern guess
-  // Only returns the email if the mail server confirms the mailbox exists
-  const domain = extractDomain(
-    job.company,
-    job.companyUrl || job.sourceUrl
-  );
-  if (domain) {
-    const hasMx = await verifyMxRecord(domain);
-    if (hasMx) {
-      const PREFIXES_TO_TRY = ["careers", "hr", "jobs", "hiring", "apply"] as const;
-      for (const prefix of PREFIXES_TO_TRY) {
-        const candidateEmail = `${prefix}@${domain}`;
-        const result = await verifyRecipient(candidateEmail);
-        if (result.exists) {
-          return {
-            email: candidateEmail,
-            confidence: "LOW",
-            confidenceScore: 35,
-            method: `pattern_guess_rcpt_verified (${prefix}@${domain})`,
-          };
-        }
-      }
-      // MX exists but no common prefix accepted — don't guess blindly
-      console.log(`[EmailExtractor] ${domain}: MX exists but no common mailbox prefix accepted`);
-    }
-  }
-
+  // Strategy 3 (pattern-guess + RCPT verify) removed — see comment at top.
+  // Was returning nothing in prod anyway because Vercel blocks outbound :25.
   return { email: null, confidence: "NONE", confidenceScore: 0, method: "none" };
 }
 

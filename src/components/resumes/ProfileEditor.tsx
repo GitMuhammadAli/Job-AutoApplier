@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, X, Save, ArrowLeft, Star, Sparkles, Loader2, Check, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
+import { SavedIndicator, useSaveState } from "@/components/ui/SavedIndicator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,12 +31,18 @@ interface ProfileEditorProps {
 
 export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = false }: ProfileEditorProps) {
   const [profile, setProfile] = useState<ResumeProfile>(initialProfile);
-  const [saving, setSaving] = useState(false);
   const [skillInput, setSkillInput] = useState("");
 
   function update<K extends keyof ResumeProfile>(key: K, value: ResumeProfile[K]) {
     setProfile((p) => ({ ...p, [key]: value }));
   }
+
+  const saveProfile = useSaveState(async (p: ResumeProfile) => {
+    const saved = await resumeClient.saveProfile(p);
+    onSave(saved);
+    return saved;
+  });
+  const saving = saveProfile.state === "saving";
 
   async function handleSave() {
     const parsed = ResumeProfileSchema.safeParse(profile);
@@ -54,15 +61,11 @@ export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = fal
       toast.error(fieldHints[path] || first.message || "That doesn't look quite right — check the highlighted field.");
       return;
     }
-    setSaving(true);
-    try {
-      const saved = await resumeClient.saveProfile(parsed.data);
+    const result = await saveProfile.trigger(parsed.data);
+    if (result) {
       toast.success("Profile saved");
-      onSave(saved);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "We couldn't save that. Try again.");
-    } finally {
-      setSaving(false);
+    } else if (saveProfile.error) {
+      toast.error(saveProfile.error.message || "We couldn't save that. Try again.");
     }
   }
 
@@ -89,14 +92,21 @@ export function ProfileEditor({ initialProfile, onCancel, onSave, embedded = fal
             <ArrowLeft size={14} /> Back
           </Button>
         )}
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
-        >
-          <Save size={14} />
-          {saving ? "Saving…" : "Save profile"}
-        </Button>
+        <div className="flex items-center gap-3">
+          <SavedIndicator
+            state={saveProfile.state}
+            lastSavedAt={saveProfile.lastSavedAt}
+            onRetry={handleSave}
+          />
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white"
+          >
+            <Save size={14} />
+            {saving ? "Saving…" : "Save profile"}
+          </Button>
+        </div>
       </div>
 
       {/* Header */}

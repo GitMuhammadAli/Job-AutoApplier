@@ -12,7 +12,8 @@ function sanitizeForPrompt(text: string): string {
 }
 
 export async function generateCoverLetterFromInput(
-  input: GenerateEmailInput
+  input: GenerateEmailInput,
+  opts: { quota?: { userId: string; route: string } } = {},
 ): Promise<string> {
   const lang = input.settings.emailLanguage || "English";
   const tone = input.settings.preferredTone || "professional";
@@ -47,6 +48,7 @@ Write the cover letter now.`;
   const coverLetter = await generateWithGroq(systemPrompt, userPrompt, {
     temperature: 0.7,
     max_tokens: 600,
+    quota: opts.quota,
   });
 
   return coverLetter.trim();

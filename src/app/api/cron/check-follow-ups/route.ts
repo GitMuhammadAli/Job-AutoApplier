@@ -93,6 +93,10 @@ export async function GET(req: NextRequest) {
             companyName: userJob.globalJob.company,
             daysSinceApplied,
             emailLanguage: settings.emailLanguage,
+            quota: {
+              userId: userJob.userId,
+              route: "/api/cron/check-follow-ups",
+            },
           });
         } catch (aiErr) {
           console.warn(`[FollowUp] AI generation failed for job ${userJob.id}, skipping:`, aiErr instanceof Error ? aiErr.message : aiErr);

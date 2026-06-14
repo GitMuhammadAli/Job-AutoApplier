@@ -208,6 +208,14 @@ export const GenerateRequestSchema = z.object({
   jdText: z.string().max(20_000).optional(),
   templateId: z.string().default("T01"),
   pageTarget: PageTargetSchema.default(1),
+  /**
+   * Opt-in JD-voice rewriting (Agent 4). When true AND jdText is present,
+   * the rewriter rephrases bullets/summary/skill-labels in the JD's vocabulary
+   * after the tailor stage. Every rewrite is audited against the profile —
+   * no new facts, technologies, metrics, or scope claims can be introduced.
+   * Adds ~3-5s wall-clock and increases token spend.
+   */
+  rewrite: z.boolean().optional(),
 });
 export type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
 

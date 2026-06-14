@@ -6,6 +6,8 @@ import { Header } from "@/components/layout/Header";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import FeedbackWidget from "@/components/shared/FeedbackWidget";
 import { ActivityTracker } from "@/components/shared/ActivityTracker";
+import { CommandPalette } from "@/components/ui/CommandPalette";
+import { PageTransition } from "@/components/ui/PageTransition";
 
 export default async function DashboardLayout({
   children,
@@ -36,10 +38,11 @@ export default async function DashboardLayout({
         }
         header={<Header />}
       >
-        {children}
+        <PageTransition>{children}</PageTransition>
       </DashboardShell>
       <FeedbackWidget />
       <ActivityTracker />
+      <CommandPalette />
     </div>
   );
 }

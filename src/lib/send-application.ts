@@ -4,7 +4,6 @@ import { canSendNow } from "./send-limiter";
 import { checkDuplicate } from "./duplicate-checker";
 import { decryptSettingsFields, hasDecryptionFailure } from "./encryption";
 import { classifyError } from "./email-errors";
-import { verifyRecipient } from "./email-verifier";
 import { ensureTailoredResume } from "./resume/auto-attach";
 import { renderPdfFromHtml, ChromiumNotInstalledError } from "./resume/pdf";
 
@@ -74,6 +73,27 @@ export async function sendApplication(
   const limitCheck = await canSendNow(userId);
   if (!limitCheck.allowed) {
     return { success: false, error: limitCheck.reason };
+  }
+
+  // Suppression check — has this recipient hard-bounced, complained, or
+  // unsubscribed? Don't send. Reuses the EmailSuppression table added in
+  // this session — see prisma/migrations/…_add_email_suppression.
+  const suppressed = await prisma.emailSuppression.findUnique({
+    where: { userId_email: { userId, email: application.recipientEmail.toLowerCase() } },
+    select: { reason: true, suppressedAt: true, expiresAt: true },
+  });
+  if (suppressed && (!suppressed.expiresAt || suppressed.expiresAt > new Date())) {
+    await prisma.jobApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: "FAILED",
+        errorMessage: `Recipient is on your suppression list (${suppressed.reason.toLowerCase().replace(/_/g, " ")}). Remove them in Settings before retrying.`,
+      },
+    });
+    return {
+      success: false,
+      error: `That address is suppressed (${suppressed.reason.toLowerCase().replace(/_/g, " ")}). Remove it from the suppression list to send.`,
+    };
   }
 
   // Duplicate check
@@ -298,49 +318,27 @@ export async function sendApplication(
       };
     }
 
-    // Pre-send recipient verification via RCPT TO — catches invalid
-    // mailboxes before wasting a real send and hurting sender reputation
-    try {
-      const rcptResult = await verifyRecipient(application.recipientEmail);
-      if (!rcptResult.exists) {
-        const reason = rcptResult.smtpCode
-          ? `Recipient rejected (SMTP ${rcptResult.smtpCode}): ${rcptResult.message}`
-          : `Recipient verification failed: ${rcptResult.message || "mailbox does not exist"}`;
+    // Threading — when sending a follow-up, set In-Reply-To/References to the
+    // original send's Message-ID so the reply lands in the same Gmail thread.
+    // Falls back to a fresh thread when the original messageId wasn't captured.
+    const threadingHeaders: Record<string, string> = {};
+    if (mode === "followup" && application.messageId) {
+      threadingHeaders["In-Reply-To"] = application.messageId;
+      threadingHeaders["References"] = application.messageId;
+    }
 
-        // Timeout/connection errors = inconclusive, allow the send to proceed
-        const inconclusive = rcptResult.message === "timeout"
-          || rcptResult.message === "socket timeout"
-          || rcptResult.message === "connection error";
-
-        if (!inconclusive) {
-          await prisma.$transaction([
-            prisma.jobApplication.update({
-              where: { id: applicationId },
-              data: { status: "BOUNCED", errorMessage: reason, scheduledSendAt: null },
-            }),
-            prisma.activity.create({
-              data: {
-                userId,
-                userJobId: application.userJobId,
-                type: "APPLICATION_BOUNCED",
-                description: `Pre-send check: ${reason}`,
-              },
-            }),
-          ]);
-
-          await prisma.globalJob.update({
-            where: { id: application.userJob.globalJobId },
-            data: { companyEmail: null, emailConfidence: null, emailSource: null },
-          }).catch((err) => console.error("[SendApp] Failed to clear invalid email from GlobalJob:", err));
-
-          console.warn(`[SendApp] Pre-send RCPT TO rejected ${application.recipientEmail}: ${reason}`);
-          return { success: false, error: reason };
-        }
-        console.log(`[SendApp] RCPT TO inconclusive for ${application.recipientEmail} (${rcptResult.message}), proceeding with send`);
-      }
-    } catch (verifyErr) {
-      // Verification itself failed — don't block the send
-      console.warn("[SendApp] RCPT TO verification error, proceeding:", verifyErr);
+    // List-Unsubscribe — RFC 8058 one-click + mailto fallback. Required by
+    // Gmail/Yahoo bulk-sender rules and dramatically lowers inbox-placement
+    // risk. Unsub link encodes the application id so the receiver endpoint
+    // can identify which contact to suppress without exposing the user-id.
+    const unsubBase = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+    const unsubUrl = unsubBase
+      ? `${unsubBase.replace(/\/$/, "")}/api/email/unsubscribe?app=${applicationId}`
+      : null;
+    const listHeaders: Record<string, string> = {};
+    if (unsubUrl) {
+      listHeaders["List-Unsubscribe"] = `<${unsubUrl}>, <mailto:unsubscribe+${applicationId}@${(senderAddr.split("@")[1] || "jobpilot.app")}>`;
+      listHeaders["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
     }
 
     const result = await transporter.sendMail({
@@ -354,6 +352,7 @@ export async function sendApplication(
         content: a.content,
         contentType: a.contentType,
       })),
+      headers: { ...threadingHeaders, ...listHeaders },
     });
 
     // Success — primary mode flips status to SENT; follow-up mode keeps
@@ -392,6 +391,7 @@ export async function sendApplication(
           status: "SENT",
           sentAt: new Date(),
           retryCount: 0,
+          messageId: result.messageId ?? null,
           // H6: Clear scheduled time on success so it doesn't get re-sent
           scheduledSendAt: null,
           ...(resumeAttached ? {} : { errorMessage: "Warning: Resume failed to attach — email sent without it" }),

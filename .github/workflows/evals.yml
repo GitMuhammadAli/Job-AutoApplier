@@ -1,0 +1,32 @@
+name: Nightly agent evals
+on:
+  schedule:
+    # 06:00 UTC daily (≈11pm PT / 02:00 ET) — out of peak Groq rate-limit hours.
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+# Cancel an in-flight run if a new one is queued — saves quota when the
+# schedule overlaps with a manual dispatch.
+concurrency:
+  group: nightly-evals
+  cancel-in-progress: true
+
+jobs:
+  agent-evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Run agent eval suite
+        run: npx tsx src/lib/agents/__evals__/run.ts
+      - name: Post failure summary to job log
+        if: failure()
+        run: |
+          echo "::error::Nightly agent evals failed — open the previous step for the per-case breakdown."

@@ -3,8 +3,14 @@
 @tailwind utilities;
 
 /*
+ * Design tokens (typography scale, color, spacing, motion, radius, shadow).
+ * Single source of truth — see comment block in tokens.css.
+ */
+@import "../styles/tokens.css";
+
+/*
  * Font CSS variables (--font-display, --font-body, --font-mono) are injected
- * by next/font/local + next/font/google in src/app/layout.tsx.
+ * by next/font/google in src/app/layout.tsx.
  * Read tokens via src/styles/tokens.ts — never hardcode font names here.
  */
 
@@ -363,5 +369,90 @@
 @layer utilities {
   .tabular-nums {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* iOS / Android safe-area padding utilities. Use `pb-safe` on bottom
+   * navigation / sticky CTAs so they don't fall under the home indicator
+   * on iPhones. Falls back to 0 on platforms without env() support. */
+  .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+  .pt-safe { padding-top: max(env(safe-area-inset-top), 0px); }
+  .pl-safe { padding-left: max(env(safe-area-inset-left), 0px); }
+  .pr-safe { padding-right: max(env(safe-area-inset-right), 0px); }
+
+  /* Minimum 44px tap target — Apple HIG / WCAG 2.5.5 Level AAA. Apply with
+   * `tap-44` on small icon buttons that would otherwise render at 24-32px. */
+  .tap-44 { min-height: 44px; min-width: 44px; }
+
+  /* Cursor-aware focus ring — only visible on keyboard / programmatic focus.
+   * Sits on top of any element regardless of overflow. Pair with `focus-soft`. */
+  .focus-soft:focus-visible {
+    outline: 2px solid rgb(16 185 129 / 0.7);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+
+  /* Skip-link for keyboard users — appears on focus, hidden otherwise. */
+  .skip-to-content {
+    position: absolute;
+    left: -9999px;
+    z-index: 9999;
+    padding: 0.75rem 1rem;
+    background: #fafaf7;
+    color: #1c1917;
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 24px rgb(68 64 60 / 0.12);
+  }
+  .skip-to-content:focus-visible { left: 1rem; top: 1rem; }
+}
+
+/* Indeterminate progress — slow back-and-forth sweep instead of a hectic ping. */
+@keyframes progress-indeterminate {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(150%); }
+  100% { transform: translateX(-100%); }
+}
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-progress-indeterminate { animation: none; opacity: 0.7; }
+}
+
+/* ── Page transitions ──
+ * Cross-document view transitions when supported (Chrome 126+, Safari 17.4+).
+ * Pseudo-elements get a soft cross-fade with slight upward translate — same
+ * "breathing" easing as the rest of the design system.
+ */
+::view-transition-old(page-content),
+::view-transition-new(page-content) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+::view-transition-old(page-content) {
+  animation-name: page-fade-out;
+}
+::view-transition-new(page-content) {
+  animation-name: page-fade-in;
+}
+@keyframes page-fade-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes page-enter-fallback {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-page-enter {
+  animation: page-enter-fallback 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(page-content),
+  ::view-transition-new(page-content),
+  .animate-page-enter {
+    animation: none !important;
   }
 }

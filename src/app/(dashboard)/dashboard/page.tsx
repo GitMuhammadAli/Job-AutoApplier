@@ -57,45 +57,54 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="space-y-5 animate-slide-up">
+    <div className="space-y-6 animate-page-enter">
       {/* Client component — self-fetches via SWR, renders instantly */}
       <StatusBanner />
 
       <DevRadarBanner />
 
-      {/* Static header — renders instantly */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      {/* Editorial header — generous breath, no clinical chrome */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-            My Jobs
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400 dark:text-stone-500 mb-1">
+            Today
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+            Your job pipeline
           </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-slate-500 dark:text-zinc-400">
-            Organize your job search — drag cards between stages.
+          <p className="mt-1.5 text-[13px] sm:text-sm leading-relaxed text-stone-500 dark:text-stone-400 max-w-prose">
+            Drag cards between stages. New matches arrive automatically as scrapers run.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/jobs/new"
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 sm:px-3 py-1.5 text-white transition-colors touch-manipulation shadow-sm shrink-0"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-white shadow-soft-md hover:shadow-soft-lg transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] tap-44 focus-soft"
           >
             <Plus className="h-3.5 w-3.5 shrink-0" />
-            <span className="text-[10px] sm:text-[11px] font-semibold">Add Job</span>
+            <span className="text-[12px] font-medium">Add job</span>
           </Link>
-          <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 px-2 sm:px-2.5 py-1.5 shrink-0" title="We search 8 job sites every hour for new matches">
-            <Clock className="h-3.5 w-3.5 text-slate-500 dark:text-zinc-400 shrink-0" />
-            <span className="text-[10px] sm:text-[11px] font-medium text-slate-600 dark:text-zinc-300">
-              Auto-search
+          <div
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-stone-200/80 dark:border-stone-800/60 bg-white/60 dark:bg-stone-900/60 px-2.5 py-2"
+            title="We search 8 job sites every hour for new matches"
+          >
+            <Clock className="h-3.5 w-3.5 text-stone-500 dark:text-stone-400 shrink-0" />
+            <span className="text-[11px] font-medium text-stone-600 dark:text-stone-300">
+              Auto-searching
             </span>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 ring-1 ring-emerald-100 dark:ring-emerald-900/40 shrink-0" title="We write a personalized email for each job we find">
-            <Mail className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-              Email per job
+          <div
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 px-2.5 py-2 ring-1 ring-emerald-200/50 dark:ring-emerald-900/40"
+            title="We write a personalized email for each job we find"
+          >
+            <Mail className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-300 shrink-0" />
+            <span className="text-[11px] font-medium text-emerald-800 dark:text-emerald-200">
+              Per-job email
             </span>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Widgets stream independently */}
       <Suspense fallback={<WidgetsSkeleton />}>
@@ -141,35 +150,36 @@ async function DashboardWidgets() {
 
 function NextBestActionCard() {
   return (
-    <div className="rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50/60 via-white to-white dark:from-emerald-950/30 dark:via-zinc-900 dark:to-zinc-900 p-4 sm:p-5">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow">
+    <div className="relative overflow-hidden rounded-2xl border border-stone-200/80 dark:border-stone-800/60 bg-gradient-to-br from-emerald-50/40 via-stone-50/60 to-stone-50/40 dark:from-emerald-950/20 dark:via-stone-900/60 dark:to-stone-900/40 p-5 sm:p-6 shadow-soft-md">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+      <div className="flex items-start gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-soft-md">
           <Zap className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <p className="text-[14px] font-medium text-stone-900 dark:text-stone-100">
             {DASHBOARD.NEXT_ACTION_TITLE}
           </p>
-          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+          <p className="mt-1.5 text-[13px] leading-relaxed text-stone-600 dark:text-stone-400">
             {DASHBOARD.NEXT_ACTION_BODY}
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <Link
               href="/recommended"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-semibold"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 text-[12px] font-medium shadow-soft-sm hover:shadow-soft-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] tap-44 focus-soft"
             >
               {DASHBOARD.NEXT_ACTION_PRIMARY}
               <Plus className="h-3 w-3" />
             </Link>
             <Link
               href="/resumes"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-white dark:bg-zinc-900 ring-1 ring-emerald-200 dark:ring-emerald-800/60 text-emerald-700 dark:text-emerald-300 px-3 py-1.5 text-xs font-semibold hover:ring-emerald-300"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-700 dark:text-stone-200 px-3.5 py-2 text-[12px] font-medium hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors duration-300 tap-44 focus-soft"
             >
               {DASHBOARD.NEXT_ACTION_TAILOR}
             </Link>
             <Link
               href="/resumes/setup"
-              className="text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:underline"
+              className="text-[12px] font-medium text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 underline underline-offset-2 decoration-stone-300 dark:decoration-stone-700 hover:decoration-stone-500"
             >
               {DASHBOARD.NEXT_ACTION_SETUP}
             </Link>
@@ -193,9 +203,9 @@ async function DashboardKanban({ settings }: { settings: any }) {
   return (
     <>
       {todayJobs > 0 && (
-        <div className="flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-2 sm:px-2.5 py-1.5 ring-1 ring-blue-100 dark:ring-blue-900/40 w-fit">
-          <Zap className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-          <span className="text-[10px] sm:text-[11px] font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50/70 dark:bg-emerald-950/30 px-3 py-1.5 ring-1 ring-emerald-200/50 dark:ring-emerald-900/40 w-fit">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-soft" />
+          <span className="text-[11px] font-medium text-emerald-800 dark:text-emerald-200 tabular-nums">
             {todayJobs} found today
           </span>
         </div>
@@ -204,39 +214,51 @@ async function DashboardKanban({ settings }: { settings: any }) {
       <BulkActionsBar jobCount={jobs.length} />
 
       {jobs.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/60 p-8 md:p-12 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-emerald-50 dark:from-blue-950/40 dark:to-emerald-950/40 ring-1 ring-blue-100/50 dark:ring-blue-800/30">
-            <Zap className="h-7 w-7 text-blue-500" />
+        <div className="rounded-2xl border border-dashed border-stone-300/70 dark:border-stone-700/60 bg-white/50 dark:bg-stone-900/50 p-8 md:p-12 text-center shadow-soft-sm">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100 dark:bg-stone-800/60 ring-1 ring-stone-200/60 dark:ring-stone-700/60">
+            <Zap className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h3 className="text-base font-bold text-slate-800 dark:text-zinc-100">
-            Searching for jobs matching your keywords
+          <h3 className="text-[15px] font-medium text-stone-900 dark:text-stone-100">
+            Searching for matches
           </h3>
-          <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400 max-w-md mx-auto">
-            New jobs usually appear within a few minutes. We&apos;re searching 8 job sites for you.
+          <p className="mt-2 text-[13px] leading-relaxed text-stone-500 dark:text-stone-400 max-w-md mx-auto">
+            New jobs usually appear within a few minutes — we're scanning 8 sources for your keywords.
           </p>
-          <div className="mt-4 inline-block rounded-lg bg-slate-50 dark:bg-zinc-800/50 px-4 py-3 text-left text-xs text-slate-600 dark:text-zinc-300 space-y-1">
+          <div className="mt-5 inline-block rounded-xl bg-stone-50/80 dark:bg-stone-800/50 px-4 py-3 text-left text-[12px] text-stone-600 dark:text-stone-300 space-y-1.5 border border-stone-200/60 dark:border-stone-800/60">
             {settings.keywords && settings.keywords.length > 0 && (
-              <p><strong>Keywords:</strong> {settings.keywords.slice(0, 6).join(", ")}{settings.keywords.length > 6 ? ` +${settings.keywords.length - 6} more` : ""}</p>
+              <p>
+                <span className="text-stone-400">Keywords ·</span>{" "}
+                {settings.keywords.slice(0, 6).join(", ")}
+                {settings.keywords.length > 6 ? ` +${settings.keywords.length - 6} more` : ""}
+              </p>
             )}
             {(settings.city || settings.country) && (
-              <p><strong>Location:</strong> {[settings.city, settings.country].filter(Boolean).join(", ")}</p>
+              <p>
+                <span className="text-stone-400">Location ·</span>{" "}
+                {[settings.city, settings.country].filter(Boolean).join(", ")}
+              </p>
             )}
             {(!settings.keywords || settings.keywords.length === 0) && (
-              <p className="text-amber-600 dark:text-amber-400">No keywords set — <Link href="/settings" className="underline">add some in Settings</Link></p>
+              <p className="text-amber-700 dark:text-amber-300">
+                No keywords set —{" "}
+                <Link href="/settings" className="underline underline-offset-2">
+                  add some in Settings
+                </Link>
+              </p>
             )}
           </div>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-xs">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5 text-[12px]">
             <Link
               href="/settings"
-              className="rounded-lg bg-blue-50 dark:bg-blue-950/40 px-3 py-2 font-medium text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-900/40 hover:bg-blue-100 dark:hover:bg-blue-950/60 transition-colors touch-manipulation"
+              className="rounded-lg bg-emerald-50/80 dark:bg-emerald-950/30 px-3.5 py-2 font-medium text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200/50 dark:ring-emerald-900/40 hover:bg-emerald-100/70 dark:hover:bg-emerald-950/50 transition-colors duration-300 tap-44 focus-soft"
             >
-              Adjust Settings
+              Adjust settings
             </Link>
             <Link
               href="/jobs/new"
-              className="rounded-lg bg-slate-100 dark:bg-zinc-800 px-3 py-2 font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors touch-manipulation"
+              className="rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 px-3.5 py-2 font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors duration-300 tap-44 focus-soft"
             >
-              Add Job Manually
+              Add job manually
             </Link>
           </div>
         </div>
@@ -250,8 +272,8 @@ async function DashboardKanban({ settings }: { settings: any }) {
 function WidgetsSkeleton() {
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <div className="animate-pulse rounded-xl bg-slate-200/70 dark:bg-zinc-700/70 h-32" />
-      <div className="animate-pulse rounded-xl bg-slate-200/70 dark:bg-zinc-700/70 h-32" />
+      <div className="animate-pulse-soft rounded-2xl bg-stone-200/60 dark:bg-stone-800/60 h-32" />
+      <div className="animate-pulse-soft rounded-2xl bg-stone-200/60 dark:bg-stone-800/60 h-32" />
     </div>
   );
 }

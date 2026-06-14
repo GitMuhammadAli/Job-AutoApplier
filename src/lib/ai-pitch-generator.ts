@@ -13,6 +13,7 @@ function sanitizeForPrompt(text: string): string {
 
 export async function generatePitchFromInput(
   input: GenerateEmailInput,
+  opts: { quota?: { userId: string; route: string } } = {},
 ): Promise<string> {
   const lang = input.settings.emailLanguage || "English";
   const tone = input.settings.preferredTone || "professional";
@@ -46,6 +47,7 @@ Write a 3-4 sentence pitch now.`;
   const pitch = await generateWithGroq(systemPrompt, userPrompt, {
     temperature: 0.7,
     max_tokens: 200,
+    quota: opts.quota,
   });
 
   return pitch.trim();

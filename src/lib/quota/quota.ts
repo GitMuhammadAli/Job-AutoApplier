@@ -17,6 +17,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { priceOf } from "@/lib/cost/pricing";
 
 export type QuotaReason = "user_cap" | "global_cap" | "disabled";
 
@@ -178,6 +179,7 @@ export async function recordUsage(opts: {
           latencyMs: opts.latencyMs,
           status: opts.status,
           errorMessage: opts.errorMessage,
+          costUsd: priceOf(opts.provider, opts.model, opts.inputTokens, opts.outputTokens),
         },
       }),
     ]);

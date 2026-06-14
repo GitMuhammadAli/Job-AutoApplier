@@ -16,6 +16,8 @@ export interface GenerateFollowUpInput {
   companyName: string;
   daysSinceApplied: number;
   emailLanguage?: string | null;
+  /** Per-user quota scope — always pass to debit the right user. */
+  quota?: { userId: string; route: string };
 }
 
 export interface GeneratedFollowUp {
@@ -60,6 +62,7 @@ Write a brief follow-up email. Return ONLY JSON.`;
     temperature: 0.5,
     max_tokens: 300,
     model: "llama-3.1-8b-instant",
+    quota: input.quota,
   });
 
   const cleaned = raw

@@ -5,6 +5,7 @@ import { decryptSettingsFields } from "@/lib/encryption";
 import { LIMITS } from "@/lib/constants";
 import { EXPORT, GENERIC } from "@/lib/messages";
 import JSZip from "jszip";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -164,7 +165,7 @@ export async function GET() {
     if (error instanceof Error && error.message === GENERIC.NOT_AUTHENTICATED) {
       return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
-    console.error("[Export] Error:", error);
+    await captureError(error, { route: "/api/export" });
     return NextResponse.json({ error: EXPORT.FAILED }, { status: 500 });
   }
 }

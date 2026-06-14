@@ -22,23 +22,24 @@ const Charts = nextDynamic(
 
 export default function AnalyticsPage() {
   return (
-    <div className="space-y-6 animate-slide-up">
-      {/* Static header — renders instantly */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20">
-              <BarChart3 className="h-4 w-4 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">Analytics</h1>
+    <div className="space-y-6 animate-page-enter">
+      <header>
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400 dark:text-stone-500 mb-1">
+          Performance
+        </p>
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 ring-1 ring-emerald-200/50 dark:ring-emerald-900/40">
+            <BarChart3 className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
           </div>
-          <p className="text-sm text-slate-500 dark:text-zinc-400">
-            Track your job search performance and optimize your strategy.
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+            Analytics
+          </h1>
         </div>
-      </div>
+        <p className="mt-1.5 text-[13px] sm:text-sm leading-relaxed text-stone-500 dark:text-stone-400 max-w-prose">
+          How your job search is performing — and what to adjust.
+        </p>
+      </header>
 
-      {/* Async data streams in */}
       <Suspense fallback={<AnalyticsSkeleton />}>
         <AnalyticsContent />
       </Suspense>
@@ -57,9 +58,9 @@ async function AnalyticsContent() {
 
   if (!analytics) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
-        <p className="text-sm text-slate-500 dark:text-zinc-400">
-          We couldn&apos;t load your analytics right now. Refresh the page to try again.
+      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3 rounded-2xl border border-stone-200/80 dark:border-stone-800/60 bg-white/60 dark:bg-stone-900/60 p-8">
+        <p className="text-[13px] text-stone-500 dark:text-stone-400">
+          We couldn't load your analytics right now. Refresh the page to try again.
         </p>
       </div>
     );
@@ -71,9 +72,11 @@ async function AnalyticsContent() {
   return (
     <>
       <div className="flex justify-end">
-        <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 ring-1 ring-emerald-100 dark:ring-emerald-800/50">
-          <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
-          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">{interviewRate}% interview rate</span>
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50/70 dark:bg-emerald-950/30 px-3 py-1.5 ring-1 ring-emerald-200/50 dark:ring-emerald-900/40">
+          <TrendingUp className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-300" />
+          <span className="text-[11px] font-medium text-emerald-800 dark:text-emerald-200 tabular-nums">
+            {interviewRate}% interview rate
+          </span>
         </div>
       </div>
 

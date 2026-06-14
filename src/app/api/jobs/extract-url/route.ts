@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { getAuthUserId, requireAuthUserId } from "@/lib/auth";
-import { GENERIC, JOBS, VALIDATION } from "@/lib/messages";
+import { GENERIC, JOBS } from "@/lib/messages";
+import { safeFetch, SsrfBlockedError } from "@/lib/security/safe-fetch";
+import { parseBody } from "@/lib/validation/parse-body";
 
 export const maxDuration = 10;
+
+const ExtractUrlBody = z.object({
+  // 8KB hard cap — public job posting URLs are never anywhere near this.
+  // Keeps a wild header/query-string payload from reaching safeFetch.
+  url: z.string().trim().min(1).max(8192).url("Must be a valid URL"),
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,15 +20,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
   }
 
-  const { url } = await req.json();
-  if (!url || typeof url !== "string") {
-    return NextResponse.json({ error: VALIDATION.URL_REQUIRED }, { status: 400 });
-  }
+  const parsed = await parseBody(req, ExtractUrlBody);
+  if (!parsed.ok) return parsed.response;
+  const { url } = parsed.data;
 
   try {
     const result = await extractJobFromUrl(url);
     return NextResponse.json(result);
   } catch (err) {
+    if (err instanceof SsrfBlockedError) {
+      return NextResponse.json(
+        { error: "That URL points to a private or internal address — we can only fetch public job listings." },
+        { status: 400 },
+      );
+    }
     console.error("[ExtractURL] Error:", err);
     return NextResponse.json(
       { error: JOBS.EXTRACT_URL_FAILED },
@@ -44,38 +58,31 @@ async function extractJobFromUrl(url: string): Promise<ExtractedJob> {
   const parsed = new URL(url);
   const hostname = parsed.hostname.toLowerCase();
 
-  // Fetch the page
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  // safeFetch validates protocol, blocks private IPs (incl. metadata 169.254
+  // and v6 ULAs), follows redirects manually, caps body size, and forces
+  // the per-call timeout that the prior hand-rolled AbortController owned.
+  const res = await safeFetch(url, {
+    timeoutMs: 8000,
+    maxBytes: 4 * 1024 * 1024,
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+      Accept: "text/html,application/xhtml+xml",
+    },
+  });
 
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml",
-      },
-      signal: controller.signal,
-    });
-
-    if (!res.ok) {
-      return { title: null, company: null, location: null, description: null, salary: null, jobType: null, email: null, applyUrl: url, source: detectSource(hostname) };
-    }
-
-    const html = await res.text();
-    clearTimeout(timeout);
-
-    // Route to source-specific parser
-    if (hostname.includes("linkedin.com")) {
-      if (url.includes("/jobs/view/")) return parseLinkedInJob(html, url);
-      if (url.includes("/posts/")) return parseLinkedInPost(html, url);
-    }
-
-    // Generic extraction for any page
-    return parseGenericPage(html, url, hostname);
-  } finally {
-    clearTimeout(timeout);
+  if (!res.ok) {
+    return { title: null, company: null, location: null, description: null, salary: null, jobType: null, email: null, applyUrl: url, source: detectSource(hostname) };
   }
+
+  const html = await res.text();
+
+  if (hostname.includes("linkedin.com")) {
+    if (url.includes("/jobs/view/")) return parseLinkedInJob(html, url);
+    if (url.includes("/posts/")) return parseLinkedInPost(html, url);
+  }
+
+  return parseGenericPage(html, url, hostname);
 }
 
 function detectSource(hostname: string): string {

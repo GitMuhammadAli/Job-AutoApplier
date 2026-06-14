@@ -6,10 +6,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // timeout). Pin the new behaviour: 3+ consecutive zero successes = broken.
 
 const mockFindMany = vi.fn();
+const mockFindFirst = vi.fn();
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     scraperRun: {
       findMany: (...args: any[]) => mockFindMany(...args),
+      findFirst: (...args: any[]) => mockFindFirst(...args),
     },
   },
 }));
@@ -26,6 +28,12 @@ function run(source: string, status: string, jobsFound: number, ageMin = 5, erro
 describe("getRecentScraperFailures", () => {
   beforeEach(() => {
     mockFindMany.mockReset();
+    mockFindFirst.mockReset();
+    // Default findFirst returns a fresh run — the function uses findFirst
+    // as a pipeline-dead gate; if it returns null we short-circuit to a
+    // "scheduler dead" entry and the per-source assertions never get
+    // exercised. Tests that DO want the dead-pipeline branch override.
+    mockFindFirst.mockResolvedValue({ startedAt: ago(5) });
   });
 
   it("flags a source with 3+ consecutive zero-success runs", async () => {

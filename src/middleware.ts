@@ -83,9 +83,66 @@ function cleanupStaleEntries() {
   });
 }
 
+/**
+ * CSRF / cross-origin POST guard.
+ *
+ * Same-origin browsers always send Origin/Referer headers on mutating
+ * requests. Webhooks + the unsubscribe POST are explicitly allow-listed.
+ * Anything else with a non-matching Origin (or no Origin at all on a
+ * mutating verb) is rejected before it hits the route — kills the CSRF
+ * surface on cookie-authed POSTs without per-route work.
+ */
+const ORIGIN_GUARD_EXEMPT_PREFIXES = [
+  "/api/cron",
+  "/api/webhooks",
+  "/api/email/unsubscribe", // List-Unsubscribe-Post fires from external MUAs
+  "/api/auth",              // NextAuth manages its own CSRF tokens
+];
+
+function isMutatingMethod(m: string): boolean {
+  return m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE";
+}
+
+function checkOrigin(req: NextRequest): NextResponse | null {
+  if (!isMutatingMethod(req.method)) return null;
+  const path = req.nextUrl.pathname;
+  if (ORIGIN_GUARD_EXEMPT_PREFIXES.some((p) => path.startsWith(p))) return null;
+
+  const origin = req.headers.get("origin");
+  const referer = req.headers.get("referer");
+  const expected = new URL(req.nextUrl.toString()).origin;
+
+  // Browser-initiated mutating requests always carry one of these. A request
+  // missing both is either a non-browser (curl, postman) — which doesn't have
+  // a cookie session anyway, but caller bypasses are likelier — or a script
+  // we'd rather block.
+  if (!origin && !referer) {
+    return NextResponse.json({ error: "Missing Origin/Referer" }, { status: 403 });
+  }
+  if (origin && origin !== expected) {
+    return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+  }
+  if (!origin && referer) {
+    try {
+      const refOrigin = new URL(referer).origin;
+      if (refOrigin !== expected) {
+        return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+      }
+    } catch {
+      return NextResponse.json({ error: "Invalid Referer" }, { status: 403 });
+    }
+  }
+  return null;
+}
+
 export function middleware(req: NextRequest) {
   cleanupStaleEntries();
   const path = req.nextUrl.pathname;
+
+  // 1) CSRF / cross-origin guard runs before any rate-limit work so a flood
+  // of cross-origin POSTs can't even consume the rate-limit counter slot.
+  const originRejection = checkOrigin(req);
+  if (originRejection) return originRejection;
 
   if (path.startsWith("/api/cron") || path.startsWith("/api/webhooks")) {
     const ip = getClientIp(req);

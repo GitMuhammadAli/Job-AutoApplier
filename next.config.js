@@ -125,7 +125,15 @@ const nextConfig = {
 // upload step is skipped.
 const { withSentryConfig } = require("@sentry/nextjs");
 
-module.exports = withSentryConfig(nextConfig, {
+// Bundle analyzer — emits a per-page treemap to .next/analyze when
+// ANALYZE=true. Run via `npm run analyze` to investigate fat client bundles.
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
+});
+
+const composed = withBundleAnalyzer(nextConfig);
+
+module.exports = withSentryConfig(composed, {
   silent: true,
   // Tunnel client-side reports through the app domain so ad blockers
   // (uBlock Origin et al.) don't strip them. Cheap, no auth needed.

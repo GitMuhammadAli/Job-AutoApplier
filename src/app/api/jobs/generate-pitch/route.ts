@@ -1,24 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAuthUserId } from "@/lib/auth";
 import { generateWithGroq, streamWithGroq } from "@/lib/groq";
 import { getSettings } from "@/app/actions/settings";
-import { APPLICATIONS, JOBS, VALIDATION } from "@/lib/messages";
+import { APPLICATIONS, JOBS } from "@/lib/messages";
+import { parseBody } from "@/lib/validation/parse-body";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
+
+const GeneratePitchBody = z.object({
+  // cuid shape — JobApplication uses @default(cuid()).
+  userJobId: z.string().trim().min(20).max(40),
+  stream: z.boolean().optional(),
+  type: z.enum(["pitch", "cover_letter"]).optional(),
+});
 
 export async function POST(req: NextRequest) {
   try {
     const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
-    const body = await req.json();
+    const parsed = await parseBody(req, GeneratePitchBody);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const { userJobId } = body;
     // Support ?stream=true query param OR body field { stream: true }
     const wantsStream =
       req.nextUrl.searchParams.get("stream") === "true" || body.stream === true;
-
-    if (!userJobId || typeof userJobId !== "string") {
-      return NextResponse.json({ error: VALIDATION.MISSING_USER_JOB_ID }, { status: 400 });
-    }
 
     const [userJob, settings, defaultResume] = await Promise.all([
       prisma.userJob.findFirst({
@@ -158,7 +166,7 @@ Generate the pitch and cover letter now.`;
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[generate-pitch] Error:", error);
+    await captureError(error, { route: "/api/jobs/generate-pitch" });
     return NextResponse.json(
       { error: JOBS.GENERATE_CONTENT_FAILED },
       { status: 500 },

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
 import { ADMIN } from "@/lib/messages";
+import { parseBody } from "@/lib/validation/parse-body";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -16,6 +18,13 @@ const VALID_CRON_ACTIONS = [
   "cleanup-stale", "follow-up", "check-follow-ups",
   "scrape-global", "backfill-emails",
 ];
+
+// Wide string — actual valid values are gated by VALID_SCRAPE_SOURCES /
+// VALID_CRON_ACTIONS lists below. The schema just enforces length + type
+// shape so a wild payload doesn't get past parsing.
+const TriggerBody = z.object({
+  source: z.string().trim().min(1).max(64).optional(),
+});
 
 function cronPath(action: string): string {
   switch (action) {
@@ -38,8 +47,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
   }
 
-  const body = await req.json().catch(() => ({}));
-  const source = (body.source as string) || "all";
+  const parsed = await parseBody(req, TriggerBody);
+  if (!parsed.ok) return parsed.response;
+  const source = parsed.data.source || "all";
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
   const secret = process.env.CRON_SECRET;
 

@@ -6,6 +6,7 @@
  */
 
 import { generateWithGroq } from "@/lib/groq";
+import { safeFetch } from "@/lib/security/safe-fetch";
 
 export interface CompanyResearch {
   mission: string;
@@ -55,13 +56,13 @@ async function searchGoogle(query: string): Promise<GoogleSearchResult[]> {
 
 async function fetchPageContent(url: string): Promise<string> {
   try {
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(6000),
+    const response = await safeFetch(url, {
+      timeoutMs: 6000,
+      maxBytes: 2 * 1024 * 1024,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; JobPilot/1.0)" },
     });
     if (!response.ok) return "";
     const html = await response.text();
-    // Strip HTML tags and collapse whitespace
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<style[\s\S]*?<\/style>/gi, "")

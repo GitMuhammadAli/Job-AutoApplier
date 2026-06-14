@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { resumeClient, type GenerateDiff } from "@/lib/resume/client";
 import { DEFAULT_TEMPLATE_ID } from "@/lib/resume/templates/registry";
 import type { RecommendExistingResumeResult } from "@/lib/resume/types";
+import { RewriteDiff, type RewriteSummary } from "./RewriteDiff";
 
 interface GenerateModalProps {
   open: boolean;
@@ -37,6 +38,7 @@ interface GenerationResult {
   diff: GenerateDiff | null;
   warnings: string[];
   aiProvider: string | null;
+  rewrite?: RewriteSummary;
 }
 
 type Step = "configure" | "preview";
@@ -368,6 +370,12 @@ function PreviewStep({
             Every word in this PDF traces to your profile. No fabrication.
           </p>
         </div>
+
+        {result.rewrite?.enabled ? (
+          <div className="-mx-1">
+            <RewriteDiff rewrite={result.rewrite} />
+          </div>
+        ) : null}
 
         {tailored && result.diff ? (
           <DiffPanel diff={result.diff} aiProvider={result.aiProvider} />

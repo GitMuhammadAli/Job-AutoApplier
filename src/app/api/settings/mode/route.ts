@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { GENERIC, SETTINGS } from "@/lib/messages";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export async function GET() {
     if (message === GENERIC.NOT_AUTHENTICATED || message.includes("Unauthorized")) {
       return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
-    console.error("[settings/mode] Error:", error);
+    await captureError(error, { route: "/api/settings/mode" });
     return NextResponse.json({ error: SETTINGS.FAILED_LOAD_MODE }, { status: 500 });
   }
 }

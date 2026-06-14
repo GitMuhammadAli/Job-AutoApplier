@@ -20,6 +20,38 @@ import { spawnSync } from "node:child_process";
 
 const env = { ...process.env };
 
+// ── Environment gate ────────────────────────────────────────────────────
+// Vercel sets VERCEL_ENV=production for production deploys, preview for
+// PR previews, and development for local dev. Previously this script ran
+// `prisma migrate deploy` against whatever DATABASE_URL was set, which
+// meant a PR preview pointed at the production DB would happily mutate
+// the production schema. Production audit flagged this as a critical
+// deploy-safety bug.
+//
+// New behavior:
+//   - VERCEL_ENV=production  → run prisma generate + migrate deploy as before
+//   - VERCEL_ENV=preview     → run prisma generate ONLY (no migration)
+//   - VERCEL_ENV=development → run prisma generate ONLY
+//   - VERCEL_ENV unset (local CLI invocation) → run both (back-compat for
+//     local dev who explicitly runs this script)
+//
+// To override (e.g. you genuinely want preview deploys to migrate against
+// a Neon branch DB), set ALLOW_NON_PRODUCTION_MIGRATE=1.
+const vercelEnv = env.VERCEL_ENV ?? null;
+const allowNonProd = env.ALLOW_NON_PRODUCTION_MIGRATE === "1";
+const shouldRunMigrate =
+  vercelEnv === null /* local */ ||
+  vercelEnv === "production" ||
+  allowNonProd;
+
+if (vercelEnv && vercelEnv !== "production" && !allowNonProd) {
+  console.log(
+    `[migrate-prod] VERCEL_ENV=${vercelEnv} — running prisma generate only. ` +
+      `Skipping migrate deploy (would otherwise race against prod schema). ` +
+      `Set ALLOW_NON_PRODUCTION_MIGRATE=1 to override.`,
+  );
+}
+
 if (!env.DATABASE_URL) {
   console.error("[migrate-prod] DATABASE_URL is not set — cannot derive DIRECT_URL");
   process.exit(1);
@@ -52,4 +84,8 @@ function run(cmd, args) {
 }
 
 run("npx", ["prisma", "generate"]);
-run("npx", ["prisma", "migrate", "deploy"]);
+if (shouldRunMigrate) {
+  run("npx", ["prisma", "migrate", "deploy"]);
+} else {
+  console.log("[migrate-prod] Skipping `prisma migrate deploy` (non-production env).");
+}

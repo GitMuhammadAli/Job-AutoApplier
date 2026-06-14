@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { ADMIN, GENERIC } from "@/lib/messages";
+import { parseBody } from "@/lib/validation/parse-body";
 
 export const dynamic = "force-dynamic";
+
+const AdminJobsCleanupBody = z.object({
+  action: z.enum(["clear-inactive", "clear-old", "clear-no-email"]),
+  // Defends against an accidentally-huge cutoff that would wipe healthy
+  // postings; 1-365 days is the practical envelope for "stale".
+  olderThanDays: z.number().int().min(1).max(365).optional(),
+});
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -11,8 +20,9 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
     }
 
-    const body = await req.json();
-    const { action, olderThanDays } = body as { action: string; olderThanDays?: number };
+    const parsed = await parseBody(req, AdminJobsCleanupBody);
+    if (!parsed.ok) return parsed.response;
+    const { action, olderThanDays } = parsed.data;
 
     if (action === "clear-inactive") {
       const result = await prisma.globalJob.updateMany({

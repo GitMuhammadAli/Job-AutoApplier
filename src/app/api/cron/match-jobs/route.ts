@@ -10,6 +10,7 @@ import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
 import { acquireLock, releaseLock } from "@/lib/system-lock";
+import { captureError } from "@/lib/observability/capture";
 
 export const maxDuration = 10;
 export const dynamic = "force-dynamic";
@@ -148,7 +149,11 @@ export async function GET(req: NextRequest) {
         } catch (err) {
           const isPrismaUnique = typeof err === "object" && err !== null && (err as Record<string, unknown>).code === "P2002";
           if (!isPrismaUnique) {
-            console.error(`[MatchJobs] Unexpected error creating UserJob for user ${user.userId}, job ${job.id}:`, err);
+            await captureError(err, {
+              route: "cron:match-jobs",
+              userId: user.userId,
+              extras: { jobId: job.id },
+            });
           }
         }
       }

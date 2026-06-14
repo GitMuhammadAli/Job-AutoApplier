@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { ADMIN, VALIDATION } from "@/lib/messages";
+import { ADMIN } from "@/lib/messages";
+import { parseBody } from "@/lib/validation/parse-body";
 
 export const dynamic = "force-dynamic";
+
+const PatchFeedbackBody = z.object({
+  id: z.string().trim().min(20).max(40),
+  // Values mirror the admin UI buttons in /admin/feedback/page.tsx.
+  status: z.enum(["new", "reviewed", "resolved", "dismissed"]),
+  // Allow empty string to clear the note, max 2KB to keep admin form sane.
+  adminNote: z.string().max(2048).optional(),
+});
 
 export async function GET(req: NextRequest) {
   if (!(await requireAdmin())) {
@@ -34,10 +44,9 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: ADMIN.FORBIDDEN }, { status: 403 });
   }
 
-  const { id, status, adminNote } = await req.json();
-  if (!id || !status) {
-    return NextResponse.json({ error: VALIDATION.MISSING_ID_OR_STATUS }, { status: 400 });
-  }
+  const parsed = await parseBody(req, PatchFeedbackBody);
+  if (!parsed.ok) return parsed.response;
+  const { id, status, adminNote } = parsed.data;
 
   const data: Record<string, unknown> = { status };
   if (adminNote !== undefined) data.adminNote = adminNote || null;

@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { runApplicationPipeline } from "@/lib/agents/pipeline";
-import { APPLICATIONS, GENERIC, VALIDATION } from "@/lib/messages";
+import { APPLICATIONS, GENERIC } from "@/lib/messages";
 import { QuotaExceededError, formatRetryMessage } from "@/lib/quota/quota";
+import { parseBody } from "@/lib/validation/parse-body";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
+
+const PipelineBody = z.object({
+  userJobId: z.string().trim().min(20).max(40),
+});
 
 export async function POST(req: NextRequest) {
   try {
     const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
-    const { userJobId } = await req.json();
-
-    if (!userJobId) {
-      return NextResponse.json({ error: VALIDATION.USER_JOB_ID_REQUIRED }, { status: 400 });
-    }
+    const parsed = await parseBody(req, PipelineBody);
+    if (!parsed.ok) return parsed.response;
+    const { userJobId } = parsed.data;
 
     // Load job details with ownership check
     const userJob = await prisma.userJob.findFirst({
@@ -94,7 +99,7 @@ export async function POST(req: NextRequest) {
     if (message === GENERIC.NOT_AUTHENTICATED) {
       return NextResponse.json({ error: message }, { status: 401 });
     }
-    console.error("[PipelineRoute] Error:", error);
+    await captureError(error, { route: "/api/applications/pipeline" });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

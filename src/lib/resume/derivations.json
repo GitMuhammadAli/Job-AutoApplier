@@ -1,0 +1,258 @@
+[
+  {
+    "id": "ci_cd_basic",
+    "claim": "CI/CD pipelines",
+    "category": "devops",
+    "evidence_patterns": ["GitHub Actions", "Vercel", "deploy", "pipeline", "workflow.yml", "ci.yml", "CircleCI", "Jenkins", "GitLab CI"],
+    "min_matches": 2,
+    "example": "User mentions GitHub Actions + Vercel deploys -> can claim CI/CD"
+  },
+  {
+    "id": "agile_scrum",
+    "claim": "Agile (Scrum)",
+    "category": "methodology",
+    "evidence_patterns": ["sprint", "standup", "scrum", "JIRA", "agile", "retrospective", "Linear", "kanban"],
+    "min_matches": 2,
+    "example": "Mentions sprints + JIRA -> Agile/Scrum"
+  },
+  {
+    "id": "e2e_testing",
+    "claim": "End-to-end test automation",
+    "category": "testing",
+    "evidence_patterns": ["Playwright", "Cypress", "Selenium", "Puppeteer", "e2e", "end-to-end", "integration test", "browser test"],
+    "min_matches": 2,
+    "example": "Playwright + e2e -> E2E test automation"
+  },
+  {
+    "id": "docker_containers",
+    "claim": "Docker containerization",
+    "category": "devops",
+    "evidence_patterns": ["Dockerfile", "docker-compose", "docker", "container", "image", "OCI"],
+    "min_matches": 2,
+    "example": "Dockerfile + docker-compose -> containerization experience"
+  },
+  {
+    "id": "microservices",
+    "claim": "Microservices architecture",
+    "category": "architecture",
+    "evidence_patterns": ["microservice", "service mesh", "gRPC", "message queue", "Kafka", "RabbitMQ", "event-driven", "decoupled services"],
+    "min_matches": 2,
+    "example": "gRPC + Kafka -> microservices architecture"
+  },
+  {
+    "id": "rest_api_design",
+    "claim": "REST API design",
+    "category": "backend",
+    "evidence_patterns": ["REST", "endpoint", "API route", "OpenAPI", "Swagger", "JSON API", "HTTP", "route handler"],
+    "min_matches": 2,
+    "example": "REST + OpenAPI -> REST API design"
+  },
+  {
+    "id": "modern_react",
+    "claim": "Modern React (Hooks, Server Components)",
+    "category": "frontend",
+    "evidence_patterns": ["useState", "useEffect", "React Server Component", "RSC", "Next.js app router", "useMemo", "Suspense", "hook"],
+    "min_matches": 2,
+    "example": "Hooks + RSC -> modern React"
+  },
+  {
+    "id": "sql_relational_db",
+    "claim": "SQL & relational databases",
+    "category": "database",
+    "evidence_patterns": ["Postgres", "PostgreSQL", "MySQL", "SQLite", "SQL", "JOIN", "query", "schema migration", "Prisma", "Drizzle"],
+    "min_matches": 2,
+    "example": "Postgres + Prisma -> SQL/relational DB"
+  },
+  {
+    "id": "cloud_deployment",
+    "claim": "Cloud deployment",
+    "category": "devops",
+    "evidence_patterns": ["AWS", "GCP", "Azure", "Vercel", "Netlify", "Cloudflare", "Heroku", "Fly.io", "Railway", "DigitalOcean"],
+    "min_matches": 1,
+    "example": "AWS or Vercel -> cloud deployment"
+  },
+  {
+    "id": "production_deployment",
+    "claim": "Production deployment & operations",
+    "category": "devops",
+    "evidence_patterns": ["production", "live", "users", "uptime", "incident", "rollback", "blue-green", "canary", "release"],
+    "min_matches": 2,
+    "example": "production + uptime -> prod deployment ops"
+  },
+  {
+    "id": "performance_optimization",
+    "claim": "Performance optimization",
+    "category": "engineering",
+    "evidence_patterns": ["optimize", "reduced latency", "p95", "p99", "throughput", "cache", "indexed", "lazy load", "bundle size", "Lighthouse", "Core Web Vitals"],
+    "min_matches": 2,
+    "example": "Reduced latency + p95 -> performance optimization"
+  },
+  {
+    "id": "code_review",
+    "claim": "Code review process",
+    "category": "methodology",
+    "evidence_patterns": ["code review", "PR review", "pull request", "reviewed", "approved", "GitHub PR", "merge request"],
+    "min_matches": 2,
+    "example": "code review + PR -> code review process"
+  },
+  {
+    "id": "mentorship",
+    "claim": "Mentorship",
+    "category": "leadership",
+    "evidence_patterns": ["mentor", "mentored", "onboard", "junior", "intern", "coached", "trained", "guided"],
+    "min_matches": 1,
+    "example": "mentored juniors -> mentorship"
+  },
+  {
+    "id": "technical_leadership",
+    "claim": "Technical leadership",
+    "category": "leadership",
+    "evidence_patterns": ["tech lead", "led", "architect", "owned", "drove", "spearheaded", "founded", "lead engineer", "principal"],
+    "min_matches": 2,
+    "example": "led + architected -> technical leadership"
+  },
+  {
+    "id": "cross_functional",
+    "claim": "Cross-functional collaboration",
+    "category": "soft-skill",
+    "evidence_patterns": ["product manager", "designer", "stakeholder", "cross-functional", "PM", "UX", "marketing", "sales", "partnered with"],
+    "min_matches": 2,
+    "example": "partnered with PM + designer -> cross-functional collaboration"
+  },
+  {
+    "id": "database_design",
+    "claim": "Database schema design",
+    "category": "database",
+    "evidence_patterns": ["schema", "modeled", "ERD", "normalized", "migration", "Prisma schema", "table design", "index", "foreign key"],
+    "min_matches": 2,
+    "example": "schema + migrations -> database design"
+  },
+  {
+    "id": "authn_authz",
+    "claim": "Authentication & authorization",
+    "category": "security",
+    "evidence_patterns": ["auth", "authentication", "authorization", "JWT", "session", "RBAC", "Clerk", "NextAuth", "Auth0", "Supabase Auth", "permission"],
+    "min_matches": 2,
+    "example": "JWT + RBAC -> authn/authz"
+  },
+  {
+    "id": "oauth",
+    "claim": "OAuth implementation",
+    "category": "security",
+    "evidence_patterns": ["OAuth", "OAuth2", "OIDC", "Google sign-in", "GitHub OAuth", "social login", "SSO"],
+    "min_matches": 1,
+    "example": "OAuth2 -> OAuth implementation"
+  },
+  {
+    "id": "caching",
+    "claim": "Caching strategies",
+    "category": "engineering",
+    "evidence_patterns": ["Redis", "Memcached", "cache", "CDN", "edge cache", "ISR", "SWR", "React Query", "TanStack Query", "cache invalidation"],
+    "min_matches": 2,
+    "example": "Redis + cache invalidation -> caching strategies"
+  },
+  {
+    "id": "async_programming",
+    "claim": "Async programming",
+    "category": "engineering",
+    "evidence_patterns": ["async", "await", "Promise", "asyncio", "goroutine", "coroutine", "non-blocking", "event loop"],
+    "min_matches": 2,
+    "example": "async/await + Promise -> async programming"
+  },
+  {
+    "id": "concurrency",
+    "claim": "Concurrency",
+    "category": "engineering",
+    "evidence_patterns": ["concurrent", "parallel", "worker", "thread", "mutex", "race condition", "lock", "semaphore", "Sidekiq", "Celery", "BullMQ"],
+    "min_matches": 2,
+    "example": "worker queue + concurrent -> concurrency"
+  },
+  {
+    "id": "stream_processing",
+    "claim": "Stream processing",
+    "category": "data",
+    "evidence_patterns": ["stream", "streaming", "Kafka", "Kinesis", "pub/sub", "event stream", "SSE", "server-sent events", "ReadableStream"],
+    "min_matches": 1,
+    "example": "Kafka stream -> stream processing"
+  },
+  {
+    "id": "realtime_websocket",
+    "claim": "Real-time systems (WebSocket)",
+    "category": "backend",
+    "evidence_patterns": ["WebSocket", "socket.io", "real-time", "realtime", "Pusher", "Ably", "Supabase Realtime", "live updates", "presence"],
+    "min_matches": 1,
+    "example": "WebSocket + real-time -> real-time systems"
+  },
+  {
+    "id": "webhook_integration",
+    "claim": "Webhook integration",
+    "category": "backend",
+    "evidence_patterns": ["webhook", "Stripe webhook", "GitHub webhook", "callback URL", "event handler", "signature verification"],
+    "min_matches": 1,
+    "example": "Stripe webhook -> webhook integration"
+  },
+  {
+    "id": "payment_integration",
+    "claim": "Payment integration",
+    "category": "backend",
+    "evidence_patterns": ["Stripe", "PayPal", "checkout", "subscription", "billing", "Paddle", "LemonSqueezy", "invoice", "payment"],
+    "min_matches": 1,
+    "example": "Stripe + subscription -> payment integration"
+  },
+  {
+    "id": "email_infrastructure",
+    "claim": "Email infrastructure",
+    "category": "backend",
+    "evidence_patterns": ["SMTP", "SendGrid", "Resend", "Mailgun", "Postmark", "transactional email", "email template", "nodemailer", "DKIM", "SPF"],
+    "min_matches": 1,
+    "example": "Resend + transactional email -> email infrastructure"
+  },
+  {
+    "id": "search_implementation",
+    "claim": "Search implementation",
+    "category": "backend",
+    "evidence_patterns": ["Elasticsearch", "Algolia", "Meilisearch", "full-text search", "pgvector", "vector search", "semantic search", "Typesense", "tsvector"],
+    "min_matches": 1,
+    "example": "pgvector + semantic search -> search implementation"
+  },
+  {
+    "id": "analytics_implementation",
+    "claim": "Analytics implementation",
+    "category": "backend",
+    "evidence_patterns": ["analytics", "PostHog", "Mixpanel", "Amplitude", "Google Analytics", "GA4", "Segment", "event tracking", "funnel"],
+    "min_matches": 1,
+    "example": "PostHog + event tracking -> analytics implementation"
+  },
+  {
+    "id": "monitoring_observability",
+    "claim": "Monitoring & observability",
+    "category": "devops",
+    "evidence_patterns": ["Sentry", "Datadog", "New Relic", "Grafana", "Prometheus", "OpenTelemetry", "logging", "tracing", "Logtail", "Axiom", "alert"],
+    "min_matches": 1,
+    "example": "Sentry + logging -> monitoring/observability"
+  },
+  {
+    "id": "security_best_practices",
+    "claim": "Security best practices",
+    "category": "security",
+    "evidence_patterns": ["OWASP", "CSRF", "XSS", "SQL injection", "rate limit", "encryption", "hashing", "bcrypt", "secrets management", "CSP", "SSL", "TLS"],
+    "min_matches": 2,
+    "example": "rate limit + bcrypt -> security best practices"
+  },
+  {
+    "id": "gdpr_compliance",
+    "claim": "GDPR compliance",
+    "category": "security",
+    "evidence_patterns": ["GDPR", "data retention", "right to be forgotten", "consent", "PII", "data subject", "privacy policy", "cookie banner"],
+    "min_matches": 1,
+    "example": "GDPR + consent -> GDPR compliance"
+  },
+  {
+    "id": "open_source_contribution",
+    "claim": "Open source contribution",
+    "category": "community",
+    "evidence_patterns": ["open source", "OSS", "contributed", "maintainer", "npm package", "PyPI", "published", "GitHub stars", "merged PR upstream"],
+    "min_matches": 1,
+    "example": "maintainer of npm package -> open source contribution"
+  }
+]

@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { GENERIC, SETTINGS } from "@/lib/messages";
+import { captureError } from "@/lib/observability/capture";
+import { parseBody } from "@/lib/validation/parse-body";
 
 export const dynamic = "force-dynamic";
+
+const PatchStatusBody = z.object({
+  accountStatus: z.enum(["active", "paused"]),
+});
 
 export async function PATCH(req: NextRequest) {
   try {
     const __auth = await requireAuthUserId(); if (__auth.response) return __auth.response; const userId = __auth.userId;
-    const { accountStatus } = (await req.json()) as {
-      accountStatus: string;
-    };
-
-    if (!["active", "paused"].includes(accountStatus)) {
-      return NextResponse.json(
-        { error: GENERIC.INVALID_STATUS },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(req, PatchStatusBody);
+    if (!parsed.ok) return parsed.response;
+    const { accountStatus } = parsed.data;
 
     await prisma.userSettings.update({
       where: { userId },
@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest) {
     if (error instanceof Error && error.message === GENERIC.NOT_AUTHENTICATED) {
       return NextResponse.json({ error: GENERIC.UNAUTHORIZED }, { status: 401 });
     }
-    console.error("[SettingsStatus]", error);
+    await captureError(error, { route: "/api/settings/status" });
     return NextResponse.json(
       { error: SETTINGS.FAILED_UPDATE },
       { status: 500 }

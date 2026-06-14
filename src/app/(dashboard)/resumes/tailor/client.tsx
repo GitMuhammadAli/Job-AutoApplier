@@ -182,16 +182,16 @@ export function TailorClient({ initialJd, initialTab = "new" }: { initialJd: str
             and template grid so the user doesn't have to scroll past every
             template + page-count picker to find the button. Defaults to
             scrolling smoothly back to the preview on click. */}
-        <div className="hidden lg:flex items-center justify-between gap-3 mb-4 rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/40 dark:bg-emerald-950/20 px-4 py-2.5">
-          <p className="text-xs text-emerald-800 dark:text-emerald-200">
-            <strong className="font-semibold">Ready when you are.</strong>{" "}
+        <div className="hidden lg:flex items-center justify-between gap-3 mb-5 rounded-2xl border border-stone-200/80 dark:border-stone-800/60 bg-gradient-to-br from-emerald-50/40 via-stone-50/60 to-stone-50/40 dark:from-emerald-950/20 dark:via-stone-900/60 dark:to-stone-900/40 px-4 py-3 shadow-soft-sm">
+          <p className="text-[13px] leading-relaxed text-stone-700 dark:text-stone-300">
+            <span className="font-medium text-stone-900 dark:text-stone-100">Ready when you are.</span>{" "}
             JD + template + page count below — hit Tailor any time.
           </p>
           <Button
             onClick={handleGenerate}
             disabled={!canGenerate || generating}
             size="sm"
-            className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shrink-0"
+            className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-soft-sm hover:shadow-soft-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 focus-soft"
           >
             {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
             {generating ? "Tailoring…" : "Tailor & preview"}

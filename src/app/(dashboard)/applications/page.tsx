@@ -8,18 +8,19 @@ import { ApplicationsSkeleton } from "@/components/shared/Skeletons";
 
 export default function ApplicationsPage() {
   return (
-    <div className="space-y-6">
-      {/* Static header — renders instantly */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
+    <div className="space-y-6 animate-page-enter">
+      <header>
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400 dark:text-stone-500 mb-1">
+          Outreach
+        </p>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
           Applications
         </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">
-          Your email applications go through these stages: Draft &rarr; Ready &rarr; Sent
+        <p className="mt-1.5 text-[13px] sm:text-sm leading-relaxed text-stone-500 dark:text-stone-400 max-w-prose">
+          Draft → Ready → Sent. Drafts are auto-written; review before they queue.
         </p>
-      </div>
+      </header>
 
-      {/* Async data streams in */}
       <Suspense fallback={<ApplicationsSkeleton />}>
         <ApplicationsContent />
       </Suspense>
@@ -54,9 +55,13 @@ async function ApplicationsContent() {
   } catch (error) {
     console.error("[ApplicationsPage] Failed to load data:", error);
     return (
-      <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30 p-6 text-center">
-        <p className="text-sm font-medium text-red-700 dark:text-red-300">We couldn&apos;t load your applications.</p>
-        <p className="mt-1 text-xs text-red-600/70 dark:text-red-400/60">Refresh the page to try again.</p>
+      <div className="rounded-2xl border border-rose-200/60 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/30 p-6 text-center shadow-soft-sm">
+        <p className="text-[13px] font-medium text-rose-700 dark:text-rose-300">
+          We couldn't load your applications.
+        </p>
+        <p className="mt-1 text-[12px] text-rose-600/70 dark:text-rose-400/60">
+          Refresh the page to try again.
+        </p>
       </div>
     );
   }

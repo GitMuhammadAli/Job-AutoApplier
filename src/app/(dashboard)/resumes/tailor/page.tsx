@@ -20,27 +20,33 @@ export default function ResumeTailorPage({ searchParams }: PageProps) {
       : "new";
 
   return (
-    <div className="space-y-4 animate-slide-up">
+    <div className="space-y-6 animate-page-enter">
       <header>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 shadow-md shadow-emerald-600/20">
-            <Sparkles size={16} className="text-white" />
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400 dark:text-stone-500 mb-1">
+          Resume
+        </p>
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 ring-1 ring-emerald-200/50 dark:ring-emerald-900/40">
+            <Sparkles size={16} className="text-emerald-700 dark:text-emerald-300" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-            Resume workshop
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+            Workshop
           </h1>
         </div>
-        <p className="text-sm text-slate-500 dark:text-zinc-400">
-          Paste a JD, pick a template, get an ATS-matched PDF — and browse every
-          past generation. Source materials live under{" "}
-          <a href="/resumes" className="underline underline-offset-2 hover:text-emerald-600 dark:hover:text-emerald-400">
+        <p className="mt-1.5 text-[13px] sm:text-sm leading-relaxed text-stone-500 dark:text-stone-400 max-w-prose">
+          Paste a JD, pick a template, ship an ATS-matched PDF. Source materials live under{" "}
+          <a href="/resumes" className="underline underline-offset-2 decoration-stone-300 dark:decoration-stone-700 hover:decoration-emerald-500 hover:text-stone-800 dark:hover:text-stone-200 transition-colors duration-300">
             Resumes
           </a>
           .
         </p>
       </header>
 
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800" />}>
+      <Suspense
+        fallback={
+          <div className="h-96 animate-pulse-soft rounded-2xl bg-stone-200/60 dark:bg-stone-800/60 shadow-soft-sm" />
+        }
+      >
         <TailorClient initialJd={searchParams.jd ?? ""} initialTab={initialTab} />
       </Suspense>
     </div>

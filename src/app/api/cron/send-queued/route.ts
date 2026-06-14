@@ -6,6 +6,7 @@ import { SENDING_SAFETY_DEFAULTS } from "@/constants/settings";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
+import { captureError } from "@/lib/observability/capture";
 
 // Was 10. With SEND_QUEUED_BATCH = 4 and inter-send delays defaulting to
 // 5s (SENDING_SAFETY_DEFAULTS.sendDelaySeconds), 4 sends × 1.5s SMTP +
@@ -91,7 +92,10 @@ export async function GET(req: NextRequest) {
         }
       } catch (err) {
         failed++;
-        console.error(`[SendQueued] Error sending app ${app.id}:`, err);
+        await captureError(err, {
+          route: "cron:send-queued",
+          extras: { applicationId: app.id },
+        });
       }
 
       if (i < readyApps.length - 1) {

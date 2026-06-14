@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireAuthUserId } from "@/lib/auth";
 import { generateApplication } from "@/app/actions/application-email";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { APPLICATIONS, GENERIC, RATE_LIMIT, VALIDATION } from "@/lib/messages";
+import { APPLICATIONS, GENERIC, RATE_LIMIT } from "@/lib/messages";
+import { parseBody } from "@/lib/validation/parse-body";
 
 export const dynamic = "force-dynamic";
+
+const GenerateApplicationBody = z.object({
+  userJobId: z.string().trim().min(20).max(40),
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,14 +22,9 @@ export async function POST(req: NextRequest) {
         { status: 429 }
       );
     }
-    const { userJobId } = await req.json();
-
-    if (!userJobId) {
-      return NextResponse.json(
-        { error: VALIDATION.USER_JOB_ID_REQUIRED },
-        { status: 400 }
-      );
-    }
+    const parsed = await parseBody(req, GenerateApplicationBody);
+    if (!parsed.ok) return parsed.response;
+    const { userJobId } = parsed.data;
 
     const result = await generateApplication(userJobId);
     return NextResponse.json(result);

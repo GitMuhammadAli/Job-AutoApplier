@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendApplication } from "@/lib/send-application";
 import { LIMITS, TIMEOUTS, STUCK_SENDING_TIMEOUT_MS } from "@/lib/constants";
 import { SENDING_SAFETY_DEFAULTS } from "@/constants/settings";
+import { captureError } from "@/lib/observability/capture";
 import { verifyCronSecret, unauthorizedResponse } from "@/lib/cron-auth";
 import { handleRouteError } from "@/lib/api-response";
 import { createCronTracker } from "@/lib/cron-tracker";
@@ -90,7 +91,10 @@ export async function GET(req: NextRequest) {
         }
       } catch (err) {
         failed++;
-        console.error(`[SendScheduled] Error sending app ${app.id}:`, err);
+        await captureError(err, {
+          route: "cron:send-scheduled",
+          extras: { applicationId: app.id },
+        });
       }
 
       if (i < readyApps.length - 1) {

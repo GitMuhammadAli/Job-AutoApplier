@@ -40,7 +40,9 @@ export async function POST(req: NextRequest) {
 
   let result;
   try {
-    result = await parseUploadedPdfToProfile(parsed.data.resumeId, userId);
+    result = await parseUploadedPdfToProfile(parsed.data.resumeId, userId, {
+      quota: { userId, route: "/api/resumes/profile/parse-pdf" },
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Parse failed";
     const status = msg.includes("not found") ? 404 : msg.includes("extractable text") ? 422 : 502;

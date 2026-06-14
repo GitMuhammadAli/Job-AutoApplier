@@ -41,6 +41,7 @@ model User {
   pushSubscriptions PushSubscription[]
   tokenUsage        TokenUsage[]
   llmCalls          LlmCallLog[]
+  suppressedEmails  EmailSuppression[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 }
@@ -201,12 +202,18 @@ model Resume {
   isDefault        Boolean          @default(false)
   isDeleted        Boolean          @default(false)
   deletedAt        DateTime?
+  // Cached structured profile from PDF parse — avoids re-running the parser
+  // on every read. `parsedProfileAt` marks the last successful parse so we
+  // can invalidate when the source file changes.
+  parsedProfile    Json?
+  parsedProfileAt  DateTime?
   applications     JobApplication[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
   @@index([userId])
   @@index([userId, isDeleted])
+  @@index([userId, parsedProfileAt])
 }
 
 // ── USER SETTINGS ──
@@ -361,6 +368,10 @@ model JobApplication {
   followUpSubject  String?
   followUpBody     String?           @db.Text
   followUpStatus   String?
+  // SMTP Message-ID of the primary send. Used to thread follow-ups via
+  // In-Reply-To/References so they land in the same Gmail thread instead
+  // of starting a fresh conversation (kills inbox-placement signals).
+  messageId        String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -662,6 +673,9 @@ model LlmCallLog {
   latencyMs    Int
   status       String                     // "ok" | "rejected_quota" | "rejected_global" | "error"
   errorMessage String?
+  // Estimated USD cost. Derived from src/lib/cost/pricing.ts at write time.
+  // Float because $0.000123 micro-costs matter when aggregated across 10k+ calls.
+  costUsd      Float    @default(0)
   createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -677,4 +691,38 @@ model QuotaConfig {
   softCapMult Float    @default(2.0)       // user fair-share multiplier (allows 1 user to consume more when others dormant)
   enabled     Boolean  @default(true)
   updatedAt   DateTime @updatedAt
+}
+
+// ── EMAIL SUPPRESSION ─────────────────────────────────────────────────
+// Recipient addresses that must NOT be sent to. Populated on:
+//   - hard bounces (permanent SMTP 5xx) — auto from bounce handler
+//   - explicit user unsubscribes (List-Unsubscribe header click)
+//   - manual ops adds (abuse / harassment reports)
+// Consulted on every JobApplication.send before SMTP dispatch.
+// Per-user scoped because one user's hard-bounce shouldn't mute another's
+// retry attempt (different SMTP source IP / Gmail App Password etc).
+model EmailSuppression {
+  id           String                  @id @default(cuid())
+  userId       String                  // owner — who attempted this address
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email        String                  // recipient address, lowercased
+  reason       EmailSuppressionReason  // why this is on the list
+  source       String?                 // "smtp:550-5.1.1", "user:unsubscribe", "ops:abuse", etc
+  bounceMeta   Json?                   // raw bounce headers/body for forensics
+  suppressedAt DateTime                @default(now())
+  expiresAt    DateTime?               // nullable = permanent; soft bounces can auto-expire
+  createdAt    DateTime                @default(now())
+
+  @@unique([userId, email])
+  @@index([userId, suppressedAt])
+  @@index([email]) // lookup-by-address path
+}
+
+enum EmailSuppressionReason {
+  HARD_BOUNCE      // SMTP 5.x.x — recipient does not exist or refuses mail
+  SOFT_BOUNCE      // SMTP 4.x.x repeated — typically temporary, expires after N days
+  USER_UNSUBSCRIBE // recipient clicked unsubscribe link
+  ABUSE_REPORT     // SPAM report / complaint
+  MANUAL_OPS       // added by admin
+  POLICY           // domain in our blocked list (e.g. yahoo.* during deliverability issues)
 }
