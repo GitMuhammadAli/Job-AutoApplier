@@ -5,8 +5,8 @@ import { AnimateOnScroll } from "./AnimateOnScroll";
 
 export function CTA() {
   return (
-    <section className="py-24 md:py-32 bg-zinc-950 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.12),transparent_70%)] pointer-events-none" />
+    <section className="py-24 md:py-32 bg-stone-950 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.12),transparent_72%)] pointer-events-none" />
 
       {/* Flowing curves */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" viewBox="0 0 1440 500" fill="none">
@@ -37,7 +37,7 @@ export function CTA() {
       <div className="relative mx-auto max-w-3xl px-6 text-center">
         <AnimateOnScroll variant="zoom">
           <h2
-            className="text-3xl md:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-tight"
+            className="text-3xl md:text-4xl lg:text-5xl font-semibold text-stone-50 tracking-tight leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Ready to stop wasting time on{" "}
@@ -49,7 +49,7 @@ export function CTA() {
         </AnimateOnScroll>
 
         <AnimateOnScroll delay={150} variant="blur-in">
-          <p className="mt-6 text-lg text-zinc-400 max-w-lg mx-auto">
+          <p className="mt-6 text-lg text-stone-400 max-w-lg mx-auto leading-relaxed">
             Sign up in 30 seconds. Set your preferences. Let AI handle the rest.
           </p>
         </AnimateOnScroll>
@@ -58,13 +58,13 @@ export function CTA() {
           <div className="mt-10">
             <Link
               href="/login"
-              className="group relative inline-flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 px-8 py-4 text-base font-semibold text-white shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all hover:scale-[1.05] active:scale-[0.98] overflow-hidden"
+              className="group relative inline-flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 px-8 py-4 text-base font-medium text-stone-50 shadow-soft-xl transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-[1.04] active:scale-[0.98] overflow-hidden focus-soft"
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-white/25 to-emerald-400/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-              <span className="absolute inset-0 rounded-full ring-2 ring-emerald-400/50 animate-pulse-slow pointer-events-none" />
-              <span className="relative">Get Started Free</span>
+              <span className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-stone-50/25 to-emerald-400/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              <span className="absolute inset-0 rounded-full ring-2 ring-emerald-400/50 animate-pulse-soft pointer-events-none" />
+              <span className="relative">Get started free</span>
               <svg
-                className="h-5 w-5 relative group-hover:translate-x-1 transition-transform duration-300"
+                className="h-5 w-5 relative group-hover:translate-x-1 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
                 fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
@@ -74,7 +74,7 @@ export function CTA() {
         </AnimateOnScroll>
 
         <AnimateOnScroll delay={450}>
-          <p className="mt-6 text-sm text-zinc-500">
+          <p className="mt-6 text-sm text-stone-500">
             Free forever. No credit card. Cancel anytime.
           </p>
         </AnimateOnScroll>

@@ -25,29 +25,30 @@ const PAIN_POINTS = [
 
 export function ProblemSolution() {
   return (
-    <section className="py-24 md:py-32 bg-zinc-950 relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-rose-500/5 rounded-full blur-[100px] pointer-events-none" />
+    <section className="py-24 md:py-32 bg-stone-950 relative overflow-hidden">
+      {/* Atmospheric orbs — kept low opacity so the section reads as a quiet pause */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-emerald-500/[0.05] rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-amber-400/[0.05] rounded-full blur-[120px] pointer-events-none" />
 
       <div className="relative mx-auto max-w-6xl px-6">
         <AnimateOnScroll variant="blur-in">
           <p
-            className="text-center text-2xl md:text-3xl lg:text-4xl text-white/90 max-w-2xl mx-auto leading-snug font-medium italic"
+            className="text-center text-2xl md:text-3xl lg:text-4xl text-stone-100/90 max-w-2xl mx-auto leading-[1.2] font-medium italic"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            &ldquo;Job searching shouldn&apos;t feel like a second job.&rdquo;
+            "Job searching shouldn't feel like a second job."
           </p>
         </AnimateOnScroll>
 
         <div className="mt-16 grid md:grid-cols-3 gap-6">
           {PAIN_POINTS.map((p, i) => (
             <AnimateOnScroll key={i} delay={i * 150} variant="flip-up">
-              <div className="group relative rounded-2xl p-6 text-center transition-all duration-500 hover:-translate-y-2">
+              <div className="group relative rounded-2xl p-6 text-center transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1.5">
                 <div className={`absolute inset-0 rounded-2xl bg-gradient-to-b ${p.glow} opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl`} />
-                <div className="relative rounded-2xl bg-white/[0.04] border border-white/[0.08] p-6 backdrop-blur-sm hover:bg-white/[0.07] hover:border-white/[0.12] transition-all duration-500">
-                  <span className="text-5xl block group-hover:scale-110 transition-transform duration-500">{p.emoji}</span>
-                  <h3 className="mt-4 text-sm font-semibold text-white/90">{p.title}</h3>
-                  <p className="mt-2 text-sm text-zinc-400 leading-relaxed">{p.desc}</p>
+                <div className="relative rounded-2xl bg-stone-100/[0.04] border border-stone-100/[0.08] p-6 backdrop-blur-sm hover:bg-stone-100/[0.07] hover:border-stone-100/[0.14] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">
+                  <span className="text-5xl block group-hover:scale-110 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">{p.emoji}</span>
+                  <h3 className="mt-4 text-sm font-medium text-stone-100/90">{p.title}</h3>
+                  <p className="mt-2 text-sm text-stone-400 leading-relaxed">{p.desc}</p>
                 </div>
               </div>
             </AnimateOnScroll>
@@ -57,13 +58,13 @@ export function ProblemSolution() {
         <AnimateOnScroll delay={500} variant="zoom">
           <div className="mt-14 text-center">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-6 relative">
-              <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping" />
+              <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-pulse-soft" />
               <svg className="h-5 w-5 text-emerald-400 relative" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" />
               </svg>
             </div>
             <p
-              className="text-2xl md:text-3xl font-bold text-white"
+              className="text-2xl md:text-3xl font-semibold text-stone-50"
               style={{ fontFamily: "var(--font-display)" }}
             >
               JobPilot does all of this.{" "}

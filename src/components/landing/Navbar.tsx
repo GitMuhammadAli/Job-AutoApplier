@@ -25,18 +25,18 @@ export function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         scrolled
-          ? "bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(0,0,0,0.05)] dark:shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"
+          ? "bg-stone-50/85 dark:bg-stone-950/85 backdrop-blur-xl shadow-[0_1px_0_0_rgba(68,64,60,0.06)] dark:shadow-[0_1px_0_0_rgba(245,245,244,0.05)]"
           : "bg-transparent"
       }`}
     >
       <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 transition-transform duration-300 group-hover:scale-105">
+        <Link href="/" className="flex items-center gap-2.5 group focus-soft">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 shadow-soft-sm transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105">
             <Send size={16} className="text-white" />
           </div>
-          <span className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
+          <span className="text-lg font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
             JobPilot
           </span>
         </Link>
@@ -46,7 +46,7 @@ export function Navbar() {
             <a
               key={link.href}
               href={link.href}
-              className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              className="text-[13px] font-medium text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors duration-300 focus-soft"
             >
               {link.label}
             </a>
@@ -76,15 +76,15 @@ export function Navbar() {
           )}
           <Link
             href="/login"
-            className="rounded-full bg-zinc-900 dark:bg-white px-5 py-2 text-[13px] font-semibold text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
+            className="rounded-full bg-stone-900 dark:bg-stone-100 px-5 py-2 text-[13px] font-medium text-stone-50 dark:text-stone-900 hover:bg-stone-800 dark:hover:bg-stone-200 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-soft-sm hover:shadow-soft-md active:scale-[0.98] focus-soft"
           >
-            Get Started — It&apos;s Free
+            Get started — it's free
           </Link>
         </div>
 
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="md:hidden p-2 -mr-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+          className="md:hidden p-2 -mr-2 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors duration-300 tap-44 focus-soft"
           aria-label="Toggle menu"
         >
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -92,24 +92,24 @@ export function Navbar() {
       </div>
 
       <div
-        className={`md:hidden overflow-hidden transition-all duration-300 ease-out ${
+        className={`md:hidden overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           mobileOpen ? "max-h-72 opacity-100" : "max-h-0 opacity-0"
-        } bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-100 dark:border-zinc-800`}
+        } bg-stone-50/95 dark:bg-stone-950/95 backdrop-blur-xl border-t border-stone-200/60 dark:border-stone-800/60`}
       >
-        <div className="px-6 py-4 space-y-1">
+        <div className="px-6 py-4 space-y-1 pb-safe">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
               onClick={() => setMobileOpen(false)}
-              className="block py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              className="block py-2.5 text-sm font-medium text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors duration-300 tap-44 focus-soft"
             >
               {link.label}
             </a>
           ))}
           {DEVRADAR_URL && (
-            <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-              <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-2 px-1">Also by us</p>
+            <div className="mt-3 pt-3 border-t border-stone-200/60 dark:border-stone-800/60">
+              <p className="text-[10px] uppercase tracking-wider text-stone-400 dark:text-stone-500 mb-2 px-1">Also by us</p>
               <a
                 href={DEVRADAR_URL}
                 target="_blank"
@@ -125,7 +125,7 @@ export function Navbar() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold bg-gradient-to-r from-rose-600 to-purple-600 dark:from-rose-400 dark:to-purple-400 bg-clip-text text-transparent">DevRadar</p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Skill trends, salaries & interview prep</p>
+                  <p className="text-[11px] text-stone-500 dark:text-stone-400">Skill trends, salaries & interview prep</p>
                 </div>
               </a>
             </div>
@@ -133,9 +133,9 @@ export function Navbar() {
           <Link
             href="/login"
             onClick={() => setMobileOpen(false)}
-            className="mt-2 block text-center rounded-full bg-zinc-900 dark:bg-white px-5 py-2.5 text-sm font-semibold text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors"
+            className="mt-2 block text-center rounded-full bg-stone-900 dark:bg-stone-100 px-5 py-2.5 text-sm font-medium text-stone-50 dark:text-stone-900 hover:bg-stone-800 dark:hover:bg-stone-200 transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-soft-sm tap-44 focus-soft"
           >
-            Get Started — It&apos;s Free
+            Get started — it's free
           </Link>
         </div>
       </div>

@@ -43,44 +43,50 @@ export function FAQSection() {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   return (
-    <section id="faq" className="py-24 md:py-32 bg-white dark:bg-zinc-950">
+    <section id="faq" className="py-24 md:py-32 bg-stone-50 dark:bg-stone-950">
       <div className="mx-auto max-w-3xl px-6">
         <AnimateOnScroll>
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-zinc-900 dark:text-white tracking-tight mb-4"
-              style={{ fontFamily: "var(--font-display)" }}>
-            Frequently Asked Questions
+          <p className="text-center text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400 dark:text-stone-500 mb-3">
+            Answers
+          </p>
+          <h2
+            className="text-3xl md:text-4xl font-semibold text-center text-stone-900 dark:text-stone-50 tracking-tight mb-4"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Frequently asked questions
           </h2>
-          <p className="text-center text-zinc-500 dark:text-zinc-400 mb-12 max-w-lg mx-auto">
+          <p className="text-center text-[15px] text-stone-500 dark:text-stone-400 mb-12 max-w-lg mx-auto leading-relaxed">
             Everything you need to know about JobPilot.
           </p>
         </AnimateOnScroll>
 
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+        <div className="divide-y divide-stone-200/70 dark:divide-stone-800/60">
           {FAQS.map((faq, i) => (
             <AnimateOnScroll key={i} delay={i * 50}>
               <div className="py-5">
                 <button
                   onClick={() => setOpenIdx(openIdx === i ? null : i)}
-                  className="flex justify-between items-center w-full text-left gap-4 group"
+                  className="flex justify-between items-center w-full text-left gap-4 group focus-soft tap-44"
+                  aria-expanded={openIdx === i}
                 >
-                  <span className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                  <span className="text-[15px] font-medium text-stone-900 dark:text-stone-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-300">
                     {faq.q}
                   </span>
                   <ChevronDown
-                    className={`h-5 w-5 flex-shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-300 ${
-                      openIdx === i ? "rotate-180" : ""
+                    className={`h-5 w-5 flex-shrink-0 text-stone-400 dark:text-stone-500 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                      openIdx === i ? "rotate-180 text-emerald-600 dark:text-emerald-400" : ""
                     }`}
                   />
                 </button>
                 <div
-                  className={`grid transition-all duration-300 ease-out ${
+                  className={`grid transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                     openIdx === i
                       ? "grid-rows-[1fr] opacity-100 mt-3"
                       : "grid-rows-[0fr] opacity-0"
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
+                    <p className="text-[14px] text-stone-600 dark:text-stone-400 leading-relaxed">
                       {faq.a}
                     </p>
                   </div>

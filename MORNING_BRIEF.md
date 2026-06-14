@@ -1,10 +1,10 @@
 # Morning Brief — 2026-06-14 (final)
 
-**Working state:** 110+ files touched, ~2,400+ LOC added across 5 passes. Zero commits — everything is uncommitted diff for you to review.
+**Working state:** 120+ files touched, ~2,900+ LOC added across 6 passes. Zero commits — everything is uncommitted diff for you to review.
 
 **Verification status:** type-check green, **463/463 unit tests pass**, all 5 pending migrations **deployed to Neon prod** and confirmed in sync.
 
-Five passes happened over this session: (1) foundation overnight, (2) infrastructure follow-on, (3) prod ship + Zod sweep + observability, (4) primary page redesigns, (5) deferred-queue completion.
+Six passes happened over this session: (1) foundation overnight, (2) infrastructure follow-on, (3) prod ship + Zod sweep + observability, (4) primary page redesigns, (5) deferred-queue completion, (6) full landing finish + admin cost dashboard.
 
 ---
 
@@ -161,20 +161,49 @@ These need accounts I'm not authed against — saved memory rules `feedback_gith
 ### Observability follow-up — 7 more catch blocks converted
 `captureError` now in `/api/admin/quotas`, `/api/admin/stats`, `/api/admin/users`, `/api/admin/cleanup-emails`, `/api/admin/cleanup-matches`, `/api/admin/logs`, `/api/admin/scrapers`, `/api/admin/backfill-emails`. Brings cumulative session catch-conversions to **21 sites**. The backfill loop in `/api/admin/backfill-emails` now ships per-job warnings to Sentry with `level: "warning"` + `extras.jobId` rather than silently console.warn-ing them in a server log nobody reads.
 
-## 7. Open items queued for next session
+## 7. Pass 6 — landing finish + admin cost dashboard
+
+### Landing — fully warm-stone now
+All 8 landing components carried over to the warm-soft system. Hero was done in pass 4; this pass landed the rest:
+
+- **`Navbar`** — stone-warm scroll bg, soft-sm shadow on the logo tile, longer ease on all transitions, `focus-soft` + `tap-44` on every interactive surface, safe-area-aware mobile menu
+- **`ProblemSolution`** — `zinc-950` → `stone-950` (the section's dark contrast is intentional — kept dark but warmed), longer ease curves, `animate-pulse-soft` instead of `animate-ping` on the "automatic" indicator, `text-white/90` → `text-stone-100/90`
+- **`ModulesShowcase`** intro — stone bg, soft border, `animate-pulse-soft` on the dot, line-height bumped to 1.65
+- **`Modes`** — stone bg + warm amber orb, recommended-card uses `shadow-soft-xl` instead of harsh emerald glow, all `font-bold` → `font-medium`, `animate-pulse-soft` on the recommended dot, soft button shadows on the price chip
+- **`Safety`** — `stone-950` bg, longer-ease hover transitions, `shadow-soft-lg` on hover instead of `shadow-xl`, `font-bold` → `font-semibold`
+- **`FAQ`** — stone bg, editorial overline ("ANSWERS"), divider opacity warmed, longer-ease chevron rotation with emerald color shift on open, `aria-expanded` on the button, `tap-44` + `focus-soft`
+- **`CTA`** — `stone-950` bg, `font-bold` → `font-semibold`, `shadow-soft-xl` on the primary button, `animate-pulse-soft` instead of `animate-pulse-slow`, all `text-white` → `text-stone-50`
+- **`Footer`** — stone bg, editorial column overlines (`PRODUCT` / `RESOURCES` / `LEGAL`), longer-ease hover, soft-sm shadow on the logo tile, `focus-soft` rings, copyright glyph cleaned from HTML entity to literal `©`
+
+### Admin AI cost dashboard
+**`/admin/cost`** + **`GET /api/admin/cost`** — turns the `LlmCallLog.costUsd` column (added in pass 2) into a real operational view.
+
+Five sections, all warm-stone styled, 60-second poll:
+1. **Threshold alerts banner** — days where a `(provider, day)` row exceeded the cap (default `$1/day` per provider, overridable via `COST_ALERT_GROQ_USD` / `COST_ALERT_GEMINI_USD` env vars)
+2. **Summary cards** — Last 24h / 7d / 30d totals across all providers
+3. **By provider · 7 days** — provider, calls, input/output tokens, spend
+4. **By model · 30 days** — provider+model rows, sorted descending by spend
+5. **By route · 7 days** — agent call-site cost ranking — surfaces "which feature is burning the budget"
+6. **Top users · 7 days** — top 25 spenders with name/email, tokens, calls, spend
+
+API uses `prisma.groupBy` with `_sum: { costUsd }` aggregates plus a JS bucket pass for the per-day breakdown (Prisma doesn't expose `date_trunc` natively without raw SQL). Idempotent — pure read. Admin-only via `requireAdmin()`. Error path goes through `captureError`.
+
+## 8. Open items queued for next session
 
 - **Deep page interaction surfaces** — kanban drag, JD-input state, filter dropdowns, apply-modal logic, activity timeline. Each is per-page with you reviewing each interaction.
-- **Landing subcomponents beyond Hero** — Modes, Safety, FAQ, CTA, ProblemSolution, ModulesShowcase. Hero is done; the rest are still on zinc.
-- **PROVIDER_PRICING admin view** + threshold alerts on `LlmCallLog.costUsd` aggregates.
-- **Zod sweep follow-on** — the truly admin-only routes without bodies (admin/cleanup-emails, admin/cleanup-matches, admin/backfill-emails) — low value since they're admin-gated.
+- **Cost-alert email/webhook** — `/admin/cost` surfaces threshold breaches visually, but a daily cron that pings a Slack webhook / sends an admin email when the threshold trips would close the loop.
+- **`ModuleSection`** (the wrapper used 7 times in `ModulesShowcase`) — still on zinc internally; the intro is warm but the per-module layout component carries zinc bg through every section. Single small file to update, high visibility.
+- **Zod sweep follow-on** — the truly admin-only routes without bodies are low value since they're admin-gated.
 
 ---
 
 ## 7. File map (cumulative across all 4 passes)
 
-**New files (40):**
+**New files (42):**
 - `instrumentation.ts`, `MORNING_BRIEF.md`
 - `scripts/migrate-encryption-v1-to-v2.mjs`
+- `src/app/(admin)/admin/cost/page.tsx`
+- `src/app/api/admin/cost/route.ts`
 - 6 migrations under `prisma/migrations/2026061404…` through `…180000` (5 of them now deployed to prod)
 - `src/app/(landing)/{contact,privacy,subprocessors,terms}/page.tsx`
 - `src/app/api/account/export/route.ts`, `src/app/api/email/unsubscribe/route.ts`

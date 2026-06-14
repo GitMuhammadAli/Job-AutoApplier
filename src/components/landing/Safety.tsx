@@ -13,17 +13,17 @@ const TRUST_POINTS = [
 
 export function Safety() {
   return (
-    <section className="py-24 md:py-32 bg-zinc-950 relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-[150px] pointer-events-none" />
-      <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-blue-500/5 rounded-full blur-[100px] pointer-events-none" />
+    <section className="py-24 md:py-32 bg-stone-950 relative overflow-hidden">
+      <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[640px] bg-emerald-500/[0.05] rounded-full blur-[160px]" />
+      <div className="pointer-events-none absolute top-0 right-0 w-[320px] h-[320px] bg-amber-400/[0.04] rounded-full blur-[120px]" />
 
       <div className="relative mx-auto max-w-4xl px-6">
         <AnimateOnScroll variant="blur-in">
-          <p className="text-center text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-3">
-            Safety & Trust
+          <p className="text-center text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-400 mb-3">
+            Safety & trust
           </p>
           <h2
-            className="text-3xl md:text-4xl font-bold text-center text-white tracking-tight"
+            className="text-3xl md:text-4xl font-semibold text-center text-stone-50 tracking-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Built with your reputation in mind.
@@ -33,9 +33,9 @@ export function Safety() {
         <div className="mt-14 grid sm:grid-cols-2 gap-4">
           {TRUST_POINTS.map((point, i) => (
             <AnimateOnScroll key={i} delay={i * 100} variant={i % 2 === 0 ? "fade-left" : "fade-right"}>
-              <div className={`group flex items-start gap-4 rounded-xl p-4 transition-all duration-500 hover:-translate-y-1 hover:shadow-xl ${point.glow} bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm hover:bg-white/[0.08] hover:border-white/[0.12]`}>
-                <span className="text-2xl flex-shrink-0 group-hover:scale-110 transition-transform duration-300">{point.icon}</span>
-                <p className="text-sm text-zinc-300 leading-relaxed group-hover:text-white transition-colors duration-300">{point.text}</p>
+              <div className={`group flex items-start gap-4 rounded-2xl p-4 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 hover:shadow-soft-lg ${point.glow} bg-stone-100/[0.04] border border-stone-100/[0.08] backdrop-blur-sm hover:bg-stone-100/[0.07] hover:border-stone-100/[0.14]`}>
+                <span className="text-2xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">{point.icon}</span>
+                <p className="text-sm text-stone-300 leading-relaxed group-hover:text-stone-50 transition-colors duration-500">{point.text}</p>
               </div>
             </AnimateOnScroll>
           ))}
