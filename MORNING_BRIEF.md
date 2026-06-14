@@ -1,10 +1,10 @@
 # Morning Brief — 2026-06-14 (final)
 
-**Working state:** 101 files touched (62 modified + 39 new), ~2,130 LOC added across 4 passes. Zero commits — everything is uncommitted diff for you to review.
+**Working state:** 110+ files touched, ~2,400+ LOC added across 5 passes. Zero commits — everything is uncommitted diff for you to review.
 
 **Verification status:** type-check green, **463/463 unit tests pass**, all 5 pending migrations **deployed to Neon prod** and confirmed in sync.
 
-Four passes happened over this session: (1) foundation overnight, (2) infrastructure follow-on, (3) prod ship + Zod sweep + observability, (4) page redesigns.
+Five passes happened over this session: (1) foundation overnight, (2) infrastructure follow-on, (3) prod ship + Zod sweep + observability, (4) primary page redesigns, (5) deferred-queue completion.
 
 ---
 
@@ -129,17 +129,18 @@ Each catch passes route tag + relevant ID (`applicationId`, `userJobId`, `userId
 
 Pattern applied uniformly: `animate-page-enter` on mount, `[11px] uppercase tracking-[0.18em]` editorial overline above H1, generous line-height, `tap-44` + `focus-soft` on every interactive surface. All underlying data-loading + Suspense + SWR plumbing untouched.
 
-### Deferred — 4 surfaces (~3,000 LOC of client logic)
-Too large to drive-by restyle without breaking state flow. Best done one-at-a-time with your visual review in the loop.
+### Deferred chrome warmed in pass 5
 
-| Page | Size | Why deferred |
-|---|---|---|
-| `/resumes/tailor` | 1,082 LOC client.tsx | Complex JD-input + template picker + diff state |
-| `/recommended` | 1,148 LOC client.tsx | Filters + match scoring + quick-apply per card |
-| `/jobs/[id]` | 692 LOC client.tsx | Apply flow + activity timeline + email composer |
-| `/landing` subcomponents | 8+ files (Hero/Modes/Safety/CTA) | Marketing surface — needs creative direction |
+The big client files (still owned by their existing state machines — no behavior changes) got their visible chrome restyled:
 
-Recommend tackling `/recommended` and `/resumes/tailor` first next session — they're the highest-traffic daily-drivers.
+| Page | What changed in pass 5 |
+|---|---|
+| `/resumes/tailor` | Page wrapper rebuilt (editorial header, soft Suspense skeleton). "Ready when you are" desktop CTA bar restyled with gradient + soft shadow + emerald-warm button |
+| `/recommended` | Page header rebuilt (editorial overline, generous spacing). Empty-state card rebuilt — warm-stone, soft-shadow-sm, soft border-dashed, focus-soft + tap-44 on every action |
+| `/jobs/[id]` | Header card rebuilt — soft-md shadow, hairline gradient (not the old `h-1` band), warm-stone bg, larger semibold title, back-arrow micro-animation |
+| `/landing` Hero | Stone bg + atmospheric emerald + amber blur orbs, dot pattern at 0.025 opacity, primary CTA gained soft-md shadow + emerald-warm focus ring, all `zinc-` → `stone-`, animate-pulse-soft on cursor/dot |
+
+What's still untouched in each of those client files: the deep interaction surfaces — kanban drag handlers, JD-input state, filter dropdowns, apply-modal logic, activity-timeline. Those need a focused per-page pass with you reviewing each interaction.
 
 ---
 
@@ -152,20 +153,28 @@ These need accounts I'm not authed against — saved memory rules `feedback_gith
 
 ---
 
-## 6. Open items queued for next session
+## 6. Pass 5 — deferred queue completion
 
-- **Page redesigns** — the 4 deferred surfaces above. ~1 hr each with you in the loop.
-- **Zod sweep follow-on** — admin/users (no body — query params only), admin/cleanup-emails (no body), `extract-from-image` (multipart, already MIME+size gated).
-- **AES v1 → v2 backfill script** for ciphertext rows that don't naturally re-save (SMTP creds untouched for 6+ months).
+### AES v1 → v2 backfill script
+`scripts/migrate-encryption-v1-to-v2.mjs` — walks every `UserSettings` row, identifies CBC (v1) ciphertext in PII columns, decrypts under current `ENCRYPTION_KEY`, re-encrypts under GCM (v2). Idempotent — rows already on v2 or empty get skipped. Dry-run by default; commit with `APPLY=1`. Per-row + tally output. Catches the SMTP-creds-untouched-for-6-months case.
+
+### Observability follow-up — 7 more catch blocks converted
+`captureError` now in `/api/admin/quotas`, `/api/admin/stats`, `/api/admin/users`, `/api/admin/cleanup-emails`, `/api/admin/cleanup-matches`, `/api/admin/logs`, `/api/admin/scrapers`, `/api/admin/backfill-emails`. Brings cumulative session catch-conversions to **21 sites**. The backfill loop in `/api/admin/backfill-emails` now ships per-job warnings to Sentry with `level: "warning"` + `extras.jobId` rather than silently console.warn-ing them in a server log nobody reads.
+
+## 7. Open items queued for next session
+
+- **Deep page interaction surfaces** — kanban drag, JD-input state, filter dropdowns, apply-modal logic, activity timeline. Each is per-page with you reviewing each interaction.
+- **Landing subcomponents beyond Hero** — Modes, Safety, FAQ, CTA, ProblemSolution, ModulesShowcase. Hero is done; the rest are still on zinc.
 - **PROVIDER_PRICING admin view** + threshold alerts on `LlmCallLog.costUsd` aggregates.
-- **`replace remaining ~25 catch blocks`** in admin routes + scrapers (lower priority).
+- **Zod sweep follow-on** — the truly admin-only routes without bodies (admin/cleanup-emails, admin/cleanup-matches, admin/backfill-emails) — low value since they're admin-gated.
 
 ---
 
 ## 7. File map (cumulative across all 4 passes)
 
-**New files (39):**
+**New files (40):**
 - `instrumentation.ts`, `MORNING_BRIEF.md`
+- `scripts/migrate-encryption-v1-to-v2.mjs`
 - 6 migrations under `prisma/migrations/2026061404…` through `…180000` (5 of them now deployed to prod)
 - `src/app/(landing)/{contact,privacy,subprocessors,terms}/page.tsx`
 - `src/app/api/account/export/route.ts`, `src/app/api/email/unsubscribe/route.ts`

@@ -29,18 +29,19 @@ const FRESHNESS_DAYS: Record<string, number> = {
 
 export default function RecommendedPage({ searchParams }: PageProps) {
   return (
-    <div className="space-y-4 animate-slide-up">
-      {/* Static header — renders instantly */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-          Recommended Jobs
-        </h1>
-        <p className="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
-          Jobs that match your skills and preferences
+    <div className="space-y-6 animate-page-enter">
+      <header>
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400 dark:text-stone-500 mb-1">
+          Discovery
         </p>
-      </div>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+          Recommended for you
+        </h1>
+        <p className="mt-1.5 text-[13px] sm:text-sm leading-relaxed text-stone-500 dark:text-stone-400 max-w-prose">
+          Ranked by how well each posting fits your skills, location, and freshness preferences.
+        </p>
+      </header>
 
-      {/* Async data streams in via Suspense */}
       <Suspense fallback={<RecommendedJobsSkeleton />}>
         <RecommendedJobsList searchParams={searchParams} />
       </Suspense>

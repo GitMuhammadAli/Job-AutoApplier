@@ -207,24 +207,29 @@ export function JobDetailClient({ job, resumes = [], autoApply = false, profile 
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-3 sm:space-y-4 md:space-y-5 animate-slide-up pb-20 lg:pb-0">
+    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-5 md:space-y-6 animate-page-enter pb-20 lg:pb-0">
       {/* Back */}
-      <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 transition-colors">
-        <ChevronLeft className="h-4 w-4" />
-        Back to Pipeline
+      <Link
+        href="/dashboard"
+        className="group inline-flex items-center gap-1.5 text-[12px] font-medium text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition-colors duration-300 focus-soft"
+      >
+        <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform duration-300" />
+        Back to pipeline
       </Link>
 
-      {/* Header Card */}
-      <div className="relative overflow-hidden rounded-xl bg-white dark:bg-zinc-800 p-3 sm:p-4 md:p-5 shadow-sm dark:shadow-zinc-900/50 ring-1 ring-slate-100/80 dark:ring-zinc-700">
-        <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${config.gradient}`} />
+      {/* Header card — warm-stone, soft shadow, hairline gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-white/95 dark:bg-stone-900/95 p-4 sm:p-5 md:p-6 shadow-soft-md ring-1 ring-stone-200/70 dark:ring-stone-800/60">
+        <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${config.gradient}`} />
 
         <div className="flex flex-col gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 dark:text-zinc-400">
+            <div className="flex items-center gap-1.5 text-[12px] sm:text-[13px] text-stone-500 dark:text-stone-400">
               <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="truncate">{g.company}</span>
             </div>
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 mt-1 break-words">{g.title}</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100 mt-1.5 break-words leading-tight">
+              {g.title}
+            </h1>
 
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2">
               <PlatformBadge source={g.source} />

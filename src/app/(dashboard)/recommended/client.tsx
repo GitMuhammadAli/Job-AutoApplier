@@ -470,26 +470,23 @@ export function RecommendedClient({
 
       {/* Results */}
       {visibleJobs.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/60 p-8 md:p-12 text-center">
-          <Briefcase className="h-10 w-10 text-slate-300 dark:text-zinc-600 mx-auto mb-3" />
-          <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-200">
+        <div className="rounded-2xl border border-dashed border-stone-300/70 dark:border-stone-700/60 bg-white/50 dark:bg-stone-900/50 p-8 md:p-12 text-center shadow-soft-sm">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-100 dark:bg-stone-800/60 ring-1 ring-stone-200/60 dark:ring-stone-700/60">
+            <Briefcase className="h-6 w-6 text-stone-500 dark:text-stone-400" />
+          </div>
+          <h3 className="text-[15px] font-medium text-stone-900 dark:text-stone-100">
             {hasActiveFilters ? "No jobs match your filters" : "No jobs yet"}
           </h3>
-          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1 mb-4 max-w-md mx-auto">
+          <p className="text-[13px] leading-relaxed text-stone-500 dark:text-stone-400 mt-2 mb-5 max-w-md mx-auto">
             {hasActiveFilters
               ? "Loosen one of the filters above — try Any posted date, All sources, or remove the search query."
               : "JobPilot pulls jobs from 9 sources against your keywords. If you've just signed up, kick off the first scrape now — fresh jobs land in seconds."}
           </p>
-          {/* Inline Scan now + Settings actions so the user has a concrete
-              next step from the empty state. Previously the page said
-              "click Scan now (top right)" but on mobile that button is
-              far from this card; now the action is right here next to the
-              explanation. */}
-          <div className="flex items-center justify-center gap-2 flex-wrap">
+          <div className="flex items-center justify-center gap-2.5 flex-wrap">
             {hasActiveFilters && (
               <button
                 onClick={resetAllFilters}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 ring-1 ring-blue-100 dark:ring-blue-900/40 hover:bg-blue-100 dark:hover:bg-blue-950/60 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50/80 dark:bg-emerald-950/30 px-3.5 py-2 text-[12px] font-medium text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-200/50 dark:ring-emerald-900/40 hover:bg-emerald-100/70 dark:hover:bg-emerald-950/50 transition-colors duration-300 tap-44 focus-soft"
               >
                 <X className="h-3.5 w-3.5" /> Reset all filters
               </button>
@@ -499,7 +496,7 @@ export function RecommendedClient({
                 <ScanNowButton />
                 <Link
                   href="/settings"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 px-3.5 py-2 text-[12px] font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors duration-300 tap-44 focus-soft"
                 >
                   Edit your keywords →
                 </Link>
@@ -507,10 +504,15 @@ export function RecommendedClient({
             )}
           </div>
           {!hasActiveFilters && (
-            <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-4 max-w-sm mx-auto leading-relaxed">
-              Still empty after a scan? Open Settings → your keywords might be
-              too specific. Try adding broader terms (e.g. <strong>engineer</strong>{" "}
-              instead of <strong>senior staff platform engineer</strong>).
+            <p className="text-[11px] text-stone-400 dark:text-stone-500 mt-5 max-w-sm mx-auto leading-relaxed">
+              Still empty after a scan? Open Settings — your keywords might be
+              too specific. Try broader terms (e.g.{" "}
+              <span className="font-medium text-stone-600 dark:text-stone-300">engineer</span>{" "}
+              instead of{" "}
+              <span className="font-medium text-stone-600 dark:text-stone-300">
+                senior staff platform engineer
+              </span>
+              ).
             </p>
           )}
         </div>

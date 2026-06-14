@@ -6,6 +6,7 @@ import {
   MATCH_THRESHOLDS,
 } from "@/lib/matching/score-engine";
 import { ADMIN } from "@/lib/messages";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +98,7 @@ export async function POST() {
       jobsRescored: rescored,
     });
   } catch (error) {
-    console.error("[cleanup-matches]", error);
+    await captureError(error, { route: "/api/admin/cleanup-matches" });
     return NextResponse.json(
       { error: ADMIN.CLEANUP_FAILED, details: String(error) },
       { status: 500 },

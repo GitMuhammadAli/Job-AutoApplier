@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { decryptField } from "@/lib/encryption";
 import { ADMIN, GENERIC } from "@/lib/messages";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 
@@ -403,7 +404,7 @@ export async function GET() {
     response.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
     return response;
   } catch (error) {
-    console.error("[admin/stats]", error);
+    await captureError(error, { route: "/api/admin/stats" });
     return NextResponse.json({ error: GENERIC.INTERNAL_ERROR }, { status: 500 });
   }
 }

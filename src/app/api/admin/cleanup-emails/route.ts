@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { ADMIN } from "@/lib/messages";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 
@@ -157,7 +158,7 @@ export async function POST() {
       ...stats,
     });
   } catch (error) {
-    console.error("[cleanup-emails]", error);
+    await captureError(error, { route: "/api/admin/cleanup-emails" });
     return NextResponse.json(
       { error: ADMIN.CLEANUP_FAILED, details: String(error) },
       { status: 500 },

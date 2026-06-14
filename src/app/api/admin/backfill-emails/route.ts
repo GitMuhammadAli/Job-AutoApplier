@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { extractEmailFromText } from "@/lib/extract-email-from-text";
 import { ADMIN } from "@/lib/messages";
+import { captureError } from "@/lib/observability/capture";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -54,8 +55,12 @@ export async function POST() {
             emailSource: "description_text_backfill",
             emailConfidence: result.confidence,
           },
-        }).catch((err) => {
-          console.warn(`[Backfill] Failed to update ${job.id}:`, err);
+        }).catch(async (err) => {
+          await captureError(err, {
+            route: "/api/admin/backfill-emails",
+            level: "warning",
+            extras: { jobId: job.id },
+          });
         });
         emailsFound++;
       }
