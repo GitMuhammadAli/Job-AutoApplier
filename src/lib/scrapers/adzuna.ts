@@ -3,13 +3,21 @@ import { fetchWithRetry } from "./fetch-with-retry";
 import { TIMEOUTS } from "@/lib/constants";
 import { logApiCall } from "@/lib/api-usage-logger";
 
+// Adzuna only serves 19 countries — confirmed via api.adzuna.com:
+//   au, at, be, br, ca, ch, de, es, fr, gb, in, it, mx, nl, nz, pl, sg, us, za.
+// Pakistan, Russia (post-sanctions) — NO endpoint. Probe response:
+//   404 {"doc":"https://api.adzuna.com/v1/doc",...}
+// Dropping unsupported entries forces resolveCountryCode() to fall back to
+// ADZUNA_COUNTRY (default "us") for PK users — Adzuna's US/UK/India listings
+// often include remote roles a Pakistani candidate can actually apply to,
+// which is more useful than a hard 404.
 const ADZUNA_COUNTRY_MAP: Record<string, string> = {
-  pakistan: "pk", india: "in", "united states": "us", usa: "us",
+  india: "in", "united states": "us", usa: "us",
   "united kingdom": "gb", uk: "gb", canada: "ca", australia: "au",
   germany: "de", france: "fr", netherlands: "nl", spain: "es",
   italy: "it", brazil: "br", singapore: "sg", poland: "pl",
   austria: "at", "new zealand": "nz", switzerland: "ch",
-  "south africa": "za", russia: "ru", belgium: "be", mexico: "mx",
+  "south africa": "za", belgium: "be", mexico: "mx",
 };
 
 function resolveCountryCode(cities: string[]): string {
