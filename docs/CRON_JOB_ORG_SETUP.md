@@ -1,4 +1,24 @@
-# cron-job.org setup — missing schedules
+# Operator runbook — current scraper situation
+
+## Quick fix: disable quota-burnt scrapers cleanly
+
+Add to Vercel env:
+
+```
+DISABLED_SCRAPERS=rozee,google,indeed
+```
+
+Wired in `src/lib/scrapers/scraper-runner.ts`. Any source in the comma list
+is skipped before the circuit breaker — disabled runs land as `skipped`
+(no failure accumulation, no breaker thrash). Remove the value or strip
+an entry to re-enable instantly; no code change, no redeploy needed
+beyond setting the env var.
+
+Use this NOW for rozee + google (SerpAPI quota out) and indeed (RapidAPI
+monthly burnt). Re-enable after upgrading the upstream tier or waiting
+for quota refill.
+
+## cron-job.org setup — missing schedules
 
 The admin dashboard shows `Send Scheduled`, `Send Queued`, and `Match Jobs`
 as **Never ran**. They're not in `vercel.json` (which is intentionally

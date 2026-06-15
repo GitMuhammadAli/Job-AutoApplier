@@ -60,9 +60,51 @@ async function isCircuitOpen(source: string): Promise<{ open: boolean; until?: D
   };
 }
 
+/**
+ * Operator-managed denylist. Set `DISABLED_SCRAPERS=rozee,google,indeed` to
+ * graceful-skip those sources without a code change. Useful when an upstream
+ * (SerpAPI, RapidAPI, etc.) has quota-burnt and you don't want the scraper
+ * cron to keep accumulating "failed" rows that eventually trip the circuit
+ * breaker — every disabled run lands as `skipped`, breaker stays clear, and
+ * removing the env value (or comma-separated entry) instantly re-enables.
+ *
+ * Names match the `source` string the runner is called with — verify in
+ * src/app/api/cron/scrape-global/route.ts SCRAPERS map.
+ */
+function isSourceDisabled(source: string): boolean {
+  const raw = process.env.DISABLED_SCRAPERS;
+  if (!raw) return false;
+  const denylist = raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  return denylist.includes(source.toLowerCase());
+}
+
 export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunResult> {
   const { source, fn, queries, timeoutMs = 8000, fallbackFn, fallbackSource } = opts;
   const startedAt = new Date();
+
+  // Operator denylist runs BEFORE the circuit breaker so a quota-burnt scraper
+  // doesn't accumulate failures while disabled.
+  if (isSourceDisabled(source)) {
+    const run = await prisma.scraperRun.create({
+      data: {
+        source,
+        status: "skipped",
+        startedAt,
+        completedAt: new Date(),
+        durationMs: 0,
+        jobsFound: 0,
+        errorMessage: "Disabled via DISABLED_SCRAPERS env",
+      },
+    }).catch(() => null);
+    return {
+      source,
+      jobs: [],
+      status: "failed",
+      durationMs: 0,
+      runId: run?.id ?? "unknown",
+      errorMessage: "Disabled via DISABLED_SCRAPERS env",
+    };
+  }
 
   // Circuit breaker: short-circuit before spending function time on a
   // scraper that's been timing out for a while. Recorded as a ScraperRun
