@@ -4,6 +4,7 @@ import { categorizeJob } from "@/lib/job-categorizer";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
 import { logApiCall } from "@/lib/api-usage-logger";
 import { TIMEOUTS } from "@/lib/constants";
+import { canMakeApiCall } from "./quota-budget";
 
 /**
  * Fetches Rozee.pk jobs via SerpAPI Google Jobs.
@@ -18,6 +19,9 @@ import { TIMEOUTS } from "@/lib/constants";
 export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const key = process.env.SERPAPI_KEY;
   if (!key) return [];
+  // Daily budget gate — SerpAPI's 250/mo free tier divided by 30 leaves
+  // ~8 calls/day. rozee can make up to 3 in one run, so reserve 3.
+  if (!(await canMakeApiCall("serpapi", 3))) return [];
 
   const startTime = Date.now();
   const deadline = startTime + TIMEOUTS.SCRAPER_SLOW_DEADLINE_MS;

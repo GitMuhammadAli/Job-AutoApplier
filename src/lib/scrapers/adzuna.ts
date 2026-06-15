@@ -2,6 +2,7 @@ import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { TIMEOUTS } from "@/lib/constants";
 import { logApiCall } from "@/lib/api-usage-logger";
+import { canMakeApiCall } from "./quota-budget";
 
 // Adzuna only serves 19 countries — confirmed via api.adzuna.com:
 //   au, at, be, br, ca, ch, de, es, fr, gb, in, it, mx, nl, nz, pl, sg, us, za.
@@ -36,6 +37,9 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
   const appId = process.env.ADZUNA_APP_ID;
   const appKey = process.env.ADZUNA_APP_KEY;
   if (!appId || !appKey) return [];
+  // Adzuna 250/day is generous; budget gate mainly catches accidental spikes.
+  // adzuna does up to MAX_QUERIES = 3 calls per run.
+  if (!(await canMakeApiCall("adzuna", 3))) return [];
 
   const startTime = Date.now();
   const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;

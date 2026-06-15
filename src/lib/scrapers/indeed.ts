@@ -4,6 +4,7 @@ import { categorizeJob } from "@/lib/job-categorizer";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
 import { TIMEOUTS } from "@/lib/constants";
 import { logApiCall } from "@/lib/api-usage-logger";
+import { canMakeApiCall } from "./quota-budget";
 
 /**
  * Fetches Indeed jobs via JSearch (RapidAPI) — filters by publisher "Indeed".
@@ -15,6 +16,8 @@ import { logApiCall } from "@/lib/api-usage-logger";
 export async function fetchIndeed(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const key = process.env.RAPIDAPI_KEY;
   if (!key) return [];
+  // Shares jsearch's RapidAPI 200/mo budget. indeed does MAX_QUERIES × MAX_CITIES = 2 calls.
+  if (!(await canMakeApiCall("jsearch", 2))) return [];
 
   const startTime = Date.now();
   const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;

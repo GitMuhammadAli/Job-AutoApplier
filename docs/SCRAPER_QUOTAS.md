@@ -1,5 +1,39 @@
 # Scrapers — quota landscape + what to do today
 
+## How the daily-budget enforcer works (new)
+
+`src/lib/scrapers/quota-budget.ts` now divides each monthly free tier by 30
+and caps today at that slice. Every paid scraper calls `canMakeApiCall()`
+before its first upstream call; when today's slice is gone (or the monthly
+cap is gone), the scraper returns `[]` early and the runner records it as
+`skipped`. No circuit-breaker trip, no quota burn, the month survives.
+
+| Upstream | Free monthly | Daily slice = ⌊M÷30⌋ | Used by |
+|---|---|---|---|
+| **serpapi** | 250 | **8/day** | rozee + google |
+| **jsearch** (RapidAPI) | 200 | **6/day** | jsearch + indeed |
+| **adzuna** | 7,500 (250/day × 30) | **250/day** | adzuna |
+| **groq** | 432,000 (≈14.4k/day × 30) | **14,400/day** | LLM calls |
+| **brevo** | 9,000 (300/day × 30) | **300/day** | transactional email |
+
+### Override the cap when you upgrade a plan
+
+```env
+SERPAPI_MONTHLY_BUDGET=5000      # SerpAPI $50 tier → 5,000/mo → 166/day
+JSEARCH_MONTHLY_BUDGET=10000     # RapidAPI PRO $10 → 10,000/mo → 333/day
+```
+
+The enforcer reads these immediately — no code change. Strip the env
+to drop back to the free-tier defaults.
+
+### Bypass for tests / debug
+
+```env
+ENFORCE_API_BUDGET=0   # disable the gate, scrapers will hit the upstream regardless
+```
+
+
+
 One-page reference for "which scraper costs what, and what's it doing right now."
 
 Probe values are from `node scripts/probe-scrapers.mjs` run on 2026-06-15.

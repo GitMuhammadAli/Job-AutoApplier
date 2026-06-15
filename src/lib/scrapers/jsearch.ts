@@ -3,6 +3,7 @@ import { fetchWithRetry } from "./fetch-with-retry";
 import { extractSkillsFromContent } from "@/lib/skill-extractor";
 import { TIMEOUTS } from "@/lib/constants";
 import { logApiCall } from "@/lib/api-usage-logger";
+import { canMakeApiCall } from "./quota-budget";
 
 export async function fetchJSearch(
   queries: SearchQuery[],
@@ -10,6 +11,8 @@ export async function fetchJSearch(
 ): Promise<ScrapedJob[]> {
   const key = process.env.RAPIDAPI_KEY;
   if (!key) return [];
+  // RapidAPI JSearch BASIC 200/mo → ~6/day. Reserve up to `maxQueries`.
+  if (!(await canMakeApiCall("jsearch", maxQueries))) return [];
 
   const startTime = Date.now();
   const deadline = startTime + TIMEOUTS.SCRAPER_DEADLINE_MS;

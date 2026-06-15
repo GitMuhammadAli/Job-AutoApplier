@@ -2,10 +2,13 @@ import type { ScrapedJob, SearchQuery } from "@/types";
 import { fetchWithRetry } from "./fetch-with-retry";
 import { TIMEOUTS } from "@/lib/constants";
 import { logApiCall } from "@/lib/api-usage-logger";
+import { canMakeApiCall } from "./quota-budget";
 
 export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJob[]> {
   const key = process.env.SERPAPI_KEY;
   if (!key) return [];
+  // SerpAPI 250/mo → ~8/day. google-jobs makes 2 calls (MAX_QUERIES × MAX_CITIES).
+  if (!(await canMakeApiCall("serpapi", 2))) return [];
 
   const startTime = Date.now();
   const deadline = startTime + TIMEOUTS.SCRAPER_SLOW_DEADLINE_MS;
