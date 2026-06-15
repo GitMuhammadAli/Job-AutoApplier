@@ -32,10 +32,25 @@ export async function fetchGoogleJobs(queries: SearchQuery[]): Promise<ScrapedJo
 
         const res = await fetchWithRetry(url, undefined, 2, deadline);
         await logApiCall("serpapi");
-        if (!res.ok) continue;
+        if (!res.ok) {
+          // Was silently `continue`-ing on non-2xx — masquerades auth/quota
+          // failure as "0 results" in the dashboard. Surface the status.
+          const body = await res.text().catch(() => "<no body>");
+          console.error(
+            `[GoogleJobs] SerpAPI ${res.status} for "${q.keyword}" @ "${city}": ${body.slice(0, 200)}`,
+          );
+          continue;
+        }
 
         const data = await res.json();
         const results = data?.jobs_results || [];
+        if (results.length === 0) {
+          console.warn(
+            `[GoogleJobs] SerpAPI returned 0 results for "${q.keyword}" @ "${city}" (search_metadata: ${
+              data?.search_metadata?.status ?? "unknown"
+            }; error: ${data?.error ?? "none"})`,
+          );
+        }
 
         for (const r of results) {
           const applyLink = r.apply_options?.[0]?.link || null;

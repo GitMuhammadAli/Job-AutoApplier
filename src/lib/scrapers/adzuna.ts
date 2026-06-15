@@ -50,10 +50,21 @@ export async function fetchAdzuna(queries: SearchQuery[]): Promise<ScrapedJob[]>
 
       const res = await fetchWithRetry(url, undefined, 2, deadline);
       await logApiCall("adzuna");
-      if (!res.ok) continue;
+      if (!res.ok) {
+        const body = await res.text().catch(() => "<no body>");
+        console.error(
+          `[Adzuna] ${res.status} country=${country} keyword="${q.keyword}": ${body.slice(0, 200)}`,
+        );
+        continue;
+      }
 
       const data = await res.json();
       const results = data?.results || [];
+      if (results.length === 0) {
+        console.warn(
+          `[Adzuna] returned 0 results for "${q.keyword}" in country=${country} (total available: ${data?.count ?? "unknown"})`,
+        );
+      }
 
       for (const r of results) {
         const sourceId = `adzuna-${r.id}`;

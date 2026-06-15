@@ -31,7 +31,9 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
     if (Date.now() >= deadline) break;
     try {
       const query = encodeURIComponent(`${q.keyword} jobs Pakistan`);
-      const baseUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&chips=date_posted:week&api_key=${key}`;
+      // Was `chips=date_posted:week` — too narrow for niche keywords. Broadened
+      // to past month; recency still beats nothing returned at all.
+      const baseUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${query}&chips=date_posted:month&api_key=${key}`;
 
       // Single page only — second-page returns from SerpAPI for Pakistan
       // queries are usually <5 results and not worth the latency.
@@ -44,17 +46,39 @@ export async function fetchRozee(queries: SearchQuery[]): Promise<ScrapedJob[]> 
 
         const res = await fetchWithRetry(url, undefined, 2, deadline);
         await logApiCall("serpapi");
-        if (!res.ok) break;
+        if (!res.ok) {
+          // Was silently breaking on non-2xx — masquerades auth/quota failure
+          // as "0 results returned" in the dashboard. Surface the actual
+          // SerpAPI status so the operator can act on it.
+          const body = await res.text().catch(() => "<no body>");
+          console.error(
+            `[Rozee] SerpAPI ${res.status} for "${q.keyword}": ${body.slice(0, 200)}`,
+          );
+          break;
+        }
 
         const data = await res.json();
         const results = data?.jobs_results || [];
 
+        if (results.length === 0) {
+          console.warn(
+            `[Rozee] SerpAPI returned 0 results for "${q.keyword}" (search_metadata: ${
+              data?.search_metadata?.status ?? "unknown"
+            }; error: ${data?.error ?? "none"})`,
+          );
+        }
+
         for (const r of results) {
           const locLower = (r.location || "").toLowerCase();
-          const isPakistan = locLower.includes("pakistan") ||
-            PK_CITIES.some((c) => locLower.includes(c));
-
-          if (!isPakistan) continue;
+          // Query already says "Pakistan" — SerpAPI's location signal has done
+          // the work. Re-filtering by literal PK_CITIES match drops remote
+          // roles that target Pakistan but don't list a PK city. Soft-filter
+          // only: skip results that explicitly mention a foreign country.
+          const FOREIGN_HARD_HINTS = ["united states", " usa", " uk", "united kingdom", "canada", "australia", "germany"];
+          if (FOREIGN_HARD_HINTS.some((c) => locLower.includes(c))) continue;
+          // PK_CITIES retained for future strict-mode use; query bias already
+          // limits to Pakistan results in practice.
+          void PK_CITIES;
 
           const applyOptions: Array<{ link?: string; title?: string }> = r.apply_options || [];
           const rozeeLink = applyOptions.find(
