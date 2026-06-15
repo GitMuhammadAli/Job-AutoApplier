@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { STALE_DAYS } from "@/lib/constants";
+import { isPaidSourceDisabledByEnv } from "./source-rotation";
 import type { ScrapedJob, SearchQuery } from "@/types";
 
 export interface ScraperRunResult {
@@ -84,7 +85,12 @@ export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunRes
 
   // Operator denylist runs BEFORE the circuit breaker so a quota-burnt scraper
   // doesn't accumulate failures while disabled.
-  if (isSourceDisabled(source)) {
+  const explicitDisable = isSourceDisabled(source);
+  const paidGroupDisable = isPaidSourceDisabledByEnv(source);
+  if (explicitDisable || paidGroupDisable) {
+    const reason = explicitDisable
+      ? "Disabled via DISABLED_SCRAPERS env"
+      : "Disabled via SKIP_PAID_SOURCES=1 env";
     const run = await prisma.scraperRun.create({
       data: {
         source,
@@ -93,7 +99,7 @@ export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunRes
         completedAt: new Date(),
         durationMs: 0,
         jobsFound: 0,
-        errorMessage: "Disabled via DISABLED_SCRAPERS env",
+        errorMessage: reason,
       },
     }).catch(() => null);
     return {
@@ -102,7 +108,7 @@ export async function runScraper(opts: RunScraperOptions): Promise<ScraperRunRes
       status: "failed",
       durationMs: 0,
       runId: run?.id ?? "unknown",
-      errorMessage: "Disabled via DISABLED_SCRAPERS env",
+      errorMessage: reason,
     };
   }
 

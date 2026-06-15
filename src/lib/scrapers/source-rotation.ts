@@ -22,6 +22,12 @@ export function getTodaysSources(): string[] {
 
 /**
  * Get paid sources for daily scraping (conserve quotas).
+ *
+ * Adzuna is technically paid but their free tier (250 calls/day) is generous
+ * enough that we treat it as free-ish — no rotation needed. The paid sources
+ * with tight monthly caps are SerpAPI (rozee+google, 250/mo free) and
+ * RapidAPI JSearch (jsearch+indeed, 200/mo free) — those are what we want
+ * to ration. See docs/SCRAPER_QUOTAS.md for the full matrix.
  */
 export function getPaidSourcesToday(): string[] {
   const sources: string[] = [];
@@ -33,10 +39,31 @@ export function getPaidSourcesToday(): string[] {
     sources.push("rozee");
   }
 
+  if (process.env.RAPIDAPI_KEY) {
+    sources.push("jsearch");
+    sources.push("indeed");
+  }
+
   return sources;
 }
 
+/**
+ * Full quota tier classification, used by docs + the disable mechanism.
+ * Mutually exclusive with PAID_SOURCES below.
+ */
 const FREE_SOURCES = ["remotive", "arbeitnow", "linkedin", "linkedin_posts"];
+export const PAID_SOURCES = ["adzuna", "google", "rozee", "jsearch", "indeed"];
+
+/**
+ * SKIP_PAID_SOURCES=1 toggle — one-flip way to graceful-skip every paid
+ * source at once (vs. listing each in DISABLED_SCRAPERS). Useful when a
+ * shared upstream (SerpAPI, RapidAPI) is quota-out and you want every
+ * dependent source off in one move.
+ */
+export function isPaidSourceDisabledByEnv(source: string): boolean {
+  if (process.env.SKIP_PAID_SOURCES !== "1") return false;
+  return PAID_SOURCES.includes(source.toLowerCase());
+}
 
 /**
  * Get priority platforms from all users who have instantApply enabled.
